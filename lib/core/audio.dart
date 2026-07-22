@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show State, StatefulWidget;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:http/http.dart' as http;
@@ -448,6 +449,34 @@ class AyahAudio {
     }
     return true;
   }
+}
+
+/// Shared word-highlight tracking for screens that show live recitation
+/// progress (the Qur'an reader and the Muṣḥaf page view both do this the
+/// same way — they just differ in how playback itself starts/stops/repeats,
+/// which is why only this shared slice is pulled out rather than the whole
+/// playback state machine).
+mixin RecitationPositionMixin<T extends StatefulWidget> on State<T> {
+  /// True while a verse recitation (not a single-word tap) is active.
+  bool get isReciting;
+
+  /// The word index currently highlighted (-1 = none) — backed by whatever
+  /// field the screen already uses, so other code paths that set it directly
+  /// (e.g. word-by-word playback) stay in sync automatically.
+  int get recitedWord;
+  set recitedWord(int word);
+
+  void _onRecitePos() {
+    if (!mounted || !isReciting) return;
+    final w = AyahAudio.instance.wordAt(AyahAudio.instance.pos.value);
+    if (w != recitedWord) setState(() => recitedWord = w);
+  }
+
+  void initRecitationTracking() =>
+      AyahAudio.instance.pos.addListener(_onRecitePos);
+
+  void disposeRecitationTracking() =>
+      AyahAudio.instance.pos.removeListener(_onRecitePos);
 }
 
 class _VerseAudio {

@@ -11,8 +11,7 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  intl: any
-  google_fonts: ^8.1.0
+  intl: ^0.20.2
   flutter_svg: ^2.0.10
   shared_preferences: ^2.2.3
   audioplayers: ^6.1.0
@@ -60,3 +59,9 @@ flutter:
     - family: Bismillah
       fonts:
         - asset: assets/fonts/Bismillah.ttf
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/Amiri-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Amiri-Bold.ttf
+          weight: 700

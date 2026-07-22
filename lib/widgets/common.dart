@@ -608,7 +608,7 @@ class _ResultView extends StatelessWidget {
     final frac = score / total;
     final stars = frac >= 0.95 ? 3 : (frac >= 0.7 ? 2 : (frac >= 0.4 ? 1 : 0));
     final msg = stars == 3
-        ? 'مَا شَاءَ اللّٰه — flawless!'
+        ? context.l10n.perfectScore
         : stars >= 1
             ? context.l10n.wellDoneKeepGoing
             : context.l10n.reviewLessonTryAgain;

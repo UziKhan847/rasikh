@@ -63,8 +63,13 @@ class _ScriptData {
       this.pages, this.pageFirstGlobal);
 }
 
-/// The QUL/DigitalKhatt 15-line mushaf, in both Madani (Uthmani) and Indo-Pak
-/// scripts. Text is delimited by U+200C ZWNJ; the DigitalKhatt fonts render the
+/// The 15-line Madani and Indo-Pak mushaf: text, page/line layout, and the
+/// DigitalKhatt/SurahNames/Bismillah fonts are adapted, with attribution, from
+/// Waqar Ahmed's open-source Quran Revision Companion
+/// (github.com/Waqar144/quran_memorization_helper, MIT License — see
+/// LICENSES/quran_memorization_helper-MIT.txt at the repo root). Underlying
+/// parametric typesetting by the DigitalKhatt project (github.com/DigitalKhatt).
+/// Text is delimited by U+200C ZWNJ; the DigitalKhatt fonts render the
 /// presentation marks and ayah-end circles natively. Layout is a list of pages,
 /// each a list of lines; a line is either a surah header, a basmala, or text
 /// beginning at a given global ayah + word.

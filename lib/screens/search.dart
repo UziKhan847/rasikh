@@ -168,7 +168,7 @@ class GlobalSearch extends SearchDelegate<void> {
 
   Widget _kindBadge(BuildContext context, SearchHit h) {
     final label = switch (h.kind) {
-      SearchKind.letter => 'Letter',
+      SearchKind.letter => context.l10n.letterLabel,
       SearchKind.tajwid => context.l10n.tajwid,
       SearchKind.surah => context.l10n.surah,
     };

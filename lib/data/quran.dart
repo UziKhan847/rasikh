@@ -114,10 +114,19 @@ class QuranRepo {
     return list;
   }
 
+  static final Map<String, List<(int, int)>> _wordRangesCache = {};
+
   /// Char range (start,end) of each WORD inside the raw ayah string, using
   /// the same annotation-merge logic as [tokenize] — so tajwīd char spans
   /// can be sliced per word.
+  ///
+  /// Memoized: called once per word during tajwīd rendering (see
+  /// `_tajwidWordSpan` in quran_screen.dart), so an unmemoized scan would
+  /// redo this same O(ayah length) work for every word in the ayah, on every
+  /// rebuild triggered by word-highlight updates during playback.
   static List<(int, int)> wordRanges(String ayah) {
+    final cached = _wordRangesCache[ayah];
+    if (cached != null) return cached;
     final ranges = <(int, int)>[];
     var p = 0;
     final raw = <(int, int)>[];
@@ -142,6 +151,7 @@ class QuranRepo {
         }
       }
     }
+    _wordRangesCache[ayah] = ranges;
     return ranges;
   }
 

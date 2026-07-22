@@ -186,11 +186,20 @@ class SurahReaderScreen extends StatefulWidget with DesktopAware {
   State<SurahReaderScreen> createState() => _SurahReaderScreenState();
 }
 
-class _SurahReaderScreenState extends State<SurahReaderScreen> {
+class _SurahReaderScreenState extends State<SurahReaderScreen>
+    with RecitationPositionMixin<SurahReaderScreen> {
+  @override
+  bool get isReciting => recitingAyah;
+  @override
+  int get recitedWord => playingWord;
+  @override
+  set recitedWord(int word) => playingWord = word;
+
   List<String>? ayahs; // raw ayah strings (current script)
   List<List<String>>? words; // tokens per ayah
   List<TajwidAyah>? tajwid; // char spans for the loaded tajwid script
   String _tajwidScript = ''; // which script the spans were built for
+  bool _tajwidLoading = false; // guards the build()-triggered fetch below
   bool get wbwMode => SettingsScope.of(context).wordByWord;
   set wbwMode(bool v) => SettingsScope.of(context)
       .update(() => SettingsScope.of(context).wordByWord = v);
@@ -212,7 +221,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
   @override
   void initState() {
     super.initState();
-    AyahAudio.instance.pos.addListener(_onRecitePos);
+    initRecitationTracking();
     _doneSub = AyahAudio.instance.onComplete.listen((_) {
       if (!mounted || !recitingAyah) return;
       final s = SettingsScope.of(context);
@@ -312,15 +321,9 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
     _anchorScroll(anchor);
   }
 
-  void _onRecitePos() {
-    if (!mounted || !recitingAyah) return;
-    final w = AyahAudio.instance.wordAt(AyahAudio.instance.pos.value);
-    if (w != playingWord) setState(() => playingWord = w);
-  }
-
   @override
   void dispose() {
-    AyahAudio.instance.pos.removeListener(_onRecitePos);
+    disposeRecitationTracking();
     _doneSub?.cancel();
     _handle?.cancel();
     WbwAudio.instance.stop();
@@ -482,20 +485,27 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
     _ensureLoaded(s.quranScript);
     if (s.tajwidColors &&
         _tajwidScript != s.quranScript &&
-        words != null) {
+        words != null &&
+        !_tajwidLoading) {
+      _tajwidLoading = true;
       QuranRepo.tajwid(widget.meta.n, s.quranScript).then((t) {
         if (mounted) {
           setState(() {
             tajwid = t;
             _tajwidScript = s.quranScript;
+            _tajwidLoading = false;
           });
+        } else {
+          _tajwidLoading = false;
         }
       });
     }
     final m = widget.meta;
     if (widget.shell) return _shellBuild(context, m);
+    final playerBar = _playerBar(context);
+    final pinned = s.playerBarPinned;
     return Scaffold(
-      bottomNavigationBar: _playerBar(context),
+      bottomNavigationBar: (playerBar != null && pinned) ? playerBar : null,
       appBar: AppBar(
         title: Text('${m.n} · ${m.tname}'),
         actions: [
@@ -559,20 +569,32 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
           ),
         ],
       ),
-      body: words == null
-          ? Center(
-              child: CircularProgressIndicator(color: pal(context).accent))
-          : Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                    maxWidth: useDesktop(context) ? 760 : double.infinity),
-                child: Column(children: [
-              _controls(context, s),
-              Expanded(child: _readerList(context, s)),
-            ]),
+      body: _bodyWithFloatingPlayer(
+        words == null
+            ? Center(
+                child: CircularProgressIndicator(color: pal(context).accent))
+            : Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                      maxWidth: useDesktop(context) ? 760 : double.infinity),
+                  child: Column(children: [
+                _controls(context, s),
+                Expanded(child: _readerList(context, s)),
+              ]),
+                ),
               ),
-            ),
+        playerBar,
+        pinned,
+      ),
     );
+  }
+
+  /// Wraps [content] with the floating player as a full-area overlay when
+  /// it isn't pinned (pinned already sits in bottomNavigationBar/flow).
+  Widget _bodyWithFloatingPlayer(
+      Widget content, Widget? playerBar, bool pinned) {
+    if (playerBar == null || pinned) return content;
+    return Stack(children: [content, Positioned.fill(child: playerBar)]);
   }
 
   /// The scrolling list of āyāt (cards or mushaf flow), shared by the mobile
@@ -610,6 +632,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
       return Center(
           child: CircularProgressIndicator(color: pal(context).accent));
     }
+    final shellPlayerBar = _playerBar(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(34, 0, 34, 16),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -672,8 +695,15 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
             const SizedBox(height: 14),
             _controls(context, s),
             const SizedBox(height: 6),
-            Expanded(child: _readerList(context, s)),
-            if (recitingAyah && playingAyah >= 0) _playerBar(context)!,
+            Expanded(
+              child: Column(children: [
+                Expanded(
+                  child: _bodyWithFloatingPlayer(
+                      _readerList(context, s), shellPlayerBar, s.playerBarPinned),
+                ),
+                if (shellPlayerBar != null && s.playerBarPinned) shellPlayerBar,
+              ]),
+            ),
           ]),
         ),
         const SizedBox(width: 24),
@@ -1353,125 +1383,14 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
     );
   }
 
-  /// Compact playback bar shown while a verse recitation is active, themed to
-  /// the app palette. Sits as a slim bottom bar; does not fill the screen.
+  /// The floating/pinned "Now Playing" bar, or null while nothing is being
+  /// recited. See [_RecitationPlayerBar] for the pin/collapse/drag behavior.
   Widget? _playerBar(BuildContext context) {
     if (!recitingAyah || playingAyah < 0) return null;
-    final a = AyahAudio.instance;
-    final p = pal(context);
-    final reciter = SettingsScope.of(context).reciter;
-    final who = reciter == 'alafasy'
-        ? 'Al-\u02bfAf\u0101s\u012b'
-        : reciter == 'husary'
-            ? 'Al-\u1e24u\u1e63ar\u012b'
-            : context.l10n.alTunaiji;
-
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-        child: Container(
-          height: 60,
-          padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
-          decoration: BoxDecoration(
-            color: p.surface,
-            border: Border.all(color: p.surfaceHigh),
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                  color: p.shadow,
-                  blurRadius: 20,
-                  offset: const Offset(0, 8)),
-            ],
-          ),
-          child: Row(children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: p.accent.withValues(alpha: .14),
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: Icon(Icons.graphic_eq_rounded, color: p.accent, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(context.l10n.nowPlaying,
-                      style: uiStyle(context,
-                          size: 9.5,
-                          weight: FontWeight.w800,
-                          color: p.textDim)),
-                  Text(
-                      context.l10n.ayahByReciter(
-                          '${widget.meta.n}:${playingAyah + 1}', who),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: uiStyle(context,
-                          size: 13.5, weight: FontWeight.w800)),
-                ],
-              ),
-            ),
-            AnimatedBuilder(
-              animation: Listenable.merge([a.pos, a.dur]),
-              builder: (context, _) {
-                final total = a.dur.value.inMilliseconds;
-                final at =
-                    a.pos.value.inMilliseconds.clamp(0, total > 0 ? total : 0);
-                if (MediaQuery.of(context).size.width < 400) {
-                  return const SizedBox.shrink();
-                }
-                return SizedBox(
-                  width: 96,
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 3,
-                      activeTrackColor: p.accent,
-                      inactiveTrackColor: p.surfaceHigh,
-                      thumbColor: p.accent,
-                      thumbShape:
-                          const RoundSliderThumbShape(enabledThumbRadius: 6),
-                      overlayShape:
-                          const RoundSliderOverlayShape(overlayRadius: 12),
-                    ),
-                    child: Slider(
-                      value: total > 0 ? at / total : 0,
-                      onChanged: total > 0
-                          ? (v) => a.seek(
-                              Duration(milliseconds: (v * total).round()))
-                          : null,
-                    ),
-                  ),
-                );
-              },
-            ),
-            ValueListenableBuilder<bool>(
-              valueListenable: a.playing,
-              builder: (context, isPlaying, _) => IconButton(
-                onPressed: () => isPlaying ? a.pause() : a.resume(),
-                icon: Icon(
-                    isPlaying
-                        ? Icons.pause_circle_filled_rounded
-                        : Icons.play_circle_fill_rounded,
-                    color: p.accent,
-                    size: 34),
-              ),
-            ),
-            IconButton(
-              tooltip: context.l10n.stop,
-              onPressed: _stopAll,
-              padding: EdgeInsets.zero,
-              constraints:
-                  const BoxConstraints(minWidth: 38, minHeight: 38),
-              icon: Icon(Icons.close_rounded, color: p.textDim, size: 22),
-            ),
-          ]),
-        ),
-      ),
+    return _RecitationPlayerBar(
+      surah: widget.meta.n,
+      playingAyah: playingAyah,
+      onStop: _stopAll,
     );
   }
 
@@ -1596,4 +1515,267 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
           ),
         ]),
       );
+}
+
+/// "Now Playing" indicator shown during verse recitation.
+///
+/// Pinned (the default, [AppSettings.playerBarPinned]) renders exactly like
+/// the original fixed bottom bar, placed by the caller in
+/// `Scaffold.bottomNavigationBar` / normal column flow. Unpinned, the caller
+/// instead overlays this widget with `Positioned.fill` over the reader area;
+/// it then floats free — draggable anywhere within that area, and
+/// retractable into a small pill via the collapse button.
+///
+/// Collapsed/expanded state and the drag position are session-only: this
+/// widget (and its State) is only mounted while a verse is playing, so both
+/// reset the next time recitation starts. Only the pin preference itself is
+/// persisted, in [AppSettings.playerBarPinned].
+class _RecitationPlayerBar extends StatefulWidget {
+  final int surah;
+  final int playingAyah;
+  final VoidCallback onStop;
+  const _RecitationPlayerBar({
+    required this.surah,
+    required this.playingAyah,
+    required this.onStop,
+  });
+
+  @override
+  State<_RecitationPlayerBar> createState() => _RecitationPlayerBarState();
+}
+
+class _RecitationPlayerBarState extends State<_RecitationPlayerBar> {
+  bool _collapsed = false;
+
+  // A drag updates this notifier directly instead of calling setState — that
+  // keeps every pointer-move repaint-only (Transform.translate, no Stack/
+  // Positioned relayout) so the bar tracks the mouse 1:1 even while the
+  // reader screen above is separately rebuilding on every word-highlight
+  // tick during active recitation.
+  final ValueNotifier<Offset?> _pos = ValueNotifier(null);
+
+  static const _expandedSize = Size(340, 60);
+  static const _collapsedSize = Size(52, 52);
+
+  double _boundAxis(double v, double hi) => v.clamp(0.0, hi < 0 ? 0.0 : hi);
+
+  Offset _clampToArea(Offset o, Size area, Size me) => Offset(
+        _boundAxis(o.dx, area.width - me.width),
+        _boundAxis(o.dy, area.height - me.height),
+      );
+
+  @override
+  void dispose() {
+    _pos.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pinned = SettingsScope.of(context).playerBarPinned;
+    if (pinned) return _bar(context, pinned: true);
+    final bar = _bar(context, pinned: false);
+    // SafeArea here (not just in the pinned bar) keeps the floating card's
+    // default position AND its drag bounds clear of the system status/nav
+    // bars — Positioned.fill above this gives the raw screen rect, which
+    // includes the area the system bars sit over.
+    return SafeArea(
+      child: LayoutBuilder(builder: (context, c) {
+        final area = Size(c.maxWidth, c.maxHeight);
+        final me = _collapsed ? _collapsedSize : _expandedSize;
+        return ValueListenableBuilder<Offset?>(
+          valueListenable: _pos,
+          builder: (context, pos, child) {
+            final at = _clampToArea(
+                pos ??
+                    Offset(
+                        area.width - me.width - 14, area.height - me.height - 14),
+                area,
+                me);
+            return Transform.translate(
+              offset: at,
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: GestureDetector(
+                  // Read _pos.value fresh (not the `at` captured above) so
+                  // that if the gesture recognizer delivers more than one
+                  // onPanUpdate before the next rebuild, each delta still
+                  // accumulates onto the latest position instead of being
+                  // computed from the same stale start point — otherwise
+                  // dragging tracks noticeably slower than the finger/mouse.
+                  onPanUpdate: (d) =>
+                      _pos.value = _clampToArea((_pos.value ?? at) + d.delta, area, me),
+                  child: child,
+                ),
+              ),
+            );
+          },
+          child: bar,
+        );
+      }),
+    );
+  }
+
+  Widget _bar(BuildContext context, {required bool pinned}) {
+    final p = pal(context);
+    final a = AyahAudio.instance;
+    final s = SettingsScope.of(context);
+    final who = s.reciter == 'alafasy'
+        ? 'Al-ʿAfāsī'
+        : s.reciter == 'husary'
+            ? 'Al-Ḥuṣarī'
+            : context.l10n.alTunaiji;
+
+    if (_collapsed) {
+      return Material(
+        color: p.surface,
+        shape: const CircleBorder(),
+        elevation: 6,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => setState(() => _collapsed = false),
+          child: Container(
+            width: _collapsedSize.width,
+            height: _collapsedSize.height,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: p.surfaceHigh),
+            ),
+            child: ValueListenableBuilder<bool>(
+              valueListenable: a.playing,
+              builder: (context, isPlaying, _) => Icon(
+                  isPlaying
+                      ? Icons.pause_circle_filled_rounded
+                      : Icons.play_circle_fill_rounded,
+                  color: p.accent,
+                  size: 30),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final bar = Container(
+      width: pinned ? null : _expandedSize.width,
+      height: 60,
+      padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+      decoration: BoxDecoration(
+        color: p.surface,
+        border: Border.all(color: p.surfaceHigh),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(color: p.shadow, blurRadius: 20, offset: const Offset(0, 8)),
+        ],
+      ),
+      child: Row(children: [
+        Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: p.accent.withValues(alpha: .14),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Icon(Icons.graphic_eq_rounded, color: p.accent, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(context.l10n.nowPlaying,
+                  style: uiStyle(context,
+                      size: 9.5, weight: FontWeight.w800, color: p.textDim)),
+              Text(
+                  context.l10n.ayahByReciter(
+                      '${widget.surah}:${widget.playingAyah + 1}', who),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: uiStyle(context, size: 13.5, weight: FontWeight.w800)),
+            ],
+          ),
+        ),
+        if (pinned)
+          AnimatedBuilder(
+            animation: Listenable.merge([a.pos, a.dur]),
+            builder: (context, _) {
+              final total = a.dur.value.inMilliseconds;
+              final at =
+                  a.pos.value.inMilliseconds.clamp(0, total > 0 ? total : 0);
+              if (MediaQuery.of(context).size.width < 400) {
+                return const SizedBox.shrink();
+              }
+              return SizedBox(
+                width: 96,
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 3,
+                    activeTrackColor: p.accent,
+                    inactiveTrackColor: p.surfaceHigh,
+                    thumbColor: p.accent,
+                    thumbShape:
+                        const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    overlayShape:
+                        const RoundSliderOverlayShape(overlayRadius: 12),
+                  ),
+                  child: Slider(
+                    value: total > 0 ? at / total : 0,
+                    onChanged: total > 0
+                        ? (v) =>
+                            a.seek(Duration(milliseconds: (v * total).round()))
+                        : null,
+                  ),
+                ),
+              );
+            },
+          ),
+        ValueListenableBuilder<bool>(
+          valueListenable: a.playing,
+          builder: (context, isPlaying, _) => IconButton(
+            onPressed: () => isPlaying ? a.pause() : a.resume(),
+            icon: Icon(
+                isPlaying
+                    ? Icons.pause_circle_filled_rounded
+                    : Icons.play_circle_fill_rounded,
+                color: p.accent,
+                size: 34),
+          ),
+        ),
+        IconButton(
+          tooltip: pinned ? context.l10n.unpinPlayer : context.l10n.pinPlayer,
+          onPressed: () => s.update(() => s.playerBarPinned = !pinned),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+          icon: Icon(pinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+              color: p.textDim, size: 18),
+        ),
+        if (!pinned)
+          IconButton(
+            tooltip: context.l10n.collapsePlayer,
+            onPressed: () => setState(() => _collapsed = true),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+            icon: Icon(Icons.unfold_less_rounded, color: p.textDim, size: 18),
+          ),
+        IconButton(
+          tooltip: context.l10n.stop,
+          onPressed: widget.onStop,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+          icon: Icon(Icons.close_rounded, color: p.textDim, size: 22),
+        ),
+      ]),
+    );
+
+    if (!pinned) return bar;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        child: bar,
+      ),
+    );
+  }
 }

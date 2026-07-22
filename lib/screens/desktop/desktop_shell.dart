@@ -23,6 +23,11 @@ class _DesktopShellState extends State<DesktopShell> {
   DeskTab tab = DeskTab.home;
   bool collapsed = false;
 
+  // Tabs the user has actually opened this session — only these get a real
+  // Navigator built. Kept alive (rather than rebuilt) via IndexedStack below,
+  // so a route pushed inside a tab survives switching away and back.
+  final Set<DeskTab> _visited = {DeskTab.home};
+
   static const _learn = [
     DeskTab.home,
     DeskTab.reader,
@@ -34,7 +39,10 @@ class _DesktopShellState extends State<DesktopShell> {
     DeskTab.qiraat,
   ];
 
-  void go(DeskTab t) => setState(() => tab = t);
+  void go(DeskTab t) => setState(() {
+        tab = t;
+        _visited.add(t);
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -62,15 +70,29 @@ class _DesktopShellState extends State<DesktopShell> {
     // A nested Navigator per tab: anything pushed from inside (letter details,
     // quizzes, drills, counts trainer) opens WITHIN the content pane — the
     // sidebar and top bar stay visible, instead of a full-screen mobile page.
-    return Navigator(
-      key: ValueKey('nav-$tab'),
-      onGenerateRoute: (_) =>
-          MaterialPageRoute(builder: (_) => _tabRoot()),
+    //
+    // Every tab's Navigator is built once (on first visit) and kept alive in
+    // an IndexedStack rather than rebuilt from scratch on each switch — that
+    // way a route pushed inside a tab (e.g. a surah opened from the Reader)
+    // is still there when the user switches away and back to it.
+    return IndexedStack(
+      index: DeskTab.values.indexOf(tab),
+      children: [
+        for (final t in DeskTab.values)
+          if (_visited.contains(t)) _tabNavigator(t) else const SizedBox.shrink(),
+      ],
     );
   }
 
-  Widget _tabRoot() {
-    switch (tab) {
+  Widget _tabNavigator(DeskTab t) {
+    return Navigator(
+      key: ValueKey('nav-$t'),
+      onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => _tabRoot(t)),
+    );
+  }
+
+  Widget _tabRoot(DeskTab t) {
+    switch (t) {
       case DeskTab.home:
         return DesktopHome(onGo: go);
       case DeskTab.reader:
@@ -258,7 +280,10 @@ class _Sidebar extends StatelessWidget {
                       decoration: BoxDecoration(
                           color: meta.softOf(context),
                           borderRadius: BorderRadius.circular(7)),
-                      child: Text(meta.soon ? 'SOON' : 'ADV',
+                      child: Text(
+                          meta.soon
+                              ? context.l10n.badgeSoon
+                              : context.l10n.badgeAdvanced,
                           style: TextStyle(
                               fontSize: 9.5,
                               fontWeight: FontWeight.w800,

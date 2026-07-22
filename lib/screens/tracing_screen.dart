@@ -1353,7 +1353,7 @@ class _ResultOverlay extends StatelessWidget {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Text(
             result.stars >= 3
-                ? 'أَحْسَنْت — beautiful!'
+                ? context.l10n.perfectTrace
                 : result.stars == 2
                     ? context.l10n.veryClose
                     : result.stars == 1
@@ -1376,7 +1376,7 @@ class _ResultOverlay extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    'S${i + 1} ${result.strokePass[i] ? (result.strokeReversed[i] ? '↺ direction' : '✓') : '✗'}',
+                    'S${i + 1} ${result.strokePass[i] ? (result.strokeReversed[i] ? '↺ ${context.l10n.strokeDirectionLabel}' : '✓') : '✗'}',
                     style: uiStyle(context,
                         size: 11.5,
                         color: result.strokePass[i]
@@ -1396,7 +1396,8 @@ class _ResultOverlay extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    'dots ${result.dotsMatched}/${result.dotsExpected}',
+                    context.l10n
+                        .dotsCountLabel(result.dotsMatched, result.dotsExpected),
                     style: uiStyle(context,
                         size: 11.5,
                         color: result.dotsMatched >= result.dotsExpected

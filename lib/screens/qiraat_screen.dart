@@ -193,7 +193,8 @@ class _DiffCard extends StatelessWidget {
             const SizedBox(height: 12),
             _variantRow(context, 'Ḥafṣ', d.hafs, pal(context).accent),
             const SizedBox(height: 8),
-            _variantRow(context, 'Variant', d.variant, AppColors.lilac),
+            _variantRow(
+                context, context.l10n.variantLabel, d.variant, AppColors.lilac),
             const SizedBox(height: 10),
             Text(context.l10n.readByName(d.readBy),
                 style: uiStyle(context, size: 12.5,

@@ -22,7 +22,7 @@
   "reciter": "Récitant",
   "questionOf": "Question {a} sur {b}",
   "mistakeReview": "Révision des erreurs",
-  "missedPrompt": "Vous l’aviez manqué — qu’est-ce que c’est ?",
+  "missedPrompt": "Vous l’aviez manquÃ© â qu’est-ce que c’est ?",
   "yourData": "Vos données",
   "sourcesLicences": "Sources et licences",
   "display": "Affichage",
@@ -517,5 +517,41 @@
   "sample": "Exemple",
   "drills": "Exercices",
   "theTenReaders": "Les dix lecteurs",
-  "hearTheDifference": "Écoutez la différence"
+  "hearTheDifference": "Écoutez la différence",
+  "creditWaqarTitle": "Waqar Ahmed — Quran Revision Companion",
+  "creditWaqarBody": "Le muṣḥaf de 15 lignes, Madani et Indo-pakistanais — son texte Uthmani/Indo-pakistanais, les données de mise en page des pages et des lignes, ainsi que les polices DigitalKhatt, SurahNames et Bismillah — est adapté de l’application open source de Waqar Ahmed, Quran Revision Companion (github.com/Waqar144/quran_memorization_helper), sous licence MIT. Cette application n’aurait pas de véritable muṣḥaf de 15 lignes sans son travail ; qu’Allah l’en récompense.",
+  "creditDigitalKhattTitle": "DigitalKhatt",
+  "creditDigitalKhattBody": "Le projet DigitalKhatt (github.com/DigitalKhatt, parrainé par Tarteel AI) a conçu la composition arabe paramétrique derrière les polices du muṣḥaf de 15 lignes — une justification dynamique des glyphes qui préserve l’authenticité de chaque ligne et saut de page imprimés.",
+  "srcMushaf15Label": "Muṣḥaf de 15 lignes (texte, mise en page et polices)",
+  "srcMushaf15Body": "Adapté, avec attribution, de Quran Revision Companion de Waqar Ahmed (github.com/Waqar144/quran_memorization_helper), licence MIT. Composition sous-jacente par le projet DigitalKhatt (github.com/DigitalKhatt).",
+  "layoutAuto": "Auto",
+  "layoutMobile": "Mobile",
+  "layoutDesktop": "Bureau",
+  "themeLight": "Clair",
+  "themeDark": "Sombre",
+  "themeOled": "OLED",
+  "weekdayInitials": "L,M,M,J,V,S,D",
+  "perfectScore": "Mā shāʾ Allāh — parfait !",
+  "perfectTrace": "Aḥsant — magnifique !",
+  "strokeDirectionLabel": "sens",
+  "dotsCountLabel": "points {a}/{b}",
+  "@dotsCountLabel": {
+    "placeholders": {
+      "a": {
+        "type": "int"
+      },
+      "b": {
+        "type": "int"
+      }
+    }
+  },
+  "rememberQutbuJadd": "Rappel : قُطْبُ جَدٍّ.",
+  "variantLabel": "Variante",
+  "letterLabel": "Lettre",
+  "badgeSoon": "BIENTÔT",
+  "badgeAdvanced": "AVANCÉ",
+  "coachIntroBlurb": "Les lettres qui se ressemblent sont la partie la plus difficile de l'arabe pour beaucoup de lecteurs — ب ت ث ne diffèrent que par leurs points. Ce coach s'entraîne exactement sur cela, à votre rythme, avec un réglage de lecture pensé pour vous.",
+  "pinPlayer": "Épingler",
+  "unpinPlayer": "Détacher",
+  "collapsePlayer": "Réduire"
 }

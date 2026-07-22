@@ -26,7 +26,15 @@ class MushafPageScreen extends StatefulWidget with DesktopAware {
   State<MushafPageScreen> createState() => _MushafPageScreenState();
 }
 
-class _MushafPageScreenState extends State<MushafPageScreen> {
+class _MushafPageScreenState extends State<MushafPageScreen>
+    with RecitationPositionMixin<MushafPageScreen> {
+  @override
+  bool get isReciting => _reciting;
+  @override
+  int get recitedWord => _playWord;
+  @override
+  set recitedWord(int word) => _playWord = word;
+
   PageController? _ctrl;
   String _script = 'uthmani';
   int _page = 1;
@@ -53,7 +61,7 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
   @override
   void initState() {
     super.initState();
-    AyahAudio.instance.pos.addListener(_onRecitePos);
+    initRecitationTracking();
     _doneSub = AyahAudio.instance.onComplete.listen(_onVerseDone);
   }
 
@@ -85,7 +93,7 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
 
   @override
   void dispose() {
-    AyahAudio.instance.pos.removeListener(_onRecitePos);
+    disposeRecitationTracking();
     _doneSub?.cancel();
     WbwAudio.instance.stop();
     AyahAudio.instance.stop();
@@ -143,12 +151,6 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
   }
 
   // ── audio ──────────────────────────────────────────────────────────────
-  void _onRecitePos() {
-    if (!mounted || !_reciting) return;
-    final w = AyahAudio.instance.wordAt(AyahAudio.instance.pos.value);
-    if (w != _playWord) setState(() => _playWord = w);
-  }
-
   void _onVerseDone(void _) {
     if (!mounted || !_reciting) return;
     final flow = SettingsScope.of(context).reciteFlow;
@@ -370,9 +372,14 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
             ),
           PopupMenuButton<String>(
             tooltip: context.l10n.view,
-            icon: Icon(s.immersive
-                ? Icons.fullscreen_exit_rounded
-                : Icons.fullscreen_rounded),
+            // Hiding system status/nav bars is a phone/tablet concept —
+            // desktop windows have none to hide, so that option (and the
+            // fullscreen icon representing it) only make sense there.
+            icon: Icon(isDesktopPlatform()
+                ? Icons.visibility_rounded
+                : (s.immersive
+                    ? Icons.fullscreen_exit_rounded
+                    : Icons.fullscreen_rounded)),
             onSelected: (v) {
               if (v == 'i') {
                 s.update(() => s.immersive = !s.immersive);
@@ -381,10 +388,11 @@ class _MushafPageScreenState extends State<MushafPageScreen> {
               }
             },
             itemBuilder: (_) => [
-              CheckedPopupMenuItem(
-                  value: 'i',
-                  checked: s.immersive,
-                  child:  Text(context.l10n.immersiveHideSystemBars)),
+              if (!isDesktopPlatform())
+                CheckedPopupMenuItem(
+                    value: 'i',
+                    checked: s.immersive,
+                    child:  Text(context.l10n.immersiveHideSystemBars)),
               CheckedPopupMenuItem(
                   value: 'h',
                   checked: s.mushafHeader,
@@ -733,6 +741,13 @@ class _MushafPageView extends StatelessWidget {
     );
   }
 
+  // Font-scale for a page depends only on (script, page, viewport, layout
+  // mode) — never on playback state (playWord/playAyah/reciting). Without
+  // this cache, every word-highlight update during recitation (a setState
+  // from _onRecitePos) would re-run the widest-line TextPainter pass below
+  // for every line on the page, purely to recompute the same number.
+  static final Map<String, (double, double, double)> _scaleCache = {};
+
   Widget _grid(
       BuildContext context, List<MushafLine> lines, double vw, double vh) {
     final ink = SettingsScope.of(context).paperMode
@@ -747,36 +762,45 @@ class _MushafPageView extends StatelessWidget {
     final fitWidth = wideLayout;
     final targetW = vw;
 
-    const ref = 44.0;
-    final refStyle = TextStyle(fontFamily: fam, fontSize: ref, height: 1.0);
-    double widest = 1;
-    for (final l in lines) {
-      if (!l.isText) continue;
-      final tp = TextPainter(
-          text: TextSpan(
-              text: l.words.map((e) => e.text).join(' '), style: refStyle),
-          textDirection: TextDirection.rtl,
-          maxLines: 1)
-        ..layout();
-      if (tp.width > widest) widest = tp.width;
-      tp.dispose();
-    }
-    final byWidth = ref * (targetW / widest);
-
+    final cacheKey =
+        '$script/$page/${targetW.toStringAsFixed(1)}/${vh.toStringAsFixed(1)}/$fitWidth';
     final double fs;
     final double slotH;
-    if (fitWidth) {
-      fs = byWidth.clamp(11.0, 96.0);
-      slotH = fs / 0.62;
+    final double contentH;
+    final cached = _scaleCache[cacheKey];
+    if (cached != null) {
+      (fs, slotH, contentH) = cached;
     } else {
-      slotH = vh / n;
-      final byHeight = slotH * 0.62;
-      fs = (byWidth < byHeight ? byWidth : byHeight).clamp(11.0, 46.0);
+      const ref = 44.0;
+      final refStyle = TextStyle(fontFamily: fam, fontSize: ref, height: 1.0);
+      double widest = 1;
+      for (final l in lines) {
+        if (!l.isText) continue;
+        final tp = TextPainter(
+            text: TextSpan(
+                text: l.words.map((e) => e.text).join(' '), style: refStyle),
+            textDirection: TextDirection.rtl,
+            maxLines: 1)
+          ..layout();
+        if (tp.width > widest) widest = tp.width;
+        tp.dispose();
+      }
+      final byWidth = ref * (targetW / widest);
+
+      if (fitWidth) {
+        fs = byWidth.clamp(11.0, 96.0);
+        slotH = fs / 0.62;
+      } else {
+        slotH = vh / n;
+        final byHeight = slotH * 0.62;
+        fs = (byWidth < byHeight ? byWidth : byHeight).clamp(11.0, 46.0);
+      }
+      contentH = fitWidth ? slotH * n : vh;
+      _scaleCache[cacheKey] = (fs, slotH, contentH);
     }
     final base = TextStyle(fontFamily: fam, fontSize: fs, color: ink);
-    final contentH = fitWidth ? slotH * n : vh;
 
-    final page = SizedBox(
+    final pageBody = SizedBox(
       height: contentH,
       width: targetW,
       child: Column(
@@ -788,7 +812,7 @@ class _MushafPageView extends StatelessWidget {
         ],
       ),
     );
-    if (!fitWidth) return page;
+    if (!fitWidth) return pageBody;
 
     // Flutter desktop only drags scrollables with touch by default — extend
     // that to mouse and trackpad so the tall page can be panned with a
@@ -800,7 +824,7 @@ class _MushafPageView extends StatelessWidget {
         PointerDeviceKind.stylus,
         PointerDeviceKind.trackpad,
       }),
-      child: SingleChildScrollView(child: page),
+      child: SingleChildScrollView(child: pageBody),
     );
   }
 

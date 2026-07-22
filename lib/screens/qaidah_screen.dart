@@ -2,12 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:qiraah_arabiyyah/data/glyph_names.dart';
 
 import '../core/l10n.dart';
 import '../core/responsive.dart';
 import '../core/settings.dart';
 import '../core/theme.dart';
+import '../data/glyph_names.dart';
 import '../data/letters.dart';
 import '../data/tashkeel.dart';
 import '../widgets/common.dart';
@@ -116,7 +116,7 @@ List<QaidahUnit> qaidahUnits(BuildContext context) => [
           (c) => _syllableQuiz(c, context.l10n.tanwinDrill, 'qaidah.tanwin', tanwin)),
       QaidahUnit(context.l10n.sukunJazm, context.l10n.unitSukunSub,
           'بْ', 'qaidah.sukun', (c) => _sukunQuiz(c)),
-      QaidahUnit('Shaddah', context.l10n.unitShaddahSub, 'بّ',
+      QaidahUnit(context.l10n.shaddah, context.l10n.unitShaddahSub, 'بّ',
           'qaidah.shadda', (c) => _shaddaQuiz(c)),
       QaidahUnit(context.l10n.unitMaddLin, context.l10n.unitMaddLinSub,
           'بَا', 'qaidah.madd',
@@ -1103,7 +1103,7 @@ QuizScreen _sukunQuiz(BuildContext context) {
         prompt: context.l10n.qpWhichBounce,
         options: ['ق ط ب ج د', 'ا و ي', 'ء ه ع ح', 'ل ر ن م'],
         correct: 0,
-        explain: 'Remember: قُطْبُ جَدٍّ.'),
+        explain: context.l10n.rememberQutbuJadd),
      QuizQuestion(
         prompt: context.l10n.qpReadItBounce,
         arabic: 'لَمْ يَلِدْ',

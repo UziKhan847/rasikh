@@ -1026,5 +1026,41 @@
   "sample": "Sample",
   "drills": "Drills",
   "theTenReaders": "The Ten Readers",
-  "hearTheDifference": "Hear the Difference"
+  "hearTheDifference": "Hear the Difference",
+  "creditWaqarTitle": "Waqar Ahmed — Quran Revision Companion",
+  "creditWaqarBody": "The 15-line Madani and Indo-Pak muṣḥaf — its Uthmani/Indo-Pak text, page and line layout data, and the DigitalKhatt, SurahNames, and Bismillah fonts — is adapted from Waqar Ahmed’s open-source Quran Revision Companion (github.com/Waqar144/quran_memorization_helper), MIT License. This app would not have a true 15-line muṣḥaf without his work; jazāhu Allāhu khayrā.",
+  "creditDigitalKhattTitle": "DigitalKhatt",
+  "creditDigitalKhattBody": "The DigitalKhatt project (github.com/DigitalKhatt, sponsored by Tarteel AI) built the parametric Arabic typesetting behind the 15-line muṣḥaf’s fonts — dynamic glyph justification that keeps every printed line and page break authentic.",
+  "srcMushaf15Label": "15-line muṣḥaf (text, layout & fonts)",
+  "srcMushaf15Body": "Adapted, with attribution, from Waqar Ahmed’s Quran Revision Companion (github.com/Waqar144/quran_memorization_helper), MIT License. Underlying typesetting by the DigitalKhatt project (github.com/DigitalKhatt).",
+  "layoutAuto": "Auto",
+  "layoutMobile": "Mobile",
+  "layoutDesktop": "Desktop",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "themeOled": "OLED",
+  "weekdayInitials": "M,T,W,T,F,S,S",
+  "perfectScore": "مَا شَاءَ اللّٰه — flawless!",
+  "perfectTrace": "أَحْسَنْت — beautiful!",
+  "strokeDirectionLabel": "direction",
+  "dotsCountLabel": "dots {a}/{b}",
+  "@dotsCountLabel": {
+    "placeholders": {
+      "a": {
+        "type": "int"
+      },
+      "b": {
+        "type": "int"
+      }
+    }
+  },
+  "rememberQutbuJadd": "Remember: قُطْبُ جَدٍّ.",
+  "variantLabel": "Variant",
+  "letterLabel": "Letter",
+  "badgeSoon": "SOON",
+  "badgeAdvanced": "ADV",
+  "coachIntroBlurb": "Letters that look alike are the hardest part of Arabic for many readers — ب ت ث differ only by dots. This coach trains exactly that, at your pace, with a reading setup tuned for you.",
+  "pinPlayer": "Pin",
+  "unpinPlayer": "Unpin",
+  "collapsePlayer": "Collapse"
 }

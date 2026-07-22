@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/l10n.dart';
+import '../core/responsive.dart';
 import '../core/settings.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
@@ -95,6 +96,20 @@ class AboutScreen extends StatelessWidget {
             Icons.text_fields_rounded,
             AppColors.star,
           ),
+          _creditCard(
+            context,
+            context.l10n.creditWaqarTitle,
+            context.l10n.creditWaqarBody,
+            Icons.auto_stories_rounded,
+            AppColors.tjMadd4,
+          ),
+          _creditCard(
+            context,
+            context.l10n.creditDigitalKhattTitle,
+            context.l10n.creditDigitalKhattBody,
+            Icons.brush_rounded,
+            AppColors.tjQalqalah,
+          ),
           const SizedBox(height: 12),
           Center(
             child: Text(
@@ -111,11 +126,22 @@ class AboutScreen extends StatelessWidget {
 
   Widget _layoutCard(BuildContext context) {
     final s = SettingsScope.of(context);
-    const opts = [
-      ('auto', 'Auto', Icons.devices_rounded),
-      ('off', 'Mobile', Icons.smartphone_rounded),
-      ('on', 'Desktop', Icons.desktop_windows_rounded),
+    final opts = [
+      ('auto', context.l10n.layoutAuto, Icons.devices_rounded),
+      ('off', context.l10n.layoutMobile, Icons.smartphone_rounded),
+      // The desktop shell needs real screen space to make sense — a phone
+      // can't meaningfully offer it, tablets and up can.
+      if (canUseDesktopShell(context))
+        ('on', context.l10n.layoutDesktop, Icons.desktop_windows_rounded),
     ];
+    // If a synced setting somehow left 'on' selected on a device that can no
+    // longer offer it (e.g. this build's phone-vs-tablet rule changed since
+    // it was set), fall back to auto rather than show a selection with no
+    // matching option in the list above.
+    if (s.desktopMode == 'on' && !canUseDesktopShell(context)) {
+      WidgetsBinding.instance.addPostFrameCallback(
+          (_) => s.update(() => s.desktopMode = 'auto'));
+    }
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -304,6 +330,8 @@ class AboutScreen extends StatelessWidget {
             context.l10n.srcTextBody),
         line('Fonts',
             context.l10n.srcFontsBody),
+        line(context.l10n.srcMushaf15Label,
+            context.l10n.srcMushaf15Body),
         line('Recitation',
             context.l10n.srcRecitationBody),
         line(context.l10n.wordByWordLabel,

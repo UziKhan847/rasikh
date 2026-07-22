@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/responsive.dart';
 import '../core/settings.dart';
 import '../core/theme.dart';
 import '../core/l10n.dart';
@@ -131,10 +132,10 @@ class HomeScreen extends StatelessWidget {
                           const SizedBox(width: 5),
                           Text(
                               s.themeMode == 'oled'
-                                  ? 'OLED'
+                                  ? context.l10n.themeOled
                                   : s.themeMode == 'dark'
-                                      ? 'Dark'
-                                      : 'Light',
+                                      ? context.l10n.themeDark
+                                      : context.l10n.themeLight,
                               style: uiStyle(context,
                                   size: 12,
                                   weight: FontWeight.w700,
@@ -143,25 +144,30 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    TapScale(
-                      onTap: () => s.update(() => s.immersive = !s.immersive),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white
-                              .withValues(alpha: s.immersive ? .38 : .22),
-                          borderRadius: BorderRadius.circular(14),
+                    // Hiding system status/nav bars is a phone/tablet
+                    // concept — desktop windows have none to hide, so the
+                    // toggle is meaningless there (see _SystemUiSync).
+                    if (!isDesktopPlatform()) ...[
+                      const SizedBox(height: 6),
+                      TapScale(
+                        onTap: () => s.update(() => s.immersive = !s.immersive),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white
+                                .withValues(alpha: s.immersive ? .38 : .22),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(
+                              s.immersive
+                                  ? Icons.fullscreen_exit_rounded
+                                  : Icons.fullscreen_rounded,
+                              size: 16,
+                              color: Colors.white),
                         ),
-                        child: Icon(
-                            s.immersive
-                                ? Icons.fullscreen_exit_rounded
-                                : Icons.fullscreen_rounded,
-                            size: 16,
-                            color: Colors.white),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 6),
                     TapScale(
                       onTap: () => Navigator.push(context,
@@ -274,7 +280,7 @@ class HomeScreen extends StatelessWidget {
                                   : null,
                             ),
                             const SizedBox(height: 6),
-                            Text(const ['M', 'T', 'W', 'T', 'F', 'S', 'S'][i],
+                            Text(context.l10n.weekdayInitials.split(',')[i],
                                 style: uiStyle(context,
                                     size: 10.5,
                                     weight: FontWeight.w700,

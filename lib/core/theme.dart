@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'settings.dart';
 
@@ -129,8 +128,8 @@ ThemeData buildTheme(AppSettings s) {
       onError: Colors.white,
     ),
   );
-  final text = GoogleFonts.outfitTextTheme(base.textTheme)
-      .apply(bodyColor: p.text, displayColor: p.text);
+  final text = _withArabicFallback(base.textTheme
+      .apply(fontFamily: 'Amiri', bodyColor: p.text, displayColor: p.text));
   return base.copyWith(
     textTheme: text,
     appBarTheme: AppBarTheme(
@@ -138,8 +137,12 @@ ThemeData buildTheme(AppSettings s) {
       foregroundColor: p.text,
       elevation: 0,
       centerTitle: false,
-      titleTextStyle: GoogleFonts.outfit(
-          fontSize: 20, fontWeight: FontWeight.w700, color: p.text),
+      titleTextStyle: TextStyle(
+          fontFamily: 'Amiri',
+          fontFamilyFallback: const ['ScheherazadeNew'],
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: p.text),
     ),
     sliderTheme: SliderThemeData(
       activeTrackColor: p.accent,
@@ -169,10 +172,41 @@ ThemeData buildTheme(AppSettings s) {
       backgroundColor: p.brightness == Brightness.light
           ? AppColors.navy
           : p.surfaceHigh,
-      contentTextStyle: GoogleFonts.outfit(color: Colors.white),
+      contentTextStyle: const TextStyle(
+          fontFamily: 'Amiri',
+          fontFamilyFallback: ['ScheherazadeNew'],
+          color: Colors.white),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
+  );
+}
+
+/// Every bundled Latin/Arabic UI style is Amiri first — ScheherazadeNew only
+/// covers glyphs Amiri itself doesn't (there shouldn't be any in practice,
+/// but this keeps text visible rather than silently falling through to a
+/// system font if one ever comes up).
+const _arabicFallback = ['ScheherazadeNew'];
+
+TextTheme _withArabicFallback(TextTheme t) {
+  TextStyle? add(TextStyle? s) =>
+      s?.copyWith(fontFamilyFallback: _arabicFallback);
+  return TextTheme(
+    displayLarge: add(t.displayLarge),
+    displayMedium: add(t.displayMedium),
+    displaySmall: add(t.displaySmall),
+    headlineLarge: add(t.headlineLarge),
+    headlineMedium: add(t.headlineMedium),
+    headlineSmall: add(t.headlineSmall),
+    titleLarge: add(t.titleLarge),
+    titleMedium: add(t.titleMedium),
+    titleSmall: add(t.titleSmall),
+    bodyLarge: add(t.bodyLarge),
+    bodyMedium: add(t.bodyMedium),
+    bodySmall: add(t.bodySmall),
+    labelLarge: add(t.labelLarge),
+    labelMedium: add(t.labelMedium),
+    labelSmall: add(t.labelSmall),
   );
 }
 
@@ -186,7 +220,9 @@ TextStyle arabicStyle(
   double height = 1.95,
 }) {
   final s = SettingsScope.of(context);
-  return GoogleFonts.amiri(
+  return TextStyle(
+    fontFamily: 'Amiri',
+    fontFamilyFallback: _arabicFallback,
     fontSize: size * s.arabicScale,
     height: height,
     fontWeight: weight,
@@ -208,5 +244,9 @@ TextStyle uiStyle(
   Color? color,
   FontWeight weight = FontWeight.w500,
 }) =>
-    GoogleFonts.outfit(
-        fontSize: size, fontWeight: weight, color: color ?? pal(context).text);
+    TextStyle(
+        fontFamily: 'Amiri',
+        fontFamilyFallback: _arabicFallback,
+        fontSize: size,
+        fontWeight: weight,
+        color: color ?? pal(context).text);

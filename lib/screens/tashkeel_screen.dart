@@ -589,7 +589,7 @@ class _CountsStudioState extends State<CountsStudio>
                 icon: Icon(running
                     ? Icons.stop_rounded
                     : Icons.play_arrow_rounded),
-                label: Text(running ? 'Stop' : context.l10n.startReciteAlong),
+                label: Text(running ? context.l10n.stop : context.l10n.startReciteAlong),
               ),
             ),
           ],

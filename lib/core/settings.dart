@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -43,6 +44,7 @@ class AppSettings extends ChangeNotifier {
   String reciter = 'tunaiji'; // 'tunaiji' | 'alafasy' (word-sync highlight)
   String readerLayout = 'cards'; // 'cards' | 'mushaf' (continuous flow)
   String reciteFlow = 'single'; // 'single' | 'auto' (continue) | 'repeat'
+  bool playerBarPinned = true; // recitation player bar: fixed vs. floating/draggable
 
   static const _key = 'noor.settings.v1';
 
@@ -64,10 +66,31 @@ class AppSettings extends ChangeNotifier {
     save();
   }
 
+  Timer? _saveDebounce;
+
+  // UI feedback (notifyListeners) is immediate; the disk write is debounced
+  // so continuous slider drags (word gap, font scale, comfort sliders) don't
+  // fire a SharedPreferences write — jsonEncode + a platform-channel call —
+  // on every drag delta.
   void update(VoidCallback fn) {
     fn();
     notifyListeners();
-    save();
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(const Duration(milliseconds: 250), save);
+  }
+
+  /// Cancels any pending debounced write and saves immediately — call before
+  /// the app is backgrounded/closed so a very recent change isn't lost.
+  Future<void> flush() {
+    _saveDebounce?.cancel();
+    _saveDebounce = null;
+    return save();
+  }
+
+  @override
+  void dispose() {
+    _saveDebounce?.cancel();
+    super.dispose();
   }
 
   Future<void> load() async {
@@ -109,6 +132,7 @@ class AppSettings extends ChangeNotifier {
     readerLayout = m['readerLayout'] ?? 'cards';
     reciteFlow = m['reciteFlow'] ?? 'single';
     quranFontScale = (m['qfont'] ?? 1.0).toDouble();
+    playerBarPinned = m['playerPinned'] ?? true;
   }
 
   Future<void> save() async {
@@ -145,6 +169,7 @@ class AppSettings extends ChangeNotifier {
         'reciter': reciter,
         'readerLayout': readerLayout,
         'reciteFlow': reciteFlow,
+        'playerPinned': playerBarPinned,
       }),
     );
   }

@@ -517,5 +517,41 @@
   "sample": "Muestra",
   "drills": "Ejercicios",
   "theTenReaders": "Los diez lectores",
-  "hearTheDifference": "Oye la diferencia"
+  "hearTheDifference": "Oye la diferencia",
+  "creditWaqarTitle": "Waqar Ahmed — Quran Revision Companion",
+  "creditWaqarBody": "El muṣḥaf de 15 líneas, Madani e indo-pakistaní —su texto Uthmani/indo-pakistaní, los datos de maquetación de páginas y líneas, y las fuentes DigitalKhatt, SurahNames y Bismillah— está adaptado de la app de código abierto de Waqar Ahmed, Quran Revision Companion (github.com/Waqar144/quran_memorization_helper), bajo licencia MIT. Esta app no tendría un verdadero muṣḥaf de 15 líneas sin su trabajo; que Allah le recompense.",
+  "creditDigitalKhattTitle": "DigitalKhatt",
+  "creditDigitalKhattBody": "El proyecto DigitalKhatt (github.com/DigitalKhatt, patrocinado por Tarteel AI) creó la tipografía árabe paramétrica detrás de las fuentes del muṣḥaf de 15 líneas — una justificación dinámica de glifos que mantiene auténticos cada línea y salto de página impresos.",
+  "srcMushaf15Label": "Muṣḥaf de 15 líneas (texto, maquetación y fuentes)",
+  "srcMushaf15Body": "Adaptado, con atribución, de Quran Revision Companion de Waqar Ahmed (github.com/Waqar144/quran_memorization_helper), licencia MIT. Tipografía subyacente del proyecto DigitalKhatt (github.com/DigitalKhatt).",
+  "layoutAuto": "Auto",
+  "layoutMobile": "Móvil",
+  "layoutDesktop": "Escritorio",
+  "themeLight": "Claro",
+  "themeDark": "Oscuro",
+  "themeOled": "OLED",
+  "weekdayInitials": "L,M,M,J,V,S,D",
+  "perfectScore": "Mā shāʾ Allāh — ¡perfecto!",
+  "perfectTrace": "Aḥsant — ¡precioso!",
+  "strokeDirectionLabel": "dirección",
+  "dotsCountLabel": "puntos {a}/{b}",
+  "@dotsCountLabel": {
+    "placeholders": {
+      "a": {
+        "type": "int"
+      },
+      "b": {
+        "type": "int"
+      }
+    }
+  },
+  "rememberQutbuJadd": "Recuerda: قُطْبُ جَدٍّ.",
+  "variantLabel": "Variante",
+  "letterLabel": "Letra",
+  "badgeSoon": "PRONTO",
+  "badgeAdvanced": "AVANZADO",
+  "coachIntroBlurb": "Las letras que se parecen son la parte más difícil del árabe para muchos lectores — ب ت ث solo se diferencian por los puntos. Este entrenador se centra justo en eso, a tu ritmo, con una configuración de lectura pensada para ti.",
+  "pinPlayer": "Fijar",
+  "unpinPlayer": "Desfijar",
+  "collapsePlayer": "Contraer"
 }

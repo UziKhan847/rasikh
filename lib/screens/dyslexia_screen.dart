@@ -41,7 +41,7 @@ class DyslexiaScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Letters that look alike are the hardest part of Arabic for many readers — ب ت ث differ only by dots. This coach trains exactly that, at your pace, with a reading setup tuned for you.',
+                Text(context.l10n.coachIntroBlurb,
                     style: uiStyle(context, size: 14, color: pal(context).textDim)),
                 const SizedBox(height: 12),
                 if (!s.dyslexiaMode)

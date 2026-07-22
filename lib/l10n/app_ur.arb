@@ -517,5 +517,41 @@
   "sample": "نمونہ",
   "drills": "مشقیں",
   "theTenReaders": "دس قاری",
-  "hearTheDifference": "فرق سنیں"
+  "hearTheDifference": "فرق سنیں",
+  "creditWaqarTitle": "وقار احمد — Quran Revision Companion",
+  "creditWaqarBody": "۱۵ سطری مدنی اور ہند و پاک مصحف — اس کا عثمانی/ہند و پاک متن، صفحے اور سطر کی ترتیب کا ڈیٹا، اور DigitalKhatt، SurahNames اور Bismillah فونٹس — وقار احمد کے اوپن سورس ایپ Quran Revision Companion (github.com/Waqar144/quran_memorization_helper) سے لیے گئے ہیں، MIT لائسنس کے تحت۔ ان کے کام کے بغیر اس ایپ میں حقیقی ۱۵ سطری مصحف ممکن نہ ہوتا؛ اللہ انہیں جزائے خیر دے۔",
+  "creditDigitalKhattTitle": "DigitalKhatt",
+  "creditDigitalKhattBody": "DigitalKhatt پروجیکٹ (github.com/DigitalKhatt، بحمایت Tarteel AI) نے ۱۵ سطری مصحف کے فونٹس کے پیچھے پیرامیٹرک عربی ٹائپ سیٹنگ بنائی — متحرک حرف مساوات جو ہر مطبوعہ سطر اور صفحے کا وقفہ اصل کے مطابق رکھتی ہے۔",
+  "srcMushaf15Label": "۱۵ سطری مصحف (متن، ترتیب اور فونٹس)",
+  "srcMushaf15Body": "وقار احمد کے Quran Revision Companion (github.com/Waqar144/quran_memorization_helper) سے، نسبت کے ساتھ، MIT لائسنس کے تحت لیا گیا۔ بنیادی ٹائپ سیٹنگ DigitalKhatt پروجیکٹ (github.com/DigitalKhatt) کی ہے۔",
+  "layoutAuto": "خودکار",
+  "layoutMobile": "موبائل",
+  "layoutDesktop": "ڈیسک ٹاپ",
+  "themeLight": "لائٹ",
+  "themeDark": "ڈارک",
+  "themeOled": "OLED",
+  "weekdayInitials": "پ,م,ب,ج,ج,ہ,ا",
+  "perfectScore": "مَا شَاءَ اللّٰه — بےعیب!",
+  "perfectTrace": "أَحْسَنْت — شاندار!",
+  "strokeDirectionLabel": "سمت",
+  "dotsCountLabel": "نقطے {a}/{b}",
+  "@dotsCountLabel": {
+    "placeholders": {
+      "a": {
+        "type": "int"
+      },
+      "b": {
+        "type": "int"
+      }
+    }
+  },
+  "rememberQutbuJadd": "یاد رکھیں: قُطْبُ جَدٍّ۔",
+  "variantLabel": "متبادل",
+  "letterLabel": "حرف",
+  "badgeSoon": "جلد",
+  "badgeAdvanced": "ایڈوانس",
+  "coachIntroBlurb": "ملتی جلتی شکل والے حروف بہت سے قارئین کے لیے عربی کا سب سے مشکل حصہ ہیں — ب ت ث میں فرق صرف نقطوں کا ہے۔ یہ کوچ بالکل اسی پر مشق کرواتا ہے، آپ کی رفتار سے، ایک ایسی ریڈنگ سیٹنگ کے ساتھ جو آپ کے لیے بنائی گئی ہے۔",
+  "pinPlayer": "پن کریں",
+  "unpinPlayer": "پن ہٹائیں",
+  "collapsePlayer": "سکیڑیں"
 }

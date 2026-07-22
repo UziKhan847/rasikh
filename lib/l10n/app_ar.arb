@@ -517,5 +517,41 @@
   "sample": "نموذج",
   "drills": "تدريبات",
   "theTenReaders": "القرّاء العشرة",
-  "hearTheDifference": "اسمع الفرق"
+  "hearTheDifference": "اسمع الفرق",
+  "creditWaqarTitle": "وقار أحمد — Quran Revision Companion",
+  "creditWaqarBody": "مصحف الخمس عشرة سطرًا بالرسمين المدني والهندي الباكستاني — نصّه، وبيانات تخطيط الصفحات والأسطر، وخطوط DigitalKhatt وSurahNames وBismillah — مُقتبَس من تطبيق وقار أحمد المفتوح المصدر Quran Revision Companion (github.com/Waqar144/quran_memorization_helper)، برخصة MIT. ما كان لهذا التطبيق أن يملك مصحفًا حقيقيًا من خمس عشرة سطرًا لولا عمله؛ جزاه الله خيرًا.",
+  "creditDigitalKhattTitle": "DigitalKhatt",
+  "creditDigitalKhattBody": "مشروع DigitalKhatt (‏github.com/DigitalKhatt، برعاية Tarteel AI) صمّم تقنية الجَرْف العربي البارامترية وراء خطوط مصحف الخمس عشرة سطرًا — عدالة حروف ديناميكية تحافظ على أصالة كل سطر وفاصل صفحة كما هو مطبوع.",
+  "srcMushaf15Label": "مصحف الخمس عشرة سطرًا (النص والتخطيط والخطوط)",
+  "srcMushaf15Body": "مُقتبَس، مع نسبته إلى صاحبه، من تطبيق وقار أحمد Quran Revision Companion (github.com/Waqar144/quran_memorization_helper)، برخصة MIT. والجَرْف الأساسي من مشروع DigitalKhatt (github.com/DigitalKhatt).",
+  "layoutAuto": "تلقائي",
+  "layoutMobile": "الجوال",
+  "layoutDesktop": "سطح المكتب",
+  "themeLight": "فاتح",
+  "themeDark": "داكن",
+  "themeOled": "OLED",
+  "weekdayInitials": "ن,ث,ر,خ,ج,س,ح",
+  "perfectScore": "مَا شَاءَ اللّٰه — أداء مثالي!",
+  "perfectTrace": "أَحْسَنْت — رائع!",
+  "strokeDirectionLabel": "الاتجاه",
+  "dotsCountLabel": "النقاط {a}/{b}",
+  "@dotsCountLabel": {
+    "placeholders": {
+      "a": {
+        "type": "int"
+      },
+      "b": {
+        "type": "int"
+      }
+    }
+  },
+  "rememberQutbuJadd": "تذكّر: قُطْبُ جَدٍّ.",
+  "variantLabel": "البديل",
+  "letterLabel": "حرف",
+  "badgeSoon": "قريبًا",
+  "badgeAdvanced": "متقدم",
+  "coachIntroBlurb": "الحروف المتشابهة هي أصعب ما يواجهه كثير من القراء في العربية — لا يفرّق بين ب ت ث سوى النقاط. هذا المدرّب يتمرّن على ذلك تحديدًا، بالسرعة التي تناسبك، مع إعداد قراءة مصمَّم لك.",
+  "pinPlayer": "تثبيت",
+  "unpinPlayer": "إلغاء التثبيت",
+  "collapsePlayer": "طيّ"
 }

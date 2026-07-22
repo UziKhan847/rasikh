@@ -98,6 +98,10 @@ class _SystemUiSyncState extends State<_SystemUiSync>
     if (state == AppLifecycleState.resumed) {
       _applied = null; // force a re-assert
       _sync();
+    } else if (state == AppLifecycleState.paused) {
+      // Flush any debounced settings write (see AppSettings.update) before
+      // the OS can suspend/kill the process mid-background.
+      widget.settings.flush();
     }
   }
 
