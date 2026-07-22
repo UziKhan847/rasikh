@@ -1,0 +1,15 @@
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+
+# Generate a REAL file at lib/l10n/app_localizations.dart (the modern default;
+# the old synthetic `package:flutter_gen` is gone). No option needed anymore.
+
+# Keys missing from a locale's .arb fall back to app_en.arb, and each one is
+# listed here after a build — that file is the translation to-do list.
+untranslated-messages-file: lib/l10n/untranslated.json
+
+# AppLocalizations.of(context) returns non-null: the delegate is always
+# installed in main.dart, so callers shouldn't have to null-check.
+nullable-getter: false

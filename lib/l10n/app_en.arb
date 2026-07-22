@@ -1,0 +1,1030 @@
+{
+  "@@locale": "en",
+  "tagline": "From your first alif to the ten Qirā’āt.",
+  "greetingSub": "Learn to read & write the Qur’an",
+  "quranReader": "Qur’an Reader",
+  "quranSub": "The whole Qur’an — word by word",
+  "qaidahSub": "Letters → forms → ḥarakāt → words",
+  "tracingSub": "Write every letter, stroke by stroke",
+  "tashkilSub": "Every mark, every count — 1 · 2 · 4 · 6",
+  "tajwidSub": "Ghunnah to qalqalah, color-coded",
+  "coachSub": "Look-alike letters, dots & fluency",
+  "qiraatSub": "The ten readings — advanced mode",
+  "about": "About",
+  "continueLabel": "Continue",
+  "wordByWord": "Word by word",
+  "home": "Home",
+  "salamGreeting": "Assalāmu ʿalaykum,",
+  "wordByWordNote": "Break each verse into tappable words; off shows flowing text.",
+  "madani": "Madani",
+  "indopak": "IndoPak",
+  "readerOptions": "Reader options",
+  "reciter": "Reciter",
+  "questionOf": "Question {a} of {b}",
+  "mistakeReview": "Mistake Review",
+  "missedPrompt": "You missed this before — what is it?",
+  "yourData": "Your data",
+  "sourcesLicences": "Sources & licences",
+  "display": "Display",
+  "backUp": "Back up",
+  "restore": "Restore",
+  "streakStart": "Start your streak",
+  "streakKeep": "Keep it going",
+  "oledMode": "OLED mode",
+  "lightMode": "Light mode",
+  "layout": "Layout",
+  "ayahCards": "Āyah cards",
+  "mushafFlow": "Mushaf flow",
+  "afterVerse": "After a verse",
+  "flowStop": "Stop",
+  "flowContinue": "Continue",
+  "flowRepeat": "Repeat",
+  "nowPlaying": "NOW PLAYING",
+  "highlightOffline": "Word highlighting needs internet — the verse still plays without it.",
+  "wordGap": "Word gap",
+  "groupWords": "Words per segment",
+  "segmentNewline": "Each segment on a new line",
+  "verseAlign": "Verse alignment",
+  "alignRight": "Right",
+  "alignCenter": "Center",
+  "hideTashkil": "Hide tashkīl (ḥarakāt)",
+  "tajwidColors": "Tajwīd colors",
+  "font": "Font",
+  "downloadWbw": "Download word-by-word audio",
+  "downloadRecitation": "Download recitation (Al-Tunaiji)",
+  "playRecitation": "Play recitation",
+  "language": "Language",
+  "theme": "Theme",
+  "comingSoon": "is coming soon, in shā’ Allāh — stay tuned!",
+  "tajwidNeeds": "Tajwīd colors need tashkīl visible (works in both scripts).",
+  "accentFamilyUsedAcrossWhole": "The accent family used across the whole app.",
+  "advancedTenReadings": "Advanced · the ten readings",
+  "alAfasiWordSync": "Al-ʿAfāsī · word sync",
+  "alHusariWordSync": "Al-Ḥuṣarī · word sync",
+  "alTunaiji": "Al-Tunaiji",
+  "appliesEverywhereApp": "Applies everywhere in the app",
+  "assalamuAlaykum": "Assalāmu ʿalaykum",
+  "check": "Check",
+  "chooseALetter": "Choose a letter",
+  "chooseAWord": "Choose a word",
+  "clear": "Clear",
+  "color": "Color",
+  "comfortPresetFineTuneBelow": "Comfort preset is on — fine-tune below.",
+  "comingSoonShaAllah": "Coming soon, in shāʼ Allāh",
+  "completeJourneyQurAnicArabic": "A complete journey in Qur’anic Arabic — from recognizing your first alif to exploring the ten Qirā’āt.",
+  "continuous": "Continuous",
+  "countsStudio": "Counts Studio",
+  "desktopModeShowsSidebarDashboard": "Desktop mode shows the sidebar dashboard. Auto picks it for computers and keeps the simple layout on phones — override it here.",
+  "dotDetective": "Dot Detective",
+  "eachReaderTheirCityWhen": "Each reader, their city, when they lived, and the two transmitters who carried their reading.",
+  "eachRuleHasColorOnce": "Each rule has a color. Once you learn the color, you’ll spot the rule anywhere in the muṣḥaf.",
+  "eachTwoFamousTransmittersRawis": "Each with two famous transmitters (rāwīs)",
+  "everyVowelMark": "Every vowel and mark",
+  "everythingVeEarnedStarsStreak": "Everything you’ve earned — stars, streak, settings — lives on this device. Back it up to a file before reinstalling or switching phones.",
+  "famousVariantsSideSideHafs": "Famous variants, side by side with Ḥafṣ ‘an ‘Āṣim",
+  "findEveryOccurrence": "Find every occurrence of…",
+  "findEveryTimeSameLetter": "Find every-time-the-same letter:",
+  "fluencyDrills": "Fluency drills",
+  "fluencySprint": "Fluency Sprint",
+  "followGlowingCometFromGreen": "Follow the glowing comet from the green start. Lift any time and carry on; tap the dots last.",
+  "formsQuiz": "Forms Quiz",
+  "foundations9Units": "Foundations · 9 units",
+  "fromFirstAlifTenQira": "From your first alif to the ten Qirā’āt",
+  "fromLettersReadingRealWords": "From letters to reading real words",
+  "guidedHandwriting": "Guided handwriting",
+  "immersiveHideSystemBars": "Immersive (hide system bars)",
+  "inARow": "In a row:",
+  "indoPak": "Indo-Pak",
+  "joiningForms": "Joining Forms",
+  "jumpToSurah": "Jump to sūrah",
+  "k15LineMushaf": "15-line Muṣḥaf",
+  "k16RulesColorCoded": "16 rules · color-coded",
+  "learn": "LEARN",
+  "letterQuiz": "Letter Quiz",
+  "levelCompleteEveryLetterCleared": "🎉 Level complete — every letter cleared!",
+  "madaniUthmani": "Madani (Uthmānī)",
+  "nextPage": "Next page",
+  "openSourceLicences": "Open-source licences",
+  "pageHeader": "Page header",
+  "pickMarkHearHowSounds": "Pick a mark to hear how it sounds and how long to hold it — 1 · 2 · 4 · 6.",
+  "pickUpWhereLeftOff": "Pick up where you left off, or explore a new corner of the path. Everything works offline.",
+  "playWord": "Play word",
+  "playback": "Playback",
+  "previousPage": "Previous page",
+  "qaidahPath": "Qaidah Path",
+  "qaidahReview": "Qaidah Review",
+  "qiraAreMassTransmittedReadings": "The Qirā’āt are mass-transmitted readings, each carried from the Prophet ﷺ through unbroken chains. This hall is a map of the terrain — actually reciting a reading requires a qualified teacher with ijāzah.",
+  "qiraAtQuiz": "Qirā’āt Quiz",
+  "qiraHallAdvanced": "Qirā’āt Hall · Advanced",
+  "qiraHallStillBeingReviewed": "The Qirāʼāt Hall is still being reviewed. Because the ten readings are transmitted person to person, this section will open once its content has been checked properly.",
+  "qiraahArabiyyah": "Qiraah Arabiyyah",
+  "qur114Surahs": "Qur’an · 114 sūrahs",
+  "qurAnicArabic": "Qur’anic Arabic",
+  "readEachWordAloudThen": "Read each word ALOUD, then tap. Sūrat al-Fātiḥah, word by word — build speed without losing tajwīd.",
+  "readHelpEveryWord": "Read with help at every word",
+  "readingCoach": "Reading Coach",
+  "readingWords": "Reading Words",
+  "recitation": "Recitation",
+  "reciteWayWasRevealed": "Recite it the way it was revealed",
+  "repeatVerse": "Repeat verse",
+  "restartQuiz": "Restart quiz",
+  "roundProgress": "Round progress",
+  "sameShapeDifferentDotsCoach": "Same shape, different dots. The coach drills you until you read them without a pause.",
+  "sameSkeletonDotsDecide": "Same skeleton — the dots decide",
+  "script": "Script",
+  "search": "Search",
+  "search2": "Search…",
+  "searchLettersRulesSurahs": "Search letters, rules, sūrahs…",
+  "shaddah": "Shaddah",
+  "shortKindRepeatable": "Short, kind, repeatable",
+  "signatures": "SIGNATURES",
+  "soon": "SOON",
+  "spotRuleQuiz": "Spot-the-Rule Quiz",
+  "spotTheRule": "Spot the Rule",
+  "startSprint": "Start sprint",
+  "stop": "Stop",
+  "streak": "Streak",
+  "style": "Style",
+  "sukunJazm": "Sukūn & Jazm",
+  "tajwidAcademy": "Tajwīd Academy",
+  "tajwidGivingEveryLetterIts": "Tajwīd is giving every letter its right: its exit point, its strength, its hum, its exact length. Tap a rule, read its verse, then test yourself.",
+  "tapCardAfterReadingWord": "Tap the card after reading the word aloud",
+  "tashkilQuiz": "Tashkīl Quiz",
+  "tellLookAlikesApart": "Tell the look-alikes apart",
+  "tenCanonicalReaders": "The ten canonical readers",
+  "textTanzilUthmaniMadaniIndopak": "Text: Tanzil Uthmani (Madani) & IndoPak — QUL-compatible datasets. Tajwīd spans generated against this exact text.",
+  "theLetters": "The Letters",
+  "traceAgain": "Trace again",
+  "tracingStudio": "Tracing Studio",
+  "turnComfortPreset": "Turn on the comfort preset",
+  "verseByVerse": "Verse by verse",
+  "verseDay": "Verse of the day",
+  "video": "Video",
+  "view": "View",
+  "wordExamplesComingThisLetter": "Word examples coming for this letter.",
+  "wordHighlightingNeedsInternetVerse": "Word highlighting needs internet — the verse still plays without it.",
+  "wordWordMeaningsTajwidColors": "Tajwīd colors and verse recitation — tap any sūrah to begin.",
+  "wordWordRecitationCourtesyMarkaz": "Word-by-word recitation courtesy of Markaz Tafsir, served via QuranCDN. Verse recitation: Shaykh Khalifah Al-Tunaiji (EveryAyah.com).",
+  "writeEachLetterStrokeStroke": "Write each letter, stroke by stroke",
+  "yourSettingsLive": "Your settings, live",
+  "streakDaysCount": "{days, plural, =0{0 days} =1{1 day} other{{days} days}}",
+  "@streakDaysCount": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "streakDaysLabel": "{days, plural, =1{1 day streak} other{{days} days streak}}",
+  "@streakDaysLabel": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "countLabelPlural": "{count, plural, =1{1 count} other{{count} counts}}",
+  "@countLabelPlural": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tapTheDots": "{dots, plural, =1{Tap the dot} other{Tap the {dots} dots}}",
+  "@tapTheDots": {
+    "placeholders": {
+      "dots": {
+        "type": "int"
+      }
+    }
+  },
+  "strokesAndDots": "{strokes}/{strokesTotal} strokes · {dots}/{dotsTotal} dots",
+  "@strokesAndDots": {
+    "placeholders": {
+      "strokes": {
+        "type": "int"
+      },
+      "strokesTotal": {
+        "type": "int"
+      },
+      "dots": {
+        "type": "int"
+      },
+      "dotsTotal": {
+        "type": "int"
+      }
+    }
+  },
+  "strokeXofY": "Stroke {index} of {total}",
+  "@strokeXofY": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "doneExclaim": "Done!",
+  "@doneExclaim": {},
+  "juzPageOf": "Juzʼ {juz} · Page {page} / {total}",
+  "@juzPageOf": {
+    "placeholders": {
+      "juz": {
+        "type": "int"
+      },
+      "page": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "juzOnly": "Juzʼ {juz}",
+  "@juzOnly": {
+    "placeholders": {
+      "juz": {
+        "type": "int"
+      }
+    }
+  },
+  "noMatchesFor": "No matches for “{query}”",
+  "@noMatchesFor": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "wordXofY": "Word {index} of {total}",
+  "@wordXofY": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "clearedXofY": "Cleared {done} / {total}",
+  "@clearedXofY": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "surahRef": "Sūrah {ref}",
+  "@surahRef": {
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      }
+    }
+  },
+  "unitTitle": "Unit {number} · {title}",
+  "@unitTitle": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "readByName": "Read by: {name}",
+  "@readByName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "comingSoonNamed": "{name} is coming soon, in shāʼ Allāh.",
+  "@comingSoonNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "trainCountTiming": "Train {counts}-count timing",
+  "@trainCountTiming": {
+    "placeholders": {
+      "counts": {
+        "type": "int"
+      }
+    }
+  },
+  "surahMetaLine": "SŪRAH {number} · {type} · {ayahs} ĀYĀT",
+  "@surahMetaLine": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "type": {
+        "type": "String"
+      },
+      "ayahs": {
+        "type": "int"
+      }
+    }
+  },
+  "ayahByReciter": "Āyah {ref} · {who}",
+  "@ayahByReciter": {
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      },
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "marksCount": "{count} marks",
+  "@marksCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@questionOf": {
+    "placeholders": {
+      "a": {
+        "type": "int"
+      },
+      "b": {
+        "type": "int"
+      }
+    }
+  },
+  "pause": "Pause",
+  "resume": "Resume",
+  "playPage": "Play page",
+  "singlePage": "Single page",
+  "twoPageSpread": "Two-page spread",
+  "hidePageHeader": "Hide page header",
+  "qpNameThisLetter": "Name this letter:",
+  "qpWhichLetterIsThis": "Which letter is this?",
+  "qpShapeBelongsTo": "This shape belongs to…",
+  "qpHowDoesThisSound": "How does this sound?",
+  "qpWhatDoesSukunDo": "What does sukūn do to a letter?",
+  "qpReadIt": "Read it:",
+  "qpWhichBounce": "Which letters bounce (qalqalah) when cut with sukūn?",
+  "qpReadItBounce": "Read it (note the bounce):",
+  "qpShaddahMeans": "Shaddah means the letter is read…",
+  "qpReadQuranicWord": "Read this Qur’anic word:",
+  "qpNameTheLetter": "Name the letter:",
+  "qpWhichMarkHighlighted": "Which mark is on the highlighted letter?",
+  "qpIdentifyGoldenMark": "Identify the mark in the golden part:",
+  "qpWhoseTransmission": "Whose transmission do most Muslims recite today?",
+  "qpMissedBefore": "You missed this before — what is it?",
+  "qpWhereDotsLive": "Where do the dots of {name} live?",
+  "@qpWhereDotsLive": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qpRawiTransmitsFrom": "{rawi} transmits from which reader?",
+  "@qpRawiTransmitsFrom": {
+    "placeholders": {
+      "rawi": {
+        "type": "String"
+      }
+    }
+  },
+  "qpReadingsDifferIn": "In {ref}, the readings differ in…",
+  "@qpReadingsDifferIn": {
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      }
+    }
+  },
+  "qpWhichRuleInVerse": "Which rule lives in this verse? ({ref})",
+  "@qpWhichRuleInVerse": {
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      }
+    }
+  },
+  "qpHowLongHeld": "How long is {name} held?",
+  "@qpHowLongHeld": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ltrAlif": "Alif",
+  "ltrBa": "Bā’",
+  "ltrTa": "Tā’",
+  "ltrTha": "Thā’",
+  "ltrJim": "Jīm",
+  "ltrHha": "Ḥā’",
+  "ltrKha": "Khā’",
+  "ltrDal": "Dāl",
+  "ltrDhal": "Dhāl",
+  "ltrRa": "Rā’",
+  "ltrZay": "Zāy",
+  "ltrSin": "Sīn",
+  "ltrShin": "Shīn",
+  "ltrSad": "Ṣād",
+  "ltrDad": "Ḍād",
+  "ltrTta": "Ṭā’",
+  "ltrZza": "Ẓā’",
+  "ltrAyn": "‘Ayn",
+  "ltrGhayn": "Ghayn",
+  "ltrFa": "Fā’",
+  "ltrQaf": "Qāf",
+  "ltrKaf": "Kāf",
+  "ltrLam": "Lām",
+  "ltrMim": "Mīm",
+  "ltrNun": "Nūn",
+  "ltrHa": "Hā’",
+  "ltrWaw": "Wāw",
+  "ltrYa": "Yā’",
+  "formAlone": "Alone",
+  "formStart": "Start",
+  "formMiddle": "Middle",
+  "formEnd": "End",
+  "traceInstrMemory": "Draw “{name}” from memory — strokes in the right direction, then tap where its dots go, and press Check.",
+  "traceInstrOutline": "Trace over the shape yourself — no comet, nothing fills in for you. Strokes in the right direction, then tap its dots and press Check.",
+  "traceInstrGuided": "Follow the glowing comet from the green start. Lift any time and carry on from the comet. Tap the dots last.",
+  "@traceInstrMemory": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "lvlNaskhMore": "Naskh · more strokes",
+  "lvlNaskhFew": "Naskh · fewer strokes",
+  "lvlNaskhWords": "Naskh words",
+  "lvlRuqaaLetters": "Ruqʿah letters",
+  "lvlRuqaaWords": "Ruqʿah words",
+  "tierBeginner": "Beginner",
+  "tierIntermediate": "Intermediate",
+  "tierAdvanced": "Advanced",
+  "shapes": "Shapes",
+  "shapesSubJoin": "end · middle · start · alone",
+  "shapesSubNonJoin": "joined · alone (this letter connects on one side only)",
+  "inTheQuran": "In the Qur’an",
+  "seeItInWords": "See it in Words",
+  "seeItInWordsSub": "beginning · middle · end",
+  "posBeginning": "beginning",
+  "posMiddle": "middle",
+  "posEnd": "end",
+  "formJoined": "Joined",
+  "letterInAWord": "{name} in a word:",
+  "@letterInAWord": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "unitLetters": "The Letters",
+  "unitLettersSub": "All 28 letters, their dots, and Qur’anic examples",
+  "unitJoiningForms": "Joining Forms",
+  "unitJoiningFormsSub": "How every letter shapes itself at the start, middle and end",
+  "unitHarakat": "Ḥarakāt",
+  "unitHarakatSub": "Fatḥah, kasrah, ḍammah — your first sounds",
+  "harakatDrill": "Ḥarakāt Drill",
+  "unitTanwin": "Tanwīn",
+  "unitTanwinSub": "The double endings: -an, -in, -un",
+  "tanwinDrill": "Tanwīn Drill",
+  "unitSukunSub": "Cutting the sound — and meeting qalqalah",
+  "unitShaddahSub": "Doubling letters with strength",
+  "unitMaddLin": "Madd & Līn",
+  "unitMaddLinSub": "The stretching letters — counts begin here",
+  "unitReadingWordsSub": "Read real Qur’anic words, unaided",
+  "unitReviewSub": "Everything together — earn your three stars",
+  "letterQuizTitle": "Letter Quiz",
+  "easilyConfusedWith": "Easily confused with",
+  "sameSkeletonDotsDecideDot": "Same skeleton — the dots decide.",
+  "noLookAlikes": "No look-alikes — this shape is unique.",
+  "noDots": "No dots",
+  "lookPastJoins": "Look past the joins — find the skeleton and its dots.",
+  "optCutsNoVowel": "Cuts it — no vowel follows",
+  "optStretchesTwo": "Stretches it two counts",
+  "optDoublesIt": "Doubles it",
+  "optSilentEntirely": "Makes it silent entirely",
+  "optTwiceCutVoweled": "Twice: cut, then voweled",
+  "optSilently": "Silently",
+  "optWithLongStretch": "With a long stretch",
+  "optFromTheNose": "From the nose",
+  "explNunShaddahGhunnah": "A nūn with shaddah also carries ghunnah — hum it.",
+  "comfortPresetOn": "Comfort preset on: larger letters, warm paper, word spacing, focus window.",
+  "readingSetup": "Reading setup",
+  "spotTheLetter": "Spot the Letter",
+  "spotTheLetterSub": "Find the target among its look-alikes",
+  "dotDetectiveSub": "How many dots, and where?",
+  "fluencySprintSub": "Read Qur’anic words against the clock",
+  "reviewMissedItems": "Review the items you missed",
+  "letterSize": "Letter size",
+  "wordSpacing": "Word spacing",
+  "glyphSpacing": "Glyph spacing",
+  "warmPaperBackground": "Warm paper background",
+  "colorCodedDots": "Color-coded dots in drills",
+  "focusWindow": "Focus window (one word at a time)",
+  "hintOutline": "Shape shown · you form every stroke",
+  "hintMemory": "Blank board · from memory",
+  "hintGuided": "Shape shown · follow the comet",
+  "letterCleared": "Letter cleared!",
+  "niceKeepStreak": "Nice — keep the streak",
+  "notQuiteStreakReset": "Not quite — streak reset",
+  "nextLetter": "Next letter",
+  "veryClose": "Very close!",
+  "goodStartKeepGoing": "Good start — keep going",
+  "notQuiteTryAgain": "Not quite — try again",
+  "guided": "Guided",
+  "outline": "Outline",
+  "memory": "Memory",
+  "practice": "Practice",
+  "quiz": "Quiz",
+  "maddCounts": "Madd & Counts",
+  "startReciteAlong": "Start — recite along",
+  "noCount": "no count",
+  "videoForThisSurah": "Video for this sūrah",
+  "downloadsNeedApp": "Downloads need the mobile or desktop app (not available on web).",
+  "surahAudioSaved": "Sūrah {name} audio saved for offline use.",
+  "@surahAudioSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tajwidRule": "Tajwīd rule",
+  "tajwid": "Tajwīd",
+  "surah": "Sūrah",
+  "wellDoneKeepGoing": "Well done — keep going.",
+  "reviewLessonTryAgain": "Review the lesson and try again.",
+  "thisWeek": "{done}/{goal} this week",
+  "@thisWeek": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "goal": {
+        "type": "int"
+      }
+    }
+  },
+  "mushafMadaniTitle": "Muṣḥaf · Madani",
+  "mushafIndoPakTitle": "Muṣḥaf · Indo-Pak",
+  "wordN": "{surah}  ·  {ref}  ·  word {n}",
+  "@wordN": {
+    "placeholders": {
+      "surah": {
+        "type": "String"
+      },
+      "ref": {
+        "type": "String"
+      },
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "cardsDueNow": "{n} due for review now",
+  "@cardsDueNow": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "quizInstrMemory": "Draw it from memory and press Check — {n} correct in a row (2★+) clears this letter.",
+  "@quizInstrMemory": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "quizInstrOutline": "Trace over the shape and press Check — {n} correct in a row (2★+) clears this letter.",
+  "@quizInstrOutline": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "quizInstrGuided": "Trace along the comet — {n} correct in a row (2★+) clears this letter, then a new one appears.",
+  "@quizInstrGuided": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "countsN": "{n} counts",
+  "@countsN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "bpmLabel": "{n} bpm",
+  "@bpmLabel": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "tashkilLab": "Tashkīl Lab",
+  "dotPosAbove": "above",
+  "dotPosBelow": "below",
+  "dotPosInside": "inside",
+  "dotsWithPos": "{n, plural, =1{1 dot {pos}} other{{n} dots {pos}}}",
+  "@dotsWithPos": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "pos": {
+        "type": "String"
+      }
+    }
+  },
+  "hapticFeedback": "Haptic feedback",
+  "toldApartLookAlikes": "You told apart {n} look-alikes.",
+  "@toldApartLookAlikes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "allCaughtUp": "All caught up · next review in {n}d",
+  "@allCaughtUp": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "cardsDueForReview": "{n, plural, =1{1 card due for review now} other{{n} cards due for review now}}",
+  "@cardsDueForReview": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "spotTheLetterRound": "Spot the Letter · {round}/{total}",
+  "@spotTheLetterRound": {
+    "placeholders": {
+      "round": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "letterDash": "{name} — “{translit}”",
+  "@letterDash": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "translit": {
+        "type": "String"
+      }
+    }
+  },
+  "lookAlikesList": "Look-alikes: {list}",
+  "@lookAlikesList": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "sprintResult": "Sūrat al-Fātiḥah in {secs}s — {wpm} words/min. Read it aloud as you tap!",
+  "@sprintResult": {
+    "placeholders": {
+      "secs": {
+        "type": "String"
+      },
+      "wpm": {
+        "type": "String"
+      }
+    }
+  },
+  "wordXofYTime": "Word {index} of {total} · {secs}s",
+  "@wordXofYTime": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "secs": {
+        "type": "String"
+      }
+    }
+  },
+  "readEachWordAloudShort": "Read each word ALOUD, then tap. Sūrat al-Fātiḥah, word by word.",
+  "videoForThisAyah": "Video for this āyah",
+  "afasyHighlight": "Al-ʿAfāsī · highlight",
+  "husaryHighlight": "Al-Ḥuṣarī · highlight",
+  "letterSubtitle": "Letter · “{translit}” · {dots}",
+  "@letterSubtitle": {
+    "placeholders": {
+      "translit": {
+        "type": "String"
+      },
+      "dots": {
+        "type": "String"
+      }
+    }
+  },
+  "surahSubtitle": "Sūrah {n} · {type} · {ayahs} āyāt",
+  "@surahSubtitle": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "type": {
+        "type": "String"
+      },
+      "ayahs": {
+        "type": "int"
+      }
+    }
+  },
+  "meccan": "Meccan",
+  "medinan": "Medinan",
+  "typeAyat": "{type} · {ayahs} āyāt",
+  "@typeAyat": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      },
+      "ayahs": {
+        "type": "int"
+      }
+    }
+  },
+  "whatThisAppTeaches": "What this app teaches",
+  "aboutBody": "Qiraah Arabiyyah covers everything a classical Qaidah does — the 28 letters and their joined forms, every mark of tashkīl with exact count timing (1 · 2 · 4 · 6), tajwīd from ghunnah to qalqalah — and adds a strict stroke-direction tracing studio, a dyslexia-friendly Reading Coach for look-alike letters, a full offline Qur’an reader in Madani and IndoPak scripts with word-by-word audio, and an advanced hall on the ten canonical Qirā’āt.\n\nIt is a study companion, not a substitute for a teacher: recitation and the Qirā’āt are transmitted person to person, and we encourage every learner to find a qualified teacher with ijāzah.",
+  "creditsGratitude": "Credits & gratitude",
+  "creditMarkazBody": "The word-by-word recitation that powers tap-to-hear across the entire Qur’an Reader is the work of Markaz Tafsir, served via QuranCDN. May Allah reward them — this app would not be what it is without their recordings.",
+  "creditTunaijiBody": "Verse-by-verse recitation by Shaykh Khalifah Al-Tunaiji, served by EveryAyah.com.",
+  "creditTextTitle": "Qur’an text — Tanzil & QUL",
+  "creditTextBody": "Madani (Uthmani) text from the Tanzil project and the IndoPak text, bundled offline in QUL-compatible structures (qul.tarteel.ai). Tajwīd color spans are generated against this exact text.",
+  "creditFontsBody": "KFGQPC Uthmanic Script Hafs (King Fahd Glorious Qur’an Printing Complex), Scheherazade New (SIL, OFL), the IndoPak nastaliq face, and PDMS Saleem Quran Font.",
+  "backupFailed": "Backup failed — storage unavailable.",
+  "backedUpTo": "Backed up to {path}",
+  "@backedUpTo": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "backupRestored": "Backup restored.",
+  "noBackupFound": "No backup found on this device.",
+  "quranTextLabel": "Qur’an text",
+  "wordByWordLabel": "Word-by-word",
+  "qiraatBiosLabel": "Qirāʼāt biographies",
+  "srcTextBody": "Uthmani (Madani) & IndoPak texts via Tanzil / QUL-compatible datasets. The text itself is unmodified; tajwīd spans are generated against it.",
+  "srcFontsBody": "KFGQPC Uthmanic Hafs · King Fahd Glorious Quran Printing Complex. Scheherazade New · SIL (OFL 1.1). IndoPak & PDMS Saleem Quran fonts · their respective publishers.",
+  "srcRecitationBody": "Shaykh Khalīfah Al-Tunaiji via EveryAyah.com. Mishary Al-ʿAfāsī & Maḥmūd Khalīl Al-Ḥuṣarī with word timings via the Quran.com (QDC) API.",
+  "srcWbwBody": "Word audio courtesy of Quran.com / QuranCDN (Markaz Tafsir).",
+  "srcQiraatBody": "Facts summarized from abouttajweed.com.",
+  "tabHome": "Home",
+  "tabHomeBlurb": "Pick up where you left off, or explore a new corner of the path.",
+  "tabReaderBlurb": "Read with word-by-word help, tajwīd colors, and recitation.",
+  "tabQaidahBlurb": "From your first letter to reading whole words — nine guided units.",
+  "tabTracingBlurb": "Write each letter, stroke by stroke, following the glowing comet.",
+  "tabTashkilKicker": "Vowels & marks",
+  "tabTashkilBlurb": "Every ḥarakah and mark — how it sounds and how long to hold it.",
+  "tabTajwidKicker": "Rules of recitation",
+  "tabTajwidBlurb": "Each rule has a color. Learn the color, spot the rule anywhere.",
+  "tabCoachKicker": "Fluency for look-alikes",
+  "tabCoachBlurb": "Same shape, different dots — drills until you read without a pause.",
+  "tabQiraatKicker": "The ten readings",
+  "tabQiraatBlurb": "The ten canonical readers, their cities, and their transmitters.",
+  "tabAboutBlurb": "Learn to read the Qur’an — from your first letter to the ten Qirā’āt.",
+  "colorLegend": "Color legend",
+  "theRules": "The rules",
+  "takeTheQuiz": "Take the quiz",
+  "yourProgress": "Your progress",
+  "starsEarned": "stars earned",
+  "lettersExplored": "letters explored",
+  "dayStreak": "day streak",
+  "explorePath": "Explore the path",
+  "lettersToWords": "Letters → words",
+  "writeByHand": "Write by hand",
+  "coloredRules16": "16 colored rules",
+  "surahs114": "114 sūrahs",
+  "vowelsMarks": "Vowels & marks",
+  "lookAlikeDrills": "Look-alike drills",
+  "allSurahs": "All sūrahs",
+  "everyUnit": "Every unit",
+  "unitsProgress": "{done} of {total} units started · {learned} of {letters} letters explored",
+  "@unitsProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "learned": {
+        "type": "int"
+      },
+      "letters": {
+        "type": "int"
+      }
+    }
+  },
+  "hintOutlineDesk": "Shape shown · you form every stroke, no comet.",
+  "hintMemoryDesk": "Blank board · draw it from memory.",
+  "hintGuidedDesk": "Shape shown · follow the comet, strokes ink themselves in.",
+  "clearedExclaim": "Cleared!",
+  "niceKeepGoing": "Nice — keep going",
+  "streakReset": "Streak reset",
+  "quizInstrMemoryShort": "Draw it from memory and press Check — {n} in a row (2★+) clears it.",
+  "@quizInstrMemoryShort": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "quizInstrOutlineShort": "Trace over the shape and press Check — {n} in a row (2★+) clears it.",
+  "@quizInstrOutlineShort": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "quizInstrGuidedShort": "Trace along the comet — {n} in a row (2★+) clears it, then a new one appears.",
+  "@quizInstrGuidedShort": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "hideTheCounter": "Hide the counter",
+  "hearTheCount": "Hear the count",
+  "dottedFamily": "The dotted family",
+  "oneTwoThreeDots": "one, two, three dots",
+  "jimGroup": "Jīm group",
+  "belowNoneAbove": "below, none, above",
+  "plainVsOneDot": "plain vs. one dot",
+  "plainVsThreeDots": "plain vs. three dots",
+  "oneVsTwoDots": "one vs. two dots",
+  "aynGhayn": "ʿAyn & Ghayn",
+  "confusableSets": "Confusable sets",
+  "startADrill": "Start a drill",
+  "moreDrills": "More drills",
+  "marksN": "{n} marks",
+  "@marksN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "mistakeReviewDue": "{label} · {n} due",
+  "@mistakeReviewDue": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "mistakeReviewCaughtUp": "{label} · caught up",
+  "@mistakeReviewCaughtUp": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "cityDied": "{city} · d. {year} AH",
+  "@cityDied": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "cityDiedNarrators": "{city} · d. {year} AH · Narrators: {r1} & {r2}",
+  "@cityDiedNarrators": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      },
+      "r1": {
+        "type": "String"
+      },
+      "r2": {
+        "type": "String"
+      }
+    }
+  },
+  "mkFatha": "Fatḥah",
+  "mkKasra": "Kasrah",
+  "mkDamma": "Ḍammah",
+  "mkSukun": "Sukūn",
+  "mkShadda": "Shaddah",
+  "mkFathatan": "Fatḥatān",
+  "mkKasratan": "Kasratān",
+  "mkDammatan": "Ḍammatān",
+  "mkMadd2": "Madd Ṭabī‘ī",
+  "mkLin": "Ḥurūf Līn",
+  "mkMaddah": "Maddah (آ)",
+  "mkMadd4": "Madd Muttaṣil",
+  "mkMadd45": "Madd Munfaṣil",
+  "mkMadd6": "Madd Lāzim",
+  "mkMadd246": "Madd ‘Āriḍ",
+  "mkWasl": "Hamzat al-Waṣl",
+  "mnFatha": "A short “a”. A small stroke above the letter — one count, like one clap.",
+  "mnKasra": "A short “i”. A small stroke below the letter — one count.",
+  "mnDamma": "A short “u”. A tiny wāw above the letter — one count.",
+  "mnSukun": "No vowel: the letter is “cut”. Join it to the vowel before it.",
+  "mnShadda": "Doubling: the letter is pronounced twice — first with sukūn, then with a vowel.",
+  "mnFathatan": "Tanwīn of fatḥ: an extra “n” sound. Two strokes above.",
+  "mnKasratan": "Tanwīn of kasr: “-in”. Two strokes below.",
+  "mnDammatan": "Tanwīn of ḍamm: “-un”. Two tiny wāws above.",
+  "mnMadd2": "Natural lengthening with ا / و / ي — exactly TWO counts. Never rush it.",
+  "mnLin": "Soft wāw or yā’ with sukūn after a fatḥah — a gentle glide.",
+  "mnMaddah": "Hamzah followed by alif written as one sign — read with madd.",
+  "mnMadd4": "Madd letter meets hamzah in the SAME word — stretch FOUR (to five) counts. Obligatory.",
+  "mnMadd45": "Madd at the end of a word, hamzah starts the NEXT word — four (to five) counts.",
+  "mnMadd6": "Madd followed by a permanent sukūn or shaddah — SIX full counts, the longest.",
+  "mnMadd246": "Stopping turns the last vowel into sukūn after a madd letter — 2, 4 or 6 counts.",
+  "mnWasl": "Pronounced when you START with it, silent when you join from the previous word.",
+  "tjGhunnahTrig": "Nūn or mīm with shaddah (نّ / مّ).",
+  "tjGhunnahHow": "A full nasal hum from the nose, held two counts.",
+  "tjIzharTrig": "Nūn sākinah or tanwīn before a throat letter (ء ه ع ح غ خ).",
+  "tjIzharHow": "Pronounce the nūn clearly and quickly — no nasalization, no pause.",
+  "tjIdghamGTrig": "Nūn sākinah / tanwīn before ي ن م و (across two words).",
+  "tjIdghamGHow": "Merge the nūn into the next letter while humming two counts.",
+  "tjIdghamNgTrig": "Nūn sākinah / tanwīn before ل or ر.",
+  "tjIdghamNgHow": "Merge completely into the lām or rā’ — the nūn disappears.",
+  "tjIqlabTrig": "Nūn sākinah / tanwīn before ب.",
+  "tjIqlabHow": "Flip the nūn into a light mīm, hidden with ghunnah, two counts.",
+  "tjIkhfaTrig": "Nūn sākinah / tanwīn before the remaining 15 letters.",
+  "tjIkhfaHow": "Hide the nūn between iẓhār and idghām — a soft hum shaped toward the next letter.",
+  "tjQalqalahTrig": "ق ط ب ج د with sukūn — or at a stop. Remember: قُطْبُ جَدٍّ.",
+  "tjQalqalahHow": "An echoing bounce: release the letter with a small pop, strongest when stopping.",
+  "tjIkhfaShafawiTrig": "Mīm sākinah before ب.",
+  "tjIkhfaShafawiHow": "Hide the mīm at the lips with ghunnah.",
+  "tjIdghamShafawiTrig": "Mīm sākinah before another mīm.",
+  "tjIdghamShafawiHow": "Merge the two mīms with a full ghunnah.",
+  "tjMadd2Trig": "A plain madd letter (ا و ي) with nothing after it.",
+  "tjMadd2How": "Exactly two counts.",
+  "tjMadd4Trig": "Madd letter + hamzah in the same word.",
+  "tjMadd4How": "Four to five counts — obligatory.",
+  "tjMadd45Trig": "Madd at a word end, hamzah begins the next word.",
+  "tjMadd45How": "Four to five counts in Ḥafṣ (other transmissions differ — see Qirā’āt).",
+  "tjMadd6Trig": "Madd letter followed by a permanent sukūn or shaddah.",
+  "tjMadd6How": "Six full counts — including the opening letters like الٓمٓ.",
+  "tjShamsiyyaTrig": "“ال” before a sun letter — the lām is written but silent.",
+  "tjShamsiyyaHow": "Jump straight to the doubled sun letter.",
+  "tjQamariyyaTrig": "“ال” before a moon letter — the lām is pronounced with sukūn.",
+  "tjQamariyyaHow": "Say the lām clearly: al-qamar.",
+  "tjTafkhimTrig": "Heavy letters (خ ص ض غ ط ق ظ), the rā’, and the lām of اللّٰه.",
+  "tjTafkhimHow": "Heavy letters fill the mouth; rā’ and the lām of Allāh are heavy or light depending on the vowel before them.",
+  "when": "When",
+  "how": "How",
+  "sample": "Sample",
+  "drills": "Drills",
+  "theTenReaders": "The Ten Readers",
+  "hearTheDifference": "Hear the Difference"
+}

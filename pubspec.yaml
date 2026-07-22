@@ -1,0 +1,62 @@
+name: qiraah_arabiyyah
+description: "Qiraah Arabiyyah — a modern Arabic reading & writing journey: Qaidah, tracing with stroke direction, Tashkil counts, Tajwid, dyslexia-friendly practice, and the 10 Qira'at."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.10.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+  google_fonts: ^8.1.0
+  flutter_svg: ^2.0.10
+  shared_preferences: ^2.2.3
+  audioplayers: ^6.1.0
+  http: ^1.2.2
+  path_provider: ^2.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  # Runs gen_l10n on build: lib/l10n/*.arb -> AppLocalizations (see l10n.yaml).
+  generate: true
+  assets:
+    - assets/brand/
+    - assets/quran/
+    - assets/quran/u/
+    - assets/quran/i/
+    - assets/quran/t/
+    - assets/quran/t_indopak/
+  fonts:
+    - family: UthmanicHafs
+      fonts:
+        - asset: assets/fonts/UthmanicHafs.ttf
+    - family: ScheherazadeNew
+      fonts:
+        - asset: assets/fonts/ScheherazadeNew.ttf
+    - family: IndoPak
+      fonts:
+        - asset: assets/fonts/IndoPak.ttf
+    - family: PDMSSaleem
+      fonts:
+        - asset: assets/fonts/PDMSSaleem.ttf
+    - family: DigitalKhattV2
+      fonts:
+        - asset: assets/fonts/DigitalKhattV2.otf
+    - family: DigitalKhattIndoPak
+      fonts:
+        - asset: assets/fonts/DigitalKhattIndoPak.otf
+    - family: SurahNames
+      fonts:
+        - asset: assets/fonts/SurahNames.ttf
+    - family: Bismillah
+      fonts:
+        - asset: assets/fonts/Bismillah.ttf

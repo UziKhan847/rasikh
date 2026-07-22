@@ -1,0 +1,54 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- ── Permissions ──────────────────────────────────────────────
+         INTERNET             — word-by-word & recitation audio streaming,
+                                audio downloads, word-meaning fetches,
+                                Google Fonts (UI typefaces).
+         ACCESS_NETWORK_STATE — lets the app detect offline state and fall
+                                back to downloaded audio gracefully.
+         No storage permissions are needed: downloads are written to the
+         app's own documents directory (scoped storage), and no external
+         media, camera, mic, or location access is used.            -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:label="Qiraah Arabiyyah"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true"
+        android:usesCleartextTraffic="false">
+        <!-- All audio/text endpoints are HTTPS (audio.qurancdn.com,
+             everyayah.com, api.quran.com, fonts.gstatic.com), so cleartext
+             traffic stays disabled. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Keeps the splash screen on while Flutter initializes. -->
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Required by the Flutter tool: marks v2 Android embedding. -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <!-- Allows text-processing intents (Flutter default) -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>
