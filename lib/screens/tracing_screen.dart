@@ -192,8 +192,9 @@ class _TracingScreenState extends State<TracingScreen> {
       return Scaffold(
         appBar:
             widget.embedded ? null : AppBar(title:  Text(context.l10n.tracingStudio)),
-        body: Center(
-            child: CircularProgressIndicator(color: pal(context).accent)),
+        body: SafeArea(
+            child: Center(
+                child: CircularProgressIndicator(color: pal(context).accent))),
       );
     }
     return Scaffold(

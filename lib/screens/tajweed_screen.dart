@@ -84,62 +84,64 @@ class _RuleCard extends StatelessWidget {
           color: pal(context).surface,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            leading: Container(
-              width: 14, height: 44,
-              decoration: BoxDecoration(
-                color: rule.color,
-                borderRadius: BorderRadius.circular(7),
-              ),
-            ),
-            title: Text(tajwidName(context, rule),
-                style: uiStyle(context, size: 16.5, weight: FontWeight.w700)),
-            subtitle: Text(rule.arabicName,
-                textDirection: TextDirection.rtl,
-                textAlign: TextAlign.left,
-                style: arabicStyle(context, size: 16, height: 1.4,
-                    color: pal(context).textDim)),
-            children: [
-              _kv(context, context.l10n.when, tajwidTrigger(context, rule)),
-              const SizedBox(height: 6),
-              _kv(context, context.l10n.how, tajwidHow(context, rule)),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          clipBehavior: Clip.antiAlias,
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              leading: Container(
+                width: 14, height: 44,
                 decoration: BoxDecoration(
-                  color: s.paperMode ? pal(context).paper : pal(context).surfaceHigh,
-                  borderRadius: BorderRadius.circular(16),
+                  color: rule.color,
+                  borderRadius: BorderRadius.circular(7),
                 ),
-                child: Column(children: [
-                  RichText(
-                    textDirection: TextDirection.rtl,
-                    textAlign: TextAlign.center,
-                    text: TextSpan(children: [
-                      for (final seg in rule.example.segs)
-                        TextSpan(
-                          text: seg.text,
-                          style: arabicStyle(context, size: 30,
-                              color: seg.ruleId != null
-                                  ? ruleById(seg.ruleId!).color
-                                  : null,
-                              weight: seg.ruleId != null
-                                  ? FontWeight.w700
-                                  : FontWeight.w500),
-                        ),
-                    ]),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(context.l10n.surahRef(rule.example.ref),
-                      style: uiStyle(context,
-                          size: 12.5, color: pal(context).textDim)),
-                ]),
               ),
-            ],
+              title: Text(tajwidName(context, rule),
+                  style: uiStyle(context, size: 16.5, weight: FontWeight.w700)),
+              subtitle: Text(rule.arabicName,
+                  textDirection: TextDirection.rtl,
+                  textAlign: TextAlign.left,
+                  style: arabicStyle(context, size: 16, height: 1.4,
+                      color: pal(context).textDim)),
+              children: [
+                _kv(context, context.l10n.when, tajwidTrigger(context, rule)),
+                const SizedBox(height: 6),
+                _kv(context, context.l10n.how, tajwidHow(context, rule)),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: s.paperMode ? pal(context).paper : pal(context).surfaceHigh,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(children: [
+                    RichText(
+                      textDirection: TextDirection.rtl,
+                      textAlign: TextAlign.center,
+                      text: TextSpan(children: [
+                        for (final seg in rule.example.segs)
+                          TextSpan(
+                            text: seg.text,
+                            style: arabicStyle(context, size: 30,
+                                color: seg.ruleId != null
+                                    ? ruleById(seg.ruleId!).color
+                                    : null),
+                          ),
+                      ]),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(context.l10n.surahRef(rule.example.ref),
+                        style: uiStyle(context,
+                            size: 12.5, color: pal(context).textDim)),
+                  ]),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -251,10 +253,7 @@ class TajwidRuleScreen extends StatelessWidget with DesktopAware {
                               size: 32,
                               color: seg.ruleId != null
                                   ? ruleById(seg.ruleId!).color
-                                  : null,
-                              weight: seg.ruleId != null
-                                  ? FontWeight.w700
-                                  : FontWeight.w500),
+                                  : null),
                         ),
                     ]),
                   ),

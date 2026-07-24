@@ -553,5 +553,12 @@
   "coachIntroBlurb": "الحروف المتشابهة هي أصعب ما يواجهه كثير من القراء في العربية — لا يفرّق بين ب ت ث سوى النقاط. هذا المدرّب يتمرّن على ذلك تحديدًا، بالسرعة التي تناسبك، مع إعداد قراءة مصمَّم لك.",
   "pinPlayer": "تثبيت",
   "unpinPlayer": "إلغاء التثبيت",
-  "collapsePlayer": "طيّ"
+  "collapsePlayer": "طيّ",
+  "colorGreen": "أخضر",
+  "colorCoral": "مرجاني",
+  "fonts": "الخطوط",
+  "typefaces": "أنواع الخطوط",
+  "themeFamilyMint": "نعناعي",
+  "themeFamilyNoor": "نور",
+  "fillPageWidth": "ملء العرض"
 }

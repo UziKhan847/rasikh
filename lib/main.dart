@@ -136,6 +136,13 @@ void _warmUpFonts() {
     'IndoPak',
     'ScheherazadeNew',
     'PDMSSaleem',
+    // The 15-line mushaf's own faces — by far the heaviest bundled (their
+    // GPOS/positioning tables run 5-7x larger than the fonts above, since
+    // DigitalKhatt does the mushaf's mark-stacking/ayah-circle typesetting
+    // via OpenType tables), so cold-shaping them belongs here too rather
+    // than landing on the mushaf screen's first open or script switch.
+    'DigitalKhattV2',
+    'DigitalKhattIndoPak',
   ]) {
     final tp = TextPainter(
       text: TextSpan(

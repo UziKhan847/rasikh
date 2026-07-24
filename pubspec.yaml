@@ -1,7 +1,7 @@
 name: qiraah_arabiyyah
 description: "Qiraah Arabiyyah — a modern Arabic reading & writing journey: Qaidah, tracing with stroke direction, Tashkil counts, Tajwid, dyslexia-friendly practice, and the 10 Qira'at."
 publish_to: 'none'
-version: 1.0.0+1
+version: 2.0.0+40
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
@@ -65,3 +65,9 @@ flutter:
           weight: 400
         - asset: assets/fonts/Amiri-Bold.ttf
           weight: 700
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit-Variable.ttf
+    - family: NotoNastaliqUrdu
+      fonts:
+        - asset: assets/fonts/NotoNastaliqUrdu-Variable.ttf

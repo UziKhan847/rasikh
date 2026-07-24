@@ -9,7 +9,9 @@
 | PDMSSaleem.ttf | Pakistan Data Management Services | Freeware, terms unverified | Currently unused in UI; consider removing |
 | DigitalKhattV2.otf, DigitalKhattIndoPak.otf | [DigitalKhatt project](https://github.com/DigitalKhatt) (sponsored by Tarteel AI); bundled via Waqar Ahmed's [Quran Revision Companion](https://github.com/Waqar144/quran_memorization_helper) | See DigitalKhatt repo; app bundling it is MIT | Powers the 15-line muṣḥaf page |
 | SurahNames.ttf, Bismillah.ttf | Waqar Ahmed's [Quran Revision Companion](https://github.com/Waqar144/quran_memorization_helper) | MIT License | Ornamental glyphs for the 15-line muṣḥaf headers |
-| Amiri-Regular.ttf, Amiri-Bold.ttf | [Amiri](https://github.com/aliftype/amiri) | SIL Open Font License 1.1 | App-wide UI + Arabic typeface (ScheherazadeNew is the fallback) — licence text at `LICENSES/Amiri-OFL.txt` |
+| Amiri-Regular.ttf, Amiri-Bold.ttf | [Amiri](https://github.com/aliftype/amiri) | SIL Open Font License 1.1 | Arabic-language UI + Qur'anic/Arabic body typeface (ScheherazadeNew is the fallback) — licence text at `LICENSES/Amiri-OFL.txt` |
+| Outfit-Variable.ttf | [Outfit](https://github.com/Outfitio/Outfit-Fonts) | SIL Open Font License 1.1 | Latin-language (English/French/Spanish) UI typeface — licence text at `LICENSES/Outfit-OFL.txt` |
+| NotoNastaliqUrdu-Variable.ttf | [Noto Nastaliq Urdu](https://github.com/notofonts/nastaliq) | SIL Open Font License 1.1 | Urdu-language UI typeface — licence text at `LICENSES/NotoNastaliqUrdu-OFL.txt` |
 
 ## 15-line muṣḥaf (text + layout data, `assets/quran/mushaf_*.json`)
 The Madani- and Indo-Pak-script 15-line page/line breaks, and the fonts above,

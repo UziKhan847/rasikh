@@ -28,6 +28,8 @@ class AppSettings extends ChangeNotifier {
   String language = 'en'; // en | ar | ur | fr | es
   String quranScript = 'uthmani'; // 'uthmani' (Madani) | 'indopak'
   bool mushafHeader = true; // traditional page header: sūrah · page · juzʼ
+  bool mushafBarCollapsed = false; // retract the mushaf bottom control bar
+  bool mushafFillWidth = false; // desktop: fill page width and scroll vertically, like phone landscape
   bool immersive = false; // hide system bars app-wide (edge-to-edge reading)
   double quranFontScale = 1.0; // 0.7 – 2.2 (reader-only slider)
   double wbwGap = 10; // gap between words / segments (4–30)
@@ -127,6 +129,8 @@ class AppSettings extends ChangeNotifier {
     if (fontIndopak == 'IndoPak') fontIndopak = 'PDMSSaleem';
     quranScript = m['script'] ?? 'uthmani';
     mushafHeader = m['mushafHeader'] ?? true;
+    mushafBarCollapsed = m['mushafBarCol'] ?? false;
+    mushafFillWidth = m['mushafFillW'] ?? false;
     immersive = m['immersive'] ?? false;
     reciter = m['reciter'] ?? 'tunaiji';
     readerLayout = m['readerLayout'] ?? 'cards';
@@ -164,6 +168,8 @@ class AppSettings extends ChangeNotifier {
         'fontI': fontIndopak,
         'script': quranScript,
         'mushafHeader': mushafHeader,
+        'mushafBarCol': mushafBarCollapsed,
+        'mushafFillW': mushafFillWidth,
         'immersive': immersive,
         'qfont': quranFontScale,
         'reciter': reciter,

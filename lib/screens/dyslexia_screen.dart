@@ -232,9 +232,9 @@ class _SettingsPanel extends StatelessWidget {
                         size: 13.5, color: pal(context).textDim))),
             Expanded(
               child: Wrap(spacing: 6, runSpacing: 6, children: [
-                for (final (label, value) in const [
-                  ('Mint', 'mint'),
-                  ('Noor', 'noor')
+                for (final (label, value) in [
+                  (context.l10n.themeFamilyMint, 'mint'),
+                  (context.l10n.themeFamilyNoor, 'noor')
                 ])
                   ChoiceChip(
                     label: Text(label),

@@ -91,7 +91,7 @@ class AboutScreen extends StatelessWidget {
           ),
           _creditCard(
             context,
-            'Typefaces',
+            context.l10n.typefaces,
             context.l10n.creditFontsBody,
             Icons.text_fields_rounded,
             AppColors.star,
@@ -328,11 +328,11 @@ class AboutScreen extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         line(context.l10n.quranTextLabel,
             context.l10n.srcTextBody),
-        line('Fonts',
+        line(context.l10n.fonts,
             context.l10n.srcFontsBody),
         line(context.l10n.srcMushaf15Label,
             context.l10n.srcMushaf15Body),
-        line('Recitation',
+        line(context.l10n.recitation,
             context.l10n.srcRecitationBody),
         line(context.l10n.wordByWordLabel,
             context.l10n.srcWbwBody),
@@ -353,9 +353,9 @@ class AboutScreen extends StatelessWidget {
 
   Widget _colorCard(BuildContext context) {
     final s = SettingsScope.of(context);
-    const opts = [
-      ('mint', 'Green', Color(0xFF14C18E)),
-      ('noor', 'Coral', Color(0xFFE96A4B)),
+    final opts = [
+      ('mint', context.l10n.colorGreen, const Color(0xFF14C18E)),
+      ('noor', context.l10n.colorCoral, const Color(0xFFE96A4B)),
     ];
     return Container(
       margin: const EdgeInsets.only(top: 12),

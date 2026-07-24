@@ -1062,5 +1062,12 @@
   "coachIntroBlurb": "Letters that look alike are the hardest part of Arabic for many readers — ب ت ث differ only by dots. This coach trains exactly that, at your pace, with a reading setup tuned for you.",
   "pinPlayer": "Pin",
   "unpinPlayer": "Unpin",
-  "collapsePlayer": "Collapse"
+  "collapsePlayer": "Collapse",
+  "colorGreen": "Green",
+  "colorCoral": "Coral",
+  "fonts": "Fonts",
+  "typefaces": "Typefaces",
+  "themeFamilyMint": "Mint",
+  "themeFamilyNoor": "Noor",
+  "fillPageWidth": "Fill width"
 }

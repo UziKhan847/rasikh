@@ -58,7 +58,7 @@ class _DesktopShellState extends State<DesktopShell> {
             onToggle: () => setState(() => collapsed = !collapsed)),
         Expanded(
           child: Column(children: [
-            _TopBar(tint: kTint[tab]!, onGo: go),
+            _TopBar(tint: kTint[tab]!, tab: tab, onGo: go),
             Expanded(child: _content()),
           ]),
         ),
@@ -140,7 +140,15 @@ class _Sidebar extends StatelessWidget {
         color: p.surface,
         border: Border(right: BorderSide(color: p.surfaceHigh)),
       ),
-      child: Column(
+      // `collapsed` flips instantly, but the AnimatedContainer's width above
+      // takes 200ms to catch up — deciding what content to show from the
+      // ACTUAL width each frame (rather than from `collapsed` directly) keeps
+      // labels from demanding room the sidebar hasn't grown into yet, which
+      // was throwing RenderFlex overflow errors for the first third or so of
+      // every expand animation.
+      child: LayoutBuilder(builder: (context, c) {
+        final showLabels = c.maxWidth >= 150;
+        return Column(
           crossAxisAlignment: collapsed
               ? CrossAxisAlignment.center
               : CrossAxisAlignment.start,
@@ -171,7 +179,7 @@ class _Sidebar extends StatelessWidget {
                   const ColorFilter.mode(Colors.white, BlendMode.srcIn),
             ),
           ),
-          if (!collapsed) ...[
+          if (showLabels) ...[
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -217,7 +225,7 @@ class _Sidebar extends StatelessWidget {
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
-              if (!collapsed)
+              if (showLabels)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 0, 8),
                   child: Text(context.l10n.learn,
@@ -226,21 +234,23 @@ class _Sidebar extends StatelessWidget {
                           weight: FontWeight.w800,
                           color: p.textDim)),
                 ),
-              for (final t in learn) _navItem(context, t),
+              for (final t in learn) _navItem(context, t, showLabels),
             ],
           ),
         ),
         const SizedBox(height: 8),
-        _themeToggle(context),
+        _themeToggle(context, showLabels),
         const SizedBox(height: 10),
-        _streakCard(context),
+        _streakCard(context, showLabels),
         const SizedBox(height: 8),
-        _navItem(context, DeskTab.about),
-      ]),
+        _navItem(context, DeskTab.about, showLabels),
+          ],
+        );
+      }),
     );
   }
 
-  Widget _navItem(BuildContext context, DeskTab t) {
+  Widget _navItem(BuildContext context, DeskTab t, bool showLabels) {
     final p = pal(context);
     final meta = kTint[t]!;
     final on = t == tab;
@@ -252,7 +262,7 @@ class _Sidebar extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: () => onGo(t),
-        child: collapsed
+        child: !showLabels
             ? SizedBox(
                 width: 50,
                 height: 46,
@@ -298,7 +308,7 @@ class _Sidebar extends StatelessWidget {
     );
     return Padding(
       padding: const EdgeInsets.only(bottom: 3),
-      child: collapsed
+      child: !showLabels
           ? Center(child: Tooltip(message: deskTitleOf(context, t), child: item))
           : item,
     );
@@ -307,7 +317,7 @@ class _Sidebar extends StatelessWidget {
   /// Theme toggle, styled per the reference: an icon tile + label, sitting
   /// just above the streak card. Toggles light ↔ OLED (dark stays reachable
   /// from the About screen's full theme controls).
-  Widget _themeToggle(BuildContext context) {
+  Widget _themeToggle(BuildContext context, bool showLabels) {
     final p = pal(context);
     final s = SettingsScope.of(context);
     final isDarkish = s.themeMode != 'light';
@@ -328,7 +338,7 @@ class _Sidebar extends StatelessWidget {
     );
     void flip() =>
         s.update(() => s.themeMode = isDarkish ? 'light' : 'oled');
-    if (collapsed) {
+    if (!showLabels) {
       return Tooltip(
         message: label,
         child: Material(
@@ -364,21 +374,24 @@ class _Sidebar extends StatelessWidget {
           child: Row(children: [
             tile,
             const SizedBox(width: 12),
-            Text(label,
-                style: uiStyle(context,
-                    size: 13.5,
-                    weight: FontWeight.w800,
-                    color: p.textDim)),
+            Expanded(
+              child: Text(label,
+                  overflow: TextOverflow.ellipsis,
+                  style: uiStyle(context,
+                      size: 13.5,
+                      weight: FontWeight.w800,
+                      color: p.textDim)),
+            ),
           ]),
         ),
       ),
     );
   }
 
-  Widget _streakCard(BuildContext context) {
+  Widget _streakCard(BuildContext context, bool showLabels) {
     final prog = ProgressScope.of(context);
     final days = prog.streakDays;
-    if (collapsed) {
+    if (!showLabels) {
       return Container(
         width: 46,
         height: 46,
@@ -432,8 +445,9 @@ class _Sidebar extends StatelessWidget {
 
 class _TopBar extends StatelessWidget {
   final TabTint tint;
+  final DeskTab tab;
   final void Function(DeskTab) onGo;
-  const _TopBar({required this.tint, required this.onGo});
+  const _TopBar({required this.tint, required this.tab, required this.onGo});
 
   @override
   Widget build(BuildContext context) {
@@ -442,10 +456,10 @@ class _TopBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(34, 20, 30, 16),
       child: Row(children: [
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(deskKickerOf(context, DeskTab.home),
+          Text(deskKickerOf(context, tab),
               style: uiStyle(context,
                   size: 13, weight: FontWeight.w700, color: p.textDim)),
-          Text(tint.title,
+          Text(deskTitleOf(context, tab),
               style: uiStyle(context, size: 25, weight: FontWeight.w900)),
         ]),
         const Spacer(),

@@ -44,6 +44,23 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   bool _ready = false;
   bool _booted = false;
   bool _dual = false; // desktop: two facing pages, like the open book
+  bool _fullscreen = false;
+  bool? _prevImmersive; // immersive value to restore when leaving fullscreen
+
+  void _enterFullscreen(AppSettings s) {
+    setState(() {
+      _prevImmersive = s.immersive;
+      _fullscreen = true;
+    });
+    if (!isDesktopPlatform() && !s.immersive) s.update(() => s.immersive = true);
+  }
+
+  void _exitFullscreen(AppSettings s) {
+    setState(() => _fullscreen = false);
+    final prev = _prevImmersive;
+    _prevImmersive = null;
+    if (prev != null && prev != s.immersive) s.update(() => s.immersive = prev);
+  }
 
   /// PageView slots: one per page, or one per spread in dual mode.
   int get _viewCount => _dual ? (_total + 1) >> 1 : _total;
@@ -354,161 +371,223 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         if (mounted && s.quranScript != _script) _switchScript(s.quranScript);
       });
     }
-    return Scaffold(
-      backgroundColor: pal(context).bg,
-      appBar: AppBar(
-        title: Text(
-            _script == 'indopak' ? context.l10n.mushafIndoPakTitle : context.l10n.mushafMadaniTitle),
-        actions: [
-          if (useDesktop(context))
-            IconButton(
-              tooltip: _dual
-                  ? context.l10n.singlePage
-                  : context.l10n.twoPageSpread,
-              icon: Icon(_dual
-                  ? Icons.description_rounded
-                  : Icons.auto_stories_rounded),
-              onPressed: _ready ? _toggleDual : null,
-            ),
-          PopupMenuButton<String>(
-            tooltip: context.l10n.view,
-            // Hiding system status/nav bars is a phone/tablet concept —
-            // desktop windows have none to hide, so that option (and the
-            // fullscreen icon representing it) only make sense there.
-            icon: Icon(isDesktopPlatform()
-                ? Icons.visibility_rounded
-                : (s.immersive
-                    ? Icons.fullscreen_exit_rounded
-                    : Icons.fullscreen_rounded)),
-            onSelected: (v) {
-              if (v == 'i') {
-                s.update(() => s.immersive = !s.immersive);
-              } else if (v == 'h') {
-                s.update(() => s.mushafHeader = !s.mushafHeader);
-              }
-            },
-            itemBuilder: (_) => [
-              if (!isDesktopPlatform())
-                CheckedPopupMenuItem(
-                    value: 'i',
-                    checked: s.immersive,
-                    child:  Text(context.l10n.immersiveHideSystemBars)),
-              CheckedPopupMenuItem(
-                  value: 'h',
-                  checked: s.mushafHeader,
-                  child:  Text(context.l10n.pageHeader)),
-            ],
-          ),
-          PopupMenuButton<String>(
-            tooltip: context.l10n.recitation,
-            icon: const Icon(Icons.headphones_rounded),
-            onSelected: (v) => _onAudioMenu(v, s),
-            itemBuilder: (_) => [
-               PopupMenuItem(
-                  enabled: false,
-                  child: Text(context.l10n.reciter,
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-              CheckedPopupMenuItem(
-                  value: 'r:tunaiji',
-                  checked: s.reciter == 'tunaiji',
-                  child:  Text(context.l10n.alTunaiji)),
-              CheckedPopupMenuItem(
-                  value: 'r:alafasy',
-                  checked: s.reciter == 'alafasy',
-                  child:  Text(context.l10n.alAfasiWordSync)),
-              CheckedPopupMenuItem(
-                  value: 'r:husary',
-                  checked: s.reciter == 'husary',
-                  child:  Text(context.l10n.alHusariWordSync)),
-              const PopupMenuDivider(),
-               PopupMenuItem(
-                  enabled: false,
-                  child: Text(context.l10n.playback,
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-              CheckedPopupMenuItem(
-                  value: 'f:single',
-                  checked: s.reciteFlow == 'single',
-                  child:  Text(context.l10n.verseByVerse)),
-              CheckedPopupMenuItem(
-                  value: 'f:auto',
-                  checked: s.reciteFlow == 'auto',
-                  child:  Text(context.l10n.continuous)),
-              CheckedPopupMenuItem(
-                  value: 'f:repeat',
-                  checked: s.reciteFlow == 'repeat',
-                  child:  Text(context.l10n.repeatVerse)),
-            ],
-          ),
-          PopupMenuButton<String>(
-            tooltip: context.l10n.script,
-            icon: const Icon(Icons.translate_rounded),
-            onSelected: _switchScript,
-            itemBuilder: (_) => [
-              CheckedPopupMenuItem(
-                  value: 'uthmani',
-                  checked: _script == 'uthmani',
-                  child:  Text(context.l10n.madaniUthmani)),
-              CheckedPopupMenuItem(
-                  value: 'indopak',
-                  checked: _script == 'indopak',
-                  child:  Text(context.l10n.indoPak)),
-            ],
-          ),
-          IconButton(
-            tooltip: context.l10n.jumpToSurah,
-            icon: const Icon(Icons.menu_book_rounded),
-            onPressed: _ready ? _pickSurah : null,
-          ),
-        ],
-      ),
-      body: !_ready
-          ? Center(child: CircularProgressIndicator(color: pal(context).accent))
-          : Column(
-              children: [
-                Expanded(
-                  child: LayoutBuilder(builder: (context, c) {
-                    // A phone on its side: short and wide. There the page uses
-                    // the FULL width so the lines grow, and scrolls vertically
-                    // instead of shrinking to fit the short side. Desktop and
-                    // tablets are wide but tall enough, so they keep the
-                    // centred book column.
-                    final wide =
-                        c.maxWidth > c.maxHeight && c.maxHeight < 520;
-                    final maxW =
-                        wide ? double.infinity : (_dual ? 1440.0 : 720.0);
-                    return Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: maxW),
-                        child: PageView.builder(
-                          key: ValueKey('$_script-$_dual'),
-                          controller: _ctrl,
-                          reverse: true, // right-to-left page turning
-                          itemCount: _viewCount,
-                          onPageChanged: _onPage,
-                          itemBuilder: (context, i) {
-                            if (!_dual) {
-                              return _buildPage(i + 1, wide, s);
-                            }
-                            // A spread, like the open book: the LOWER page on
-                            // the right, its successor on the left.
-                            final right = i * 2 + 1;
-                            final left = right + 1;
-                            return Row(children: [
-                              Expanded(
-                                  child: left <= _total
-                                      ? _buildPage(left, wide, s)
-                                      : const SizedBox()),
-                              Expanded(child: _buildPage(right, wide, s)),
-                            ]);
-                          },
+    return PopScope(
+      canPop: !_fullscreen,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _fullscreen) _exitFullscreen(s);
+      },
+      child: Scaffold(
+        backgroundColor: pal(context).bg,
+        appBar: _fullscreen
+            ? null
+            : AppBar(
+                title: Text(_script == 'indopak'
+                    ? context.l10n.mushafIndoPakTitle
+                    : context.l10n.mushafMadaniTitle),
+                actions: [
+                  if (useDesktop(context))
+                    IconButton(
+                      tooltip: _dual
+                          ? context.l10n.singlePage
+                          : context.l10n.twoPageSpread,
+                      icon: Icon(_dual
+                          ? Icons.description_rounded
+                          : Icons.auto_stories_rounded),
+                      onPressed: _ready ? _toggleDual : null,
+                    ),
+                  PopupMenuButton<String>(
+                    tooltip: context.l10n.view,
+                    // Hiding system status/nav bars is a phone/tablet concept —
+                    // desktop windows have none to hide, so that option (and the
+                    // fullscreen icon representing it) only make sense there.
+                    icon: Icon(isDesktopPlatform()
+                        ? Icons.visibility_rounded
+                        : (s.immersive
+                            ? Icons.fullscreen_exit_rounded
+                            : Icons.fullscreen_rounded)),
+                    onSelected: (v) {
+                      if (v == 'i') {
+                        s.update(() => s.immersive = !s.immersive);
+                      } else if (v == 'h') {
+                        s.update(() => s.mushafHeader = !s.mushafHeader);
+                      } else if (v == 'w') {
+                        s.update(() => s.mushafFillWidth = !s.mushafFillWidth);
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      if (!isDesktopPlatform())
+                        CheckedPopupMenuItem(
+                            value: 'i',
+                            checked: s.immersive,
+                            child: Text(context.l10n.immersiveHideSystemBars)),
+                      CheckedPopupMenuItem(
+                          value: 'h',
+                          checked: s.mushafHeader,
+                          child: Text(context.l10n.pageHeader)),
+                      if (useDesktop(context) && !_dual)
+                        CheckedPopupMenuItem(
+                            value: 'w',
+                            checked: s.mushafFillWidth,
+                            child: Text(context.l10n.fillPageWidth)),
+                    ],
+                  ),
+                  PopupMenuButton<String>(
+                    tooltip: context.l10n.recitation,
+                    icon: const Icon(Icons.headphones_rounded),
+                    onSelected: (v) => _onAudioMenu(v, s),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                          enabled: false,
+                          child: Text(context.l10n.reciter,
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w700))),
+                      CheckedPopupMenuItem(
+                          value: 'r:tunaiji',
+                          checked: s.reciter == 'tunaiji',
+                          child: Text(context.l10n.alTunaiji)),
+                      CheckedPopupMenuItem(
+                          value: 'r:alafasy',
+                          checked: s.reciter == 'alafasy',
+                          child: Text(context.l10n.alAfasiWordSync)),
+                      CheckedPopupMenuItem(
+                          value: 'r:husary',
+                          checked: s.reciter == 'husary',
+                          child: Text(context.l10n.alHusariWordSync)),
+                      const PopupMenuDivider(),
+                      PopupMenuItem(
+                          enabled: false,
+                          child: Text(context.l10n.playback,
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w700))),
+                      CheckedPopupMenuItem(
+                          value: 'f:single',
+                          checked: s.reciteFlow == 'single',
+                          child: Text(context.l10n.verseByVerse)),
+                      CheckedPopupMenuItem(
+                          value: 'f:auto',
+                          checked: s.reciteFlow == 'auto',
+                          child: Text(context.l10n.continuous)),
+                      CheckedPopupMenuItem(
+                          value: 'f:repeat',
+                          checked: s.reciteFlow == 'repeat',
+                          child: Text(context.l10n.repeatVerse)),
+                    ],
+                  ),
+                  PopupMenuButton<String>(
+                    tooltip: context.l10n.script,
+                    icon: const Icon(Icons.translate_rounded),
+                    onSelected: _switchScript,
+                    itemBuilder: (_) => [
+                      CheckedPopupMenuItem(
+                          value: 'uthmani',
+                          checked: _script == 'uthmani',
+                          child: Text(context.l10n.madaniUthmani)),
+                      CheckedPopupMenuItem(
+                          value: 'indopak',
+                          checked: _script == 'indopak',
+                          child: Text(context.l10n.indoPak)),
+                    ],
+                  ),
+                  IconButton(
+                    tooltip: context.l10n.jumpToSurah,
+                    icon: const Icon(Icons.menu_book_rounded),
+                    onPressed: _ready ? _pickSurah : null,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.open_in_full_rounded),
+                    onPressed: _ready ? () => _enterFullscreen(s) : null,
+                  ),
+                ],
+              ),
+        body: SafeArea(
+          top: _fullscreen,
+          bottom: false,
+          child: Stack(
+            children: [
+              !_ready
+                  ? Center(
+                      child: CircularProgressIndicator(
+                          color: pal(context).accent))
+                  : Column(
+                      children: [
+                        Expanded(
+                          child: LayoutBuilder(builder: (context, c) {
+                            // A phone on its side: short and wide. There the
+                            // page uses the FULL width so the lines grow, and
+                            // scrolls vertically instead of shrinking to fit
+                            // the short side. Desktop and tablets are wide but
+                            // tall enough, so they keep the centred book column.
+                            final wide =
+                                (c.maxWidth > c.maxHeight && c.maxHeight < 520) ||
+                                    (!_dual && s.mushafFillWidth);
+                            final maxW = wide
+                                ? double.infinity
+                                : (_dual ? 1440.0 : 720.0);
+                            return Center(
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(maxWidth: maxW),
+                                child: PageView.builder(
+                                  key: ValueKey('$_script-$_dual'),
+                                  controller: _ctrl,
+                                  reverse: true, // right-to-left page turning
+                                  // Pre-builds the adjacent page instead of
+                                  // Flutter's default zero-length cache
+                                  // extent, so a page's first-visit layout
+                                  // cost lands before the swipe reaches it,
+                                  // not mid-gesture.
+                                  allowImplicitScrolling: true,
+                                  itemCount: _viewCount,
+                                  onPageChanged: _onPage,
+                                  itemBuilder: (context, i) {
+                                    if (!_dual) {
+                                      return _buildPage(i + 1, wide, s);
+                                    }
+                                    // A spread, like the open book: the LOWER
+                                    // page on the right, its successor on the
+                                    // left.
+                                    final right = i * 2 + 1;
+                                    final left = right + 1;
+                                    return Row(children: [
+                                      Expanded(
+                                          child: left <= _total
+                                              ? _buildPage(left, wide, s)
+                                              : const SizedBox()),
+                                      Expanded(
+                                          child:
+                                              _buildPage(right, wide, s)),
+                                    ]);
+                                  },
+                                ),
+                              ),
+                            );
+                          }),
                         ),
+                        if (!_fullscreen) _bottomBar(context, s),
+                      ],
+                    ),
+              if (_fullscreen)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Material(
+                    color: pal(context).surface.withValues(alpha: .9),
+                    shape: const CircleBorder(),
+                    elevation: 3,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => _exitFullscreen(s),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(Icons.fullscreen_exit_rounded,
+                            color: pal(context).text, size: 22),
                       ),
-                    );
-                  }),
+                    ),
+                  ),
                 ),
-                _bottomBar(context),
-              ],
-            ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -526,7 +605,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         onTapVerse: (g) => _playVerse(g),
       );
 
-  Widget _bottomBar(BuildContext context) {
+  Widget _bottomBar(BuildContext context, AppSettings s) {
     final juz = MushafRepo.juzOfPage(_script, _page);
     return Container(
       padding: const EdgeInsets.fromLTRB(6, 4, 6, 8),
@@ -541,84 +620,108 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       child: SafeArea(
         top: false,
         child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              const SizedBox(width: 6),
-              Text(_names[_curSurah] ?? '',
-                  textDirection: TextDirection.rtl,
-                  style: const TextStyle(
-                      fontFamily: 'ScheherazadeNew', fontSize: 18)),
-              const Spacer(),
-              Text(context.l10n.juzPageOf(juz, _page, _total),
-                  style: uiStyle(context,
-                      size: 12.5,
-                      weight: FontWeight.w700,
-                      color: pal(context).textDim)),
-              const SizedBox(width: 6),
-            ],
-          ),
-          // The page rail is a BOOK control, not UI chrome: its geometry is
-          // fixed in every language (page 1 at the right, left chevron turns
-          // to the next page). Pinned to LTR so the chevrons keep their sides
-          // when the app itself is Arabic or Urdu; the slider below carries
-          // its own RTL so page 1 still sits at the right-hand end.
-          Directionality(
-            textDirection: TextDirection.ltr,
-            child: Row(
-            children: [
-              // play / pause the page (continues per playback mode)
-              ValueListenableBuilder<bool>(
-                valueListenable: AyahAudio.instance.playing,
-                builder: (context, playing, _) => IconButton(
-                  tooltip: _reciting
-                      ? (playing ? context.l10n.pause : context.l10n.resume)
-                      : context.l10n.playPage,
-                  icon: Icon(
-                      _reciting && playing
-                          ? Icons.pause_circle_filled_rounded
-                          : Icons.play_circle_fill_rounded,
-                      size: 34,
-                      color: pal(context).accent),
-                  onPressed: _togglePlay,
-                ),
-              ),
-              if (_reciting)
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const SizedBox(width: 6),
+                Text(_names[_curSurah] ?? '',
+                    textDirection: TextDirection.rtl,
+                    style: const TextStyle(
+                        fontFamily: 'ScheherazadeNew', fontSize: 18)),
+                const Spacer(),
+                Text(context.l10n.juzPageOf(juz, _page, _total),
+                    style: uiStyle(context,
+                        size: 12.5,
+                        weight: FontWeight.w700,
+                        color: pal(context).textDim)),
                 IconButton(
-                  tooltip: context.l10n.stop,
-                  icon: Icon(Icons.stop_circle_rounded,
-                      size: 26, color: pal(context).textDim),
-                  onPressed: _stopAudio,
+                  icon: Icon(
+                      s.mushafBarCollapsed
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: pal(context).textDim),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  onPressed: () => s
+                      .update(() => s.mushafBarCollapsed = !s.mushafBarCollapsed),
                 ),
-              // The book reads right-to-left, so the page rail does too: page 1
-              // sits at the RIGHT end and the LEFT chevron turns to the next
-              // page. Forced RTL here regardless of the app's language.
-              IconButton(
-                tooltip: context.l10n.nextPage,
-                icon: const Icon(Icons.chevron_left_rounded),
-                onPressed: _page < _total ? () => _jump(_page + 1) : null,
-              ),
-              Expanded(
-                child: Directionality(
-                  textDirection: TextDirection.rtl,
-                  child: Slider(
-                    min: 1,
-                    max: _total.toDouble(),
-                    value: _page.toDouble().clamp(1, _total.toDouble()),
-                    onChanged: (v) => _jump(v.round()),
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: context.l10n.previousPage,
-                icon: const Icon(Icons.chevron_right_rounded),
-                onPressed: _page > 1 ? () => _jump(_page - 1) : null,
-              ),
-            ],
-          ),
-          ),
-        ],
+              ],
+            ),
+            // The page rail is a BOOK control, not UI chrome: its geometry is
+            // fixed in every language (page 1 at the right, left chevron turns
+            // to the next page). Pinned to LTR so the chevrons keep their sides
+            // when the app itself is Arabic or Urdu; the slider below carries
+            // its own RTL so page 1 still sits at the right-hand end.
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              alignment: Alignment.topCenter,
+              child: s.mushafBarCollapsed
+                  ? const SizedBox(width: double.infinity)
+                  : Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: Row(
+                        children: [
+                          // play / pause the page (continues per playback mode)
+                          ValueListenableBuilder<bool>(
+                            valueListenable: AyahAudio.instance.playing,
+                            builder: (context, playing, _) => IconButton(
+                              tooltip: _reciting
+                                  ? (playing
+                                      ? context.l10n.pause
+                                      : context.l10n.resume)
+                                  : context.l10n.playPage,
+                              icon: Icon(
+                                  _reciting && playing
+                                      ? Icons.pause_circle_filled_rounded
+                                      : Icons.play_circle_fill_rounded,
+                                  size: 34,
+                                  color: pal(context).accent),
+                              onPressed: _togglePlay,
+                            ),
+                          ),
+                          if (_reciting)
+                            IconButton(
+                              tooltip: context.l10n.stop,
+                              icon: Icon(Icons.stop_circle_rounded,
+                                  size: 26, color: pal(context).textDim),
+                              onPressed: _stopAudio,
+                            ),
+                          // The book reads right-to-left, so the page rail does
+                          // too: page 1 sits at the RIGHT end and the LEFT
+                          // chevron turns to the next page. Forced RTL here
+                          // regardless of the app's language.
+                          IconButton(
+                            tooltip: context.l10n.nextPage,
+                            icon: const Icon(Icons.chevron_left_rounded),
+                            onPressed: _page < _total
+                                ? () => _jump(_page + 1)
+                                : null,
+                          ),
+                          Expanded(
+                            child: Directionality(
+                              textDirection: TextDirection.rtl,
+                              child: Slider(
+                                min: 1,
+                                max: _total.toDouble(),
+                                value:
+                                    _page.toDouble().clamp(1, _total.toDouble()),
+                                onChanged: (v) => _jump(v.round()),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: context.l10n.previousPage,
+                            icon: const Icon(Icons.chevron_right_rounded),
+                            onPressed:
+                                _page > 1 ? () => _jump(_page - 1) : null,
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
         ),
       ),
     );
@@ -681,9 +784,17 @@ class _MushafPageView extends StatelessWidget {
             children: [
               if (showHeader) _pageHeader(context),
               Expanded(
-                child: LayoutBuilder(
-                  builder: (context, c) =>
-                      _grid(context, lines, c.maxWidth, c.maxHeight),
+                // Isolates the word grid's paint layer from the card's own
+                // border/shadow above: every recitation word-highlight tick
+                // repaints this subtree, and without this boundary a
+                // non-boundary child is always repainted alongside its
+                // enclosing layer, so the shadow blur would be redrawn on
+                // every tick even though its own inputs never change.
+                child: RepaintBoundary(
+                  child: LayoutBuilder(
+                    builder: (context, c) =>
+                        _grid(context, lines, c.maxWidth, c.maxHeight),
+                  ),
                 ),
               ),
             ],
@@ -748,6 +859,27 @@ class _MushafPageView extends StatelessWidget {
   // for every line on the page, purely to recompute the same number.
   static final Map<String, (double, double, double)> _scaleCache = {};
 
+  // Rounds a viewport dimension to the nearest 4px before it goes into a
+  // cache key. On a fixed-orientation phone this is a no-op in practice, but
+  // on a resizable (desktop) window an interactive resize drag would
+  // otherwise mint a near-unbounded number of cache entries — one per pixel
+  // of drag — since neither cache is ever evicted.
+  static double _roundPx(double x) => (x / 4).round() * 4.0;
+
+  // DigitalKhattV2/DigitalKhattIndoPak declare ascent 1500 + descent 700 on a
+  // 1000-unit em (confirmed via `ttx -t hhea`) — a line needs 2.2x the font
+  // size to fully contain the tallest ḥarakah stacks (e.g. ayin+sukun) per
+  // the font's own declared metrics. In practice, when this ratio is the
+  // binding constraint on font size (byHeight < byWidth below — typically
+  // whenever something eats into the page's vertical room, e.g. the mushaf
+  // bottom bar expanded), a handful of glyph combinations still render ink
+  // slightly past what the font declares, so this carries a ~5% safety
+  // margin (2.2 * 1.05) beyond the bare metrics rather than matching them
+  // exactly. Nothing in this screen's line slots clips overflow, so
+  // under-allocating this doesn't clip a tall mark — it gets silently
+  // painted over by whichever line is drawn next.
+  static const _lineHeightRatio = 1 / (2.2 * 1.05);
+
   Widget _grid(
       BuildContext context, List<MushafLine> lines, double vw, double vh) {
     final ink = SettingsScope.of(context).paperMode
@@ -763,7 +895,7 @@ class _MushafPageView extends StatelessWidget {
     final targetW = vw;
 
     final cacheKey =
-        '$script/$page/${targetW.toStringAsFixed(1)}/${vh.toStringAsFixed(1)}/$fitWidth';
+        '$script/$page/${_roundPx(targetW)}/${_roundPx(vh)}/$fitWidth';
     final double fs;
     final double slotH;
     final double contentH;
@@ -789,10 +921,10 @@ class _MushafPageView extends StatelessWidget {
 
       if (fitWidth) {
         fs = byWidth.clamp(11.0, 96.0);
-        slotH = fs / 0.62;
+        slotH = fs / _lineHeightRatio;
       } else {
         slotH = vh / n;
-        final byHeight = slotH * 0.62;
+        final byHeight = slotH * _lineHeightRatio;
         fs = (byWidth < byHeight ? byWidth : byHeight).clamp(11.0, 46.0);
       }
       contentH = fitWidth ? slotH * n : vh;
@@ -875,6 +1007,20 @@ class _MushafPageView extends StatelessWidget {
     return _textLine(context, l, base, targetW, slotH, ink);
   }
 
+  // Per-line geometry (natural width; and, for lines with āyah markers, the
+  // second pass's width/height + each marker's resolved hit-box) depends
+  // only on the line's text/font/target width — never on which word is
+  // currently highlighted. Keyed on the MushafLine's identity (pageSync
+  // returns the same line objects every call, so this is stable) plus the
+  // viewport width/font size. Without this, every highlight tick during
+  // recitation (a setState from _onRecitePos) reran both TextPainter.layout()
+  // passes below for every line on the page, purely to recolor one word —
+  // the same class of problem _scaleCache already solves for the page's
+  // overall font-scale, just one function down from it.
+  static final Map<String,
+      (double natural, double tpW, double tpH,
+          List<(double, double, int)> markerBoxes)> _lineGeomCache = {};
+
   Widget _textLine(BuildContext context, MushafLine l, TextStyle base,
       double targetW, double slotH, Color ink) {
     final accent = pal(context).accent;
@@ -924,13 +1070,59 @@ class _MushafPageView extends StatelessWidget {
       }
     }
 
-    final measure = TextPainter(
-        text: TextSpan(children: spans, style: base),
-        textDirection: TextDirection.rtl,
-        maxLines: 1)
-      ..layout();
-    final natural = measure.width;
-    measure.dispose();
+    final geomKey =
+        '${identityHashCode(l)}_${_roundPx(targetW)}_${base.fontSize!.toStringAsFixed(2)}';
+    var geom = _lineGeomCache[geomKey];
+    if (geom == null) {
+      final measure = TextPainter(
+          text: TextSpan(children: spans, style: base),
+          textDirection: TextDirection.rtl,
+          maxLines: 1)
+        ..layout();
+      final natural = measure.width;
+      measure.dispose();
+
+      final spacesForGeom = l.words.length - 1;
+      final justifiedForGeom = natural >= targetW * 0.45 && spacesForGeom > 0;
+      final wordSpacingForGeom = justifiedForGeom
+          ? ((targetW - natural) / spacesForGeom).clamp(0.0, 1e6)
+          : 0.0;
+      final rootStyleForGeom = justifiedForGeom
+          ? base.copyWith(wordSpacing: wordSpacingForGeom)
+          : base;
+
+      var tpW = 0.0, tpH = 0.0;
+      final markerBoxes = <(double, double, int)>[];
+      if (markers.isNotEmpty) {
+        // The circle's own glyph box is small and sits inside big justified
+        // gaps, so near-misses land on a bare space span and nothing
+        // happens. Lay the final line out once more and record an enlarged
+        // hit box for each marker: full slot height, widened into the
+        // surrounding gaps.
+        final tp = TextPainter(
+            text: TextSpan(children: spans, style: rootStyleForGeom),
+            textDirection: TextDirection.rtl,
+            maxLines: 1)
+          ..layout();
+        tpW = tp.width;
+        tpH = tp.height;
+        for (final m in markers) {
+          final boxes = tp.getBoxesForSelection(
+              TextSelection(baseOffset: m.$1, extentOffset: m.$2));
+          if (boxes.isEmpty) continue;
+          var left = boxes.first.left, right = boxes.first.right;
+          for (final b in boxes) {
+            if (b.left < left) left = b.left;
+            if (b.right > right) right = b.right;
+          }
+          markerBoxes.add((left, right, m.$3));
+        }
+        tp.dispose();
+      }
+      geom = (natural, tpW, tpH, markerBoxes);
+      _lineGeomCache[geomKey] = geom;
+    }
+    final natural = geom.$1;
 
     // NOTE textScaler.noScaling on both branches: the page sizes its own text
     // to fit the printed geometry, but Text.rich would additionally inherit
@@ -959,34 +1151,17 @@ class _MushafPageView extends StatelessWidget {
           : Center(child: text);
     }
 
-    // ── enlarged hit targets over the āyah circles ──
-    // The circle's own glyph box is small and sits inside big justified gaps,
-    // so near-misses land on a bare space span and nothing happens. Lay the
-    // final line out once more and float an invisible tap target over each
-    // marker: full slot height, widened into the surrounding gaps.
-    final tp = TextPainter(
-        text: TextSpan(children: spans, style: rootStyle),
-        textDirection: TextDirection.rtl,
-        maxLines: 1)
-      ..layout();
-    final lineW = justified ? targetW : tp.width;
-    final extra = slotH - tp.height;
+    final tpWidth = geom.$2, tpHeight = geom.$3;
+    final lineW = justified ? targetW : tpWidth;
+    final extra = slotH - tpHeight;
     final vPad = extra > 0 ? (extra / 2).clamp(0.0, 14.0) : 0.0;
-    final boxH = tp.height + vPad * 2;
+    final boxH = tpHeight + vPad * 2;
     final hPad = (8.0 + wordSpacing / 2).clamp(8.0, 26.0);
-    final xOff = (lineW - tp.width) / 2;
+    final xOff = (lineW - tpWidth) / 2;
 
     final hits = <Positioned>[];
-    for (final m in markers) {
-      final boxes = tp.getBoxesForSelection(
-          TextSelection(baseOffset: m.$1, extentOffset: m.$2));
-      if (boxes.isEmpty) continue;
-      var left = boxes.first.left, right = boxes.first.right;
-      for (final b in boxes) {
-        if (b.left < left) left = b.left;
-        if (b.right > right) right = b.right;
-      }
-      final ayah = m.$3;
+    for (final mb in geom.$4) {
+      final left = mb.$1, right = mb.$2, ayah = mb.$3;
       hits.add(Positioned(
         left: (xOff + left - hPad).clamp(0.0, lineW),
         top: 0,
@@ -1001,7 +1176,6 @@ class _MushafPageView extends StatelessWidget {
         ),
       ));
     }
-    tp.dispose();
 
     final stack = Stack(
       alignment: Alignment.center,

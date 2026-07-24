@@ -569,22 +569,27 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
           ),
         ],
       ),
-      body: _bodyWithFloatingPlayer(
-        words == null
-            ? Center(
-                child: CircularProgressIndicator(color: pal(context).accent))
-            : Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                      maxWidth: useDesktop(context) ? 760 : double.infinity),
-                  child: Column(children: [
-                _controls(context, s),
-                Expanded(child: _readerList(context, s)),
-              ]),
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: _bodyWithFloatingPlayer(
+          words == null
+              ? Center(
+                  child:
+                      CircularProgressIndicator(color: pal(context).accent))
+              : Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                        maxWidth: useDesktop(context) ? 760 : double.infinity),
+                    child: Column(children: [
+                      _controls(context, s),
+                      Expanded(child: _readerList(context, s)),
+                    ]),
+                  ),
                 ),
-              ),
-        playerBar,
-        pinned,
+          playerBar,
+          pinned,
+        ),
       ),
     );
   }
@@ -723,10 +728,15 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
                     offset: const Offset(0, 6)),
               ],
             ),
-            child: ListView(
-              children: _optionsChildren(
-                  context, s, (fn) => setState(() => s.update(fn)),
-                  (fn) => setState(fn)),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(22),
+              clipBehavior: Clip.antiAlias,
+              child: ListView(
+                children: _optionsChildren(
+                    context, s, (fn) => setState(() => s.update(fn)),
+                    (fn) => setState(fn)),
+              ),
             ),
           ),
         ),

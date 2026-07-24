@@ -62,7 +62,9 @@ extension _TashkeelDesktop on TashkeelScreen {
   Widget _desktopBuild(BuildContext context, List<TashkilItem> items) {
     return Scaffold(
       backgroundColor: pal(context).bg,
-      body: _DeskAccordion(items: items, focusCounts: focusCounts),
+      body: SafeArea(
+        child: _DeskAccordion(items: items, focusCounts: focusCounts),
+      ),
     );
   }
 }
@@ -242,77 +244,81 @@ class _TashkilCard extends StatelessWidget {
           color: pal(context).surface,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            leading: Container(
-              width: 50, height: 50,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: pal(context).surfaceHigh,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(item.mark,
-                  textDirection: TextDirection.rtl,
-                  style: arabicStyle(context, size: 24, height: 1.5,
-                      color: pal(context).accent)),
-            ),
-            title: Text(tashkilName(context, item),
-                style: uiStyle(context, size: 16.5, weight: FontWeight.w700)),
-            subtitle: Text('“${item.sound}” $countLabel',
-                style: uiStyle(context, size: 13, color: pal(context).textDim)),
-            children: [
-              Text(tashkilNote(context, item),
-                  style: uiStyle(context, size: 14, color: pal(context).textDim)),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          clipBehavior: Clip.antiAlias,
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              leading: Container(
+                width: 50, height: 50,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: s.paperMode ? pal(context).paper : pal(context).surfaceHigh,
-                  borderRadius: BorderRadius.circular(16),
+                  color: pal(context).surfaceHigh,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: Column(children: [
-                  RichText(
+                child: Text(item.mark,
                     textDirection: TextDirection.rtl,
-                    textAlign: TextAlign.center,
-                    text: TextSpan(
-                        children: highlightSpans(
-                      item.example,
-                      item.highlight,
-                      arabicStyle(context, size: 38),
-                      arabicStyle(context, size: 38, color: pal(context).accent,
-                          weight: FontWeight.w700),
-                    )),
-                  ),
-                  Text(context.l10n.surahRef(item.ref),
-                      style: uiStyle(context,
-                          size: 12.5, color: pal(context).textDim)),
-                ]),
+                    style: arabicStyle(context, size: 24, height: 1.5,
+                        color: pal(context).accent)),
               ),
-              if (item.counts >= 1) ...[
+              title: Text(tashkilName(context, item),
+                  style: uiStyle(context, size: 16.5, weight: FontWeight.w700)),
+              subtitle: Text('“${item.sound}” $countLabel',
+                  style: uiStyle(context, size: 13, color: pal(context).textDim)),
+              children: [
+                Text(tashkilNote(context, item),
+                    style: uiStyle(context, size: 14, color: pal(context).textDim)),
                 const SizedBox(height: 12),
-                SizedBox(
+                Container(
                   width: double.infinity,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                        foregroundColor: pal(context).accent,
-                        side: BorderSide(color: pal(context).accent)),
-                    onPressed: () => pushAdaptive(
-                        context,
-                        CountsStudio(
-                          initialCounts: item.counts,
-                          word: item.example,
-                          highlight: item.highlight,
-                        )),
-                    icon: const Icon(Icons.av_timer_rounded),
-                    label: Text(context.l10n.trainCountTiming(item.counts)),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: s.paperMode ? pal(context).paper : pal(context).surfaceHigh,
+                    borderRadius: BorderRadius.circular(16),
                   ),
+                  child: Column(children: [
+                    RichText(
+                      textDirection: TextDirection.rtl,
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                          children: highlightSpans(
+                        item.example,
+                        item.highlight,
+                        arabicStyle(context, size: 38),
+                        arabicStyle(context, size: 38, color: pal(context).accent),
+                      )),
+                    ),
+                    Text(context.l10n.surahRef(item.ref),
+                        style: uiStyle(context,
+                            size: 12.5, color: pal(context).textDim)),
+                  ]),
                 ),
+                if (item.counts >= 1) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                          foregroundColor: pal(context).accent,
+                          side: BorderSide(color: pal(context).accent)),
+                      onPressed: () => pushAdaptive(
+                          context,
+                          CountsStudio(
+                            initialCounts: item.counts,
+                            word: item.example,
+                            highlight: item.highlight,
+                          )),
+                      icon: const Icon(Icons.av_timer_rounded),
+                      label: Text(context.l10n.trainCountTiming(item.counts)),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -461,8 +467,7 @@ class _CountsStudioState extends State<CountsStudio>
                   widget.word!,
                   widget.highlight ?? '',
                   arabicStyle(context, size: 44),
-                  arabicStyle(context, size: 44,
-                      color: pal(context).accent, weight: FontWeight.w700),
+                  arabicStyle(context, size: 44, color: pal(context).accent),
                 )),
               ),
             widget.embedded

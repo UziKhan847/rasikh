@@ -112,6 +112,7 @@ Palette pal(BuildContext context) {
 
 ThemeData buildTheme(AppSettings s) {
   final p = paletteFor(s.themeFamily, s.themeMode);
+  final (uiFamily, uiFallback) = _uiFont(s.language);
   final base = ThemeData(
     useMaterial3: true,
     brightness: p.brightness,
@@ -128,8 +129,8 @@ ThemeData buildTheme(AppSettings s) {
       onError: Colors.white,
     ),
   );
-  final text = _withArabicFallback(base.textTheme
-      .apply(fontFamily: 'Amiri', bodyColor: p.text, displayColor: p.text));
+  final text = _withFallback(uiFallback, base.textTheme
+      .apply(fontFamily: uiFamily, bodyColor: p.text, displayColor: p.text));
   return base.copyWith(
     textTheme: text,
     appBarTheme: AppBarTheme(
@@ -138,8 +139,8 @@ ThemeData buildTheme(AppSettings s) {
       elevation: 0,
       centerTitle: false,
       titleTextStyle: TextStyle(
-          fontFamily: 'Amiri',
-          fontFamilyFallback: const ['ScheherazadeNew'],
+          fontFamily: uiFamily,
+          fontFamilyFallback: uiFallback,
           fontSize: 20,
           fontWeight: FontWeight.w700,
           color: p.text),
@@ -172,9 +173,9 @@ ThemeData buildTheme(AppSettings s) {
       backgroundColor: p.brightness == Brightness.light
           ? AppColors.navy
           : p.surfaceHigh,
-      contentTextStyle: const TextStyle(
-          fontFamily: 'Amiri',
-          fontFamilyFallback: ['ScheherazadeNew'],
+      contentTextStyle: TextStyle(
+          fontFamily: uiFamily,
+          fontFamilyFallback: uiFallback,
           color: Colors.white),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -182,15 +183,23 @@ ThemeData buildTheme(AppSettings s) {
   );
 }
 
-/// Every bundled Latin/Arabic UI style is Amiri first — ScheherazadeNew only
-/// covers glyphs Amiri itself doesn't (there shouldn't be any in practice,
-/// but this keeps text visible rather than silently falling through to a
-/// system font if one ever comes up).
+/// Arabic UI/body text is Amiri first — ScheherazadeNew only covers glyphs
+/// Amiri itself doesn't (there shouldn't be any in practice, but this keeps
+/// text visible rather than silently falling through to a system font if
+/// one ever comes up).
 const _arabicFallback = ['ScheherazadeNew'];
 
-TextTheme _withArabicFallback(TextTheme t) {
-  TextStyle? add(TextStyle? s) =>
-      s?.copyWith(fontFamilyFallback: _arabicFallback);
+/// UI-chrome font per active language: Outfit for the Latin languages
+/// (en/fr/es — they share one face), Amiri for Arabic, and Noto Nastaliq
+/// Urdu for Urdu (Urdu reads as Nastaliq, not the Naskh style Arabic uses).
+(String, List<String>) _uiFont(String lang) => switch (lang) {
+      'ar' => ('Amiri', _arabicFallback),
+      'ur' => ('NotoNastaliqUrdu', const ['ScheherazadeNew']),
+      _ => ('Outfit', const <String>[]),
+    };
+
+TextTheme _withFallback(List<String> fallback, TextTheme t) {
+  TextStyle? add(TextStyle? s) => s?.copyWith(fontFamilyFallback: fallback);
   return TextTheme(
     displayLarge: add(t.displayLarge),
     displayMedium: add(t.displayMedium),
@@ -243,10 +252,12 @@ TextStyle uiStyle(
   double size = 15,
   Color? color,
   FontWeight weight = FontWeight.w500,
-}) =>
-    TextStyle(
-        fontFamily: 'Amiri',
-        fontFamilyFallback: _arabicFallback,
-        fontSize: size,
-        fontWeight: weight,
-        color: color ?? pal(context).text);
+}) {
+  final (family, fallback) = _uiFont(SettingsScope.of(context).language);
+  return TextStyle(
+      fontFamily: family,
+      fontFamilyFallback: fallback,
+      fontSize: size,
+      fontWeight: weight,
+      color: color ?? pal(context).text);
+}

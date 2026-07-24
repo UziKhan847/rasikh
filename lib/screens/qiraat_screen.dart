@@ -76,66 +76,71 @@ class _ReaderCard extends StatelessWidget {
           color: pal(context).surface,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            leading: Container(
-              width: 44, height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: pal(context).surfaceHigh,
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: pal(context).accent.withValues(alpha: .5)),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          clipBehavior: Clip.antiAlias,
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              leading: Container(
+                width: 44, height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: pal(context).surfaceHigh,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: pal(context).accent.withValues(alpha: .5)),
+                ),
+                child: Text('${index + 1}',
+                    style: uiStyle(context, size: 16, weight: FontWeight.w800,
+                        color: pal(context).accent)),
               ),
-              child: Text('${index + 1}',
-                  style: uiStyle(context, size: 16, weight: FontWeight.w800,
+              title: Text(q.reader,
+                  style: uiStyle(context, size: 16, weight: FontWeight.w700)),
+              subtitle: Text('${q.city} · d. ${q.died} AH',
+                  style: uiStyle(context, size: 12.5, color: pal(context).textDim)),
+              trailing: Text(q.arabic,
+                  textDirection: TextDirection.rtl,
+                  style: arabicStyle(context, size: 20, height: 1.4,
                       color: pal(context).accent)),
-            ),
-            title: Text(q.reader,
-                style: uiStyle(context, size: 16, weight: FontWeight.w700)),
-            subtitle: Text('${q.city} · d. ${q.died} AH',
-                style: uiStyle(context, size: 12.5, color: pal(context).textDim)),
-            trailing: Text(q.arabic,
-                textDirection: TextDirection.rtl,
-                style: arabicStyle(context, size: 20, height: 1.4,
-                    color: pal(context).accent)),
-            children: [
-              if (q.bio.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(q.bio,
-                      style: uiStyle(context, size: 13.5)
-                          .copyWith(height: 1.5)),
-                ),
-              Row(children: [
-                _rawi(context, q.rawi1),
-                const SizedBox(width: 8),
-                _rawi(context, q.rawi2),
-              ]),
-              const SizedBox(height: 10),
-              for (final s in q.signatures)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Icon(Icons.brightness_1,
-                            size: 6, color: pal(context).accent),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                          child: Text(s,
-                              style: uiStyle(context,
-                                  size: 13.5, color: pal(context).textDim))),
-                    ],
+              children: [
+                if (q.bio.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(q.bio,
+                        style: uiStyle(context, size: 13.5)
+                            .copyWith(height: 1.5)),
                   ),
-                ),
-            ],
+                Row(children: [
+                  _rawi(context, q.rawi1),
+                  const SizedBox(width: 8),
+                  _rawi(context, q.rawi2),
+                ]),
+                const SizedBox(height: 10),
+                for (final s in q.signatures)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Icon(Icons.brightness_1,
+                              size: 6, color: pal(context).accent),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: Text(s,
+                                style: uiStyle(context,
+                                    size: 13.5, color: pal(context).textDim))),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

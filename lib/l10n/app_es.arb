@@ -553,5 +553,12 @@
   "coachIntroBlurb": "Las letras que se parecen son la parte más difícil del árabe para muchos lectores — ب ت ث solo se diferencian por los puntos. Este entrenador se centra justo en eso, a tu ritmo, con una configuración de lectura pensada para ti.",
   "pinPlayer": "Fijar",
   "unpinPlayer": "Desfijar",
-  "collapsePlayer": "Contraer"
+  "collapsePlayer": "Contraer",
+  "colorGreen": "Verde",
+  "colorCoral": "Coral",
+  "fonts": "Fuentes",
+  "typefaces": "Tipografías",
+  "themeFamilyMint": "Menta",
+  "themeFamilyNoor": "Noor",
+  "fillPageWidth": "Ajustar al ancho"
 }

@@ -316,7 +316,9 @@ class _QuizScreenState extends State<QuizScreen> {
           ),
         ],
       ),
-      body: Center(
+      body: SafeArea(
+        top: false,
+        child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: Padding(
@@ -382,6 +384,7 @@ class _QuizScreenState extends State<QuizScreen> {
       ),
         ),
       ),
+      ),
     );
   }
   String _qOf(BuildContext context) =>
@@ -438,7 +441,8 @@ class _QuizScreenState extends State<QuizScreen> {
     final showBack = !embedded && Navigator.of(context).canPop();
     return Scaffold(
       backgroundColor: p.bg,
-      body: Center(
+      body: SafeArea(
+        child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1280),
           child: SingleChildScrollView(
@@ -592,6 +596,7 @@ class _QuizScreenState extends State<QuizScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -614,26 +619,29 @@ class _ResultView extends StatelessWidget {
             : context.l10n.reviewLessonTryAgain;
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: FadeSlideIn(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ProgressRing(
-                fraction: frac, size: 130,
-                center: Text('$score/$total',
-                    style: uiStyle(context, size: 24, weight: FontWeight.w700)),
-              ),
-              const SizedBox(height: 18),
-              StarRow(stars, size: 40),
-              const SizedBox(height: 10),
-              Text(msg, style: uiStyle(context, size: 17)),
-              const SizedBox(height: 26),
-              FilledButton.tonal(
-                onPressed: () => Navigator.pop(context),
-                child:  Text(context.l10n.continueLabel),
-              ),
-            ],
+      body: SafeArea(
+        top: false,
+        child: Center(
+          child: FadeSlideIn(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ProgressRing(
+                  fraction: frac, size: 130,
+                  center: Text('$score/$total',
+                      style: uiStyle(context, size: 24, weight: FontWeight.w700)),
+                ),
+                const SizedBox(height: 18),
+                StarRow(stars, size: 40),
+                const SizedBox(height: 10),
+                Text(msg, style: uiStyle(context, size: 17)),
+                const SizedBox(height: 26),
+                FilledButton.tonal(
+                  onPressed: () => Navigator.pop(context),
+                  child:  Text(context.l10n.continueLabel),
+                ),
+              ],
+            ),
           ),
         ),
       ),

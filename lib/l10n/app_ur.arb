@@ -553,5 +553,12 @@
   "coachIntroBlurb": "ملتی جلتی شکل والے حروف بہت سے قارئین کے لیے عربی کا سب سے مشکل حصہ ہیں — ب ت ث میں فرق صرف نقطوں کا ہے۔ یہ کوچ بالکل اسی پر مشق کرواتا ہے، آپ کی رفتار سے، ایک ایسی ریڈنگ سیٹنگ کے ساتھ جو آپ کے لیے بنائی گئی ہے۔",
   "pinPlayer": "پن کریں",
   "unpinPlayer": "پن ہٹائیں",
-  "collapsePlayer": "سکیڑیں"
+  "collapsePlayer": "سکیڑیں",
+  "colorGreen": "سبز",
+  "colorCoral": "مرجانی",
+  "fonts": "فونٹس",
+  "typefaces": "ٹائپ فیسز",
+  "themeFamilyMint": "منٹ",
+  "themeFamilyNoor": "نور",
+  "fillPageWidth": "چوڑائی بھریں"
 }

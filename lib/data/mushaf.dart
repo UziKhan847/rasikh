@@ -59,8 +59,9 @@ class _ScriptData {
   final List<int> realWordCount; // per global ayah
   final List<List<MushafLine>> pages;
   final List<int> pageFirstGlobal; // first global ayah shown on each page
+  final List<int> surahFirstPage; // 1-based page a surah's header/text first appears on, by surah
   _ScriptData(this.tok, this.tokAyah, this.tokWord, this.realWordCount,
-      this.pages, this.pageFirstGlobal);
+      this.pages, this.pageFirstGlobal, this.surahFirstPage);
 }
 
 /// The 15-line Madani and Indo-Pak mushaf: text, page/line layout, and the
@@ -158,7 +159,31 @@ class MushafRepo {
       }
       pageFirst.add(fg == 1 << 30 ? (pageFirst.isEmpty ? 0 : pageFirst.last) : fg);
     }
-    final data = _ScriptData(tok, tokAyah, tokWord, rwc, pages, pageFirst);
+    // First page each surah appears on — header line if there is one, else its
+    // first text ayah — mirroring pageForSurah's old per-call search, computed
+    // once here instead of on every jump-to-surah/script-switch.
+    final surahCount = (_surahCum?.length ?? 1) - 1;
+    final surahFirstPage = List<int>.filled(surahCount + 1, 0);
+    for (var p = 0; p < pages.length; p++) {
+      for (final ln in pages[p]) {
+        if (ln.isHeader) {
+          if (ln.surah >= 1 &&
+              ln.surah <= surahCount &&
+              surahFirstPage[ln.surah] == 0) {
+            surahFirstPage[ln.surah] = p + 1;
+          }
+        } else if (ln.isText && ln.words.isNotEmpty) {
+          final sa = surahAyahOf(ln.words.first.ayah);
+          if (sa.$1 >= 1 &&
+              sa.$1 <= surahCount &&
+              surahFirstPage[sa.$1] == 0) {
+            surahFirstPage[sa.$1] = p + 1;
+          }
+        }
+      }
+    }
+    final data =
+        _ScriptData(tok, tokAyah, tokWord, rwc, pages, pageFirst, surahFirstPage);
     _data[s] = data;
     return data;
   }
@@ -190,32 +215,38 @@ class MushafRepo {
     return d.realWordCount[globalAyah];
   }
 
-  /// global ayah index -> (surah 1-based, ayah-in-surah 1-based)
+  /// global ayah index -> (surah 1-based, ayah-in-surah 1-based). Binary
+  /// search over the sorted cumulative-ayah-count table.
   static (int, int) surahAyahOf(int globalAyah) {
     final cum = _surahCum;
     if (cum == null) return (1, 1);
-    for (var s = 0; s < cum.length - 1; s++) {
-      if (globalAyah < cum[s + 1]) return (s + 1, globalAyah - cum[s] + 1);
+    var lo = 0, hi = cum.length - 2, ans = 0;
+    while (lo <= hi) {
+      final mid = (lo + hi) >> 1;
+      if (cum[mid] <= globalAyah) {
+        ans = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
     }
-    return (1, 1);
+    return (ans + 1, globalAyah - cum[ans] + 1);
   }
 
   static Future<int> pageForSurah(String script, int surah) async {
     final d = await _ensure(script);
-    for (var p = 0; p < d.pages.length; p++) {
-      for (final ln in d.pages[p]) {
-        if (ln.isHeader && ln.surah == surah) return p + 1;
-        if (ln.isText && ln.words.isNotEmpty) {
-          final sa = surahAyahOf(ln.words.first.ayah);
-          if (sa.$1 == surah) return p + 1;
-        }
-      }
-    }
-    return 1;
+    if (surah < 1 || surah >= d.surahFirstPage.length) return 1;
+    final p = d.surahFirstPage[surah];
+    return p == 0 ? 1 : p;
   }
 
   /// First (surah, ayah) that appears as text on [page]; falls back to a header.
   static (int, int) firstVerseOfPage(String script, int page) {
+    final info = _pageInfo(script, page);
+    return (info.$1, info.$2);
+  }
+
+  static (int, int) _firstVerseOfPageUncached(String script, int page) {
     final d = _data[_norm(script)];
     if (d == null || page < 1 || page > d.pages.length) return (1, 1);
     int? headerSurah;
@@ -257,26 +288,44 @@ class MushafRepo {
     return ans + 1;
   }
 
-  /// 1..30 for a global ayah index.
+  /// 1..30 for a global ayah index. Binary search over the sorted juz-start
+  /// table.
   static int juzOf(int globalAyah) {
-    if (_juzStartAyah.isEmpty) return 1;
-    var j = 1;
-    for (var i = 0; i < _juzStartAyah.length; i++) {
-      if (globalAyah >= _juzStartAyah[i]) {
-        j = i + 1;
+    final starts = _juzStartAyah;
+    if (starts.isEmpty) return 1;
+    var lo = 0, hi = starts.length - 1, ans = 0;
+    while (lo <= hi) {
+      final mid = (lo + hi) >> 1;
+      if (starts[mid] <= globalAyah) {
+        ans = mid;
+        lo = mid + 1;
       } else {
-        break;
+        hi = mid - 1;
       }
     }
-    return j;
+    return ans + 1;
   }
 
-  static int juzOfPage(String script, int page) {
-    final fv = firstVerseOfPage(script, page); // (surah, ayah)
+  static int juzOfPage(String script, int page) =>
+      _pageInfo(script, page).$3;
+
+  // (surah, ayah-in-surah, juz) for a page — firstVerseOfPage and juzOfPage
+  // both need this, and both get called multiple times per page render (page
+  // header + bottom bar), so it's cached per (script, page) here instead of
+  // rescanning the page's lines / rescanning _surahCum on every call.
+  static final Map<String, (int, int, int)> _pageInfoCache = {};
+
+  static (int, int, int) _pageInfo(String script, int page) {
+    final key = '${_norm(script)}/$page';
+    final cached = _pageInfoCache[key];
+    if (cached != null) return cached;
+    final fv = _firstVerseOfPageUncached(script, page);
     final cum = _surahCum;
-    if (cum == null) return 1;
-    final global = cum[fv.$1 - 1] + (fv.$2 - 1);
-    return juzOf(global);
+    final juz =
+        cum == null ? 1 : juzOf(cum[fv.$1 - 1] + (fv.$2 - 1));
+    final result = (fv.$1, fv.$2, juz);
+    _pageInfoCache[key] = result;
+    return result;
   }
 }
 

@@ -553,5 +553,12 @@
   "coachIntroBlurb": "Les lettres qui se ressemblent sont la partie la plus difficile de l'arabe pour beaucoup de lecteurs — ب ت ث ne diffèrent que par leurs points. Ce coach s'entraîne exactement sur cela, à votre rythme, avec un réglage de lecture pensé pour vous.",
   "pinPlayer": "Épingler",
   "unpinPlayer": "Détacher",
-  "collapsePlayer": "Réduire"
+  "collapsePlayer": "Réduire",
+  "colorGreen": "Vert",
+  "colorCoral": "Corail",
+  "fonts": "Polices",
+  "typefaces": "Typographies",
+  "themeFamilyMint": "Menthe",
+  "themeFamilyNoor": "Noor",
+  "fillPageWidth": "Remplir la largeur"
 }

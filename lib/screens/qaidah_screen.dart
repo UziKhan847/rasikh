@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../core/l10n.dart';
@@ -263,10 +262,11 @@ class LetterDetail extends StatelessWidget with DesktopAware {
       body: SafeArea(
         top: false,
         child: ListView(
-        padding: const EdgeInsets.fromLTRB(8, 4, 8, 32),
+        padding: const EdgeInsets.fromLTRB(34, 4, 30, 32),
         children: [
-          Row(children: [
-            Material(
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Material(
               color: pal(context).surface,
               borderRadius: BorderRadius.circular(12),
               child: InkWell(
@@ -283,12 +283,15 @@ class LetterDetail extends StatelessWidget with DesktopAware {
                 ),
               ),
             ),
-            const SizedBox(width: 14),
-            Text(letterName(context, letter),
-                style: uiStyle(context, size: 22, weight: FontWeight.w900)),
-          ]),
+          ),
+          const SizedBox(height: 14),
+          Text(letterName(context, letter),
+              style: uiStyle(context, size: 22, weight: FontWeight.w900)),
           const SizedBox(height: 20),
-          IntrinsicHeight(
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1280),
+              child: IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -375,6 +378,8 @@ class LetterDetail extends StatelessWidget with DesktopAware {
                   ),
                 ),
               ],
+            ),
+              ),
             ),
           ),
         ],
@@ -489,13 +494,6 @@ class FormsLab extends StatefulWidget {
 
 class _FormsLabState extends State<FormsLab> {
   ArabicLetter sel = letters[1];
-  final ScrollController _stripCtrl = ScrollController();
-
-  @override
-  void dispose() {
-    _stripCtrl.dispose();
-    super.dispose();
-  }
 
   /// Desktop: the reference "Joining forms" — letter strip, the four Shapes,
   /// "In the Qur'an", and "See it in Words", plus the Forms Quiz CTA.
@@ -521,74 +519,38 @@ class _FormsLabState extends State<FormsLab> {
         padding: const EdgeInsets.fromLTRB(8, 4, 8, 32),
         children: [
           // ── letter strip ──
-          // A horizontal strip. On desktop the mouse wheel scrolls vertically,
-          // so we make this row reachable three ways: an always-visible
-          // scrollbar, click-and-drag with the mouse/trackpad, and wheel-to-
-          // horizontal — otherwise the letters past the right edge are stranded.
-          ScrollConfiguration(
-            behavior: ScrollConfiguration.of(context).copyWith(
-              scrollbars: false,
-              dragDevices: const {
-                PointerDeviceKind.touch,
-                PointerDeviceKind.mouse,
-                PointerDeviceKind.trackpad,
-                PointerDeviceKind.stylus,
-              },
-            ),
-            child: Scrollbar(
-              controller: _stripCtrl,
-              thumbVisibility: true,
-              child: Listener(
-                onPointerSignal: (event) {
-                  if (event is PointerScrollEvent && _stripCtrl.hasClients) {
-                    final max = _stripCtrl.position.maxScrollExtent;
-                    final target =
-                        (_stripCtrl.offset + event.scrollDelta.dy)
-                            .clamp(0.0, max);
-                    if (target != _stripCtrl.offset) _stripCtrl.jumpTo(target);
-                  }
-                },
-                child: SingleChildScrollView(
-                  controller: _stripCtrl,
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(children: [
-                    for (final l in letters)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 9),
-                        child: TapScale(
-                          onTap: () => setState(() => sel = l),
-                          child: Container(
-                            width: 54,
-                            height: 54,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: l.char == sel.char
-                                  ? pal(context).accent
-                                  : pal(context).surface,
-                              borderRadius: BorderRadius.circular(15),
-                              border: Border.all(
-                                  color: l.char == sel.char
-                                      ? pal(context).accent
-                                      : pal(context)
-                                          .surfaceHigh
-                                          .withValues(alpha: .7)),
-                            ),
-                            child: Text(l.char,
-                                style: TextStyle(
-                                    fontFamily: 'ScheherazadeNew',
-                                    fontSize: 26,
-                                    height: 1.2,
-                                    color: l.char == sel.char
-                                        ? Colors.white
-                                        : pal(context).text)),
-                          ),
-                        ),
-                      ),
-                  ]),
+          Wrap(
+            spacing: 9,
+            runSpacing: 9,
+            children: [
+              for (final l in letters)
+                TapScale(
+                  onTap: () => setState(() => sel = l),
+                  child: Container(
+                    width: 54,
+                    height: 54,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: l.char == sel.char
+                          ? pal(context).accent
+                          : pal(context).surface,
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                          color: l.char == sel.char
+                              ? pal(context).accent
+                              : pal(context).surfaceHigh.withValues(alpha: .7)),
+                    ),
+                    child: Text(l.char,
+                        style: TextStyle(
+                            fontFamily: 'ScheherazadeNew',
+                            fontSize: 26,
+                            height: 1.2,
+                            color: l.char == sel.char
+                                ? Colors.white
+                                : pal(context).text)),
+                  ),
                 ),
-              ),
-            ),
+            ],
           ),
           const SizedBox(height: 10),
           _deskSection(context, context.l10n.shapes,
