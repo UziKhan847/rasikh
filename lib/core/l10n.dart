@@ -37,3 +37,10 @@ extension L10nContext on BuildContext {
   /// The translated strings for the current language.
   AppLocalizations get l10n => AppLocalizations.of(this);
 }
+
+void comingSoon(BuildContext context, String what) {
+  ScaffoldMessenger.of(context)
+    ..clearSnackBars()
+    ..showSnackBar(
+        SnackBar(content: Text('$what ${context.l10n.comingSoon}')));
+}

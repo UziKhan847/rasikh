@@ -150,6 +150,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   Future<void> _switchScript(String v) async {
     if (v == _script) return;
+    if (!kIndopakAvailable && v == 'indopak') {
+      comingSoon(context, context.l10n.indoPak);
+      return;
+    }
     _stopAudio();
     final keepSurah = _curSurah;
     setState(() {
@@ -485,7 +489,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                       CheckedPopupMenuItem(
                           value: 'indopak',
                           checked: _script == 'indopak',
-                          child: Text(context.l10n.indoPak)),
+                          child: Text(context.l10n.indoPak,
+                              style: kIndopakAvailable
+                                  ? null
+                                  : TextStyle(color: pal(context).textDim))),
                     ],
                   ),
                   IconButton(

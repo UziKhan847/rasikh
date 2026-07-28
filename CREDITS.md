@@ -5,13 +5,22 @@
 |---|---|---|---|
 | UthmanicHafs.ttf | King Fahd Glorious Quran Printing Complex (KFGQPC) | KFGQPC custom licence — free to use & redistribute, **no modification, no sale** | NOT OSI/FSF-free → F-Droid will treat as a NonFree asset |
 | ScheherazadeNew.ttf | SIL International | SIL Open Font License 1.1 | Free — include the OFL text |
-| IndoPak.ttf | IndoPak/Nastaliq Quran font (community distribution) | Licence unverified | Verify origin before store submission |
-| PDMSSaleem.ttf | Pakistan Data Management Services | Freeware, terms unverified | Currently unused in UI; consider removing |
 | DigitalKhattV2.otf, DigitalKhattIndoPak.otf | [DigitalKhatt project](https://github.com/DigitalKhatt) (sponsored by Tarteel AI); bundled via Waqar Ahmed's [Quran Revision Companion](https://github.com/Waqar144/quran_memorization_helper) | See DigitalKhatt repo; app bundling it is MIT | Powers the 15-line muṣḥaf page |
 | SurahNames.ttf, Bismillah.ttf | Waqar Ahmed's [Quran Revision Companion](https://github.com/Waqar144/quran_memorization_helper) | MIT License | Ornamental glyphs for the 15-line muṣḥaf headers |
 | Amiri-Regular.ttf, Amiri-Bold.ttf | [Amiri](https://github.com/aliftype/amiri) | SIL Open Font License 1.1 | Arabic-language UI + Qur'anic/Arabic body typeface (ScheherazadeNew is the fallback) — licence text at `LICENSES/Amiri-OFL.txt` |
 | Outfit-Variable.ttf | [Outfit](https://github.com/Outfitio/Outfit-Fonts) | SIL Open Font License 1.1 | Latin-language (English/French/Spanish) UI typeface — licence text at `LICENSES/Outfit-OFL.txt` |
 | NotoNastaliqUrdu-Variable.ttf | [Noto Nastaliq Urdu](https://github.com/notofonts/nastaliq) | SIL Open Font License 1.1 | Urdu-language UI typeface — licence text at `LICENSES/NotoNastaliqUrdu-OFL.txt` |
+
+### Removed: PDMSSaleem.ttf, IndoPak.ttf
+Both were removed before the Play Store submission (2026-07-28) and are no
+longer bundled. PDMS Saleem's EULA (from pakdata.com) grants free *use* but
+clause 1 forbids redistribution without a separate licence from PDMS, and
+clause 3 forbids modification/adaptation — bundling it in the app is
+redistribution. IndoPak.ttf's provenance was unverified and it had become
+unused (the app was already steering Indo-Pak readers to PDMS Saleem). The
+Indo-Pak reading script is disabled in the UI (shows "coming soon") behind
+the `kIndopakAvailable` flag in `lib/core/settings.dart` until a properly
+licensed Indo-Pak Qur'an face is bundled.
 
 ## 15-line muṣḥaf (text + layout data, `assets/quran/mushaf_*.json`)
 The Madani- and Indo-Pak-script 15-line page/line breaks, and the fonts above,

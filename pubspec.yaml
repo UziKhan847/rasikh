@@ -41,12 +41,6 @@ flutter:
     - family: ScheherazadeNew
       fonts:
         - asset: assets/fonts/ScheherazadeNew.ttf
-    - family: IndoPak
-      fonts:
-        - asset: assets/fonts/IndoPak.ttf
-    - family: PDMSSaleem
-      fonts:
-        - asset: assets/fonts/PDMSSaleem.ttf
     - family: DigitalKhattV2
       fonts:
         - asset: assets/fonts/DigitalKhattV2.otf

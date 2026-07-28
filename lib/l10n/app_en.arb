@@ -792,7 +792,7 @@
   "creditTunaijiBody": "Verse-by-verse recitation by Shaykh Khalifah Al-Tunaiji, served by EveryAyah.com.",
   "creditTextTitle": "Qur’an text — Tanzil & QUL",
   "creditTextBody": "Madani (Uthmani) text from the Tanzil project and the IndoPak text, bundled offline in QUL-compatible structures (qul.tarteel.ai). Tajwīd color spans are generated against this exact text.",
-  "creditFontsBody": "KFGQPC Uthmanic Script Hafs (King Fahd Glorious Qur’an Printing Complex), Scheherazade New (SIL, OFL), the IndoPak nastaliq face, and PDMS Saleem Quran Font.",
+  "creditFontsBody": "KFGQPC Uthmanic Script Hafs (King Fahd Glorious Qur’an Printing Complex) and Scheherazade New (SIL, OFL).",
   "backupFailed": "Backup failed — storage unavailable.",
   "backedUpTo": "Backed up to {path}",
   "@backedUpTo": {
@@ -808,7 +808,7 @@
   "wordByWordLabel": "Word-by-word",
   "qiraatBiosLabel": "Qirāʼāt biographies",
   "srcTextBody": "Uthmani (Madani) & IndoPak texts via Tanzil / QUL-compatible datasets. The text itself is unmodified; tajwīd spans are generated against it.",
-  "srcFontsBody": "KFGQPC Uthmanic Hafs · King Fahd Glorious Quran Printing Complex. Scheherazade New · SIL (OFL 1.1). IndoPak & PDMS Saleem Quran fonts · their respective publishers.",
+  "srcFontsBody": "KFGQPC Uthmanic Hafs · King Fahd Glorious Quran Printing Complex. Scheherazade New · SIL (OFL 1.1).",
   "srcRecitationBody": "Shaykh Khalīfah Al-Tunaiji via EveryAyah.com. Mishary Al-ʿAfāsī & Maḥmūd Khalīl Al-Ḥuṣarī with word timings via the Quran.com (QDC) API.",
   "srcWbwBody": "Word audio courtesy of Quran.com / QuranCDN (Markaz Tafsir).",
   "srcQiraatBody": "Facts summarized from abouttajweed.com.",

@@ -49,13 +49,6 @@ TextStyle quranStyle(BuildContext context,
   );
 }
 
-void comingSoon(BuildContext context, String what) {
-  ScaffoldMessenger.of(context)
-    ..clearSnackBars()
-    ..showSnackBar(
-        SnackBar(content: Text('$what ${context.l10n.comingSoon}')));
-}
-
 // ───────────────────────────── Surah list ─────────────────────────────
 
 class SurahListScreen extends StatelessWidget {
@@ -837,7 +830,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
     final landscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
     final indo = s.quranScript == 'indopak';
-    Widget segmented(List<(String, bool, VoidCallback)> items) => Container(
+    Widget segmented(List<(String, bool, bool, VoidCallback)> items) => Container(
           height: 42,
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
@@ -846,7 +839,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
           ),
           child: Row(
             children: [
-              for (final (label, sel, onTap) in items)
+              for (final (label, sel, enabled, onTap) in items)
                 Expanded(
                   child: TapScale(
                     onTap: onTap,
@@ -863,7 +856,11 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
                           style: uiStyle(context,
                               size: 13,
                               weight: FontWeight.w700,
-                              color: sel ? Colors.white : pal(context).text)),
+                              color: !enabled
+                                  ? pal(context).textDim
+                                  : sel
+                                      ? Colors.white
+                                      : pal(context).text)),
                     ),
                   ),
                 ),
@@ -918,17 +915,24 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
       ),
     );
 
-    // One choice: the script picks its typeface (Madani → KFGQPC Hafs,
-    // IndoPak → PDMS Saleem Qur'an font).
+    // One choice: the script picks its typeface. Indo-Pak is disabled — no
+    // licensed Indo-Pak Qur'an face is bundled (see kIndopakAvailable).
     final scriptSeg = segmented([
-      (context.l10n.madani, !indo, () => s.update(() {
+      (context.l10n.madani, !indo, true, () => s.update(() {
             s.quranScript = 'uthmani';
             s.fontUthmani = 'UthmanicHafs';
           })),
-      (context.l10n.indopak, indo, () => s.update(() {
-            s.quranScript = 'indopak';
-            s.fontIndopak = 'PDMSSaleem';
-          })),
+      (
+        context.l10n.indopak,
+        indo,
+        kIndopakAvailable,
+        kIndopakAvailable
+            ? () => s.update(() {
+                  s.quranScript = 'indopak';
+                  s.fontIndopak = 'UthmanicHafs';
+                })
+            : () => comingSoon(context, context.l10n.indopak),
+      ),
     ]);
     final sizeRow = Row(children: [
       Text('A', style: uiStyle(context, size: 14, color: pal(context).textDim)),

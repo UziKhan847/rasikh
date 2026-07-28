@@ -6,6 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Indo-Pak reading script is off pending a licensed Indo-Pak Qur'an face —
+/// PDMS Saleem cannot be redistributed (see CREDITS.md). Flip to true once a
+/// shippable face is bundled; the reader/muṣḥaf code paths are all intact.
+const bool kIndopakAvailable = false;
+
 /// Reader & accessibility settings. The dyslexia-friendly options are real
 /// interventions, not decoration:
 ///  * arabicScale       — larger glyphs reduce crowding
@@ -42,7 +47,7 @@ class AppSettings extends ChangeNotifier {
   bool wordByWord = true; // reader: split verses into tappable words
   bool readerHeaderCollapsed = false; // retract the reader control panel
   String fontUthmani = 'UthmanicHafs'; // or 'ScheherazadeNew'
-  String fontIndopak = 'PDMSSaleem'; // PDMS Saleem renders the IndoPak text cleanly
+  String fontIndopak = 'UthmanicHafs'; // no licensed Indo-Pak face is bundled; see kIndopakAvailable
   String reciter = 'tunaiji'; // 'tunaiji' | 'alafasy' (word-sync highlight)
   String readerLayout = 'cards'; // 'cards' | 'mushaf' (continuous flow)
   String reciteFlow = 'single'; // 'single' | 'auto' (continue) | 'repeat'
@@ -121,13 +126,17 @@ class AppSettings extends ChangeNotifier {
     wordByWord = m['wbw'] ?? true;
     readerHeaderCollapsed = m['hdrCol'] ?? false;
     fontUthmani = m['fontU'] ?? 'UthmanicHafs';
-    fontIndopak = m['fontI'] ?? 'IndoPak';
+    fontIndopak = m['fontI'] ?? 'UthmanicHafs';
     // legacy options removed from the UI — normalize to the supported pair.
-    // The bundled IndoPak face mis-shapes the IndoPak text, so the Indo-Pak
-    // script now renders with PDMS Saleem (a proper Indo-Pak Qur'an font).
     if (fontUthmani == 'ScheherazadeNew') fontUthmani = 'UthmanicHafs';
-    if (fontIndopak == 'IndoPak') fontIndopak = 'PDMSSaleem';
+    // The Indo-Pak faces (bundled IndoPak, then PDMS Saleem) are no longer
+    // shipped — migrate anyone stored on them back to the Madani script so
+    // the reader never asks for a missing font family.
+    if (fontIndopak == 'IndoPak' || fontIndopak == 'PDMSSaleem') {
+      fontIndopak = 'UthmanicHafs';
+    }
     quranScript = m['script'] ?? 'uthmani';
+    if (!kIndopakAvailable && quranScript == 'indopak') quranScript = 'uthmani';
     mushafHeader = m['mushafHeader'] ?? true;
     mushafBarCollapsed = m['mushafBarCol'] ?? false;
     mushafFillWidth = m['mushafFillW'] ?? false;

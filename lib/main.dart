@@ -133,9 +133,7 @@ class RootScreen extends StatelessWidget {
 void _warmUpFonts() {
   for (final family in const [
     'UthmanicHafs',
-    'IndoPak',
     'ScheherazadeNew',
-    'PDMSSaleem',
     // The 15-line mushaf's own faces — by far the heaviest bundled (their
     // GPOS/positioning tables run 5-7x larger than the fonts above, since
     // DigitalKhatt does the mushaf's mark-stacking/ayah-circle typesetting
