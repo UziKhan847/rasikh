@@ -257,15 +257,27 @@ class AyahAudio {
   }
 
   /// Word index (0-based) highlighted at verse-relative position [p], -1 if
-  /// none.
-  int wordAt(Duration p) {
-    final seg = segments;
+  /// none — the last word whose start has been reached.
+  ///
+  /// A word stays lit until the next one begins rather than going dark at its
+  /// own end time: reciters leave real silence between words (Ḥuṣarī pauses
+  /// 1.2 s inside 2:2), and the final word has to hold through the trailing
+  /// silence, which is also what absorbs the ~200 ms position-poll interval.
+  int wordAt(Duration p) => wordAtIn(segments, p);
+
+  /// Pure form of [wordAt], over an explicit segment list.
+  @visibleForTesting
+  static int wordAtIn(List<List<int>>? seg, Duration p) {
     if (seg == null) return -1;
     final ms = p.inMilliseconds;
+    var word = -1, bestStart = -1;
     for (final s in seg) {
-      if (ms >= s[1] && ms < s[2]) return s[0];
+      if (s[1] <= ms && s[1] > bestStart) {
+        bestStart = s[1];
+        word = s[0];
+      }
     }
-    return -1;
+    return word;
   }
 
   // ── per-verse timings + urls from quran.com ──
@@ -282,23 +294,27 @@ class AyahAudio {
     }
   }
 
-  /// Normalise one verse's segment triplets to *this verse file's* timeline.
+  /// Normalise one verse's segment rows to *this verse file's* timeline.
   ///
-  ///  • Word positions are **1-based** (quran.com convention) → stored
-  ///    0-based. Some files carry a leading index-0 stub for the pre-roll
-  ///    silence; dropping it (instead of treating it as "the minimum index")
-  ///    is what keeps the highlight from running one word ahead of the
-  ///    reciter.
+  ///  • quran.com rows are `[segmentIdx0, wordPos1Based, startMs, endMs]`.
+  ///    The **segment index is not the word index**: when a reciter runs two
+  ///    words together the two diverge (2:20 has a row `[5, 7, …]` and no
+  ///    segment 6), so the 1-based word position is the only field that maps
+  ///    onto our token list. Stored 0-based.
   ///  • start/end are forced verse-relative: when the first word claims to
   ///    begin implausibly deep into a file that only contains this verse, the
-  ///    times are chapter offsets — rebase them to the verse start.
-  List<List<int>>? _normalise(List raw) {
+  ///    times are chapter offsets — rebase them to the verse start. (Real
+  ///    payloads are already verse-relative; this is a defensive guard.)
+  @visibleForTesting
+  static List<List<int>>? normaliseSegments(List raw) {
     final segs = <List<int>>[];
     for (final e in raw) {
       if (e is! List || e.length < 3) continue; // legacy rows like [0]
       final n = e.map((x) => (x is num) ? x.toInt() : -1).toList();
-      if (n[0] < 1 || n[2] <= n[1]) continue; // index-0 pre-roll stub etc.
-      segs.add([n[0] - 1, n[1], n[2]]);
+      final (word, start, end) =
+          n.length >= 4 ? (n[1], n[2], n[3]) : (n[0], n[1], n[2]);
+      if (word < 1 || end <= start) continue;
+      segs.add([word - 1, start, end]);
     }
     if (segs.isEmpty) return null;
     final base = segs.first[1] > 5000 ? segs.first[1] : 0;
@@ -354,7 +370,8 @@ class AyahAudio {
           final firstSeg = rel.split('/').first;
           url = firstSeg.contains('.') ? 'https://$rel' : '$_verseCdn/$rel';
         }
-        out[v] = _VerseAudio(url, _normalise(m['segments'] as List? ?? const []));
+        out[v] =
+            _VerseAudio(url, normaliseSegments(m['segments'] as List? ?? const []));
       }
       if (out.isEmpty) return null;
       _timings[key] = out;

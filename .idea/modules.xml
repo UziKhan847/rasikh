@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/noor_qaidah.iml" filepath="$PROJECT_DIR$/noor_qaidah.iml" />
-      <module fileurl="file://$PROJECT_DIR$/android/noor_qaidah_android.iml" filepath="$PROJECT_DIR$/android/noor_qaidah_android.iml" />
+      <module fileurl="file://$PROJECT_DIR$/qiraah_arabiyyah.iml" filepath="$PROJECT_DIR$/qiraah_arabiyyah.iml" />
+      <module fileurl="file://$PROJECT_DIR$/android/qiraah_arabiyyah_android.iml" filepath="$PROJECT_DIR$/android/qiraah_arabiyyah_android.iml" />
     </modules>
   </component>
 </project>

@@ -1,11 +1,11 @@
 {
-    "name": "arabic_reader",
-    "short_name": "arabic_reader",
+    "name": "Qiraah Arabiyyah",
+    "short_name": "Qiraah Arabiyyah",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Qiraah Arabiyyah — a modern Arabic reading & writing journey: Qaidah, tracing with stroke direction, Tashkil counts, Tajwid, dyslexia-friendly practice, and the 10 Qira'at.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
