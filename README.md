@@ -3,7 +3,7 @@
 A Flutter app that takes a learner from their **first alif to the ten Qirā'āt**:
 reading, writing (stroke-direction tracing), every tashkīl mark with count
 training, color-coded Tajwīd with real Qur'anic examples, a full offline
-Qur'an reader in **Madani**, **IndoPak**, *and* a true **15-line muṣḥaf**, and a
+Qur'an reader in **Madani** script *and* a true **15-line muṣḥaf**, and a
 dedicated **Reading Coach** for learners who struggle with look-alike letters.
 Fully localized — **English, العربية, اردو, Français, Español** — with a
 responsive layout that runs the same codebase on phone, tablet, and desktop.
@@ -27,7 +27,7 @@ ScheherazadeNew as its fallback) is bundled as an asset — see
 
 | Module | What it covers |
 |---|---|
-| **Qur'an Reader** | The whole Qur'an offline (114 sūrahs / 6,236 āyahs bundled in assets), in **Madani (Uthmani)**, **IndoPak**, and a true **15-line muṣḥaf** page (see Credits). Word-by-word tap-to-hear recitation, courtesy of Markaz Tafsir via QuranCDN; verse-by-verse recitation by Shaykh Khalīfah Al-Tunaiji. Per-surah offline download, char-accurate Tajwīd coloring (Madani and IndoPak both), adjustable font size/spacing, RTL-correct page header and navigation pinned regardless of UI language. **No word-by-word English translation is shown** — see *Design decisions* below. |
+| **Qur'an Reader** | The whole Qur'an offline (114 sūrahs / 6,236 āyahs bundled in assets), in **Madani (Uthmani)** script, plus a true **15-line muṣḥaf** page (see Credits). IndoPak-script rendering is present in the data layer but currently gated off in the UI (shows "coming soon") pending a properly licensed Indo-Pak Qur'an face — see *Credits & licensing* below. Word-by-word tap-to-hear recitation, courtesy of Markaz Tafsir via QuranCDN; verse-by-verse recitation by Shaykh Khalīfah Al-Tunaiji. Per-surah offline download, char-accurate Tajwīd coloring, adjustable font size/spacing, RTL-correct page header and navigation pinned regardless of UI language. **No word-by-word English translation is shown** — see *Design decisions* below. |
 | **Qaidah Path** | The classical Qaidah sequence in nine units: 28 letters (forms, dots, Qur'anic example each) → joining forms (with in-Qur'an examples and beginning/middle/end word cards) → ḥarakāt → tanwīn → sukūn & qalqalah → shaddah → madd & līn → reading real Qur'anic words → review. Every unit ends in a starred quiz. |
 | **Tracing Studio** | A strict, progressive stroke engine with **three modes**: **Guided** (a comet leads, the ideal stroke inks itself in), **Outline** (the letterform is shown but you form every stroke — no comet, nothing fills in for you), and **Memory** (a blank board, from memory). All three grade real stroke direction, not just shape, with a per-stroke tolerance and look-ahead window — wrong direction never progresses. Dots are placed by tap afterwards. |
 | **Tashkīl Lab** | Every mark — fatḥah/kasrah/ḍammah, sukūn, shaddah, all three tanwīn, madd ṭabī'ī (2), līn, maddah, muttaṣil (4–5), munfaṣil (4–5), lāzim (6), 'āriḍ (2/4/6), hamzat al-waṣl — each with a highlighted Qur'anic example and a **Counts Studio**: an animated, haptic metronome for 1/2/4/6-count timing at adjustable tempo. |
@@ -61,7 +61,7 @@ lives in **About → Layout** and switches live.
 
 Strings live in `lib/l10n/app_<lang>.arb` — one file per language, `app_en.arb`
 is the template — turned into `lib/l10n/app_localizations.dart` (**generated**,
-not checked in) via `flutter gen-l10n`. **527 keys, 100% translated in all five
+not checked in) via `flutter gen-l10n`. **551 keys, 100% translated in all five
 languages.** Config lives in `l10n.yaml`.
 
 ```bash
@@ -126,10 +126,12 @@ being machine-translated into Arabic or Urdu religious/technical writing.
 ## Architecture
 
 ```
-assets/quran/   Qur'an text (Uthmani + IndoPak) + tajwīd spans + the 15-line
-                muṣḥaf's own text/layout JSON
-assets/fonts/   UthmanicHafs, ScheherazadeNew, IndoPak, PDMSSaleem,
-                DigitalKhattV2/IndoPak, SurahNames, Bismillah — see CREDITS.md
+assets/quran/   Qur'an text (Uthmani + IndoPak, the latter currently unused by
+                the UI — see Credits) + tajwīd spans + the 15-line muṣḥaf's
+                own text/layout JSON
+assets/fonts/   UthmanicHafs, ScheherazadeNew, DigitalKhattV2/IndoPak,
+                SurahNames, Bismillah, Amiri, Outfit, NotoNastaliqUrdu — all
+                bundled locally, no runtime font-fetching — see CREDITS.md
 lib/
   core/      theme (2 families × 3 modes + tajwīd colors), settings, progress,
              l10n facade, responsive (phone/tablet/desktop), audio services
