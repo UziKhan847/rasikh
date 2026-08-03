@@ -158,11 +158,8 @@ class _DeskAccordionState extends State<_DeskAccordion> {
                     borderRadius: BorderRadius.circular(14)),
                 child: Text(m.mark,
                     textDirection: TextDirection.rtl,
-                    style: TextStyle(
-                        fontFamily: 'ScheherazadeNew',
-                        fontSize: 30,
-                        height: 1.2,
-                        color: pal(context).accent)),
+                    style: quranicStyle(context,
+                        size: 30, color: pal(context).accent)),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -205,8 +202,7 @@ class _DeskAccordionState extends State<_DeskAccordion> {
               const SizedBox(height: 12),
               Text(m.example,
                   textDirection: TextDirection.rtl,
-                  style: const TextStyle(
-                      fontFamily: 'UthmanicHafs', fontSize: 30, height: 1.6)),
+                  style: quranicStyle(context, size: 30)),
               Text(context.l10n.surahRef(m.ref),
                   style: uiStyle(context,
                       size: 12, color: pal(context).textDim)),
@@ -262,8 +258,8 @@ class _TashkilCard extends StatelessWidget {
                 ),
                 child: Text(item.mark,
                     textDirection: TextDirection.rtl,
-                    style: arabicStyle(context, size: 24, height: 1.5,
-                        color: pal(context).accent)),
+                    style: quranicStyle(context,
+                        size: 24, color: pal(context).accent)),
               ),
               title: Text(tashkilName(context, item),
                   style: uiStyle(context, size: 16.5, weight: FontWeight.w700)),
@@ -288,8 +284,8 @@ class _TashkilCard extends StatelessWidget {
                           children: highlightSpans(
                         item.example,
                         item.highlight,
-                        arabicStyle(context, size: 38),
-                        arabicStyle(context, size: 38, color: pal(context).accent),
+                        quranicStyle(context, size: 38),
+                        quranicStyle(context, size: 38, color: pal(context).accent),
                       )),
                     ),
                     Text(context.l10n.surahRef(item.ref),
@@ -324,18 +320,6 @@ class _TashkilCard extends StatelessWidget {
       ),
     );
   }
-}
-
-List<TextSpan> highlightSpans(
-    String text, String hl, TextStyle base, TextStyle hlStyle) {
-  final i = text.indexOf(hl);
-  if (i < 0 || hl.isEmpty) return [TextSpan(text: text, style: base)];
-  return [
-    if (i > 0) TextSpan(text: text.substring(0, i), style: base),
-    TextSpan(text: hl, style: hlStyle),
-    if (i + hl.length < text.length)
-      TextSpan(text: text.substring(i + hl.length), style: base),
-  ];
 }
 
 /// ⏱ Counts Studio — an animated metronome. One ḥarakah = one beat.
@@ -466,8 +450,8 @@ class _CountsStudioState extends State<CountsStudio>
                     children: highlightSpans(
                   widget.word!,
                   widget.highlight ?? '',
-                  arabicStyle(context, size: 44),
-                  arabicStyle(context, size: 44, color: pal(context).accent),
+                  quranicStyle(context, size: 44),
+                  quranicStyle(context, size: 44, color: pal(context).accent),
                 )),
               ),
             widget.embedded
@@ -668,6 +652,8 @@ QuizScreen _tashkilQuiz(BuildContext context, bool focusCounts) {
     qs.add(QuizQuestion(
         prompt: context.l10n.qpIdentifyGoldenMark,
         arabic: t.example,
+        highlight: t.highlight,
+        reviewId: 'tashkil.${t.id}',
         options: o.options,
         correct: o.correct,
         explain: tashkilNote(context, t)));
@@ -685,6 +671,7 @@ QuizScreen _tashkilQuiz(BuildContext context, bool focusCounts) {
     qs.add(QuizQuestion(
         prompt: context.l10n.qpHowLongHeld(tashkilName(context, t)),
         arabic: t.example,
+        reviewId: 'tashkil.counts.${t.id}',
         options: o.options,
         correct: o.correct,
         explain: tashkilNote(context, t)));

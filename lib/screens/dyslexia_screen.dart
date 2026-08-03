@@ -76,10 +76,10 @@ class DyslexiaScreen extends StatelessWidget {
               color: s.paperMode ? pal(context).paper : pal(context).surface,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+            child: Text('بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ',
                 textDirection: TextDirection.rtl,
                 textAlign: TextAlign.center,
-                style: arabicStyle(context, size: 30)),
+                style: quranicStyle(context, size: 30)),
           ),
            SectionHeader(context.l10n.drills, subtitle: context.l10n.shortKindRepeatable),
           _drill(context, context.l10n.spotTheLetter, context.l10n.spotTheLetterSub,
@@ -227,6 +227,37 @@ class _SettingsPanel extends StatelessWidget {
           child: Row(children: [
             SizedBox(
                 width: 110,
+                child: Text(context.l10n.tashkilTermsLabel,
+                    style: uiStyle(context,
+                        size: 13.5, color: pal(context).textDim))),
+            Expanded(
+              child: Wrap(spacing: 6, runSpacing: 6, children: [
+                for (final (label, value) in [
+                  (context.l10n.arabicTerms, 'arabic'),
+                  (context.l10n.indopak, 'indopak'),
+                ])
+                  ChoiceChip(
+                    label: Text(label),
+                    selected: s.tashkilTerms == value,
+                    selectedColor: pal(context).accent,
+                    backgroundColor: pal(context).surfaceHigh,
+                    labelStyle: uiStyle(context,
+                        size: 12.5,
+                        weight: FontWeight.w700,
+                        color: s.tashkilTerms == value
+                            ? Colors.white
+                            : pal(context).text),
+                    onSelected: (_) => s.update(() => s.tashkilTerms = value),
+                  ),
+              ]),
+            ),
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 4),
+          child: Row(children: [
+            SizedBox(
+                width: 110,
                 child: Text(context.l10n.style,
                     style: uiStyle(context,
                         size: 13.5, color: pal(context).textDim))),
@@ -345,7 +376,7 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
     final prog = ProgressScope.of(context);
     if (grid[i] == target) {
       if (s.haptics) HapticFeedback.lightImpact();
-      prog.reviewCorrect(target); // reading it right promotes the card
+      prog.reviewCorrect('letter.$target'); // reading it right promotes the card
       if (round + 1 >= totalRounds) {
         final stars = misses == 0 ? 3 : (misses <= 3 ? 2 : 1);
         ProgressScope.of(context).report('coach.spot', stars);
@@ -371,7 +402,7 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
           .where((c) => c != target)
           .map((c) => letterName(context, letterFor(c)))
           .toList();
-      prog.recordMiss(target,
+      prog.recordMiss('letter.$target', target,
           answer: letterName(context, tl), prompt: context.l10n.qpNameThisLetter, distractors: fam);
       setState(() => wrongIndex = i);
     }
@@ -433,10 +464,9 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
                               borderRadius: BorderRadius.circular(20)),
                           child: Column(children: [
                             Text(target,
-                                style: TextStyle(
-                                    fontFamily: 'ScheherazadeNew',
-                                    fontSize: 120,
-                                    height: .98,
+                                style: quranicStyle(context,
+                                    size: 120,
+                                    height: 1.85,
                                     color: pal(context).text)),
                             const SizedBox(height: 18),
                             Text(context.l10n.letterDash(letterName(context, tl), tl.translit),
@@ -527,11 +557,8 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
         child: Stack(children: [
           Center(
             child: Text(grid[i],
-                style: TextStyle(
-                    fontFamily: 'ScheherazadeNew',
-                    fontSize: 64,
-                    height: 1,
-                    color: pal(context).text)),
+                style: quranicStyle(context,
+                    size: 64, height: 1.85, color: pal(context).text)),
           ),
           if (s.dotEmphasis && l.dotCount > 0)
             Positioned(
@@ -606,7 +633,7 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
                     child: Stack(children: [
                       Center(
                         child: Text(grid[i],
-                            style: arabicStyle(context, size: 44, height: 1.4)),
+                            style: quranicStyle(context, size: 44)),
                       ),
                       if (s.dotEmphasis && l.dotCount > 0)
                         Positioned(
@@ -670,6 +697,7 @@ class DotDetectiveDrill extends StatelessWidget {
       qs.add(QuizQuestion(
           prompt: context.l10n.qpWhereDotsLive(letterName(context, l)),
           arabic: l.char,
+          reviewId: 'coach.dots.${l.char}',
           options: o.options,
           correct: o.correct,
           explain: context.l10n
@@ -683,9 +711,9 @@ class DotDetectiveDrill extends StatelessWidget {
 // ───────────────────────── Fluency Sprint ─────────────────────────
 
 const _sprintWords = <String>[
-  'بِسْمِ', 'اللَّهِ', 'الرَّحْمَٰنِ', 'الرَّحِيمِ', 'الْحَمْدُ', 'رَبِّ',
-  'الْعَالَمِينَ', 'مَالِكِ', 'يَوْمِ', 'الدِّينِ', 'إِيَّاكَ', 'نَعْبُدُ',
-  'نَسْتَعِينُ', 'اهْدِنَا', 'الصِّرَاطَ',
+  'بِسۡمِ', 'ٱللَّهِ', 'ٱلرَّحۡمَٰنِ', 'ٱلرَّحِيمِ', 'ٱلۡحَمۡدُ', 'رَبِّ',
+  'ٱلۡعَٰلَمِينَ', 'مَٰلِكِ', 'يَوۡمِ', 'ٱلدِّينِ', 'إِيَّاكَ',
+  'نَعۡبُدُ', 'نَسۡتَعِينُ', 'ٱهۡدِنَا', 'ٱلصِّرَٰطَ',
 ];
 
 class FluencySprint extends StatefulWidget {
@@ -876,7 +904,7 @@ class _FluencySprintState extends State<FluencySprint> {
                         key: ValueKey(index),
                         textAlign: TextAlign.center,
                         textDirection: TextDirection.rtl,
-                        style: arabicStyle(context, size: 110)),
+                        style: quranicStyle(context, size: 110)),
                   ),
                 ),
               ),
@@ -954,7 +982,7 @@ class _FluencySprintState extends State<FluencySprint> {
                                   key: ValueKey(index),
                                   textAlign: TextAlign.center,
                                   textDirection: TextDirection.rtl,
-                                  style: arabicStyle(context, size: 56))
+                                  style: quranicStyle(context, size: 56))
                               : RichText(
                                   key: ValueKey(index),
                                   textAlign: TextAlign.center,
@@ -965,7 +993,7 @@ class _FluencySprintState extends State<FluencySprint> {
                                         i++)
                                       TextSpan(
                                         text: '${_sprintWords[i]} ',
-                                        style: arabicStyle(context, size: 28,
+                                        style: quranicStyle(context, size: 28,
                                             color: i == index
                                                 ? pal(context).accent
                                                 : (s.paperMode
@@ -1036,6 +1064,7 @@ QuizScreen mistakeReviewQuiz(BuildContext context, ProgressStore prog,
       // has no context; the localized one wins whenever we can resolve it.
       prompt: prompt ?? context.l10n.qpMissedBefore,
       arabic: it.arabic,
+      reviewId: it.id,
       options: shuffled,
       correct: shuffled.indexOf(it.answer),
       optionsAreArabic: it.optionsArabic,

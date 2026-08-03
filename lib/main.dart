@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemChrome, SystemUiMode;
 
+import 'core/audio.dart';
 import 'core/responsive.dart';
 import 'core/l10n.dart';
 import 'core/settings.dart';
@@ -22,8 +23,11 @@ Future<void> main() async {
 class QiraahArabiyyahApp extends StatelessWidget {
   final AppSettings settings;
   final ProgressStore progress;
-  const QiraahArabiyyahApp(
-      {super.key, required this.settings, required this.progress});
+  const QiraahArabiyyahApp({
+    super.key,
+    required this.settings,
+    required this.progress,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -98,6 +102,10 @@ class _SystemUiSyncState extends State<_SystemUiSync>
     if (state == AppLifecycleState.resumed) {
       _applied = null; // force a re-assert
       _sync();
+      // Fire-and-forget: silently top up any quran.com-sourced cache older
+      // than 7 days (Quran Foundation's offline-caching condition). Failures
+      // are swallowed inside and simply retried on the next resume.
+      refreshStaleQuranCache();
     } else if (state == AppLifecycleState.paused) {
       // Flush any debounced settings write (see AppSettings.update) before
       // the OS can suspend/kill the process mid-background.
@@ -110,8 +118,8 @@ class _SystemUiSyncState extends State<_SystemUiSync>
     if (on == _applied) return;
     _applied = on;
     SystemChrome.setEnabledSystemUIMode(
-            on ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge)
-        .catchError((_) {});
+      on ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+    ).catchError((_) {});
   }
 
   @override
@@ -144,8 +152,9 @@ void _warmUpFonts() {
   ]) {
     final tp = TextPainter(
       text: TextSpan(
-          text: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
-          style: TextStyle(fontFamily: family, fontSize: 28)),
+        text: 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ',
+        style: TextStyle(fontFamily: family, fontSize: 28),
+      ),
       textDirection: TextDirection.rtl,
     )..layout();
     final rec = ui.PictureRecorder();

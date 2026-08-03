@@ -113,10 +113,10 @@ class AboutScreen extends StatelessWidget {
           const SizedBox(height: 12),
           Center(
             child: Text(
-              'وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا',
+              'وَرَتِّلِ ٱلۡقُرۡءَانَ تَرۡتِيلًا',
               textDirection: TextDirection.rtl,
-              style: arabicStyle(context,
-                  size: 22, height: 1.6, color: pal(context).textDim),
+              style: quranicStyle(context,
+                  size: 22, height: 1.85, color: pal(context).textDim),
             ),
           ),
         ],

@@ -232,7 +232,7 @@ class _DiffCard extends StatelessWidget {
           Expanded(
             child: Text(text,
                 textDirection: TextDirection.rtl,
-                style: arabicStyle(context, size: 22, height: 1.6)),
+                style: quranicStyle(context, size: 22, height: 1.85)),
           ),
         ],
       );
@@ -267,6 +267,7 @@ QuizScreen _qiraatQuiz(BuildContext context) {
     qs.add(QuizQuestion(
         prompt: context.l10n.qpReadingsDifferIn(d.ref),
         arabic: d.hafs,
+        reviewId: 'qiraat.${d.ref}',
         options: o.options,
         correct: o.correct,
         explain: d.note));

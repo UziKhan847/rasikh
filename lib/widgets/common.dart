@@ -214,19 +214,44 @@ class QuizHostScope extends InheritedWidget {
 class QuizQuestion {
   final String prompt; // UI-language prompt
   final String? arabic; // optional big Arabic display
+  final String? highlight; // substring of [arabic] to color as the accent
   final List<String> options;
   final int correct;
   final bool optionsAreArabic;
   final String? explain;
 
+  /// Stable spaced-repetition queue key (e.g. `'tashkil.shadda'`,
+  /// `'letter.ب'`) — from the underlying data, not the displayed Arabic
+  /// text, so correcting that text later doesn't orphan review progress.
+  /// Falls back to [arabic] when unset (still functional, just not stable
+  /// across future text edits).
+  final String? reviewId;
+
   const QuizQuestion({
     required this.prompt,
     this.arabic,
+    this.highlight,
     required this.options,
     required this.correct,
     this.optionsAreArabic = false,
     this.explain,
+    this.reviewId,
   });
+}
+
+/// Splits [text] into spans with [hl] (its first occurrence) styled as
+/// [hlStyle] and the rest as [base] — the shared "highlight one substring"
+/// renderer for Arabic example words across the quizzes and study cards.
+List<TextSpan> highlightSpans(
+    String text, String hl, TextStyle base, TextStyle hlStyle) {
+  final i = text.indexOf(hl);
+  if (i < 0 || hl.isEmpty) return [TextSpan(text: text, style: base)];
+  return [
+    if (i > 0) TextSpan(text: text.substring(0, i), style: base),
+    TextSpan(text: hl, style: hlStyle),
+    if (i + hl.length < text.length)
+      TextSpan(text: text.substring(i + hl.length), style: base),
+  ];
 }
 
 /// A reusable multiple-choice runner with animated feedback, ending in a
@@ -264,14 +289,15 @@ class _QuizScreenState extends State<QuizScreen> {
     final prog = ProgressScope.of(context);
     final glyph = q.arabic;
     if (glyph != null && glyph.trim().isNotEmpty) {
+      final reviewKey = q.reviewId ?? glyph;
       if (correct) {
-        prog.reviewCorrect(glyph); // promote / graduate
+        prog.reviewCorrect(reviewKey); // promote / graduate
       } else {
         final others = [
           for (var k = 0; k < q.options.length; k++)
             if (k != q.correct) q.options[k]
         ];
-        prog.recordMiss(glyph,
+        prog.recordMiss(reviewKey, glyph,
             answer: q.options[q.correct],
             prompt: q.prompt,
             distractors: others,
@@ -347,12 +373,19 @@ class _QuizScreenState extends State<QuizScreen> {
                 child: Center(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
-                    child: Text(
-                      q.arabic!,
+                    child: RichText(
                       key: ValueKey(_i),
                       textDirection: TextDirection.rtl,
                       textAlign: TextAlign.center,
-                      style: arabicStyle(context, size: 96),
+                      text: TextSpan(
+                        children: highlightSpans(
+                          q.arabic!,
+                          q.highlight ?? '',
+                          quranicStyle(context, size: 96),
+                          quranicStyle(context,
+                              size: 96, color: pal(context).accent),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -419,7 +452,7 @@ class _QuizScreenState extends State<QuizScreen> {
           textDirection:
               q.optionsAreArabic ? TextDirection.rtl : TextDirection.ltr,
           style: q.optionsAreArabic
-              ? arabicStyle(context, size: 26, height: 1.4)
+              ? quranicStyle(context, size: 26)
               : uiStyle(context, size: 17, weight: FontWeight.w600),
         ),
       ),
@@ -550,12 +583,20 @@ class _QuizScreenState extends State<QuizScreen> {
                                 AnimatedSwitcher(
                                   duration:
                                       const Duration(milliseconds: 300),
-                                  child: Text(
-                                    q.arabic!,
+                                  child: RichText(
                                     key: ValueKey(_i),
                                     textDirection: TextDirection.rtl,
                                     textAlign: TextAlign.center,
-                                    style: arabicStyle(context, size: 120),
+                                    text: TextSpan(
+                                      children: highlightSpans(
+                                        q.arabic!,
+                                        q.highlight ?? '',
+                                        quranicStyle(context, size: 120),
+                                        quranicStyle(context,
+                                            size: 120,
+                                            color: p.accent),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],

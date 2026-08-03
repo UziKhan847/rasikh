@@ -183,17 +183,12 @@ ThemeData buildTheme(AppSettings s) {
   );
 }
 
-/// Arabic UI/body text is Amiri first — ScheherazadeNew only covers glyphs
-/// Amiri itself doesn't (there shouldn't be any in practice, but this keeps
-/// text visible rather than silently falling through to a system font if
-/// one ever comes up).
-const _arabicFallback = ['ScheherazadeNew'];
-
 /// UI-chrome font per active language: Outfit for the Latin languages
-/// (en/fr/es — they share one face), Amiri for Arabic, and Noto Nastaliq
-/// Urdu for Urdu (Urdu reads as Nastaliq, not the Naskh style Arabic uses).
+/// (en/fr/es — they share one face), ScheherazadeNew for Arabic, and Noto
+/// Nastaliq Urdu for Urdu (Urdu reads as Nastaliq, not the Naskh style
+/// Arabic uses; ScheherazadeNew is its fallback for any glyph it lacks).
 (String, List<String>) _uiFont(String lang) => switch (lang) {
-      'ar' => ('Amiri', _arabicFallback),
+      'ar' => ('ScheherazadeNew', const <String>[]),
       'ur' => ('NotoNastaliqUrdu', const ['ScheherazadeNew']),
       _ => ('Outfit', const <String>[]),
     };
@@ -230,8 +225,37 @@ TextStyle arabicStyle(
 }) {
   final s = SettingsScope.of(context);
   return TextStyle(
-    fontFamily: 'Amiri',
-    fontFamilyFallback: _arabicFallback,
+    fontFamily: 'ScheherazadeNew',
+    fontSize: size * s.arabicScale,
+    height: height,
+    fontWeight: weight,
+    letterSpacing: s.letterTracking,
+    wordSpacing: s.wordSpacing,
+    color: color ?? pal(context).text,
+  );
+}
+
+/// Qur'anic text style — UthmanicHafs (KFGQPC Ḥafṣ), the same face the
+/// reader uses. Any Arabic that's an actual Qur'anic quote (verses, example
+/// words, quiz prompts drawn from the muṣḥaf) should use this, never
+/// [arabicStyle] — that one is ScheherazadeNew, correct for prose/UI Arabic
+/// but wrong for Qur'anic orthography (no shadda+kasra ligature stacking the
+/// kasra above the letter, dotted-yā' substitution, etc.).
+///
+/// `height: 1.8` is deliberate, not a round number: UthmanicHafs declares
+/// ascent 1.1719em + descent 0.5859em = 1.7578em of vertical extent per its
+/// own hhea/OS2 tables, so anything below that clips. 1.8 is the minimum
+/// with a small safety margin; pass a taller value for full-verse text.
+TextStyle quranicStyle(
+  BuildContext context, {
+  double size = 34,
+  Color? color,
+  FontWeight weight = FontWeight.w400,
+  double height = 1.8,
+}) {
+  final s = SettingsScope.of(context);
+  return TextStyle(
+    fontFamily: 'UthmanicHafs',
     fontSize: size * s.arabicScale,
     height: height,
     fontWeight: weight,

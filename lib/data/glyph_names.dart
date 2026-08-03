@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../core/l10n.dart';
+import '../core/settings.dart';
 import 'letters.dart';
 import 'strokes.dart';
 import 'tashkeel.dart';
@@ -107,30 +108,68 @@ String dotsDesc(BuildContext context, int count, String pos) => count == 0
 String dotsShort(BuildContext context, int count, String pos) =>
     count == 0 ? context.l10n.noDots : '$count ${dotPosLabel(context, pos)}';
 
+/// [dotsDesc] plus a caveat for letters whose dotted form the muṣḥaf doesn't
+/// always show — currently just yā', which renders dotless when isolated or
+/// final (see UthmanicHafs's `fina` GSUB lookup). Without this the letter
+/// card's "2 dots below" caption visibly contradicts the dotless glyph
+/// drawn above it.
+String dotsDescForLetter(BuildContext context, ArabicLetter l) {
+  final base = dotsDesc(context, l.dotCount, l.dotPos);
+  return l.char == 'ي' ? '$base ${context.l10n.yaDotlessNote}' : base;
+}
+
 /// A letter's spoken name for the current language, from its data record.
 /// Wraps [letterNameOf] so display sites and quiz answers all agree.
 String letterName(BuildContext context, ArabicLetter l) =>
     letterNameOf(context, l.char);
 
 /// A tashkīl mark's name for the current language, keyed by its id.
-String tashkilName(BuildContext context, TashkilItem m) => switch (m.id) {
-      'kasra' => context.l10n.mkKasra,
-      'damma' => context.l10n.mkDamma,
-      'sukun' => context.l10n.mkSukun,
-      'shadda' => context.l10n.mkShadda,
-      'fathatan' => context.l10n.mkFathatan,
-      'kasratan' => context.l10n.mkKasratan,
-      'dammatan' => context.l10n.mkDammatan,
-      'madd2' => context.l10n.mkMadd2,
-      'lin' => context.l10n.mkLin,
-      'maddah' => context.l10n.mkMaddah,
-      'madd4' => context.l10n.mkMadd4,
-      'madd45' => context.l10n.mkMadd45,
-      'madd6' => context.l10n.mkMadd6,
-      'madd246' => context.l10n.mkMadd246,
-      'wasl' => context.l10n.mkWasl,
-      _ => context.l10n.mkFatha,
-    };
+///
+/// When [AppSettings.tashkilTerms] is `'indopak'`, the 8 marks with a
+/// distinct Urdu Qaidah name (Zabar/Zair/Paish/Jazm/Shad + the 3 tanwīn)
+/// use that name instead. The madd family and hamzat al-waṣl have no
+/// separate Indo-Pak name — Urdu teaching uses the same Arabic terms for
+/// those — so they always fall through to the switch below.
+String tashkilName(BuildContext context, TashkilItem m) {
+  if (SettingsScope.of(context).tashkilTerms == 'indopak') {
+    switch (m.id) {
+      case 'fatha':
+        return context.l10n.ipZabar;
+      case 'kasra':
+        return context.l10n.ipZair;
+      case 'damma':
+        return context.l10n.ipPaish;
+      case 'sukun':
+        return context.l10n.ipJazm;
+      case 'shadda':
+        return context.l10n.ipShad;
+      case 'fathatan':
+        return context.l10n.ipDoZabar;
+      case 'kasratan':
+        return context.l10n.ipDoZair;
+      case 'dammatan':
+        return context.l10n.ipDoPaish;
+    }
+  }
+  return switch (m.id) {
+    'kasra' => context.l10n.mkKasra,
+    'damma' => context.l10n.mkDamma,
+    'sukun' => context.l10n.mkSukun,
+    'shadda' => context.l10n.mkShadda,
+    'fathatan' => context.l10n.mkFathatan,
+    'kasratan' => context.l10n.mkKasratan,
+    'dammatan' => context.l10n.mkDammatan,
+    'madd2' => context.l10n.mkMadd2,
+    'lin' => context.l10n.mkLin,
+    'maddah' => context.l10n.mkMaddah,
+    'madd4' => context.l10n.mkMadd4,
+    'madd45' => context.l10n.mkMadd45,
+    'madd6' => context.l10n.mkMadd6,
+    'madd246' => context.l10n.mkMadd246,
+    'wasl' => context.l10n.mkWasl,
+    _ => context.l10n.mkFatha,
+  };
+}
 
 /// A tashkīl mark's teaching note for the current language.
 String tashkilNote(BuildContext context, TashkilItem m) => switch (m.id) {

@@ -7,7 +7,7 @@ class ArabicLetter {
   final int dotCount;
   final String dotPos; // 'above' | 'below' | 'inside' | 'none'
   final String? similarGroup; // letters that share a skeleton (rasm)
-  final String exampleWord; // from the Qur'an
+  final String exampleWord; // from the Qur'an (verbatim Uthmani, see test/letters_data_test.dart)
   final String exampleRef; // surah:ayah
   final String glyphId; // tracing glyph family id
 
@@ -32,33 +32,33 @@ class ArabicLetter {
 
 const letters = <ArabicLetter>[
   ArabicLetter(char: 'ا', name: 'Alif', translit: 'ā', dotCount: 0, dotPos: 'none', similarGroup: null, exampleWord: 'أَحَدٌ', exampleRef: '112:1', glyphId: 'alif'),
-  ArabicLetter(char: 'ب', name: 'Bā’', translit: 'b', dotCount: 1, dotPos: 'below', similarGroup: 'boat', exampleWord: 'بِسْمِ', exampleRef: '1:1', glyphId: 'ba'),
-  ArabicLetter(char: 'ت', name: 'Tā’', translit: 't', dotCount: 2, dotPos: 'above', similarGroup: 'boat', exampleWord: 'تَبَّتْ', exampleRef: '111:1', glyphId: 'ba'),
-  ArabicLetter(char: 'ث', name: 'Thā’', translit: 'th', dotCount: 3, dotPos: 'above', similarGroup: 'boat', exampleWord: 'ثُمَّ', exampleRef: '78:5', glyphId: 'ba'),
-  ArabicLetter(char: 'ج', name: 'Jīm', translit: 'j', dotCount: 1, dotPos: 'inside', similarGroup: 'jim', exampleWord: 'جَاءَ', exampleRef: '110:1', glyphId: 'jim'),
-  ArabicLetter(char: 'ح', name: 'Ḥā’', translit: 'ḥ', dotCount: 0, dotPos: 'none', similarGroup: 'jim', exampleWord: 'الْحَمْدُ', exampleRef: '1:2', glyphId: 'jim'),
+  ArabicLetter(char: 'ب', name: 'Bā’', translit: 'b', dotCount: 1, dotPos: 'below', similarGroup: 'boat', exampleWord: 'بِسۡمِ', exampleRef: '1:1', glyphId: 'ba'),
+  ArabicLetter(char: 'ت', name: 'Tā’', translit: 't', dotCount: 2, dotPos: 'above', similarGroup: 'boat', exampleWord: 'تَبَّتۡ', exampleRef: '111:1', glyphId: 'ba'),
+  ArabicLetter(char: 'ث', name: 'Thā’', translit: 'th', dotCount: 3, dotPos: 'above', similarGroup: 'boat', exampleWord: 'ثُمَّ', exampleRef: '78:5', glyphId: 'ba'),
+  ArabicLetter(char: 'ج', name: 'Jīm', translit: 'j', dotCount: 1, dotPos: 'inside', similarGroup: 'jim', exampleWord: 'جَآءَ', exampleRef: '110:1', glyphId: 'jim'),
+  ArabicLetter(char: 'ح', name: 'Ḥā’', translit: 'ḥ', dotCount: 0, dotPos: 'none', similarGroup: 'jim', exampleWord: 'ٱلۡحَمۡدُ', exampleRef: '1:2', glyphId: 'jim'),
   ArabicLetter(char: 'خ', name: 'Khā’', translit: 'kh', dotCount: 1, dotPos: 'above', similarGroup: 'jim', exampleWord: 'خَلَقَ', exampleRef: '96:1', glyphId: 'jim'),
   ArabicLetter(char: 'د', name: 'Dāl', translit: 'd', dotCount: 0, dotPos: 'none', similarGroup: 'dal', exampleWord: 'دِينِ', exampleRef: '109:6', glyphId: 'dal'),
   ArabicLetter(char: 'ذ', name: 'Dhāl', translit: 'dh', dotCount: 1, dotPos: 'above', similarGroup: 'dal', exampleWord: 'ذَٰلِكَ', exampleRef: '2:2', glyphId: 'dal'),
-  ArabicLetter(char: 'ر', name: 'Rā’', translit: 'r', dotCount: 0, dotPos: 'none', similarGroup: 'ra', exampleWord: 'رَبِّ', exampleRef: '1:2', glyphId: 'ra'),
-  ArabicLetter(char: 'ز', name: 'Zāy', translit: 'z', dotCount: 1, dotPos: 'above', similarGroup: 'ra', exampleWord: 'زُلْزِلَتِ', exampleRef: '99:1', glyphId: 'ra'),
-  ArabicLetter(char: 'س', name: 'Sīn', translit: 's', dotCount: 0, dotPos: 'none', similarGroup: 'sin', exampleWord: 'سَلَامٌ', exampleRef: '97:5', glyphId: 'sin'),
-  ArabicLetter(char: 'ش', name: 'Shīn', translit: 'sh', dotCount: 3, dotPos: 'above', similarGroup: 'sin', exampleWord: 'شَهْرٍ', exampleRef: '97:3', glyphId: 'sin'),
-  ArabicLetter(char: 'ص', name: 'Ṣād', translit: 'ṣ', dotCount: 0, dotPos: 'none', similarGroup: 'sad', exampleWord: 'الصَّمَدُ', exampleRef: '112:2', glyphId: 'sad'),
-  ArabicLetter(char: 'ض', name: 'Ḍād', translit: 'ḍ', dotCount: 1, dotPos: 'above', similarGroup: 'sad', exampleWord: 'الضَّالِّينَ', exampleRef: '1:7', glyphId: 'sad'),
+  ArabicLetter(char: 'ر', name: 'Rā’', translit: 'r', dotCount: 0, dotPos: 'none', similarGroup: 'ra', exampleWord: 'رَبِّ', exampleRef: '1:2', glyphId: 'ra'),
+  ArabicLetter(char: 'ز', name: 'Zāy', translit: 'z', dotCount: 1, dotPos: 'above', similarGroup: 'ra', exampleWord: 'زُلۡزِلَتِ', exampleRef: '99:1', glyphId: 'ra'),
+  ArabicLetter(char: 'س', name: 'Sīn', translit: 's', dotCount: 0, dotPos: 'none', similarGroup: 'sin', exampleWord: 'سَلَٰمٌ', exampleRef: '97:5', glyphId: 'sin'),
+  ArabicLetter(char: 'ش', name: 'Shīn', translit: 'sh', dotCount: 3, dotPos: 'above', similarGroup: 'sin', exampleWord: 'شَهۡرٖ', exampleRef: '97:3', glyphId: 'sin'),
+  ArabicLetter(char: 'ص', name: 'Ṣād', translit: 'ṣ', dotCount: 0, dotPos: 'none', similarGroup: 'sad', exampleWord: 'ٱلصَّمَدُ', exampleRef: '112:2', glyphId: 'sad'),
+  ArabicLetter(char: 'ض', name: 'Ḍād', translit: 'ḍ', dotCount: 1, dotPos: 'above', similarGroup: 'sad', exampleWord: 'ٱلضَّآلِّينَ', exampleRef: '1:7', glyphId: 'sad'),
   ArabicLetter(char: 'ط', name: 'Ṭā’', translit: 'ṭ', dotCount: 0, dotPos: 'none', similarGroup: 'ta', exampleWord: 'طه', exampleRef: '20:1', glyphId: 'tah'),
-  ArabicLetter(char: 'ظ', name: 'Ẓā’', translit: 'ẓ', dotCount: 1, dotPos: 'above', similarGroup: 'ta', exampleWord: 'عَظِيمٌ', exampleRef: '2:7', glyphId: 'tah'),
-  ArabicLetter(char: 'ع', name: '‘Ayn', translit: 'ʿ', dotCount: 0, dotPos: 'none', similarGroup: 'ayn', exampleWord: 'الْعَالَمِينَ', exampleRef: '1:2', glyphId: 'ayn'),
-  ArabicLetter(char: 'غ', name: 'Ghayn', translit: 'gh', dotCount: 1, dotPos: 'above', similarGroup: 'ayn', exampleWord: 'غَيْرِ', exampleRef: '1:7', glyphId: 'ayn'),
-  ArabicLetter(char: 'ف', name: 'Fā’', translit: 'f', dotCount: 1, dotPos: 'above', similarGroup: 'fa', exampleWord: 'الْفَلَقِ', exampleRef: '113:1', glyphId: 'fa'),
-  ArabicLetter(char: 'ق', name: 'Qāf', translit: 'q', dotCount: 2, dotPos: 'above', similarGroup: 'fa', exampleWord: 'قُلْ', exampleRef: '112:1', glyphId: 'qaf'),
-  ArabicLetter(char: 'ك', name: 'Kāf', translit: 'k', dotCount: 0, dotPos: 'none', similarGroup: null, exampleWord: 'الْكَوْثَرَ', exampleRef: '108:1', glyphId: 'kaf'),
-  ArabicLetter(char: 'ل', name: 'Lām', translit: 'l', dotCount: 0, dotPos: 'none', similarGroup: null, exampleWord: 'لَهَبٍ', exampleRef: '111:1', glyphId: 'lam'),
-  ArabicLetter(char: 'م', name: 'Mīm', translit: 'm', dotCount: 0, dotPos: 'none', similarGroup: null, exampleWord: 'مَالِكِ', exampleRef: '1:4', glyphId: 'mim'),
-  ArabicLetter(char: 'ن', name: 'Nūn', translit: 'n', dotCount: 1, dotPos: 'above', similarGroup: 'boat', exampleWord: 'نَعْبُدُ', exampleRef: '1:5', glyphId: 'nun'),
+  ArabicLetter(char: 'ظ', name: 'Ẓā’', translit: 'ẓ', dotCount: 1, dotPos: 'above', similarGroup: 'ta', exampleWord: 'عَظِيمٞ', exampleRef: '2:7', glyphId: 'tah'),
+  ArabicLetter(char: 'ع', name: '‘Ayn', translit: 'ʿ', dotCount: 0, dotPos: 'none', similarGroup: 'ayn', exampleWord: 'ٱلۡعَٰلَمِينَ', exampleRef: '1:2', glyphId: 'ayn'),
+  ArabicLetter(char: 'غ', name: 'Ghayn', translit: 'gh', dotCount: 1, dotPos: 'above', similarGroup: 'ayn', exampleWord: 'غَيۡرِ', exampleRef: '1:7', glyphId: 'ayn'),
+  ArabicLetter(char: 'ف', name: 'Fā’', translit: 'f', dotCount: 1, dotPos: 'above', similarGroup: 'fa', exampleWord: 'ٱلۡفَلَقِ', exampleRef: '113:1', glyphId: 'fa'),
+  ArabicLetter(char: 'ق', name: 'Qāf', translit: 'q', dotCount: 2, dotPos: 'above', similarGroup: 'fa', exampleWord: 'قُلۡ', exampleRef: '112:1', glyphId: 'qaf'),
+  ArabicLetter(char: 'ك', name: 'Kāf', translit: 'k', dotCount: 0, dotPos: 'none', similarGroup: null, exampleWord: 'ٱلۡكَوۡثَرَ', exampleRef: '108:1', glyphId: 'kaf'),
+  ArabicLetter(char: 'ل', name: 'Lām', translit: 'l', dotCount: 0, dotPos: 'none', similarGroup: null, exampleWord: 'لَهَبٖ', exampleRef: '111:1', glyphId: 'lam'),
+  ArabicLetter(char: 'م', name: 'Mīm', translit: 'm', dotCount: 0, dotPos: 'none', similarGroup: null, exampleWord: 'مَٰلِكِ', exampleRef: '1:4', glyphId: 'mim'),
+  ArabicLetter(char: 'ن', name: 'Nūn', translit: 'n', dotCount: 1, dotPos: 'above', similarGroup: 'boat', exampleWord: 'نَعۡبُدُ', exampleRef: '1:5', glyphId: 'nun'),
   ArabicLetter(char: 'ه', name: 'Hā’', translit: 'h', dotCount: 0, dotPos: 'none', similarGroup: null, exampleWord: 'هُوَ', exampleRef: '112:1', glyphId: 'ha'),
-  ArabicLetter(char: 'و', name: 'Wāw', translit: 'w', dotCount: 0, dotPos: 'none', similarGroup: null, exampleWord: 'وَالْعَصْرِ', exampleRef: '103:1', glyphId: 'waw'),
-  ArabicLetter(char: 'ي', name: 'Yā’', translit: 'y', dotCount: 2, dotPos: 'below', similarGroup: 'boat', exampleWord: 'يَوْمِ', exampleRef: '1:4', glyphId: 'ya'),
+  ArabicLetter(char: 'و', name: 'Wāw', translit: 'w', dotCount: 0, dotPos: 'none', similarGroup: null, exampleWord: 'وَٱلۡعَصۡرِ', exampleRef: '103:1', glyphId: 'waw'),
+  ArabicLetter(char: 'ي', name: 'Yā’', translit: 'y', dotCount: 2, dotPos: 'below', similarGroup: 'boat', exampleWord: 'يَوۡمِ', exampleRef: '1:4', glyphId: 'ya'),
 ];
 
 /// Look-alike families used by the dyslexia discrimination drills.
@@ -92,8 +92,8 @@ const tanwin = <(String mark, String name, String sound)>[
   ('\u064C', 'Ḍammatān', 'un'),
 ];
 
-/// Three real-word examples per letter — beginning · middle · end position.
-/// Sourced from the desktop reference; used by the letter-detail screens.
+/// Three real Qur'anic-word examples per letter — beginning · middle · end
+/// position (verbatim Uthmani, see test/letters_data_test.dart).
 class LetterExample {
   final String position; // 'beginning' | 'middle' | 'end'
   final String word;
@@ -102,34 +102,32 @@ class LetterExample {
 }
 
 const Map<String, List<LetterExample>> letterExamples = {
-  'ا': [LetterExample('beginning', 'أَحَد', 'aḥad'), LetterExample('middle', 'سَأَل', 'saʾala'), LetterExample('end', 'دَعَا', 'daʿā')],
-  'ب': [LetterExample('beginning', 'بَيْت', 'bayt'), LetterExample('middle', 'كَبِير', 'kabīr'), LetterExample('end', 'قَلْب', 'qalb')],
-  'ت': [LetterExample('beginning', 'تَمْر', 'tamr'), LetterExample('middle', 'كِتَاب', 'kitāb'), LetterExample('end', 'بَيْت', 'bayt')],
-  'ث': [LetterExample('beginning', 'ثَوْب', 'thawb'), LetterExample('middle', 'كَثِير', 'kathīr'), LetterExample('end', 'حَدِيث', 'ḥadīth')],
-  'ج': [LetterExample('beginning', 'جَبَل', 'jabal'), LetterExample('middle', 'رَجُل', 'rajul'), LetterExample('end', 'تَاج', 'tāj')],
-  'ح': [LetterExample('beginning', 'حَبْل', 'ḥabl'), LetterExample('middle', 'رَحْمَة', 'raḥmah'), LetterExample('end', 'صُلْح', 'ṣulḥ')],
-  'خ': [LetterExample('beginning', 'خُبْز', 'khubz'), LetterExample('middle', 'نَخْل', 'nakhl'), LetterExample('end', 'تَارِيخ', 'tārīkh')],
-  'د': [LetterExample('beginning', 'دَار', 'dār'), LetterExample('middle', 'بَدْر', 'badr'), LetterExample('end', 'يَد', 'yad')],
-  'ذ': [LetterExample('beginning', 'ذَهَب', 'dhahab'), LetterExample('middle', 'نَذِير', 'nadhīr'), LetterExample('end', 'لَذِيذ', 'ladhīdh')],
-  'ر': [LetterExample('beginning', 'رَأْس', 'raʾs'), LetterExample('middle', 'كَرِيم', 'karīm'), LetterExample('end', 'نَهْر', 'nahr')],
-  'ز': [LetterExample('beginning', 'زَيْت', 'zayt'), LetterExample('middle', 'عَزِيز', 'ʿazīz'), LetterExample('end', 'كَنْز', 'kanz')],
-  'س': [LetterExample('beginning', 'سَمَاء', 'samāʾ'), LetterExample('middle', 'مَسْجِد', 'masjid'), LetterExample('end', 'شَمْس', 'shams')],
-  'ش': [LetterExample('beginning', 'شَمْس', 'shams'), LetterExample('middle', 'بَشَر', 'bashar'), LetterExample('end', 'عَرْش', 'ʿarsh')],
-  'ص': [LetterExample('beginning', 'صَبْر', 'ṣabr'), LetterExample('middle', 'بَصَر', 'baṣar'), LetterExample('end', 'إِخْلَاص', 'ikhlāṣ')],
-  'ض': [LetterExample('beginning', 'ضَوْء', 'ḍawʾ'), LetterExample('middle', 'فَضْل', 'faḍl'), LetterExample('end', 'أَرْض', 'arḍ')],
-  'ط': [LetterExample('beginning', 'طَرِيق', 'ṭarīq'), LetterExample('middle', 'بَطَل', 'baṭal'), LetterExample('end', 'رِبَاط', 'ribāṭ')],
-  'ظ': [LetterExample('beginning', 'ظِلّ', 'ẓill'), LetterExample('middle', 'نَظَر', 'naẓar'), LetterExample('end', 'حِفْظ', 'ḥifẓ')],
-  'ع': [LetterExample('beginning', 'عِلْم', 'ʿilm'), LetterExample('middle', 'نَعَم', 'naʿam'), LetterExample('end', 'سَمِيع', 'samīʿ')],
-  'غ': [LetterExample('beginning', 'غَيْم', 'ghaym'), LetterExample('middle', 'صَغِير', 'ṣaghīr'), LetterExample('end', 'بَلَاغ', 'balāgh')],
-  'ف': [LetterExample('beginning', 'فَجْر', 'fajr'), LetterExample('middle', 'نَفْس', 'nafs'), LetterExample('end', 'سَيْف', 'sayf')],
-  'ق': [LetterExample('beginning', 'قَلَم', 'qalam'), LetterExample('middle', 'بَقَرَة', 'baqarah'), LetterExample('end', 'حَقّ', 'ḥaqq')],
-  'ك': [LetterExample('beginning', 'كَلْب', 'kalb'), LetterExample('middle', 'مَكَان', 'makān'), LetterExample('end', 'مَلِك', 'malik')],
-  'ل': [LetterExample('beginning', 'لَيْل', 'layl'), LetterExample('middle', 'قَلَم', 'qalam'), LetterExample('end', 'رَجُل', 'rajul')],
-  'م': [LetterExample('beginning', 'مَاء', 'māʾ'), LetterExample('middle', 'عَمَل', 'ʿamal'), LetterExample('end', 'قَلَم', 'qalam')],
-  'ن': [LetterExample('beginning', 'نُور', 'nūr'), LetterExample('middle', 'جَنَّة', 'jannah'), LetterExample('end', 'لَبَن', 'laban')],
-  'ه': [LetterExample('beginning', 'هُدَى', 'hudā'), LetterExample('middle', 'نَهْر', 'nahr'), LetterExample('end', 'وَجْه', 'wajh')],
-  'و': [LetterExample('beginning', 'وَرْد', 'ward'), LetterExample('middle', 'نُور', 'nūr'), LetterExample('end', 'دَلْو', 'dalw')],
-  'ي': [LetterExample('beginning', 'يَد', 'yad'), LetterExample('middle', 'بَيْت', 'bayt'), LetterExample('end', 'كُرْسِيّ', 'kursiyy')],
+  'ا': [LetterExample('beginning', 'أَحَدٌ', 'aḥad'), LetterExample('middle', 'عَذَابٌ', 'ʿadhāb'), LetterExample('end', 'كَفَرُواْ', 'kafarū')],
+  'ب': [LetterExample('beginning', 'بِٱللَّهِ', 'billāh'), LetterExample('middle', 'قُلُوبِهِمۡ', 'qulūbihim'), LetterExample('end', 'ٱلۡكِتَٰبُ', 'al-kitāb')],
+  'ت': [LetterExample('beginning', 'تَجۡرِي', 'tajrī'), LetterExample('middle', 'نَسۡتَعِينُ', 'nastaʿīn'), LetterExample('end', 'أَنۡعَمۡتَ', 'anʿamta')],
+  'ث': [LetterExample('beginning', 'ثَمَرَةٖ', 'thamarah'), LetterExample('middle', 'كَثِيرٗا', 'kathīrā'), LetterExample('end', 'ٱلۡحَرۡثَ', 'al-ḥarth')],
+  'ج': [LetterExample('beginning', 'جَنَّـٰتٖ', 'jannāt'), LetterExample('middle', 'يَرۡجِعُونَ', 'yarjiʿūn'), LetterExample('end', 'أَزۡوَٰجٞ', 'azwāj')],
+  'ح': [LetterExample('beginning', 'حَتَّىٰ', 'ḥattā'), LetterExample('middle', 'ٱلرَّحِيمِ', 'ar-raḥīm'), LetterExample('end', 'نُسَبِّحُ', 'nusabbiḥ')],
+  'خ': [LetterExample('beginning', 'خَٰلِدُونَ', 'khālidūn'), LetterExample('middle', 'فَأَخۡرَجَ', 'fa-akhraja'), LetterExample('end', 'ٱلۡأَخِ', 'al-akh')],
+  'د': [LetterExample('beginning', 'دُونِ', 'dūni'), LetterExample('middle', 'ٱلدِّينِ', 'ad-dīn'), LetterExample('end', 'ٱلۡحَمۡدُ', 'al-ḥamd')],
+  'ذ': [LetterExample('beginning', 'ذَهَبَ', 'dhahaba'), LetterExample('middle', 'ٱلَّذِينَ', 'alladhīna'), LetterExample('end', 'أَعُوذُ', 'aʿūdhu')],
+  'ر': [LetterExample('beginning', 'رَبَّكُمُ', 'rabbakum'), LetterExample('middle', 'ٱلصِّرَٰطَ', 'aṣ-ṣirāṭ'), LetterExample('end', 'غَيۡرِ', 'ghayri')],
+  'ز': [LetterExample('beginning', 'زَوۡجًا', 'zawjan'), LetterExample('middle', 'رِزۡقٗا', 'rizqā'), LetterExample('end', 'ٱلۡفَوۡزُ', 'al-fawz')],
+  'س': [LetterExample('beginning', 'سُبۡحَٰنَكَ', 'subḥānaka'), LetterExample('middle', 'أَنفُسَهُمۡ', 'anfusahum'), LetterExample('end', 'ٱلنَّاسِ', 'an-nās')],
+  'ش': [LetterExample('beginning', 'شَآءَ', 'shāʾa'), LetterExample('middle', 'وَبَشِّرِ', 'wa-bashshir'), LetterExample('end', 'ٱلۡعَرۡشِۖ', 'al-ʿarsh')],
+  'ص': [LetterExample('beginning', 'صَٰدِقِينَ', 'ṣādiqīn'), LetterExample('middle', 'ٱلصَّلَوٰةَ', 'aṣ-ṣalāh'), LetterExample('end', 'وَنَقۡصٖ', 'wa-naqṣ')],
+  'ض': [LetterExample('beginning', 'ضَعِيفًا', 'ḍaʿīfā'), LetterExample('middle', 'ٱلضَّلَٰلَةَ', 'aḍ-ḍalālah'), LetterExample('end', 'ٱلۡأَرۡضِ', 'al-arḍ')],
+  'ط': [LetterExample('beginning', 'طَيِّبَٰتِ', 'ṭayyibāt'), LetterExample('middle', 'ٱلشَّيۡطَٰنُ', 'ash-shayṭān'), LetterExample('end', 'صِرَٰطَ', 'ṣirāṭa')],
+  'ظ': [LetterExample('beginning', 'ظَٰلِمُونَ', 'ẓālimūn'), LetterExample('middle', 'يَظۡلِمُونَ', 'yaẓlimūn'), LetterExample('end', 'غَلِيظَ', 'ghalīẓa')],
+  'ع': [LetterExample('beginning', 'عَلَىٰ', 'ʿalā'), LetterExample('middle', 'نَعۡبُدُ', 'naʿbud'), LetterExample('end', 'ٱدۡعُ', 'udʿu')],
+  'غ': [LetterExample('beginning', 'غَفُورٞ', 'ghafūr'), LetterExample('middle', 'ٱلۡغَمَامَ', 'al-ghamām'), LetterExample('end', 'ٱلۡبَلَٰغُۗ', 'al-balāgh')],
+  'ف': [LetterExample('beginning', 'فَهُمۡ', 'fahum'), LetterExample('middle', 'يُنفِقُونَ', 'yunfiqūn'), LetterExample('end', 'كَيۡفَ', 'kayfa')],
+  'ق': [LetterExample('beginning', 'قَالُوٓاْ', 'qālū'), LetterExample('middle', 'يَقُولُ', 'yaqūlu'), LetterExample('end', 'ٱلۡحَقُّ', 'al-ḥaqq')],
+  'ك': [LetterExample('beginning', 'كَانُواْ', 'kānū'), LetterExample('middle', 'وَلَٰكِن', 'wa-lākin'), LetterExample('end', 'إِيَّاكَ', 'iyyāka')],
+  'ل': [LetterExample('beginning', 'لَهُمۡ', 'lahum'), LetterExample('middle', 'مَٰلِكِ', 'māliki'), LetterExample('end', 'جَعَلَ', 'jaʿala')],
+  'م': [LetterExample('beginning', 'مُهۡتَدِينَ', 'muhtadīn'), LetterExample('middle', 'يُؤۡمِنُونَ', 'yuʾminūn'), LetterExample('end', 'عَلَيۡهِمۡ', 'ʿalayhim')],
+  'ن': [LetterExample('beginning', 'نَفۡسٌ', 'nafsun'), LetterExample('middle', 'تُنذِرۡهُمۡ', 'tundhirhum'), LetterExample('end', 'ٱلرَّحۡمَٰنِ', 'ar-raḥmān')],
+  'ه': [LetterExample('beginning', 'هَٰذَا', 'hādhā'), LetterExample('middle', 'رَّبِّهِمۡۖ', 'rabbihim'), LetterExample('end', 'ٱللَّهِ', 'Allāhi')],
+  'و': [LetterExample('beginning', 'وَعَلَىٰ', 'wa-ʿalā'), LetterExample('middle', 'يَوۡمِ', 'yawmi'), LetterExample('end', 'فَهُوَ', 'fahuwa')],
+  'ي': [LetterExample('beginning', 'يُخَٰدِعُونَ', 'yukhādiʿūn'), LetterExample('middle', 'ٱلَّذِينَ', 'alladhīna'), LetterExample('end', 'إِنِّي', 'innī')],
 };
-
-/// Human-readable dot description for the letter-detail 'DOTS' card.

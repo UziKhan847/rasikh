@@ -45,7 +45,7 @@ const tajwidRules = <TajwidRule>[
     trigger: 'Nūn or mīm with shaddah (نّ / مّ).',
     how: 'A full nasal hum from the nose, held two counts.',
     example: VerseExample('108:1', [
-      Seg('إِ'), Seg('نَّ', 'ghunnah'), Seg('ا أَعْطَيْنَاكَ الْكَوْثَرَ'),
+      Seg('إِ'), Seg('نَّ', 'ghunnah'), Seg('آ أَعۡطَيۡنَٰكَ ٱلۡكَوۡثَرَ'),
     ]),
   ),
   TajwidRule(
@@ -56,7 +56,7 @@ const tajwidRules = <TajwidRule>[
     trigger: 'Nūn sākinah or tanwīn before a throat letter (ء ه ع ح غ خ).',
     how: 'Pronounce the nūn clearly and quickly — no nasalization, no pause.',
     example: VerseExample('106:4', [
-      Seg('وَآمَنَهُم '), Seg('مِّنْ خَ', 'izhar'), Seg('وْفٍ'),
+      Seg('ٱلَّذِيٓ أَطۡعَمَهُم مِّن جُوعٖ وَءَامَنَهُم '), Seg('مِّنۡ خَ', 'izhar'), Seg('وۡفِۭ'),
     ]),
   ),
   TajwidRule(
@@ -67,7 +67,7 @@ const tajwidRules = <TajwidRule>[
     trigger: 'Nūn sākinah / tanwīn before ي ن م و (across two words).',
     how: 'Merge the nūn into the next letter while humming two counts.',
     example: VerseExample('99:7', [
-      Seg('فَمَ'), Seg('ن يَ', 'idgham_g'), Seg('عْمَلْ مِثْقَالَ ذَرَّةٍ خَيْرًا يَرَهُ'),
+      Seg('فَمَ'), Seg('ن يَ', 'idgham_g'), Seg('عۡمَلۡ مِثۡقَالَ ذَرَّةٍ خَيۡرٗا يَرَهُۥ'),
     ]),
   ),
   TajwidRule(
@@ -78,7 +78,7 @@ const tajwidRules = <TajwidRule>[
     trigger: 'Nūn sākinah / tanwīn before ل or ر.',
     how: 'Merge completely into the lām or rā’ — the nūn disappears.',
     example: VerseExample('2:5', [
-      Seg('أُولَٰئِكَ عَلَىٰ هُدًى '), Seg('مِّن رَّ', 'idgham_ng'), Seg('بِّهِمْ'),
+      Seg('أُوْلَـٰٓئِكَ عَلَىٰ هُدٗى '), Seg('مِّن رَّ', 'idgham_ng'), Seg('بِّهِمۡۖ وَأُوْلَـٰٓئِكَ هُمُ ٱلۡمُفۡلِحُونَ'),
     ]),
   ),
   TajwidRule(
@@ -89,7 +89,7 @@ const tajwidRules = <TajwidRule>[
     trigger: 'Nūn sākinah / tanwīn before ب.',
     how: 'Flip the nūn into a light mīm, hidden with ghunnah, two counts.',
     example: VerseExample('104:4', [
-      Seg('كَلَّا ۖ لَيُ'), Seg('نۢبَ', 'iqlab'), Seg('ذَنَّ فِي الْحُطَمَةِ'),
+      Seg('كَلَّاۖ لَيُ'), Seg('نۢبَ', 'iqlab'), Seg('ذَنَّ فِي ٱلۡحُطَمَةِ'),
     ]),
   ),
   TajwidRule(
@@ -100,7 +100,7 @@ const tajwidRules = <TajwidRule>[
     trigger: 'Nūn sākinah / tanwīn before the remaining 15 letters.',
     how: 'Hide the nūn between iẓhār and idghām — a soft hum shaped toward the next letter.',
     example: VerseExample('103:2', [
-      Seg('إِنَّ الْإِ'), Seg('نسَ', 'ikhfa'), Seg('انَ لَفِي خُسْرٍ'),
+      Seg('إِنَّ ٱلۡإِ'), Seg('نسَ', 'ikhfa'), Seg('ٰنَ لَفِي خُسۡرٍ'),
     ]),
   ),
   TajwidRule(
@@ -111,7 +111,7 @@ const tajwidRules = <TajwidRule>[
     trigger: 'ق ط ب ج د with sukūn — or at a stop. Remember: قُطْبُ جَدٍّ.',
     how: 'An echoing bounce: release the letter with a small pop, strongest when stopping.',
     example: VerseExample('113:1', [
-      Seg('قُلْ أَعُوذُ بِرَبِّ الْفَلَ'), Seg('قِ', 'qalqalah'),
+      Seg('قُلۡ أَعُوذُ بِرَبِّ ٱلۡفَلَ'), Seg('قِ', 'qalqalah'),
     ]),
   ),
   TajwidRule(
@@ -122,7 +122,7 @@ const tajwidRules = <TajwidRule>[
     trigger: 'Mīm sākinah before ب.',
     how: 'Hide the mīm at the lips with ghunnah.',
     example: VerseExample('105:4', [
-      Seg('تَرْمِي'), Seg('هِم بِ', 'ikhfa_shafawi'), Seg('حِجَارَةٍ مِّن سِجِّيلٍ'),
+      Seg('تَرۡمِي'), Seg('هِم بِ', 'ikhfa_shafawi'), Seg('حِجَارَةٖ مِّن سِجِّيلٖ'),
     ]),
   ),
   TajwidRule(
@@ -133,7 +133,7 @@ const tajwidRules = <TajwidRule>[
     trigger: 'Mīm sākinah before another mīm.',
     how: 'Merge the two mīms with a full ghunnah.',
     example: VerseExample('106:4', [
-      Seg('الَّذِي أَطْعَمَ'), Seg('هُم مِّ', 'idgham_shafawi'), Seg('ن جُوعٍ'),
+      Seg('ٱلَّذِيٓ أَطۡعَمَ'), Seg('هُم مِّ', 'idgham_shafawi'), Seg('ن جُوعٖ وَءَامَنَهُم مِّنۡ خَوۡفِۭ'),
     ]),
   ),
   TajwidRule(
@@ -144,7 +144,7 @@ const tajwidRules = <TajwidRule>[
     trigger: 'A plain madd letter (ا و ي) with nothing after it.',
     how: 'Exactly two counts.',
     example: VerseExample('1:4', [
-      Seg('مَ'), Seg('ا', 'madd2'), Seg('لِكِ يَوْمِ الدِّينِ'),
+      Seg('مَٰ', 'madd2'), Seg('لِكِ يَوۡمِ ٱلدِّينِ'),
     ]),
   ),
   TajwidRule(
@@ -155,7 +155,7 @@ const tajwidRules = <TajwidRule>[
     trigger: 'Madd letter + hamzah in the same word.',
     how: 'Four to five counts — obligatory.',
     example: VerseExample('110:1', [
-      Seg('إِذَا '), Seg('جَآءَ', 'madd4'), Seg(' نَصْرُ اللَّهِ وَالْفَتْحُ'),
+      Seg('إِذَا '), Seg('جَآءَ', 'madd4'), Seg(' نَصۡرُ ٱللَّهِ وَٱلۡفَتۡحُ'),
     ]),
   ),
   TajwidRule(
@@ -166,7 +166,7 @@ const tajwidRules = <TajwidRule>[
     trigger: 'Madd at a word end, hamzah begins the next word.',
     how: 'Four to five counts in Ḥafṣ (other transmissions differ — see Qirā’āt).',
     example: VerseExample('97:1', [
-      Seg('إِ'), Seg('نَّ', 'ghunnah'), Seg('آ أَ', 'madd45'), Seg('نزَلْنَاهُ فِي لَيْلَةِ الْقَدْرِ'),
+      Seg('إِ'), Seg('نَّ', 'ghunnah'), Seg('آ أَ', 'madd45'), Seg('نزَلۡنَٰهُ فِي لَيۡلَةِ ٱلۡقَدۡرِ'),
     ]),
   ),
   TajwidRule(
@@ -177,7 +177,7 @@ const tajwidRules = <TajwidRule>[
     trigger: 'Madd letter followed by a permanent sukūn or shaddah.',
     how: 'Six full counts — including the opening letters like الٓمٓ.',
     example: VerseExample('1:7', [
-      Seg('وَلَا ال'), Seg('ضَّآلِّ', 'madd6'), Seg('ينَ'),
+      Seg('صِرَٰطَ ٱلَّذِينَ أَنۡعَمۡتَ عَلَيۡهِمۡ غَيۡرِ ٱلۡمَغۡضُوبِ عَلَيۡهِمۡ وَلَا ٱل'), Seg('ضَّآلّ', 'madd6'), Seg('ِينَ'),
     ]),
   ),
   TajwidRule(
@@ -188,7 +188,7 @@ const tajwidRules = <TajwidRule>[
     trigger: '“ال” before a sun letter — the lām is written but silent.',
     how: 'Jump straight to the doubled sun letter.',
     example: VerseExample('91:1', [
-      Seg('وَ'), Seg('الشَّ', 'shamsiyya'), Seg('مْسِ وَضُحَاهَا'),
+      Seg('وَ'), Seg('ٱلشَّ', 'shamsiyya'), Seg('مۡسِ وَضُحَىٰهَا'),
     ]),
   ),
   TajwidRule(
@@ -199,7 +199,7 @@ const tajwidRules = <TajwidRule>[
     trigger: '“ال” before a moon letter — the lām is pronounced with sukūn.',
     how: 'Say the lām clearly: al-qamar.',
     example: VerseExample('91:2', [
-      Seg('وَ'), Seg('الْقَ', 'qamariyya'), Seg('مَرِ إِذَا تَلَاهَا'),
+      Seg('وَ'), Seg('ٱلۡقَ', 'qamariyya'), Seg('مَرِ إِذَا تَلَىٰهَا'),
     ]),
   ),
   TajwidRule(
@@ -210,7 +210,7 @@ const tajwidRules = <TajwidRule>[
     trigger: 'Heavy letters (خ ص ض غ ط ق ظ), the rā’, and the lām of اللّٰه.',
     how: 'Heavy letters fill the mouth; rā’ and the lām of Allāh are heavy or light depending on the vowel before them.',
     example: VerseExample('1:2', [
-      Seg('الْحَمْدُ لِ'), Seg('لَّهِ', 'tafkhim'), Seg(' رَبِّ الْعَالَمِينَ'),
+      Seg('ٱلۡحَمۡدُ لِ'), Seg('لَّهِ', 'tafkhim'), Seg(' رَبِّ ٱلۡعَٰلَمِينَ'),
     ]),
   ),
 ];

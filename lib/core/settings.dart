@@ -6,10 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Indo-Pak reading script is off pending a licensed Indo-Pak Qur'an face —
-/// PDMS Saleem cannot be redistributed (see CREDITS.md). Flip to true once a
-/// shippable face is bundled; the reader/muṣḥaf code paths are all intact.
-const bool kIndopakAvailable = false;
+/// The card reader's Indo-Pak script renders with DigitalKhattIndoPak.otf —
+/// the same face the 15-line muṣḥaf uses (see CREDITS.md) — via a 1:1
+/// codepoint transcode in `QuranRepo._transcodeIndopak` that aligns the
+/// reader's text convention with the font's. PDMS Saleem is not involved and
+/// was never shipped for the reader.
+const bool kIndopakReaderAvailable = true;
+
+/// The 15-line muṣḥaf's Indo-Pak script uses the same DigitalKhattIndoPak.otf
+/// face (see CREDITS.md).
+const bool kIndopakMushafAvailable = true;
 
 /// Reader & accessibility settings. The dyslexia-friendly options are real
 /// interventions, not decoration:
@@ -31,12 +37,18 @@ class AppSettings extends ChangeNotifier {
   String themeMode = 'light'; // 'light' | 'dark' | 'oled'
   String themeFamily = 'mint'; // 'mint' | 'noor'
   String language = 'en'; // en | ar | ur | fr | es
-  String quranScript = 'uthmani'; // 'uthmani' (Madani) | 'indopak'
+  /// 'arabic' (Fatḥah/Ḍammah/Kasrah/Sukūn…) | 'indopak' (Zabar/Paish/Zair/Jazm…)
+  /// — the tashkīl mark names shown app-wide (tashkilName() in
+  /// glyph_names.dart). Defaults per-language in load(); user-overridable.
+  String tashkilTerms = 'arabic';
+  String quranScript = 'uthmani'; // 'uthmani' (Madani) | 'indopak' — card reader only
+  String mushafScript = 'uthmani'; // 'uthmani' | 'indopak' — 15-line muṣḥaf's own, independent of quranScript
   bool mushafHeader = true; // traditional page header: sūrah · page · juzʼ
   bool mushafBarCollapsed = false; // retract the mushaf bottom control bar
   bool mushafFillWidth = false; // desktop: fill page width and scroll vertically, like phone landscape
   bool immersive = false; // hide system bars app-wide (edge-to-edge reading)
   double quranFontScale = 1.0; // 0.7 – 2.2 (reader-only slider)
+  double traceTolerance = 1.0; // 0.6 strict – 1.8 lenient (Tracing Studio guidance radius)
   double wbwGap = 10; // gap between words / segments (4–30)
   int wbwGroup = 1; // words per segment: 1–6
   bool wbwNewline = false; // each segment on its own line
@@ -47,7 +59,7 @@ class AppSettings extends ChangeNotifier {
   bool wordByWord = true; // reader: split verses into tappable words
   bool readerHeaderCollapsed = false; // retract the reader control panel
   String fontUthmani = 'UthmanicHafs'; // or 'ScheherazadeNew'
-  String fontIndopak = 'UthmanicHafs'; // no licensed Indo-Pak face is bundled; see kIndopakAvailable
+  String fontIndopak = 'DigitalKhattIndoPak';
   String reciter = 'tunaiji'; // 'tunaiji' | 'alafasy' (word-sync highlight)
   String readerLayout = 'cards'; // 'cards' | 'mushaf' (continuous flow)
   String reciteFlow = 'single'; // 'single' | 'auto' (continue) | 'repeat'
@@ -116,6 +128,9 @@ class AppSettings extends ChangeNotifier {
     themeMode = m['mode'] ?? 'light';
     themeFamily = m['family'] ?? 'mint';
     language = m['lang'] ?? 'en';
+    // Urdu Qaidah teaching conventionally uses Zabar/Zair/Paish/Jazm, not
+    // the Arabic mark names — default accordingly, but stay overridable.
+    tashkilTerms = m['tashkilTerms'] ?? (language == 'ur' ? 'indopak' : 'arabic');
     wbwGap = (m['wbwGap'] ?? 10.0).toDouble();
     wbwGroup = (m['wbwGroup'] ?? 1) as int;
     wbwNewline = m['wbwNl'] ?? false;
@@ -126,17 +141,22 @@ class AppSettings extends ChangeNotifier {
     wordByWord = m['wbw'] ?? true;
     readerHeaderCollapsed = m['hdrCol'] ?? false;
     fontUthmani = m['fontU'] ?? 'UthmanicHafs';
-    fontIndopak = m['fontI'] ?? 'UthmanicHafs';
+    fontIndopak = m['fontI'] ?? 'DigitalKhattIndoPak';
     // legacy options removed from the UI — normalize to the supported pair.
     if (fontUthmani == 'ScheherazadeNew') fontUthmani = 'UthmanicHafs';
-    // The Indo-Pak faces (bundled IndoPak, then PDMS Saleem) are no longer
-    // shipped — migrate anyone stored on them back to the Madani script so
-    // the reader never asks for a missing font family.
-    if (fontIndopak == 'IndoPak' || fontIndopak == 'PDMSSaleem') {
-      fontIndopak = 'UthmanicHafs';
+    // Anyone persisted on a removed/placeholder Indo-Pak face (the bundled
+    // IndoPak.ttf or PDMS Saleem, both gone; or UthmanicHafs, the fallback
+    // used while the reader's Indo-Pak was gated) gets migrated onto the
+    // real face now that it's bundled and the gate is lifted.
+    if (fontIndopak == 'IndoPak' ||
+        fontIndopak == 'PDMSSaleem' ||
+        fontIndopak == 'UthmanicHafs') {
+      fontIndopak = 'DigitalKhattIndoPak';
     }
     quranScript = m['script'] ?? 'uthmani';
-    if (!kIndopakAvailable && quranScript == 'indopak') quranScript = 'uthmani';
+    if (!kIndopakReaderAvailable && quranScript == 'indopak') quranScript = 'uthmani';
+    mushafScript = m['mushafScript'] ?? 'uthmani';
+    if (!kIndopakMushafAvailable && mushafScript == 'indopak') mushafScript = 'uthmani';
     mushafHeader = m['mushafHeader'] ?? true;
     mushafBarCollapsed = m['mushafBarCol'] ?? false;
     mushafFillWidth = m['mushafFillW'] ?? false;
@@ -145,6 +165,7 @@ class AppSettings extends ChangeNotifier {
     readerLayout = m['readerLayout'] ?? 'cards';
     reciteFlow = m['reciteFlow'] ?? 'single';
     quranFontScale = (m['qfont'] ?? 1.0).toDouble();
+    traceTolerance = (m['traceTol'] ?? 1.0).toDouble();
     playerBarPinned = m['playerPinned'] ?? true;
   }
 
@@ -164,6 +185,7 @@ class AppSettings extends ChangeNotifier {
         'mode': themeMode,
         'family': themeFamily,
         'lang': language,
+        'tashkilTerms': tashkilTerms,
         'wbwGap': wbwGap,
         'wbwGroup': wbwGroup,
         'wbwNl': wbwNewline,
@@ -176,11 +198,13 @@ class AppSettings extends ChangeNotifier {
         'fontU': fontUthmani,
         'fontI': fontIndopak,
         'script': quranScript,
+        'mushafScript': mushafScript,
         'mushafHeader': mushafHeader,
         'mushafBarCol': mushafBarCollapsed,
         'mushafFillW': mushafFillWidth,
         'immersive': immersive,
         'qfont': quranFontScale,
+        'traceTol': traceTolerance,
         'reciter': reciter,
         'readerLayout': readerLayout,
         'reciteFlow': reciteFlow,
@@ -203,8 +227,17 @@ class SettingsScope extends InheritedNotifier<AppSettings> {
 /// longer interval; a correct answer past the last box graduates it out.
 /// [distractors] preserves the other options the learner saw, so the review
 /// re-asks an equally plausible question rather than an easier one.
+///
+/// Keyed by [id] — a stable identifier from the underlying data (e.g.
+/// `'tashkil.shadda'`, `'letter.ب'`), NOT by [arabic]. Text-data fixes (e.g.
+/// correcting Imlāʾī spelling to Uthmani) change what a card *displays*
+/// without orphaning its Leitner progress, since the key never changes.
+/// Cards saved before this split have no stable id — they load with
+/// `id == arabic` (their old map key) and simply age out of the queue
+/// naturally rather than being force-migrated onto a new id.
 class ReviewItem {
-  final String arabic; // the glyph/word — the queue key
+  final String id; // stable queue key
+  final String arabic; // display text (glyph/word) — may change across edits
   String prompt;
   String answer;
   List<String> distractors;
@@ -216,6 +249,7 @@ class ReviewItem {
   int lastSeen;
 
   ReviewItem({
+    required this.id,
     required this.arabic,
     required this.prompt,
     required this.answer,
@@ -229,6 +263,7 @@ class ReviewItem {
   });
 
   Map<String, dynamic> toJson() => {
+        'g': arabic,
         'q': prompt,
         'a': answer,
         'd': distractors,
@@ -240,8 +275,9 @@ class ReviewItem {
         's': lastSeen,
       };
 
-  static ReviewItem fromJson(String arabic, Map<String, dynamic> m) => ReviewItem(
-        arabic: arabic,
+  static ReviewItem fromJson(String id, Map<String, dynamic> m) => ReviewItem(
+        id: id,
+        arabic: (m['g'] ?? id) as String,
         prompt: (m['q'] ?? 'You missed this before — what is it?') as String,
         answer: (m['a'] ?? '') as String,
         distractors:
@@ -301,16 +337,20 @@ class ProgressStore extends ChangeNotifier {
 
   /// Record a wrong answer: schedule the item for review now, resetting its
   /// Leitner box. [distractors] are the other options that were on screen.
-  void recordMiss(String arabic,
+  /// [id] is the stable queue key (from the underlying data, not the Arabic
+  /// text itself); [arabic] is what to display when this card resurfaces.
+  void recordMiss(String id, String arabic,
       {required String answer,
       String prompt = 'You missed this before — what is it?',
       List<String> distractors = const [],
       bool optionsArabic = false}) {
+    final k = id.trim();
     final a = arabic.trim();
-    if (a.isEmpty || answer.trim().isEmpty) return;
+    if (k.isEmpty || a.isEmpty || answer.trim().isEmpty) return;
     final t = _today();
-    final existing = review[a];
-    review[a] = ReviewItem(
+    final existing = review[k];
+    review[k] = ReviewItem(
+      id: k,
       arabic: a,
       prompt: prompt,
       answer: answer,
@@ -324,11 +364,11 @@ class ProgressStore extends ChangeNotifier {
     );
     while (review.length > 60) {
       // Drop whichever card is furthest from due (the best-learned one).
-      final k = review.entries
+      final furthest = review.entries
           .reduce((x, y) => x.value.due >= y.value.due ? x : y)
           .key;
-      if (k == a) break;
-      review.remove(k);
+      if (furthest == k) break;
+      review.remove(furthest);
     }
     _saveReview();
     notifyListeners();
@@ -336,14 +376,14 @@ class ProgressStore extends ChangeNotifier {
 
   /// Record a correct answer anywhere: promote the card one Leitner box and
   /// push its next review out; a correct answer past the last box graduates it.
-  void reviewCorrect(String arabic) {
-    final a = arabic.trim();
-    final item = review[a];
+  void reviewCorrect(String id) {
+    final k = id.trim();
+    final item = review[k];
     if (item == null) return;
     final t = _today();
     final next = item.box + 1;
     if (next >= _boxDays.length) {
-      review.remove(a); // graduated — learned
+      review.remove(k); // graduated — learned
     } else {
       item.box = next;
       item.due = t + _boxDays[next];
@@ -354,8 +394,8 @@ class ProgressStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  void clearReview(String arabic) {
-    if (review.remove(arabic.trim()) != null) {
+  void clearReview(String id) {
+    if (review.remove(id.trim()) != null) {
       _saveReview();
       notifyListeners();
     }
@@ -461,6 +501,7 @@ class ProgressStore extends ChangeNotifier {
         final t = _today();
         Map<String, String>.from(jsonDecode(mraw) as Map).forEach((k, answer) {
           review[k] = ReviewItem(
+            id: k,
             arabic: k,
             prompt: 'You missed this before — what is it?',
             answer: answer,

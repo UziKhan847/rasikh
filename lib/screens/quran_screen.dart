@@ -42,8 +42,17 @@ TextStyle quranStyle(BuildContext context,
   final indo = s.quranScript == 'indopak';
   return TextStyle(
     fontFamily: indo ? s.fontIndopak : s.fontUthmani,
-    fontSize: base * s.quranFontScale * (indo ? .92 : 1),
-    height: indo ? 2.2 : 1.95,
+    // No size nudge for Indo-Pak: the old `.92` was tuned for UthmanicHafs
+    // rendering Indo-Pak text and doesn't carry over to DigitalKhattIndoPak,
+    // whose glyph-metrics ratio to UthmanicHafs isn't consistent enough
+    // across letterforms to derive a replacement number with any confidence
+    // — needs real-device visual QA, not a guess.
+    fontSize: base * s.quranFontScale,
+    // DigitalKhattIndoPak declares ascent 1500 + descent 700 on a 1000-unit
+    // em (2.2 em of vertical extent) — same font, same math the 15-line
+    // muṣḥaf uses at mushaf_screen.dart's `_lineHeightRatio`, plus its ~5%
+    // safety margin for stacks that ink past the declared metrics.
+    height: indo ? 2.2 * 1.05 : 1.95,
     fontWeight: weight,
     color: color ?? readingInk(context),
   );
@@ -201,6 +210,8 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
   int playingAyah = -1;
   int playingWord = -1;
   bool recitingAyah = false; // verse recitation (Tunaiji) active
+  bool _wholeSurah = false; // "play whole sūrah" in progress — overrides
+      // the persisted reciteFlow setting until it reaches the last āyah
   PlaybackHandle? _handle;
 
   bool downloading = false;
@@ -215,9 +226,29 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
   void initState() {
     super.initState();
     initRecitationTracking();
+    // Fire-and-forget: opening the reader is also a good moment to silently
+    // top up any quran.com-sourced cache older than 7 days (Quran
+    // Foundation's offline-caching condition) — see refreshStaleQuranCache.
+    refreshStaleQuranCache();
     _doneSub = AyahAudio.instance.onComplete.listen((_) {
       if (!mounted || !recitingAyah) return;
       final s = SettingsScope.of(context);
+      // Whole-sūrah playback overrides the persisted "after a verse" setting
+      // until it reaches the last āyah — a single tap plays start to finish
+      // regardless of whether the user's usual flow is single/repeat/auto.
+      if (_wholeSurah) {
+        if (playingAyah >= 0 && words != null && playingAyah < words!.length - 1) {
+          _playRecitation(playingAyah + 1, userTap: false);
+          return;
+        }
+        setState(() {
+          _wholeSurah = false;
+          playingAyah = -1;
+          playingWord = -1;
+          recitingAyah = false;
+        });
+        return;
+      }
       if (s.reciteFlow == 'repeat' && playingAyah >= 0) {
         _playRecitation(playingAyah, userTap: false);
         return;
@@ -354,7 +385,21 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
       playingAyah = -1;
       playingWord = -1;
       recitingAyah = false;
+      _wholeSurah = false;
     });
+  }
+
+  /// Toggles continuous recitation of the whole sūrah, start to finish —
+  /// independent of the persisted "after a verse" setting (single/repeat/
+  /// auto), which still governs ordinary single-āyah playback.
+  void _toggleWholeSurah() {
+    if (_wholeSurah) {
+      _stopAll();
+      return;
+    }
+    if (words == null || words!.isEmpty) return;
+    setState(() => _wholeSurah = true);
+    _playRecitation(0, userTap: false);
   }
 
   void _playGroup(int ayahIdx, int firstWord, int lastWord) {
@@ -419,6 +464,10 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
       playingAyah = ayahIdx;
       playingWord = -1;
       recitingAyah = true;
+      // A deliberate tap on one āyah's own play control means "just this
+      // verse" — even mid whole-sūrah playback, it shouldn't silently keep
+      // auto-advancing through the rest of the sūrah afterward.
+      if (userTap) _wholeSurah = false;
     });
     if (!userTap) _scrollToAyah(ayahIdx);
     final err = await AyahAudio.instance.play(widget.meta.n, ayahIdx + 1,
@@ -502,6 +551,15 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
       appBar: AppBar(
         title: Text('${m.n} · ${m.tname}'),
         actions: [
+          IconButton(
+            tooltip: _wholeSurah ? context.l10n.stop : context.l10n.playWholeSurah,
+            onPressed: words == null ? null : _toggleWholeSurah,
+            icon: Icon(
+                _wholeSurah
+                    ? Icons.stop_circle_rounded
+                    : Icons.playlist_play_rounded,
+                color: _wholeSurah ? pal(context).accent : null),
+          ),
           if (downloading)
             Padding(
               padding: const EdgeInsets.only(right: 6),
@@ -589,17 +647,32 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
 
   /// Wraps [content] with the floating player as a full-area overlay when
   /// it isn't pinned (pinned already sits in bottomNavigationBar/flow).
+  ///
+  /// Always returns a Stack, with [content] fixed at child 0, even when the
+  /// floating bar is absent — switching between returning [content] directly
+  /// and wrapping it in a Stack changed the widget *type* at this slot, which
+  /// made Flutter tear down and re-inflate the whole subtree below (including
+  /// the reader's ScrollPosition) every time the player bar was pinned/
+  /// unpinned or started/stopped while floating — resetting the scroll to 0
+  /// each time.
   Widget _bodyWithFloatingPlayer(
       Widget content, Widget? playerBar, bool pinned) {
-    if (playerBar == null || pinned) return content;
-    return Stack(children: [content, Positioned.fill(child: playerBar)]);
+    return Stack(children: [
+      content,
+      if (playerBar != null && !pinned) Positioned.fill(child: playerBar),
+    ]);
   }
 
   /// The scrolling list of āyāt (cards or mushaf flow), shared by the mobile
   /// full-screen reader and the desktop shell-embedded reader.
   Widget _readerList(BuildContext context, AppSettings s) {
+    // A stable key per (sūrah, layout) so a ScrollPosition can restore itself
+    // via PageStorage if this list's element is ever torn down and rebuilt
+    // for some other reason — belt and braces alongside keeping the widget
+    // tree shape constant in _bodyWithFloatingPlayer.
     return s.readerLayout == 'mushaf'
         ? ListView.builder(
+            key: PageStorageKey('reader-${widget.meta.n}-mushaf'),
             padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
             itemCount: words!.length + 1,
             itemBuilder: (context, i) {
@@ -610,6 +683,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
             },
           )
         : ListView.builder(
+            key: PageStorageKey('reader-${widget.meta.n}-cards'),
             padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
             itemCount: words!.length + 1,
             itemBuilder: (context, i) {
@@ -675,6 +749,13 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
                   ],
                 ),
               ),
+              _shellIconBtn(
+                  context,
+                  _wholeSurah
+                      ? Icons.stop_circle_rounded
+                      : Icons.playlist_play_rounded,
+                  _toggleWholeSurah),
+              const SizedBox(width: 8),
               _shellIconBtn(context, Icons.auto_stories_rounded, () async {
                 final script = SettingsScope.of(context).quranScript;
                 final p = await MushafRepo.pageForSurah(script, m.n);
@@ -684,8 +765,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
                 }
               }),
               const SizedBox(width: 8),
-              _shellIconBtn(context, Icons.download_for_offline_rounded,
-                  () => _download(true)),
+              _shellDownloadMenu(context),
               const SizedBox(width: 8),
               _shellIconBtn(context, Icons.ondemand_video_rounded,
                   () => comingSoon(context, context.l10n.videoForThisSurah)),
@@ -751,6 +831,58 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
               border: Border.all(color: pal(context).surfaceHigh),
               borderRadius: BorderRadius.circular(13)),
           child: Icon(icon, color: pal(context).accent, size: 20),
+        ),
+      ),
+    );
+  }
+
+  /// Desktop equivalent of the mobile app bar's download popup — offers
+  /// both word-by-word and recitation downloads, which the desktop shell
+  /// previously couldn't reach at all (it hardcoded `_download(true)`).
+  Widget _shellDownloadMenu(BuildContext context) {
+    if (downloading) {
+      return SizedBox(
+        width: 44,
+        height: 44,
+        child: Center(
+          child: SizedBox(
+            width: 40,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              SizedBox(
+                  width: 16, height: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2.2, color: pal(context).accent)),
+              Text('${(100 * dlDone / dlTotal).floor()}%',
+                  style: uiStyle(context, size: 9, color: pal(context).textDim)),
+            ]),
+          ),
+        ),
+      );
+    }
+    return Material(
+      color: pal(context).surface,
+      borderRadius: BorderRadius.circular(13),
+      child: PopupMenuButton<int>(
+        tooltip: '',
+        onSelected: (v) => _download(v == 1),
+        itemBuilder: (_) => [
+          PopupMenuItem(
+              value: 0,
+              child: Text(context.l10n.downloadWbw,
+                  style: uiStyle(context, size: 14))),
+          PopupMenuItem(
+              value: 1,
+              child: Text(context.l10n.downloadRecitation,
+                  style: uiStyle(context, size: 14))),
+        ],
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+              border: Border.all(color: pal(context).surfaceHigh),
+              borderRadius: BorderRadius.circular(13)),
+          child: Icon(Icons.download_for_offline_rounded,
+              color: pal(context).accent, size: 20),
         ),
       ),
     );
@@ -915,8 +1047,10 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
       ),
     );
 
-    // One choice: the script picks its typeface. Indo-Pak is disabled — no
-    // licensed Indo-Pak Qur'an face is bundled (see kIndopakAvailable).
+    // One choice: the script picks its typeface. Madani renders with
+    // UthmanicHafs (KFGQPC); Indo-Pak with DigitalKhattIndoPak — the same
+    // face the 15-line muṣḥaf uses (see kIndopakMushafAvailable) — via the
+    // 1:1 codepoint transcode in QuranRepo._transcodeIndopak.
     final scriptSeg = segmented([
       (context.l10n.madani, !indo, true, () => s.update(() {
             s.quranScript = 'uthmani';
@@ -925,11 +1059,11 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
       (
         context.l10n.indopak,
         indo,
-        kIndopakAvailable,
-        kIndopakAvailable
+        kIndopakReaderAvailable,
+        kIndopakReaderAvailable
             ? () => s.update(() {
                   s.quranScript = 'indopak';
-                  s.fontIndopak = 'UthmanicHafs';
+                  s.fontIndopak = 'DigitalKhattIndoPak';
                 })
             : () => comingSoon(context, context.l10n.indopak),
       ),

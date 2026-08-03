@@ -4,10 +4,9 @@
 | Font | Source | Licence | Notes |
 |---|---|---|---|
 | UthmanicHafs.ttf | King Fahd Glorious Quran Printing Complex (KFGQPC) | KFGQPC custom licence — free to use & redistribute, **no modification, no sale** | NOT OSI/FSF-free → F-Droid will treat as a NonFree asset |
-| ScheherazadeNew.ttf | SIL International | SIL Open Font License 1.1 | Free — include the OFL text |
-| DigitalKhattV2.otf, DigitalKhattIndoPak.otf | [DigitalKhatt project](https://github.com/DigitalKhatt) (sponsored by Tarteel AI); bundled via Waqar Ahmed's [Quran Revision Companion](https://github.com/Waqar144/quran_memorization_helper) | See DigitalKhatt repo; app bundling it is MIT | Powers the 15-line muṣḥaf page |
+| ScheherazadeNew.ttf | SIL International | SIL Open Font License 1.1 | Qur'an-adjacent Arabic UI/body typeface and Urdu's fallback face. **Gap, pre-existing:** unlike the other OFL-licensed fonts here, its licence text isn't yet bundled under `LICENSES/` — needs adding, same as `Outfit-OFL.txt`/`NotoNastaliqUrdu-OFL.txt` |
+| DigitalKhattV2.otf, DigitalKhattIndoPak.otf | [DigitalKhatt project](https://github.com/DigitalKhatt) (sponsored by Tarteel AI); bundled via Waqar Ahmed's [Quran Revision Companion](https://github.com/Waqar144/quran_memorization_helper) | See DigitalKhatt repo; app bundling it is MIT | Powers the 15-line muṣḥaf page; DigitalKhattIndoPak also renders the card reader's Indo-Pak script |
 | SurahNames.ttf, Bismillah.ttf | Waqar Ahmed's [Quran Revision Companion](https://github.com/Waqar144/quran_memorization_helper) | MIT License | Ornamental glyphs for the 15-line muṣḥaf headers |
-| Amiri-Regular.ttf, Amiri-Bold.ttf | [Amiri](https://github.com/aliftype/amiri) | SIL Open Font License 1.1 | Arabic-language UI + Qur'anic/Arabic body typeface (ScheherazadeNew is the fallback) — licence text at `LICENSES/Amiri-OFL.txt` |
 | Outfit-Variable.ttf | [Outfit](https://github.com/Outfitio/Outfit-Fonts) | SIL Open Font License 1.1 | Latin-language (English/French/Spanish) UI typeface — licence text at `LICENSES/Outfit-OFL.txt` |
 | NotoNastaliqUrdu-Variable.ttf | [Noto Nastaliq Urdu](https://github.com/notofonts/nastaliq) | SIL Open Font License 1.1 | Urdu-language UI typeface — licence text at `LICENSES/NotoNastaliqUrdu-OFL.txt` |
 
@@ -17,10 +16,13 @@ longer bundled. PDMS Saleem's EULA (from pakdata.com) grants free *use* but
 clause 1 forbids redistribution without a separate licence from PDMS, and
 clause 3 forbids modification/adaptation — bundling it in the app is
 redistribution. IndoPak.ttf's provenance was unverified and it had become
-unused (the app was already steering Indo-Pak readers to PDMS Saleem). The
-Indo-Pak reading script is disabled in the UI (shows "coming soon") behind
-the `kIndopakAvailable` flag in `lib/core/settings.dart` until a properly
-licensed Indo-Pak Qur'an face is bundled.
+unused (the app was already steering Indo-Pak readers to PDMS Saleem).
+Neither is needed: **both** the card reader and the 15-line muṣḥaf render
+Indo-Pak with DigitalKhattIndoPak.otf, already bundled for the muṣḥaf above.
+The reader's text uses a different codepoint convention for a couple of marks
+than the font (and the muṣḥaf's own corpus) expect — see the 1:1 transcode in
+`QuranRepo._transcodeIndopak` (`lib/data/quran.dart`) — but no separate font
+or licence is involved.
 
 ## 15-line muṣḥaf (text + layout data, `assets/quran/mushaf_*.json`)
 The Madani- and Indo-Pak-script 15-line page/line breaks, and the fonts above,
@@ -37,13 +39,23 @@ gratitude) in any fork or re-release.
 ## Qur'an text (bundled in `assets/quran/`)
 Uthmani (Madani) & IndoPak texts, Tanzil / QUL-compatible datasets.
 Tanzil terms: attribution required; the text must not be altered. The app ships
-the text verbatim (tokenized only); tashkīl-stripping is a display option.
+the text verbatim (tokenized only); tashkīl-stripping is a display option. The
+one exception: the card reader's Indo-Pak text is passed through a 1:1,
+length-preserving substitution of two mark codepoints (U+06E1→U+0652,
+U+06E0→U+06DF) at load time, purely to match the codepoints
+DigitalKhattIndoPak.otf has glyphs for — not a wording, reading, or
+orthography change, and reversible (the shipped asset file itself is
+untouched). See `QuranRepo._transcodeIndopak` in `lib/data/quran.dart`.
 The 15-line page/line text is a separate dataset — see the section above.
 
 ## Audio (streamed, not bundled)
 - Verse recitation: Shaykh Khalifah Al-Tunaiji — EveryAyah.com (free to use; credit).
-- Word-timed recitation: Al-ʿAfāsī & Al-Ḥuṣarī — Quran.com QDC API (attribution).
-- Word-by-word audio & meanings: Quran.com / QuranCDN, courtesy Markaz Tafsir.
+- Word-timed recitation: Al-ʿAfāsī & Al-Ḥuṣarī — timings and audio URLs from the
+  Quran.com (Quran Foundation) QDC API, served from verses.quran.com; Ḥuṣarī's
+  audio specifically comes back host-qualified to mirrors.quranicaudio.com.
+- Word-by-word audio: Quran.com / QuranCDN, courtesy Markaz Tafsir. (No word
+  meanings/translations are fetched or shown anywhere in the app — see
+  *Design decisions* in README.md.)
 
 ## Data
 - Qirā'āt reader biographies: facts summarized from abouttajweed.com.

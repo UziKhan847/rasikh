@@ -87,7 +87,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     super.didChangeDependencies();
     if (_booted) return;
     _booted = true;
-    _script = widget.script ?? SettingsScope.of(context).quranScript;
+    _script = widget.script ?? SettingsScope.of(context).mushafScript;
     _page = widget.startPage < 1 ? 1 : widget.startPage;
     _ctrl = PageController(initialPage: _indexOf(_page));
     _load();
@@ -150,7 +150,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   Future<void> _switchScript(String v) async {
     if (v == _script) return;
-    if (!kIndopakAvailable && v == 'indopak') {
+    if (!kIndopakMushafAvailable && v == 'indopak') {
       comingSoon(context, context.l10n.indoPak);
       return;
     }
@@ -161,7 +161,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       _script = v;
     });
     final st = SettingsScope.of(context);
-    st.update(() => st.quranScript = v);
+    // The muṣḥaf keeps its own script preference, independent of the card
+    // reader's quranScript — the reader can't render Indo-Pak (no licensed
+    // face), so the two must not sync onto each other.
+    st.update(() => st.mushafScript = v);
     await MushafRepo.ensure(v);
     final p = await MushafRepo.pageForSurah(v, keepSurah);
     if (!mounted) return;
@@ -370,9 +373,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   @override
   Widget build(BuildContext context) {
     final s = SettingsScope.of(context);
-    if (_booted && _ready && s.quranScript != _script) {
+    if (_booted && _ready && s.mushafScript != _script) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && s.quranScript != _script) _switchScript(s.quranScript);
+        if (mounted && s.mushafScript != _script) _switchScript(s.mushafScript);
       });
     }
     return PopScope(
@@ -490,7 +493,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                           value: 'indopak',
                           checked: _script == 'indopak',
                           child: Text(context.l10n.indoPak,
-                              style: kIndopakAvailable
+                              style: kIndopakMushafAvailable
                                   ? null
                                   : TextStyle(color: pal(context).textDim))),
                     ],

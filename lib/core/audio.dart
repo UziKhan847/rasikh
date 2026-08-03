@@ -8,6 +8,96 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
+/// Quran Foundation's terms for offline-caching their API/CDN content
+/// require cached data to be refreshed at least weekly. This tracks when
+/// each quran.com-family file (timings, word-by-word audio, and verse audio
+/// actually served from quran.com/quranicaudio.com rather than EveryAyah)
+/// was last fetched, so [refreshStaleQuranCache] can silently refetch
+/// anything older than 7 days. EveryAyah-origin files are deliberately never
+/// recorded here — a different provider, with no such requirement confirmed.
+///
+/// Manifest: `{appDocs}/noor_quran/fetch_log.json`, `{key: isoTimestamp}`.
+/// Key formats: `timings:{rid}:{surah}`, `wbw:{s}:{v}:{w}`,
+/// `verse:{reciter}:{s}:{v}`.
+class _FetchLog {
+  static const _maxAge = Duration(days: 7);
+  static File? _file;
+  static Map<String, dynamic>? _mem;
+
+  static Future<File?> _resolveFile() async {
+    if (_file != null) return _file;
+    try {
+      final b = await getApplicationDocumentsDirectory();
+      final dir = Directory('${b.path}/noor_quran');
+      await dir.create(recursive: true);
+      return _file = File('${dir.path}/fetch_log.json');
+    } catch (_) {
+      return null; // web: no local storage
+    }
+  }
+
+  static Future<Map<String, dynamic>> _load() async {
+    if (_mem != null) return _mem!;
+    final f = await _resolveFile();
+    if (f == null) return _mem = {};
+    try {
+      if (await f.exists()) {
+        final decoded = jsonDecode(await f.readAsString());
+        if (decoded is Map<String, dynamic>) return _mem = decoded;
+      }
+    } catch (_) {}
+    return _mem = {};
+  }
+
+  static Future<void> _save() async {
+    final f = await _resolveFile();
+    if (f == null || _mem == null) return;
+    try {
+      await f.writeAsString(jsonEncode(_mem));
+    } catch (_) {}
+  }
+
+  static Future<void> record(String key) async {
+    final m = await _load();
+    m[key] = DateTime.now().toIso8601String();
+    await _save();
+  }
+
+  /// Keys whose last fetch is more than 7 days old. Keys never recorded
+  /// (nothing downloaded yet) are not "stale" — there's nothing to refresh.
+  static Future<List<String>> staleKeys() async {
+    final m = await _load();
+    final now = DateTime.now();
+    return [
+      for (final e in m.entries)
+        if (DateTime.tryParse(e.value as String? ?? '') case final t?)
+          if (now.difference(t) > _maxAge) e.key,
+    ];
+  }
+}
+
+/// True for hosts actually reachable through the Quran Foundation API/CDN
+/// (verses.quran.com, and the quranicaudio.com mirror it sometimes returns
+/// for reciters quran.com doesn't host directly) — as opposed to EveryAyah,
+/// which this app also uses but which nothing here tracks for refresh.
+@visibleForTesting
+bool isQuranFoundationOrigin(String url) {
+  final host = Uri.tryParse(url)?.host ?? '';
+  return host == 'verses.quran.com' ||
+      host == 'quranicaudio.com' ||
+      host.endsWith('.quranicaudio.com');
+}
+
+/// Silently re-fetches any quran.com-sourced cached audio/timings older than
+/// 7 days, per Quran Foundation's offline-caching terms. Safe to call
+/// opportunistically and often — a failed request is retried the next call,
+/// which is itself the offline signal, so there's no separate connectivity
+/// check.
+Future<void> refreshStaleQuranCache() async {
+  await AyahAudio.instance.refreshStaleCache();
+  await WbwAudio.instance.refreshStaleWords();
+}
+
 /// 🔊 Word-by-word recitation audio.
 ///
 /// Recordings courtesy of **Markaz Tafsir**, served via QuranCDN:
@@ -106,9 +196,12 @@ class WbwAudio {
     await _player.stop();
   }
 
-  /// Download every word of a surah for offline playback.
-  /// Reports (done, total). Returns false on platforms without local
-  /// storage (web) or when the network fails entirely.
+  /// Download every word of a surah for offline playback. Reports
+  /// (done, total) — `done` always advances so the progress UI reaches
+  /// 100%, but the returned bool is true only if every word file ends up
+  /// present (previously this always returned true regardless of how many
+  /// downloads actually failed). Returns false on platforms without local
+  /// storage (web) or if the handle is cancelled mid-download.
   Future<bool> downloadSurah(int surah, List<int> wordsPerAyah,
       void Function(int done, int total) onProgress,
       {PlaybackHandle? handle}) async {
@@ -116,25 +209,54 @@ class WbwAudio {
     if (dir == null) return false;
     final total = wordsPerAyah.fold(0, (a, b) => a + b);
     var done = 0;
+    var allPresent = true;
     for (var v = 1; v <= wordsPerAyah.length; v++) {
       for (var w = 1; w <= wordsPerAyah[v - 1]; w++) {
         if (handle?.cancelled ?? false) return false;
         final f = File('${dir.path}/${fileName(surah, v, w)}');
-        if (!await f.exists()) {
+        var exists = await f.exists();
+        if (!exists) {
           try {
             final res = await http
                 .get(Uri.parse(url(surah, v, w)))
                 .timeout(const Duration(seconds: 20));
             if (res.statusCode == 200) {
               await f.writeAsBytes(res.bodyBytes, flush: false);
+              exists = true;
+              await _FetchLog.record('wbw:$surah:$v:$w'); // always quran.com-origin
             }
           } catch (_) {}
         }
+        if (!exists) allPresent = false;
         done++;
         onProgress(done, total);
       }
     }
-    return true;
+    return allPresent;
+  }
+
+  /// Re-fetches word-by-word files older than 7 days. See
+  /// AyahAudio.refreshStaleCache / [refreshStaleQuranCache].
+  Future<void> refreshStaleWords() async {
+    final dir = await _localDir();
+    if (dir == null) return;
+    for (final key in await _FetchLog.staleKeys()) {
+      final parts = key.split(':');
+      if (parts.length != 4 || parts[0] != 'wbw') continue;
+      try {
+        final s = int.parse(parts[1]);
+        final v = int.parse(parts[2]);
+        final w = int.parse(parts[3]);
+        final res = await http
+            .get(Uri.parse(url(s, v, w)))
+            .timeout(const Duration(seconds: 20));
+        if (res.statusCode == 200) {
+          await File('${dir.path}/${fileName(s, v, w)}')
+              .writeAsBytes(res.bodyBytes, flush: false);
+          await _FetchLog.record(key);
+        }
+      } catch (_) {}
+    }
   }
 }
 
@@ -324,10 +446,11 @@ class AyahAudio {
     ];
   }
 
-  Future<Map<int, _VerseAudio>?> _versesFor(int rid, int surah) async {
+  Future<Map<int, _VerseAudio>?> _versesFor(int rid, int surah,
+      {bool force = false}) async {
     final key = '$rid:$surah';
     final cached = _timings[key];
-    if (cached != null) return cached;
+    if (cached != null && !force) return cached;
     final dir = await _timingsDir();
     final jf = dir == null ? null : File('${dir.path}/$rid-$surah.json');
 
@@ -342,6 +465,7 @@ class AyahAudio {
         try {
           await jf?.writeAsString(body); // offline read-along
         } catch (_) {}
+        await _FetchLog.record('timings:$rid:$surah');
       }
     } catch (_) {}
     if (body == null && jf != null && await jf.exists()) {
@@ -437,8 +561,12 @@ class AyahAudio {
   }
 
   /// Download every āyah of a sūrah for offline playback, plus the word
-  /// timings for timed reciters. Reports (done, total). Returns false on
-  /// platforms without local storage (web).
+  /// timings for timed reciters. Reports (done, total) — `done` always
+  /// advances so the progress UI reaches 100%, but the returned bool
+  /// reflects reality: true only if every āyah file ends up present, false
+  /// if any download failed (previously this always returned true, so
+  /// "Sūrah audio saved" could appear after a total network failure).
+  /// Returns false immediately on platforms without local storage (web).
   Future<bool> downloadSurah(int surah, int ayahs,
       void Function(int done, int total) onProgress,
       {String reciter = 'tunaiji'}) async {
@@ -448,9 +576,11 @@ class AyahAudio {
     final rid = timedReciters[reciter];
     final verses = rid == null ? null : await _versesFor(rid, surah);
     var done = 0;
+    var allPresent = true;
     for (var v = 1; v <= ayahs; v++) {
       final f = File('${dir.path}/${fileName(surah, v)}');
-      if (!await f.exists()) {
+      var exists = await f.exists();
+      if (!exists) {
         try {
           final src = verses?[v]?.url ?? urlFor(surah, v, reciter: reciter);
           final res = await http
@@ -458,13 +588,56 @@ class AyahAudio {
               .timeout(const Duration(seconds: 25));
           if (res.statusCode == 200) {
             await f.writeAsBytes(res.bodyBytes, flush: false);
+            exists = true;
+            // Only quran.com/quranicaudio.com-sourced files are covered by
+            // the weekly-refresh requirement — see _FetchLog.
+            if (isQuranFoundationOrigin(src)) {
+              await _FetchLog.record('verse:$reciter:$surah:$v');
+            }
           }
         } catch (_) {}
       }
+      if (!exists) allPresent = false;
       done++;
       onProgress(done, ayahs);
     }
-    return true;
+    return allPresent;
+  }
+
+  /// Re-fetches this reciter's quran.com-sourced timings/verse audio older
+  /// than 7 days. Called from [refreshStaleQuranCache]; not meant to be
+  /// awaited by UI code — it's a silent background pass.
+  Future<void> refreshStaleCache() async {
+    for (final key in await _FetchLog.staleKeys()) {
+      final parts = key.split(':');
+      try {
+        if (parts.length == 3 && parts[0] == 'timings') {
+          final rid = int.parse(parts[1]);
+          final surah = int.parse(parts[2]);
+          await _versesFor(rid, surah, force: true);
+        } else if (parts.length == 4 && parts[0] == 'verse') {
+          await _refetchVerse(parts[1], int.parse(parts[2]), int.parse(parts[3]));
+        }
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _refetchVerse(String reciter, int s, int v) async {
+    final dir = await _localDir(reciter);
+    if (dir == null) return;
+    final rid = timedReciters[reciter];
+    final verses = rid == null ? null : await _versesFor(rid, s, force: true);
+    final url = verses?[v]?.url;
+    // If this verse no longer resolves to a quran.com-family URL, leave the
+    // existing file alone — refreshing it isn't this cache's job anymore.
+    if (url == null || !isQuranFoundationOrigin(url)) return;
+    final res =
+        await http.get(Uri.parse(url)).timeout(const Duration(seconds: 25));
+    if (res.statusCode == 200) {
+      await File('${dir.path}/${fileName(s, v)}')
+          .writeAsBytes(res.bodyBytes, flush: false);
+      await _FetchLog.record('verse:$reciter:$s:$v');
+    }
   }
 }
 

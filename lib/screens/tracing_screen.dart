@@ -198,8 +198,18 @@ class _TracingScreenState extends State<TracingScreen> {
       );
     }
     return Scaffold(
-      appBar:
-          widget.embedded ? null : AppBar(title:  Text(context.l10n.tracingStudio)),
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              title: Text(context.l10n.tracingStudio),
+              actions: [
+                IconButton(
+                  tooltip: context.l10n.guidanceStrictness,
+                  onPressed: () => _openStrictnessSheet(context),
+                  icon: const Icon(Icons.tune_rounded),
+                ),
+              ],
+            ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
@@ -252,6 +262,51 @@ class _TracingScreenState extends State<TracingScreen> {
           }),
         ),
       ),
+    );
+  }
+
+  // ── strictness settings sheet ──
+  void _openStrictnessSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: pal(context).surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+      builder: (sheetCtx) => StatefulBuilder(builder: (sheetCtx, setSheet) {
+        final s = SettingsScope.of(context);
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+              22, 18, 22, 28 + MediaQuery.paddingOf(sheetCtx).bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(context.l10n.guidanceStrictness,
+                  style: uiStyle(context, size: 18, weight: FontWeight.w800)),
+              const SizedBox(height: 12),
+              Row(children: [
+                Text(context.l10n.strict,
+                    style:
+                        uiStyle(context, size: 12.5, color: pal(context).textDim)),
+                Expanded(
+                  child: Slider(
+                    min: 0.6,
+                    max: 1.8,
+                    value: s.traceTolerance,
+                    onChanged: (v) {
+                      s.update(() => s.traceTolerance = v);
+                      setSheet(() {});
+                    },
+                  ),
+                ),
+                Text(context.l10n.lenient,
+                    style:
+                        uiStyle(context, size: 12.5, color: pal(context).textDim)),
+              ]),
+            ],
+          ),
+        );
+      }),
     );
   }
 
@@ -662,10 +717,20 @@ class TracingBoard extends StatefulWidget {
 class _TracingBoardState extends State<TracingBoard>
     with SingleTickerProviderStateMixin {
   // ── guided engine ──
-  static const startTol = .10, pathTol = .075, strayTol = .13;
-  static const resumeTol = .15; // re-touch radius to continue after a lift
+  // Base radii at the default 1.0 tolerance; scaled by [_tol] (from
+  // Settings → Tracing Studio strictness slider, 0.6 strict – 1.8 lenient).
+  // lookAhead/finishAt/maxStraySamples are progression/patience parameters,
+  // not "how close counts as on-path" radii, so they don't scale.
+  static const _baseStartTol = .10, _basePathTol = .075, _baseStrayTol = .13;
+  static const _baseResumeTol = .15; // re-touch radius to continue after a lift
   static const lookAhead = .15, finishAt = .965;
   static const maxStraySamples = 12;
+
+  double _tol = 1.0;
+  double get startTol => _baseStartTol * _tol;
+  double get pathTol => _basePathTol * _tol;
+  double get strayTol => _baseStrayTol * _tol;
+  double get resumeTol => _baseResumeTol * _tol;
 
   int strokeIndex = 0;
   double progress = 0; // 0..1 along current stroke
@@ -674,6 +739,19 @@ class _TracingBoardState extends State<TracingBoard>
   int faults = 0;
   List<Offset> _samples = const [];
   Offset? finger;
+
+  // ── zoom/pan — 2+ fingers pinch/pan, 1 finger always inks. A single
+  // GestureDetector (onScale*, not onPan*) makes the two mutually exclusive
+  // by construction, so there's no gesture-arena conflict to resolve.
+  double _zoom = 1.0;
+  Offset _pan = Offset.zero;
+  double _baseZoom = 1.0;
+  bool _isZoomGesture = false;
+
+  Offset _clampPan(Offset pan, double zoom, double w, double h) => Offset(
+        pan.dx.clamp(w * (1 - zoom), 0.0),
+        pan.dy.clamp(h * (1 - zoom), 0.0),
+      );
 
   // dots (both modes)
   final Set<int> dotsHit = {};
@@ -696,6 +774,16 @@ class _TracingBoardState extends State<TracingBoard>
   void initState() {
     super.initState();
     _rebuildSamples();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Registers a dependency on AppSettings so a live slider drag on the
+    // strictness setting rebuilds this board immediately — the board is
+    // NOT remounted for that (its ValueKey only changes on level/letter/
+    // mode/attempt), so this is the only place the new value is picked up.
+    _tol = SettingsScope.of(context).traceTolerance;
   }
 
   @override
@@ -806,7 +894,7 @@ class _TracingBoardState extends State<TracingBoard>
   void _tapDot(Offset p) {
     for (var i = 0; i < widget.glyph.dots.length; i++) {
       if (dotsHit.contains(i)) continue;
-      if ((p - widget.glyph.dots[i]).distance <= .12) {
+      if ((p - widget.glyph.dots[i]).distance <= .12 * _tol) {
         dotsHit.add(i);
         _haptic();
         setState(() {});
@@ -851,7 +939,7 @@ class _TracingBoardState extends State<TracingBoard>
   }
 
   void _check() {
-    final r = _evaluate(widget.glyph, drawn, userDots);
+    final r = _evaluate(widget.glyph, drawn, userDots, tol: _tol);
     widget.onStars(r.stars);
     setState(() => result = r);
   }
@@ -887,17 +975,38 @@ class _TracingBoardState extends State<TracingBoard>
             aspectRatio: aspect.toDouble(),
             child: LayoutBuilder(builder: (context, c) {
           final u = c.maxHeight;
+          final w = c.maxWidth;
           Offset norm(Offset local) => local / u;
-          return GestureDetector(
-            onPanStart: (d) => free
-                ? _mStart(norm(d.localPosition))
-                : _gStart(norm(d.localPosition)),
-            onPanUpdate: (d) => free
-                ? _mMove(norm(d.localPosition))
-                : _gMove(norm(d.localPosition)),
-            onPanEnd: (_) => free ? _mEnd() : _gEnd(),
+          Offset toContent(Offset local) => (local - _pan) / _zoom;
+          final board = GestureDetector(
+            onScaleStart: (d) {
+              _isZoomGesture = d.pointerCount > 1;
+              _baseZoom = _zoom;
+              if (!_isZoomGesture) {
+                final q = norm(toContent(d.localFocalPoint));
+                free ? _mStart(q) : _gStart(q);
+              }
+            },
+            onScaleUpdate: (d) {
+              if (d.pointerCount > 1) _isZoomGesture = true;
+              if (_isZoomGesture) {
+                setState(() {
+                  _zoom = (_baseZoom * d.scale).clamp(1.0, 3.0);
+                  _pan = _clampPan(_pan + d.focalPointDelta, _zoom, w, u);
+                });
+              } else {
+                final q = norm(toContent(d.localFocalPoint));
+                free ? _mMove(q) : _gMove(q);
+              }
+            },
+            onScaleEnd: (_) {
+              if (!_isZoomGesture) {
+                free ? _mEnd() : _gEnd();
+              }
+              _isZoomGesture = false;
+            },
             onTapUp: (d) {
-              final q = norm(d.localPosition);
+              final q = norm(toContent(d.localPosition));
               if (free) {
                 if (result == null && widget.glyph.dots.isNotEmpty) {
                   userDots.add(q);
@@ -907,33 +1016,68 @@ class _TracingBoardState extends State<TracingBoard>
                 _tapDot(q);
               }
             },
-            child: AnimatedBuilder(
-              animation: _pulse,
-              builder: (context, _) => CustomPaint(
-                painter: _BoardPainter(
-                  glyph: g,
-                  free: free,
-                  showShape: showShape,
-                  strokeIndex: strokeIndex,
-                  progress: progress,
-                  samples: _samples,
-                  finger: finger,
-                  tracking: tracking,
-                  dotsHit: dotsHit,
-                  drawn: drawn,
-                  current: current,
-                  userDots: userDots,
-                  result: result,
-                  pulse: _pulse.value,
-                  p: p,
-                  u: u,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: Transform(
+                transform: Matrix4.identity()
+                  ..translateByDouble(_pan.dx, _pan.dy, 0, 1)
+                  ..scaleByDouble(_zoom, _zoom, 1, 1),
+                child: AnimatedBuilder(
+                  animation: _pulse,
+                  builder: (context, _) => CustomPaint(
+                    painter: _BoardPainter(
+                      glyph: g,
+                      free: free,
+                      showShape: showShape,
+                      strokeIndex: strokeIndex,
+                      progress: progress,
+                      samples: _samples,
+                      finger: finger,
+                      tracking: tracking,
+                      dotsHit: dotsHit,
+                      drawn: drawn,
+                      current: current,
+                      userDots: userDots,
+                      result: result,
+                      pulse: _pulse.value,
+                      p: p,
+                      u: u,
+                    ),
+                  ),
                 ),
-                child: result == null || !widget.showOverlay
-                    ? null
-                    : _ResultOverlay(result: result!, onRetry: _reset),
               ),
             ),
           );
+          // Kept as a stable Stack (never a bare widget) so zoom/overlay
+          // toggling never changes the subtree's widget type — see the
+          // player-bar scroll-reset bug this same pattern caused elsewhere.
+          // The result overlay sits OUTSIDE the zoom Transform on purpose:
+          // it must stay centered in the viewport even if the learner
+          // checked their trace while zoomed/panned into a corner.
+          return Stack(fit: StackFit.expand, children: [
+            board,
+            if (_zoom > 1.0)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Material(
+                  color: p.surface.withValues(alpha: .85),
+                  shape: const CircleBorder(),
+                  elevation: 2,
+                  child: IconButton(
+                    tooltip: context.l10n.resetZoom,
+                    iconSize: 20,
+                    onPressed: () => setState(() {
+                      _zoom = 1.0;
+                      _pan = Offset.zero;
+                    }),
+                    icon: Icon(Icons.zoom_out_map_rounded, color: p.text),
+                  ),
+                ),
+              ),
+            if (result != null && widget.showOverlay)
+              _ResultOverlay(result: result!, onRetry: _reset),
+          ]);
             }),
           ),
         ),
@@ -1041,7 +1185,8 @@ double _meanSymDist(List<Offset> a, List<Offset> b) {
 }
 
 _MemoryResult _evaluate(
-    TracedGlyph g, List<List<Offset>> drawn, List<Offset> userDots) {
+    TracedGlyph g, List<List<Offset>> drawn, List<Offset> userDots,
+    {double tol = 1.0}) {
   final expected = [
     for (final s in g.strokes)
       () {
@@ -1052,7 +1197,7 @@ _MemoryResult _evaluate(
         ];
       }()
   ];
-  final scale = math.max(g.aspect, 1.0);
+  final scale = math.max(g.aspect, 1.0) * tol;
   final passTol = .09 * scale, endTol = .17 * scale;
 
   final n = expected.length;
@@ -1120,7 +1265,7 @@ _MemoryResult _evaluate(
   for (final d in g.dots) {
     for (var j = 0; j < userDots.length; j++) {
       if (taken[j]) continue;
-      if ((userDots[j] - d).distance <= .13) {
+      if ((userDots[j] - d).distance <= .13 * tol) {
         taken[j] = true;
         dotsMatched++;
         break;

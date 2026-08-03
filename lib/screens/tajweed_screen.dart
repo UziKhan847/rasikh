@@ -10,6 +10,14 @@ import '../data/glyph_names.dart';
 import '../data/tajweed.dart';
 import '../widgets/common.dart';
 
+/// The example verses are real Qur'anic text (Uthmani orthography, with the
+/// Uthmani sukūn/tanwīn marks tajweed.dart's Seg strings match), not general
+/// Arabic UI/body text — arabicStyle()'s ScheherazadeNew face is for prose,
+/// so these render with [quranicStyle], the same Uthmani face the Qur'an
+/// reader uses.
+TextStyle _verseStyle(BuildContext context, {double size = 30, Color? color}) =>
+    quranicStyle(context, size: size, color: color);
+
 /// 🌿 Tajwīd Academy — every core rule, color-coded the way teaching
 /// muṣḥafs do it, with a real verse for each and a spot-the-rule quiz.
 class TajweedScreen extends StatelessWidget {
@@ -127,7 +135,7 @@ class _RuleCard extends StatelessWidget {
                         for (final seg in rule.example.segs)
                           TextSpan(
                             text: seg.text,
-                            style: arabicStyle(context, size: 30,
+                            style: _verseStyle(context, size: 30,
                                 color: seg.ruleId != null
                                     ? ruleById(seg.ruleId!).color
                                     : null),
@@ -175,6 +183,7 @@ QuizScreen _tajwidQuiz(BuildContext context) {
     qs.add(QuizQuestion(
       prompt: context.l10n.qpWhichRuleInVerse(r.example.ref),
       arabic: r.example.plain,
+      reviewId: 'tajwid.${r.id}',
       options: o.options,
       correct: o.correct,
       explain: '${tajwidTrigger(context, r)} → ${tajwidHow(context, r)}',
@@ -249,7 +258,7 @@ class TajwidRuleScreen extends StatelessWidget with DesktopAware {
                       for (final seg in rule.example.segs)
                         TextSpan(
                           text: seg.text,
-                          style: arabicStyle(context,
+                          style: _verseStyle(context,
                               size: 32,
                               color: seg.ruleId != null
                                   ? ruleById(seg.ruleId!).color

@@ -228,11 +228,7 @@ class DesktopTajwid extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Text(r.arabicName,
-              style: TextStyle(
-                  fontFamily: 'ScheherazadeNew',
-                  fontSize: 32,
-                  height: 1,
-                  color: r.color)),
+              style: quranicStyle(context, size: 32, height: 1.85, color: r.color)),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
@@ -451,9 +447,7 @@ class _DesktopReaderState extends State<DesktopReader> {
                 ],
               ),
             ),
-            Text(m.name,
-                style: const TextStyle(
-                    fontFamily: 'ScheherazadeNew', fontSize: 24, height: 1.3)),
+            Text(m.name, style: quranicStyle(context, size: 24)),
           ]),
         ),
       ),
@@ -557,11 +551,8 @@ class _DesktopQaidahState extends State<DesktopQaidah> {
               decoration: BoxDecoration(
                   color: tint.softOf(context), borderRadius: BorderRadius.circular(15)),
               child: Text(u.arabicBadge,
-                  style: TextStyle(
-                      fontFamily: 'ScheherazadeNew',
-                      fontSize: 22,
-                      height: 1.3,
-                      color: tint.kickerColor)),
+                  style: quranicStyle(context,
+                      size: 22, color: tint.kickerColor)),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -1205,10 +1196,8 @@ class _DesktopTashkilState extends State<DesktopTashkil> {
                     color: tint.softOf(context), borderRadius: BorderRadius.circular(14)),
                 child: Text(m.mark,
                     textDirection: TextDirection.rtl,
-                    style: TextStyle(
-                        fontFamily: 'ScheherazadeNew',
-                        fontSize: 26,
-                        color: tint.kickerColor)),
+                    style: quranicStyle(context,
+                        size: 26, color: tint.kickerColor)),
               ),
               const SizedBox(width: 15),
               Expanded(
@@ -1260,10 +1249,8 @@ class _DesktopTashkilState extends State<DesktopTashkil> {
                 color: tint.softOf(context), borderRadius: BorderRadius.circular(16)),
             child: Text(m.mark,
                 textDirection: TextDirection.rtl,
-                style: TextStyle(
-                    fontFamily: 'ScheherazadeNew',
-                    fontSize: 30,
-                    color: tint.kickerColor)),
+                style: quranicStyle(context,
+                    size: 30, color: tint.kickerColor)),
           ),
         ]),
         const SizedBox(height: 16),

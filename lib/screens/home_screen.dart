@@ -330,7 +330,7 @@ class HomeScreen extends StatelessWidget {
                       child: Text(verseOfDay.ar,
                           textDirection: TextDirection.rtl,
                           textAlign: TextAlign.center,
-                          style: arabicStyle(context, size: 26, height: 1.9)),
+                          style: quranicStyle(context, size: 26, height: 1.95)),
                     ),
                     const SizedBox(height: 12),
                     Row(children: [
@@ -369,9 +369,9 @@ class HomeScreen extends StatelessWidget {
               delayMs: 60 * (modules.length + 1),
               child: Center(
                 child: Text(
-                  'وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا — 73:4',
+                  'وَرَتِّلِ ٱلۡقُرۡءَانَ تَرۡتِيلًا — 73:4',
                   textDirection: TextDirection.rtl,
-                  style: arabicStyle(context, size: 20, height: 1.6,
+                  style: quranicStyle(context, size: 20, height: 1.85,
                       color: pal(context).textDim),
                 ),
               ),

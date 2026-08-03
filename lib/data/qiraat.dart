@@ -98,37 +98,37 @@ class QiraatDifference {
 
 const qiraatDifferences = <QiraatDifference>[
   QiraatDifference(
-    '1:4', 'Word form', 'مَالِكِ يَوْمِ الدِّينِ', 'مَلِكِ يَوْمِ الدِّينِ',
+    '1:4', 'Word form', 'مَٰلِكِ يَوۡمِ ٱلدِّينِ', 'مَلِكِ يَوۡمِ ٱلدِّينِ',
     'Nāfi‘, Ibn Kathīr, Abū ‘Amr, Ibn ‘Āmir, Ḥamzah, Abū Ja‘far',
     '“Māliki” (Owner) is read by ‘Āṣim, al-Kisā’ī, Ya‘qūb and Khalaf; the rest read “Maliki” (King). Both are mass-transmitted and both meanings are true of Allah.',
   ),
   QiraatDifference(
-    '1:6', 'Pronunciation of ṣād', 'الصِّرَاطَ', 'السِّرَاطَ',
+    '1:6', 'Pronunciation of ṣād', 'ٱلصِّرَٰطَ', 'ٱلسِّرَٰطَ',
     'Qunbul ‘an Ibn Kathīr (sīn); Khalaf ‘an Ḥamzah (ishmām toward zāy)',
     'A pure articulation difference on the same word — a window into how precisely the readings were preserved.',
   ),
   QiraatDifference(
-    '2:9', 'Verb pattern', 'وَمَا يَخْدَعُونَ إِلَّآ أَنفُسَهُمْ', 'وَمَا يُخَادِعُونَ إِلَّآ أَنفُسَهُمْ',
+    '2:9', 'Verb pattern', 'وَمَا يَخۡدَعُونَ إِلَّآ أَنفُسَهُمۡ', 'وَمَا يُخَٰدِعُونَ إِلَّآ أَنفُسَهُمۡ',
     'Nāfi‘, Ibn Kathīr, Abū ‘Amr',
     'Form I vs Form III of the same root خ-د-ع; the readings together enrich the meaning.',
   ),
   QiraatDifference(
-    '2:10', 'Verb pattern', 'بِمَا كَانُوا يَكْذِبُونَ', 'بِمَا كَانُوا يُكَذِّبُونَ',
+    '2:10', 'Verb pattern', 'بِمَا كَانُواْ يَكۡذِبُونَ', 'بِمَا كَانُواْ يُكَذِّبُونَ',
     'Nāfi‘, Ibn Kathīr, Abū ‘Amr, Ibn ‘Āmir, Abū Ja‘far, Ya‘qūb',
     'The Kufans (‘Āṣim, Ḥamzah, al-Kisā’ī, Khalaf) read “yakdhibūn” (they lie); the others “yukadhdhibūn” (they deny).',
   ),
   QiraatDifference(
-    '11:41', 'Imālah', 'مَجْر۪ىٰهَا (majrēhā)', 'مَجْرَاهَا (majrāhā)',
+    '11:41', 'Imālah', 'مَجۡرٜىٰهَا (majrēhā)', 'مَجۡرىٰهَا (majrāhā)',
     'Imālah by Ḥafṣ (his only one), Ḥamzah, al-Kisā’ī, Khalaf',
     'Imālah leans the alif toward an “ē” sound. This word is the single imālah in the Ḥafṣ transmission.',
   ),
   QiraatDifference(
-    '97:1', 'Madd munfaṣil length', 'إِنَّآ أَنزَلْنَاهُ — 4–5 counts', 'Same letters — 2 counts (qaṣr) or 6 (ṭūl)',
+    '97:1', 'Madd munfaṣil length', 'إِنَّآ أَنزَلۡنَٰهُ — 4–5 counts', 'Same letters — 2 counts (qaṣr) or 6 (ṭūl)',
     'Short: Ibn Kathīr, Abū Ja‘far, Ya‘qūb, (Qālūn & Dūrī optionally). Long: Warsh, Ḥamzah',
     'The words are identical; the transmitted timing differs. Train each length in the Counts Studio.',
   ),
   QiraatDifference(
-    '93:1–2', 'Imālah of final alif', 'وَالضُّحَىٰ — plain ā', 'ē-leaning (imālah) / between (taqlīl)',
+    '93:1–2', 'Imālah of final alif', 'وَٱلضُّحَىٰ — plain ā', 'ē-leaning (imālah) / between (taqlīl)',
     'Imālah: Ḥamzah, al-Kisā’ī, Khalaf. Taqlīl: Warsh, Abū ‘Amr (Dūrī)',
     'Final-alif words from yā’-roots lean in several readings — one of the most audible Qirā’āt signatures.',
   ),

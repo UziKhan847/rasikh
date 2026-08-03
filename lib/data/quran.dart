@@ -63,7 +63,8 @@ class QuranRepo {
     final dir = script == 'indopak' ? 'i' : 'u';
     final raw = await rootBundle.loadString('assets/quran/$dir/$surah.json');
     // decode off the UI thread — large sūrahs were freezing the first frame
-    final list = await compute(_decodeStringList, raw);
+    final list =
+        await compute(dir == 'i' ? _decodeIndopakList : _decodeStringList, raw);
     _ayahCache[key] = list;
     return list;
   }
@@ -159,6 +160,34 @@ class QuranRepo {
 
 List<String> _decodeStringList(String raw) =>
     [for (final a in jsonDecode(raw) as List) a as String];
+
+/// The reader's Indo-Pak text (`assets/quran/i/`) and DigitalKhattIndoPak.otf
+/// (built for the 15-line muṣḥaf's own Indo-Pak corpus) disagree on which
+/// codepoint represents which mark — e.g. this corpus's sukūn is U+06E1,
+/// where the muṣḥaf's is U+0652, which is the one the font actually has a
+/// glyph for. This is a 1:1, length-preserving substitution, not a
+/// re-encoding: it changes which codepoint sits at a position, never how
+/// many characters there are or where word boundaries fall. Verified against
+/// all 6,236 Indo-Pak āyāt — [QuranRepo.tokenize] word counts and
+/// [QuranRepo.wordRanges] char offsets are byte-identical before and after,
+/// so tajwīd spans (`assets/quran/t_indopak/`, character offsets) and the
+/// word-by-word audio's word numbering both stay valid untouched.
+const _indopakGlyphMap = {
+  'ۡ': 'ْ', // SMALL HIGH DOTLESS HEAD OF KHAH -> ARABIC SUKUN
+  '۠': '۟', // SMALL HIGH UPRIGHT RECT. ZERO -> SMALL HIGH ROUNDED ZERO
+};
+
+String _transcodeIndopak(String s) {
+  var out = s;
+  for (final e in _indopakGlyphMap.entries) {
+    out = out.replaceAll(e.key, e.value);
+  }
+  return out;
+}
+
+List<String> _decodeIndopakList(String raw) => [
+      for (final a in jsonDecode(raw) as List) _transcodeIndopak(a as String)
+    ];
 
 List<List<String>> _tokenizeAll(List<String> ayahs) =>
     [for (final a in ayahs) QuranRepo.tokenize(a)];

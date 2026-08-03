@@ -57,7 +57,7 @@ class QaidahScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(u.arabicBadge,
-                          style: arabicStyle(context, size: 24, height: 1.3,
+                          style: quranicStyle(context, size: 24, height: 1.3,
                               color: pal(context).accent)),
                     ),
                     const SizedBox(width: 14),
@@ -113,15 +113,17 @@ List<QaidahUnit> qaidahUnits(BuildContext context) => [
       QaidahUnit(context.l10n.unitTanwin, context.l10n.unitTanwinSub, 'بً',
           'qaidah.tanwin',
           (c) => _syllableQuiz(c, context.l10n.tanwinDrill, 'qaidah.tanwin', tanwin)),
-      QaidahUnit(context.l10n.sukunJazm, context.l10n.unitSukunSub,
-          'بْ', 'qaidah.sukun', (c) => _sukunQuiz(c)),
+      QaidahUnit(
+          tashkilName(context, tashkil.firstWhere((t) => t.id == 'sukun')),
+          context.l10n.unitSukunSub,
+          'بۡ', 'qaidah.sukun', (c) => _sukunQuiz(c)),
       QaidahUnit(context.l10n.shaddah, context.l10n.unitShaddahSub, 'بّ',
           'qaidah.shadda', (c) => _shaddaQuiz(c)),
       QaidahUnit(context.l10n.unitMaddLin, context.l10n.unitMaddLinSub,
           'بَا', 'qaidah.madd',
           (_) => const TashkeelScreen(focusCounts: true)),
       QaidahUnit(context.l10n.readingWords, context.l10n.unitReadingWordsSub,
-          'قُلْ', 'qaidah.words', (c) => _wordQuiz(c)),
+          'قُلۡ', 'qaidah.words', (c) => _wordQuiz(c)),
       QaidahUnit(context.l10n.qaidahReview,
           context.l10n.unitReviewSub, '۝',
           'qaidah.review', (c) => _reviewQuiz(c)),
@@ -167,11 +169,8 @@ class LettersExplorer extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(l.char,
-                            style: TextStyle(
-                                fontFamily: 'ScheherazadeNew',
-                                fontSize: 52,
-                                height: 1,
-                                color: pal(context).text)),
+                            style: quranicStyle(context,
+                                size: 52, color: pal(context).text)),
                         const SizedBox(height: 14),
                         Text(letterName(context, l),
                             style: uiStyle(context,
@@ -224,8 +223,7 @@ class LettersExplorer extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                 ),
                 alignment: Alignment.center,
-                child: Text(l.char,
-                    style: arabicStyle(context, size: 34, height: 1.4)),
+                child: Text(l.char, style: quranicStyle(context, size: 34)),
               ),
             ),
           );
@@ -250,7 +248,7 @@ class LetterDetail extends StatelessWidget with DesktopAware {
   /// Desktop: the reference "Letter detail" — ONLY the big letter card on the
   /// left and the "Easily confused with" family on the right.
   Widget _desktopBuild(BuildContext context) {
-    final dotInfo = dotsDesc(context, letter.dotCount, letter.dotPos);
+    final dotInfo = dotsDescForLetter(context, letter);
     final fam = letter.similarGroup == null
         ? <ArabicLetter>[letter]
         : [
@@ -306,10 +304,9 @@ class LetterDetail extends StatelessWidget with DesktopAware {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(letter.char,
-                            style: TextStyle(
-                                fontFamily: 'ScheherazadeNew',
-                                fontSize: 200,
-                                height: .95,
+                            style: quranicStyle(context,
+                                size: 200,
+                                height: 1.85,
                                 color: pal(context).accent)),
                         const SizedBox(height: 34),
                         Text(letterName(context, letter),
@@ -405,10 +402,9 @@ class LetterDetail extends StatelessWidget with DesktopAware {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(l.char,
-              style: TextStyle(
-                  fontFamily: 'ScheherazadeNew',
-                  fontSize: 70,
-                  height: 1,
+              style: quranicStyle(context,
+                  size: 70,
+                  height: 1.85,
                   color: target ? pal(context).accent : pal(context).text)),
           const SizedBox(height: 22),
           Text(letterName(context, l),
@@ -427,7 +423,7 @@ class LetterDetail extends StatelessWidget with DesktopAware {
   Widget build(BuildContext context) {
     if (useDesktop(context)) return _desktopBuild(context);
     final s = SettingsScope.of(context);
-    final dotInfo = dotsDesc(context, letter.dotCount, letter.dotPos);
+    final dotInfo = dotsDescForLetter(context, letter);
     return Scaffold(
       appBar: AppBar(title: Text(letterName(context, letter))),
       body: SafeArea(
@@ -440,13 +436,17 @@ class LetterDetail extends StatelessWidget with DesktopAware {
               tween: Tween(begin: .6, end: 1),
               duration: const Duration(milliseconds: 500),
               curve: Curves.elasticOut,
+              // elasticOut overshoots past 1.0 by design; Transform.scale
+              // doesn't affect layout, so an un-clamped overshoot would
+              // paint the glyph larger than the box it was just sized for.
               builder: (context, v, child) =>
-                  Transform.scale(scale: v, child: child),
+                  Transform.scale(scale: v.clamp(0.0, 1.0), child: child),
               child: Text(letter.char,
-                  style: arabicStyle(context, size: 120, height: 1.5,
-                      color: pal(context).accent)),
+                  style: quranicStyle(context,
+                      size: 120, height: 1.85, color: pal(context).accent)),
             ),
           ),
+          const SizedBox(height: 12),
           Center(
             child: Text('“${letter.translit}” · $dotInfo',
                 style: uiStyle(context, size: 15, color: pal(context).textDim)),
@@ -466,7 +466,7 @@ class LetterDetail extends StatelessWidget with DesktopAware {
                 children: [
                   for (final c in similarFamilies[letter.similarGroup]!)
                     Text(c,
-                        style: arabicStyle(context, size: 38,
+                        style: quranicStyle(context, size: 38,
                             color: c == letter.char
                                 ? pal(context).accent
                                 : (s.paperMode
@@ -541,10 +541,8 @@ class _FormsLabState extends State<FormsLab> {
                               : pal(context).surfaceHigh.withValues(alpha: .7)),
                     ),
                     child: Text(l.char,
-                        style: TextStyle(
-                            fontFamily: 'ScheherazadeNew',
-                            fontSize: 26,
-                            height: 1.2,
+                        style: quranicStyle(context,
+                            size: 26,
                             color: l.char == sel.char
                                 ? Colors.white
                                 : pal(context).text)),
@@ -567,11 +565,8 @@ class _FormsLabState extends State<FormsLab> {
                   child: Column(children: [
                     Text(shapes[i].$1,
                         textDirection: TextDirection.rtl,
-                        style: TextStyle(
-                            fontFamily: 'ScheherazadeNew',
-                            fontSize: 74,
-                            height: 1,
-                            color: pal(context).text)),
+                        style: quranicStyle(context,
+                            size: 74, height: 1.85, color: pal(context).text)),
                     const SizedBox(height: 20),
                     Text(shapes[i].$2,
                         style: uiStyle(context,
@@ -605,10 +600,9 @@ class _FormsLabState extends State<FormsLab> {
                             children: [
                               Text(sel.exampleWord,
                                   textDirection: TextDirection.rtl,
-                                  style: TextStyle(
-                                      fontFamily: 'ScheherazadeNew',
-                                      fontSize: 76,
-                                      height: 1.2,
+                                  style: quranicStyle(context,
+                                      size: 76,
+                                      height: 1.85,
                                       color: pal(context).text)),
                               const SizedBox(height: 22),
                               Text(context.l10n.surahRef(sel.exampleRef),
@@ -689,11 +683,8 @@ class _FormsLabState extends State<FormsLab> {
           ),
           Text(w.word,
               textDirection: TextDirection.rtl,
-              style: TextStyle(
-                  fontFamily: 'ScheherazadeNew',
-                  fontSize: 56,
-                  height: 1.3,
-                  color: pal(context).text)),
+              style: quranicStyle(context,
+                  size: 56, height: 1.85, color: pal(context).text)),
           Text(w.translit,
               style: uiStyle(context,
                   size: 14,
@@ -732,7 +723,7 @@ class _FormsLabState extends State<FormsLab> {
           ];
 
     return LayoutBuilder(builder: (context, c) {
-      final glyphStyle = arabicStyle(context, size: 46);
+      final glyphStyle = quranicStyle(context, size: 46);
       const hpad = 14.0, spacing = 10.0;
       final maxW = c.maxWidth;
 
@@ -847,7 +838,7 @@ class _FormsLabState extends State<FormsLab> {
           const SizedBox(width: 12),
           Text(w.word,
               textDirection: TextDirection.rtl,
-              style: arabicStyle(context, size: 30)),
+              style: quranicStyle(context, size: 30)),
         ]),
       );
 
@@ -895,7 +886,7 @@ class _FormsLabState extends State<FormsLab> {
                     const SizedBox(height: 6),
                     Text(sel.exampleWord,
                         textDirection: TextDirection.rtl,
-                        style: arabicStyle(context,
+                        style: quranicStyle(context,
                             size: 40, color: pal(context).accent)),
                     const SizedBox(height: 6),
                     Text(context.l10n.surahRef(sel.exampleRef),
@@ -953,7 +944,7 @@ class _FormsLabState extends State<FormsLab> {
                           : Colors.transparent),
                 ),
                 child: Text(letters[i].char,
-                    style: arabicStyle(context, size: 26, height: 1.3)),
+                    style: quranicStyle(context, size: 26)),
               ),
             ),
           ),
@@ -993,6 +984,7 @@ QuizScreen _letterQuiz(BuildContext context) {
     qs.add(QuizQuestion(
         prompt: context.l10n.qpWhichLetterIsThis,
         arabic: l.char,
+        reviewId: 'letter.${l.char}',
         options: o.options,
         correct: o.correct));
   }
@@ -1005,11 +997,14 @@ QuizScreen _formsQuiz(BuildContext context) {
   final pool = letters.map((l) => letterName(context, l)).toList();
   final sample = [...letters]..shuffle(_rng);
   for (final l in sample.take(10)) {
-    final form = [l.initial, l.medial, l.finalForm][_rng.nextInt(3)];
+    final formIdx = _rng.nextInt(3);
+    final form = [l.initial, l.medial, l.finalForm][formIdx];
+    final formName = ['ini', 'med', 'fin'][formIdx];
     final o = buildOptions(letterName(context, l), pool, _rng);
     qs.add(QuizQuestion(
         prompt: context.l10n.qpShapeBelongsTo,
         arabic: form,
+        reviewId: 'letter.form.${l.char}.$formName',
         options: o.options,
         correct: o.correct,
         explain: context.l10n.lookPastJoins));
@@ -1034,6 +1029,7 @@ QuizScreen _syllableQuiz(BuildContext context, String title, String progressId,
     qs.add(QuizQuestion(
         prompt: context.l10n.qpHowDoesThisSound,
         arabic: '${l.char}$mark',
+        reviewId: '$progressId.${l.char}.${mark.codeUnitAt(0)}',
         options: o.options,
         correct: o.correct));
   }
@@ -1053,12 +1049,14 @@ QuizScreen _sukunQuiz(BuildContext context) {
         correct: 0),
      QuizQuestion(
         prompt: context.l10n.qpReadIt,
-        arabic: 'أَبْ',
+        arabic: 'أَبۡ',
+        reviewId: 'qaidah.sukun.ab',
         options: ['ab', 'aba', 'ba', 'ib'],
         correct: 0),
      QuizQuestion(
         prompt: context.l10n.qpReadIt,
-        arabic: 'قُلْ',
+        arabic: 'قُلۡ',
+        reviewId: 'qaidah.sukun.qul',
         options: ['qul', 'qal', 'qil', 'qulu'],
         correct: 0),
      QuizQuestion(
@@ -1068,12 +1066,15 @@ QuizScreen _sukunQuiz(BuildContext context) {
         explain: context.l10n.rememberQutbuJadd),
      QuizQuestion(
         prompt: context.l10n.qpReadItBounce,
-        arabic: 'لَمْ يَلِدْ',
+        arabic: 'لَمۡ يَلِدۡ',
+        reviewId: 'qaidah.sukun.lamyalid',
         options: ['lam yalid', 'lam yalida', 'lama yalid', 'lim yalud'],
         correct: 0),
   ];
   return QuizScreen(
-      title: context.l10n.sukunJazm, progressId: 'qaidah.sukun', questions: qs);
+      title: tashkilName(context, tashkil.firstWhere((t) => t.id == 'sukun')),
+      progressId: 'qaidah.sukun',
+      questions: qs);
 }
 
 QuizScreen _shaddaQuiz(BuildContext context) {
@@ -1089,18 +1090,21 @@ QuizScreen _shaddaQuiz(BuildContext context) {
         correct: 0),
      QuizQuestion(
         prompt: context.l10n.qpReadIt,
-        arabic: 'رَبِّ',
+        arabic: 'رَبِّ',
+        reviewId: 'qaidah.shadda.rabbi',
         options: ['rabbi', 'rabi', 'rab', 'raabi'],
         correct: 0),
      QuizQuestion(
         prompt: context.l10n.qpReadIt,
-        arabic: 'إِنَّ',
+        arabic: 'إِنَّ',
+        reviewId: 'qaidah.shadda.inna',
         options: ['inna', 'ina', 'anna', 'in'],
         correct: 0,
         explain: context.l10n.explNunShaddahGhunnah),
      QuizQuestion(
         prompt: context.l10n.qpReadIt,
-        arabic: 'ثُمَّ',
+        arabic: 'ثُمَّ',
+        reviewId: 'qaidah.shadda.thumma',
         options: ['thumma', 'thuma', 'summa', 'thum'],
         correct: 0),
   ];
@@ -1109,22 +1113,22 @@ QuizScreen _shaddaQuiz(BuildContext context) {
 }
 
 const _quranWords = <(String, String)>[
-  ('بِسْمِ', 'bismi'),
-  ('قُلْ', 'qul'),
+  ('بِسۡمِ', 'bismi'),
+  ('قُلۡ', 'qul'),
   ('هُوَ', 'huwa'),
   ('أَحَدٌ', 'aḥadun'),
   ('خَلَقَ', 'khalaqa'),
-  ('نَعْبُدُ', 'naʿbudu'),
-  ('يَوْمِ', 'yawmi'),
-  ('رَبِّ', 'rabbi'),
-  ('جَاءَ', 'jā’a'),
-  ('لَهَبٍ', 'lahabin'),
-  ('مَالِكِ', 'māliki'),
+  ('نَعۡبُدُ', 'naʿbudu'),
+  ('يَوۡمِ', 'yawmi'),
+  ('رَبِّ', 'rabbi'),
+  ('جَآءَ', 'jā’a'),
+  ('لَهَبٖ', 'lahabin'),
+  ('مَٰلِكِ', 'māliki'),
   ('دِينِ', 'dīni'),
-  ('ثُمَّ', 'thumma'),
-  ('سَلَامٌ', 'salāmun'),
-  ('نَصْرُ', 'naṣru'),
-  ('غَيْرِ', 'ghayri'),
+  ('ثُمَّ', 'thumma'),
+  ('سَلَٰمٌ', 'salāmun'),
+  ('نَصۡرُ', 'naṣru'),
+  ('غَيۡرِ', 'ghayri'),
 ];
 
 QuizScreen _wordQuiz(BuildContext context) {
@@ -1136,6 +1140,7 @@ QuizScreen _wordQuiz(BuildContext context) {
     qs.add(QuizQuestion(
         prompt: context.l10n.qpReadQuranicWord,
         arabic: ar,
+        reviewId: 'qaidah.word.$tr',
         options: o.options,
         correct: o.correct));
   }
@@ -1153,6 +1158,7 @@ QuizScreen _reviewQuiz(BuildContext context) {
     qs.add(QuizQuestion(
         prompt: context.l10n.qpNameTheLetter,
         arabic: l.char,
+        reviewId: 'letter.${l.char}',
         options: o.options,
         correct: o.correct));
   }
@@ -1164,6 +1170,8 @@ QuizScreen _reviewQuiz(BuildContext context) {
     qs.add(QuizQuestion(
         prompt: context.l10n.qpWhichMarkHighlighted,
         arabic: t.example,
+        highlight: t.highlight,
+        reviewId: 'tashkil.${t.id}',
         options: o.options,
         correct: o.correct,
         explain: tashkilNote(context, t)));
@@ -1173,7 +1181,8 @@ QuizScreen _reviewQuiz(BuildContext context) {
   for (final (ar, tr) in ws.take(3)) {
     final o = buildOptions(tr, _quranWords.map((w) => w.$2).toList(), _rng);
     qs.add(QuizQuestion(
-        prompt: context.l10n.qpReadIt, arabic: ar, options: o.options, correct: o.correct));
+        prompt: context.l10n.qpReadIt, arabic: ar, reviewId: 'qaidah.word.$tr',
+        options: o.options, correct: o.correct));
   }
   qs.shuffle(_rng);
   return QuizScreen(

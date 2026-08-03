@@ -19,15 +19,15 @@ flutter run
 Requires Flutter 3.27+ (Material 3 `WidgetState*` APIs, `Color.withValues`).
 Dependencies: `flutter_localizations` + `intl` (localization), `flutter_svg`,
 `shared_preferences` (settings + progress), `audioplayers` (recitation),
-`http` + `path_provider` (offline downloads). Amiri (UI + Arabic, with
-ScheherazadeNew as its fallback) is bundled as an asset — see
-[CREDITS.md](CREDITS.md).
+`http` + `path_provider` (offline downloads). All typefaces (Qur'an script,
+UI, Arabic body text) are bundled assets — no font is ever fetched over the
+network.
 
 ## What's inside
 
 | Module | What it covers |
 |---|---|
-| **Qur'an Reader** | The whole Qur'an offline (114 sūrahs / 6,236 āyahs bundled in assets), in **Madani (Uthmani)** script, plus a true **15-line muṣḥaf** page (see Credits). IndoPak-script rendering is present in the data layer but currently gated off in the UI (shows "coming soon") pending a properly licensed Indo-Pak Qur'an face — see *Credits & licensing* below. Word-by-word tap-to-hear recitation, courtesy of Markaz Tafsir via QuranCDN; verse-by-verse recitation by Shaykh Khalīfah Al-Tunaiji. Per-surah offline download, char-accurate Tajwīd coloring, adjustable font size/spacing, RTL-correct page header and navigation pinned regardless of UI language. **No word-by-word English translation is shown** — see *Design decisions* below. |
+| **Qur'an Reader** | The whole Qur'an offline (114 sūrahs / 6,236 āyahs bundled in assets), in both **Madani (Uthmani)** and **IndoPak** script, plus a true **15-line muṣḥaf** page (see Credits). Madani renders with UthmanicHafs (KFGQPC); IndoPak with DigitalKhattIndoPak — the same face the 15-line muṣḥaf uses, via a 1:1 codepoint transcode of the reader's text at load time (see *Credits & licensing* below). Word-by-word tap-to-hear recitation, courtesy of Markaz Tafsir via QuranCDN; verse-by-verse recitation by Shaykh Khalīfah Al-Tunaiji. Per-surah offline download, char-accurate Tajwīd coloring, adjustable font size/spacing, RTL-correct page header and navigation pinned regardless of UI language. **No word-by-word English translation is shown** — see *Design decisions* below. |
 | **Qaidah Path** | The classical Qaidah sequence in nine units: 28 letters (forms, dots, Qur'anic example each) → joining forms (with in-Qur'an examples and beginning/middle/end word cards) → ḥarakāt → tanwīn → sukūn & qalqalah → shaddah → madd & līn → reading real Qur'anic words → review. Every unit ends in a starred quiz. |
 | **Tracing Studio** | A strict, progressive stroke engine with **three modes**: **Guided** (a comet leads, the ideal stroke inks itself in), **Outline** (the letterform is shown but you form every stroke — no comet, nothing fills in for you), and **Memory** (a blank board, from memory). All three grade real stroke direction, not just shape, with a per-stroke tolerance and look-ahead window — wrong direction never progresses. Dots are placed by tap afterwards. |
 | **Tashkīl Lab** | Every mark — fatḥah/kasrah/ḍammah, sukūn, shaddah, all three tanwīn, madd ṭabī'ī (2), līn, maddah, muttaṣil (4–5), munfaṣil (4–5), lāzim (6), 'āriḍ (2/4/6), hamzat al-waṣl — each with a highlighted Qur'anic example and a **Counts Studio**: an animated, haptic metronome for 1/2/4/6-count timing at adjustable tempo. |
@@ -126,11 +126,11 @@ being machine-translated into Arabic or Urdu religious/technical writing.
 ## Architecture
 
 ```
-assets/quran/   Qur'an text (Uthmani + IndoPak, the latter currently unused by
-                the UI — see Credits) + tajwīd spans + the 15-line muṣḥaf's
-                own text/layout JSON
+assets/quran/   Qur'an text (Uthmani + IndoPak, both available in the card
+                reader and the 15-line muṣḥaf; see Credits) + tajwīd spans +
+                the 15-line muṣḥaf's own text/layout JSON
 assets/fonts/   UthmanicHafs, ScheherazadeNew, DigitalKhattV2/IndoPak,
-                SurahNames, Bismillah, Amiri, Outfit, NotoNastaliqUrdu — all
+                SurahNames, Bismillah, Outfit, NotoNastaliqUrdu — all
                 bundled locally, no runtime font-fetching — see CREDITS.md
 lib/
   core/      theme (2 families × 3 modes + tajwīd colors), settings, progress,
