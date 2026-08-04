@@ -1,3 +1,4 @@
+import '../core/audio.dart';
 import '../core/l10n.dart';
 import '../core/responsive.dart';
 import 'dart:math' as math;
@@ -227,15 +228,29 @@ class QuizQuestion {
   /// across future text edits).
   final String? reviewId;
 
+  /// Multi-select: indices into [options] that must ALL be picked, and only
+  /// those, for a correct grade (e.g. "choose every letter with a dot on
+  /// top"). When set, [correct] is unused and the quiz renders a Submit
+  /// button instead of grading on first tap.
+  final Set<int>? correctSet;
+
+  /// Ordering: the correct tap sequence, as the exact strings from [options]
+  /// in the order they must be tapped (e.g. "list these letters backwards").
+  /// When set, [correct] is unused and the quiz builds a running answer strip
+  /// as options are tapped, grading once every option has been placed.
+  final List<String>? sequence;
+
   const QuizQuestion({
     required this.prompt,
     this.arabic,
     this.highlight,
     required this.options,
-    required this.correct,
+    this.correct = -1,
     this.optionsAreArabic = false,
     this.explain,
     this.reviewId,
+    this.correctSet,
+    this.sequence,
   });
 }
 
@@ -255,16 +270,22 @@ List<TextSpan> highlightSpans(
 }
 
 /// A reusable multiple-choice runner with animated feedback, ending in a
-/// star score reported to [ProgressStore] under [progressId].
+/// star score reported to [ProgressStore] under [progressId] — unless
+/// [graded] is false (a Qaidah unit's Practice phase), in which case misses
+/// and correct answers still feed the spaced-repetition review queue but no
+/// star report is ever sent, so practice can be repeated freely without
+/// affecting the unit's Test-phase stars.
 class QuizScreen extends StatefulWidget with DesktopAware {
   final String title;
   final String progressId;
   final List<QuizQuestion> questions;
+  final bool graded;
   const QuizScreen({
     super.key,
     required this.title,
     required this.progressId,
     required this.questions,
+    this.graded = true,
   });
 
   @override
@@ -274,16 +295,84 @@ class QuizScreen extends StatefulWidget with DesktopAware {
 class _QuizScreenState extends State<QuizScreen> {
   int _i = 0;
   int _score = 0;
-  int? _picked;
+  int? _picked; // single-choice
+  final Set<int> _multiPicked = {}; // multi-select
+  final List<int> _orderPicked = []; // ordering: option indices, in tap order
+  bool _locked = false; // multi-select / ordering: graded, awaiting advance
+  bool _wasCorrect = false;
   bool _done = false;
 
   QuizQuestion get q => widget.questions[_i];
+  bool get _isMulti => q.correctSet != null;
+  bool get _isOrder => q.sequence != null;
+  bool get _isLocked => _isMulti || _isOrder ? _locked : _picked != null;
 
-  void _pick(int idx) async {
+  void _pickSingle(int idx) {
     if (_picked != null) return;
-    final settings = SettingsScope.of(context);
     setState(() => _picked = idx);
-    final correct = idx == q.correct;
+    _finishQuestion(idx == q.correct);
+  }
+
+  void _toggleMulti(int idx) {
+    if (_locked) return;
+    setState(() {
+      if (!_multiPicked.remove(idx)) _multiPicked.add(idx);
+    });
+  }
+
+  void _submitMulti() {
+    if (_locked || _multiPicked.isEmpty) return;
+    final correct = _multiPicked.length == q.correctSet!.length &&
+        _multiPicked.every(q.correctSet!.contains);
+    setState(() => _locked = true);
+    _finishQuestion(correct);
+  }
+
+  void _appendOrder(int idx) {
+    if (_locked || _orderPicked.contains(idx)) return;
+    setState(() => _orderPicked.add(idx));
+    if (_orderPicked.length != q.sequence!.length) return;
+    final tapped = [for (final i in _orderPicked) q.options[i]];
+    var correct = true;
+    for (var k = 0; k < tapped.length; k++) {
+      if (tapped[k] != q.sequence![k]) {
+        correct = false;
+        break;
+      }
+    }
+    setState(() => _locked = true);
+    _finishQuestion(correct);
+  }
+
+  /// Display string for the correct answer, joined for multi-select/ordering
+  /// so a miss can still be recorded through the existing single-`String`
+  /// [ReviewItem.answer] field — no persistence-shape change needed.
+  String get _answerDisplay {
+    if (_isMulti) {
+      final idxs = q.correctSet!.toList()..sort();
+      return idxs.map((i) => q.options[i]).join(', ');
+    }
+    if (_isOrder) return q.sequence!.join(' ');
+    return q.options[q.correct];
+  }
+
+  List<String> get _distractorsDisplay {
+    if (_isMulti) {
+      return [
+        for (var k = 0; k < q.options.length; k++)
+          if (!q.correctSet!.contains(k)) q.options[k]
+      ];
+    }
+    if (_isOrder) return const [];
+    return [
+      for (var k = 0; k < q.options.length; k++)
+        if (k != q.correct) q.options[k]
+    ];
+  }
+
+  void _finishQuestion(bool correct) async {
+    setState(() => _wasCorrect = correct);
+    final settings = SettingsScope.of(context);
     if (correct) _score++;
     // feed the Reading Coach's spaced-repetition review queue
     final prog = ProgressScope.of(context);
@@ -293,14 +382,10 @@ class _QuizScreenState extends State<QuizScreen> {
       if (correct) {
         prog.reviewCorrect(reviewKey); // promote / graduate
       } else {
-        final others = [
-          for (var k = 0; k < q.options.length; k++)
-            if (k != q.correct) q.options[k]
-        ];
         prog.recordMiss(reviewKey, glyph,
-            answer: q.options[q.correct],
+            answer: _answerDisplay,
             prompt: q.prompt,
-            distractors: others,
+            distractors: _distractorsDisplay,
             optionsArabic: q.optionsAreArabic);
       }
     }
@@ -313,18 +398,30 @@ class _QuizScreenState extends State<QuizScreen> {
       setState(() {
         _i++;
         _picked = null;
+        _multiPicked.clear();
+        _orderPicked.clear();
+        _locked = false;
+        _wasCorrect = false;
       });
     } else {
-      final frac = _score / widget.questions.length;
-      final stars = frac >= 0.95 ? 3 : (frac >= 0.7 ? 2 : (frac >= 0.4 ? 1 : 0));
-      ProgressScope.of(context).report(widget.progressId, stars);
+      if (widget.graded) {
+        final frac = _score / widget.questions.length;
+        final stars = frac >= 0.95 ? 3 : (frac >= 0.7 ? 2 : (frac >= 0.4 ? 1 : 0));
+        ProgressScope.of(context).report(widget.progressId, stars);
+      }
       setState(() => _done = true);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_done) return _ResultView(title: widget.title, score: _score, total: widget.questions.length);
+    if (_done) {
+      return _ResultView(
+          title: widget.title,
+          score: _score,
+          total: widget.questions.length,
+          graded: widget.graded);
+    }
     if (useDesktop(context)) return _desktopBuild(context);
     return Scaffold(
       appBar: AppBar(
@@ -349,6 +446,15 @@ class _QuizScreenState extends State<QuizScreen> {
           constraints: const BoxConstraints(maxWidth: 720),
           child: Padding(
         padding: const EdgeInsets.all(20),
+        // Multi-select and ordering questions can add enough option tiles
+        // and controls (strip, Submit button) to exceed a phone's height —
+        // scroll instead of overflowing. The Arabic-display area used to be
+        // Expanded (fills whatever space is left); it's a generous fixed
+        // height instead so the whole thing can live in a plain
+        // SingleChildScrollView (IntrinsicHeight isn't an option — the
+        // options grid below has its own LayoutBuilder, and LayoutBuilder
+        // can't compute intrinsic dimensions).
+        child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -369,7 +475,8 @@ class _QuizScreenState extends State<QuizScreen> {
                 textAlign: TextAlign.center,
                 style: uiStyle(context, size: 17, color: pal(context).textDim)),
             if (q.arabic != null)
-              Expanded(
+              SizedBox(
+                height: 220,
                 child: Center(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
@@ -392,6 +499,7 @@ class _QuizScreenState extends State<QuizScreen> {
               )
             else
               const SizedBox(height: 24),
+            if (_isOrder) _orderStrip(context),
             LayoutBuilder(builder: (context, c) {
               final cols = c.maxWidth > 520 ? 2 : 1;
               return GridView.count(
@@ -405,7 +513,8 @@ class _QuizScreenState extends State<QuizScreen> {
                     q.options.length, (i) => _optionTile(context, i)),
               );
             }),
-            if (_picked != null && _picked != q.correct && q.explain != null)
+            if (_isMulti) _submitButton(context),
+            if (_isLocked && !_wasCorrect && q.explain != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12, bottom: 8),
                 child: Text(q.explain!,
@@ -413,6 +522,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     style: uiStyle(context, size: 13.5, color: pal(context).textDim)),
               ),
           ],
+        ),
         ),
       ),
         ),
@@ -423,10 +533,94 @@ class _QuizScreenState extends State<QuizScreen> {
   String _qOf(BuildContext context) =>
       context.l10n.questionOf(_i + 1, widget.questions.length);
 
+  /// Multi-select: a Submit button, enabled once at least one option is
+  /// picked, disabled after grading.
+  Widget _submitButton(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 14),
+        child: SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed:
+                (_multiPicked.isEmpty || _locked) ? null : _submitMulti,
+            child: Text(context.l10n.submitAnswer),
+          ),
+        ),
+      );
+
+  /// Ordering: a running strip of what's been tapped so far, in tap order.
+  Widget _orderStrip(BuildContext context) {
+    if (_orderPicked.isEmpty) return const SizedBox(height: 24);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final i in _orderPicked)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: pal(context).accent.withValues(alpha: .14),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(q.options[i],
+                  textDirection:
+                      q.optionsAreArabic ? TextDirection.rtl : TextDirection.ltr,
+                  style: q.optionsAreArabic
+                      ? quranicStyle(context, size: 20)
+                      : uiStyle(context, size: 14, weight: FontWeight.w700)),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _optionTile(BuildContext context, int i, {double vpad = 14}) {
     Color border = pal(context).surfaceHigh;
     Color fill = pal(context).surface;
-    if (_picked != null) {
+    Widget? badge;
+    if (_isMulti) {
+      final selected = _multiPicked.contains(i);
+      if (_locked) {
+        if (q.correctSet!.contains(i)) {
+          border = AppColors.ok;
+          fill = AppColors.ok.withValues(alpha: .14);
+        } else if (selected) {
+          border = AppColors.bad;
+          fill = AppColors.bad.withValues(alpha: .14);
+        }
+      } else if (selected) {
+        border = pal(context).accent;
+        fill = pal(context).accent.withValues(alpha: .12);
+      }
+    } else if (_isOrder) {
+      final pos = _orderPicked.indexOf(i);
+      final used = pos != -1;
+      if (used) {
+        if (_locked) {
+          final right = q.sequence![pos] == q.options[i];
+          border = right ? AppColors.ok : AppColors.bad;
+          fill = (right ? AppColors.ok : AppColors.bad).withValues(alpha: .14);
+        } else {
+          border = pal(context).accent;
+          fill = pal(context).accent.withValues(alpha: .12);
+        }
+        badge = Positioned(
+          top: -8,
+          right: -8,
+          child: CircleAvatar(
+            radius: 11,
+            backgroundColor: pal(context).accent,
+            child: Text('${pos + 1}',
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800)),
+          ),
+        );
+      }
+    } else if (_picked != null) {
       if (i == q.correct) {
         border = AppColors.ok;
         fill = AppColors.ok.withValues(alpha: .14);
@@ -435,27 +629,38 @@ class _QuizScreenState extends State<QuizScreen> {
         fill = AppColors.bad.withValues(alpha: .14);
       }
     }
-    return TapScale(
-      onTap: () => _pick(i),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        alignment: Alignment.center,
-        padding: EdgeInsets.symmetric(vertical: vpad, horizontal: 18),
-        decoration: BoxDecoration(
-          color: fill,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: border, width: 1.6),
-        ),
-        child: Text(
-          q.options[i],
-          textAlign: TextAlign.center,
-          textDirection:
-              q.optionsAreArabic ? TextDirection.rtl : TextDirection.ltr,
-          style: q.optionsAreArabic
-              ? quranicStyle(context, size: 26)
-              : uiStyle(context, size: 17, weight: FontWeight.w600),
-        ),
+    final tile = AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      alignment: Alignment.center,
+      padding: EdgeInsets.symmetric(vertical: vpad, horizontal: 18),
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: border, width: 1.6),
       ),
+      child: Text(
+        q.options[i],
+        textAlign: TextAlign.center,
+        textDirection:
+            q.optionsAreArabic ? TextDirection.rtl : TextDirection.ltr,
+        style: q.optionsAreArabic
+            ? quranicStyle(context, size: 26)
+            : uiStyle(context, size: 17, weight: FontWeight.w600),
+      ),
+    );
+    return TapScale(
+      onTap: () {
+        if (_isMulti) {
+          _toggleMulti(i);
+        } else if (_isOrder) {
+          _appendOrder(i);
+        } else {
+          _pickSingle(i);
+        }
+      },
+      child: badge == null
+          ? tile
+          : Stack(clipBehavior: Clip.none, children: [tile, badge]),
     );
   }
 
@@ -600,9 +805,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                   ),
                                 ),
                               ],
-                              if (_picked != null &&
-                                  _picked != q.correct &&
-                                  q.explain != null)
+                              if (_isLocked && !_wasCorrect && q.explain != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 18),
                                   child: Text(q.explain!,
@@ -621,11 +824,13 @@ class _QuizScreenState extends State<QuizScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            if (_isOrder) _orderStrip(context),
                             for (var i = 0; i < q.options.length; i++) ...[
                               _optionTile(context, i, vpad: 20),
                               if (i != q.options.length - 1)
                                 const SizedBox(height: 16),
                             ],
+                            if (_isMulti) _submitButton(context),
                           ],
                         ),
                       ),
@@ -647,17 +852,24 @@ class _ResultView extends StatelessWidget {
   final String title;
   final int score;
   final int total;
-  const _ResultView({required this.title, required this.score, required this.total});
+  final bool graded;
+  const _ResultView(
+      {required this.title,
+      required this.score,
+      required this.total,
+      this.graded = true});
 
   @override
   Widget build(BuildContext context) {
     final frac = score / total;
     final stars = frac >= 0.95 ? 3 : (frac >= 0.7 ? 2 : (frac >= 0.4 ? 1 : 0));
-    final msg = stars == 3
-        ? context.l10n.perfectScore
-        : stars >= 1
-            ? context.l10n.wellDoneKeepGoing
-            : context.l10n.reviewLessonTryAgain;
+    final msg = !graded
+        ? context.l10n.practiceRoundComplete
+        : stars == 3
+            ? context.l10n.perfectScore
+            : stars >= 1
+                ? context.l10n.wellDoneKeepGoing
+                : context.l10n.reviewLessonTryAgain;
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: SafeArea(
@@ -673,7 +885,7 @@ class _ResultView extends StatelessWidget {
                       style: uiStyle(context, size: 24, weight: FontWeight.w700)),
                 ),
                 const SizedBox(height: 18),
-                StarRow(stars, size: 40),
+                if (graded) StarRow(stars, size: 40),
                 const SizedBox(height: 10),
                 Text(msg, style: uiStyle(context, size: 17)),
                 const SizedBox(height: 26),
@@ -697,4 +909,298 @@ class _ResultView extends StatelessWidget {
   final distractors = pool.where((p) => p != answer).toList()..shuffle(rng);
   final opts = <String>[answer, ...distractors.take(count - 1)]..shuffle(rng);
   return (options: opts, correct: opts.indexOf(answer));
+}
+
+// ─────────────────────── Learn-phase shared surface ───────────────────────
+
+/// The Listen/Watch row every lesson card carries. Watch always falls back to
+/// a coming-soon message — there is no video infrastructure anywhere in the
+/// app. Listen plays real recitation via [AyahAudio.instance] when [ref] is a
+/// `surah:ayah` reference (the range form `surah:ayah-ayah`, as muqaṭṭaʿāt
+/// sets use, plays its first āyah); with no ref — an isolated letter or a
+/// makhraj that has no single verse to point to — it falls back too.
+class MediaRow extends StatelessWidget {
+  final String? ref;
+  const MediaRow({super.key, this.ref});
+
+  (int, int)? get _surahAyah {
+    final parts = ref?.split(':');
+    if (parts == null || parts.length != 2) return null;
+    final s = int.tryParse(parts[0]);
+    final a = int.tryParse(parts[1].split('-').first);
+    if (s == null || a == null) return null;
+    return (s, a);
+  }
+
+  Future<void> _listen(BuildContext context) async {
+    final sa = _surahAyah;
+    if (sa == null) {
+      comingSoon(context, context.l10n.audio);
+      return;
+    }
+    final err = await AyahAudio.instance
+        .play(sa.$1, sa.$2, reciter: SettingsScope.of(context).reciter);
+    if (!context.mounted || err == null) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(err)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      TextButton.icon(
+        onPressed: () => _listen(context),
+        icon: const Icon(Icons.play_arrow_rounded, size: 18),
+        label: Text(context.l10n.listen),
+        style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8)),
+      ),
+      TextButton.icon(
+        onPressed: () => comingSoon(context, context.l10n.video),
+        icon: const Icon(Icons.play_circle_outline_rounded, size: 18),
+        label: Text(context.l10n.watch),
+        style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8)),
+      ),
+    ]);
+  }
+}
+
+/// One learnable fact for a [ConceptLearnScreen] card — a mark, a small
+/// letter, a muqaṭṭaʿah set, or any other single teachable unit: its display
+/// glyph, name, a short note, and an optional Qurʼanic example.
+class ConceptCard {
+  final String glyph; // big Qurʼanic-font display
+  final String title;
+  final String subtitle;
+  final String note;
+  final String? example;
+  final String? exampleRef;
+  const ConceptCard({
+    required this.glyph,
+    required this.title,
+    this.subtitle = '',
+    this.note = '',
+    this.example,
+    this.exampleRef,
+  });
+}
+
+/// A shared "browse these concepts" Learn-phase surface, one card per
+/// [ConceptCard] — used by every Qaidah unit that doesn't already have a
+/// bespoke learning surface (Letters/Forms/Madd have their own).
+class ConceptLearnScreen extends StatelessWidget with DesktopAware {
+  final String title;
+  final List<ConceptCard> cards;
+  const ConceptLearnScreen({super.key, required this.title, required this.cards});
+
+  @override
+  Widget build(BuildContext context) {
+    if (useDesktop(context)) return _desktopBuild(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+          children: [
+            for (var i = 0; i < cards.length; i++)
+              FadeSlideIn(delayMs: 30 * i, child: _card(context, cards[i])),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _card(BuildContext context, ConceptCard c) => Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: pal(context).surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: pal(context).surfaceHigh),
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 64,
+            height: 64,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: pal(context).surfaceHigh,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(c.glyph,
+                textDirection: TextDirection.rtl,
+                style: quranicStyle(context, size: 28, color: pal(context).accent)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
+                Text(c.title, style: uiStyle(context, size: 16, weight: FontWeight.w700)),
+                if (c.subtitle.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Text(c.subtitle,
+                      style: uiStyle(context, size: 13, color: pal(context).textDim)),
+                ],
+              ]),
+              if (c.note.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(c.note, style: uiStyle(context, size: 13.5, color: pal(context).textDim)),
+              ],
+              if (c.example != null) ...[
+                const SizedBox(height: 10),
+                Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 10, children: [
+                  Text(c.example!,
+                      textDirection: TextDirection.rtl,
+                      style: quranicStyle(context, size: 22)),
+                  if (c.exampleRef != null)
+                    Text(context.l10n.surahRef(c.exampleRef!),
+                        style: uiStyle(context, size: 11.5, color: pal(context).textDim)),
+                ]),
+              ],
+              const SizedBox(height: 4),
+              MediaRow(ref: c.exampleRef),
+            ]),
+          ),
+        ]),
+      );
+
+  Widget _desktopBuild(BuildContext context) => Scaffold(
+        backgroundColor: pal(context).bg,
+        body: SafeArea(
+          top: false,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 32),
+            children: [
+              Text(title, style: uiStyle(context, size: 22, weight: FontWeight.w900)),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: [
+                  for (final c in cards) SizedBox(width: 380, child: _card(context, c)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+// ──────────────────────── Learn → Test → Practice hub ─────────────────────
+
+/// One phase of a unit path (Qaidah, Tajwīd, Script & Symbols). A null
+/// [builder] means "listed but not open yet" — [PhaseHub] dims that card and
+/// taps it through to [comingSoon] instead of navigating, the same treatment
+/// `home_screen.dart`'s `_ModuleCard` gives the Qirā’āt module.
+class UnitPhase {
+  final IconData icon;
+  final String label;
+  final String sub;
+  final WidgetBuilder? builder;
+  const UnitPhase(
+      {required this.icon, required this.label, required this.sub, this.builder});
+}
+
+/// The three standard phases (Learn → Test → Practice) shared by every
+/// Qaidah and Script & Symbols unit.
+List<UnitPhase> standardPhases(BuildContext context,
+        {required WidgetBuilder learn,
+        required WidgetBuilder test,
+        required WidgetBuilder practice}) =>
+    [
+      UnitPhase(
+          icon: Icons.menu_book_rounded,
+          label: context.l10n.phaseLearn,
+          sub: context.l10n.phaseLearnSub,
+          builder: learn),
+      UnitPhase(
+          icon: Icons.quiz_rounded,
+          label: context.l10n.phaseTest,
+          sub: context.l10n.phaseTestSub,
+          builder: test),
+      UnitPhase(
+          icon: Icons.refresh_rounded,
+          label: context.l10n.phasePractice,
+          sub: context.l10n.phasePracticeSub,
+          builder: practice),
+    ];
+
+/// The phase picker every unit path routes through — Qaidah's Learn → Test →
+/// Practice, Tajwīd's five-phase path (with a disabled Recite), and Script &
+/// Symbols. Nothing enabled is locked; a phase with a null [UnitPhase.builder]
+/// is listed but dimmed, and taps through to a coming-soon message.
+class PhaseHub extends StatelessWidget {
+  final String subtitle;
+  final List<UnitPhase> phases;
+  final void Function(int index) onPick;
+  const PhaseHub(
+      {super.key, required this.subtitle, required this.phases, required this.onPick});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+      children: [
+        Text(subtitle, style: uiStyle(context, size: 14, color: pal(context).textDim)),
+        const SizedBox(height: 16),
+        for (var i = 0; i < phases.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: TapScale(
+              onTap: () {
+                if (phases[i].builder == null) {
+                  comingSoon(context, phases[i].label);
+                } else {
+                  onPick(i);
+                }
+              },
+              child: Opacity(
+                opacity: phases[i].builder == null ? .55 : 1,
+                child: Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: pal(context).surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: pal(context).surfaceHigh),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                          color: pal(context).surfaceHigh,
+                          borderRadius: BorderRadius.circular(16)),
+                      child: Icon(phases[i].icon, color: pal(context).accent),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(phases[i].label,
+                              style:
+                                  uiStyle(context, size: 16.5, weight: FontWeight.w700)),
+                          const SizedBox(height: 3),
+                          Text(phases[i].sub,
+                              style: uiStyle(context, size: 13, color: pal(context).textDim)),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                        phases[i].builder == null
+                            ? Icons.lock_clock_rounded
+                            : Icons.chevron_right_rounded,
+                        color: pal(context).textDim),
+                  ]),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }

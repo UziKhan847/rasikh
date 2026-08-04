@@ -12,6 +12,7 @@
   "qiraatSub": "القراءات العشر — المستوى المتقدّم",
   "about": "حول التطبيق",
   "continueLabel": "متابعة",
+  "submitAnswer": "إرسال",
   "wordByWord": "كلمة كلمة",
   "home": "الرئيسية",
   "salamGreeting": "السلام عليكم،",
@@ -89,7 +90,7 @@
   "fluencySprint": "سباق الطلاقة",
   "followGlowingCometFromGreen": "اتبع المذنّب المضيء من نقطة البداية الخضراء. ارفع إصبعك متى شئت ثم تابع؛ والنقاط في الآخر.",
   "formsQuiz": "اختبار الأشكال",
-  "foundations9Units": "الأساسيات · ٩ وحدات",
+  "foundations9Units": "الأساسيات · ١١ وحدات",
   "fromFirstAlifTenQira": "من أول ألف إلى القراءات العشر",
   "fromLettersReadingRealWords": "من الحروف إلى قراءة كلمات حقيقية",
   "guidedHandwriting": "كتابة موجَّهة",
@@ -99,7 +100,7 @@
   "joiningForms": "أشكال الاتصال",
   "jumpToSurah": "الانتقال إلى سورة",
   "k15LineMushaf": "مصحف ١٥ سطرًا",
-  "k16RulesColorCoded": "١٦ حكمًا · ملوّنة",
+  "k16RulesColorCoded": "٢٠ حكمًا · ملوّنة",
   "learn": "التعلّم",
   "letterQuiz": "اختبار الحروف",
   "levelCompleteEveryLetterCleared": "🎉 اكتمل المستوى — أتقنت كل الحروف!",
@@ -245,6 +246,14 @@
   "ltrHa": "هاء",
   "ltrWaw": "واو",
   "ltrYa": "ياء",
+  "ltrHamza": "همزة",
+  "ltrAlefHamzaAbove": "همزة على الألف",
+  "ltrAlefHamzaBelow": "همزة تحت الألف",
+  "ltrWawHamza": "همزة على الواو",
+  "ltrYehHamza": "همزة على الياء",
+  "ltrTehMarbuta": "تاء مربوطة",
+  "ltrAlefMaksura": "ألف مقصورة",
+  "ltrAlefWasla": "همزة الوصل",
   "formAlone": "مفرد",
   "formStart": "أول",
   "formMiddle": "وسط",
@@ -419,7 +428,7 @@
   "explorePath": "استكشف الطريق",
   "lettersToWords": "الحروف ← الكلمات",
   "writeByHand": "اكتب بيدك",
-  "coloredRules16": "١٦ حكمًا ملوّنًا",
+  "coloredRules16": "٢٠ حكمًا ملوّنًا",
   "surahs114": "١١٤ سورة",
   "vowelsMarks": "الحركات والعلامات",
   "lookAlikeDrills": "تدريبات المتشابهات",
@@ -575,5 +584,164 @@
   "typefaces": "أنواع الخطوط",
   "themeFamilyMint": "نعناعي",
   "themeFamilyNoor": "نور",
-  "fillPageWidth": "ملء العرض"
+  "fillPageWidth": "ملء العرض",
+  "phaseLearn": "تعلّم",
+  "phaseLearnSub": "الدرس — الحركات والحروف وأمثلة قرآنية حقيقية.",
+  "phaseTest": "اختبار",
+  "phaseTestSub": "جولة مقيَّمة. نتيجة جيدة تكسبك النجوم.",
+  "phasePractice": "تدريب",
+  "phasePracticeSub": "غير محدود وغير مقيَّم — بلا نجوم، تكرار فقط.",
+  "practiceRoundComplete": "اكتمل التدريب — بلا نجوم، تكرار فقط.",
+  "unitMuqattaat": "الحروف المقطّعة",
+  "unitMuqattaatSub": "الحروف المقطّعة التي تفتتح ٢٩ سورة",
+  "extraLettersTitle": "أبعد من الـ٢٨",
+  "extraLettersSub": "مقاعد الهمزة، والتاء المربوطة، وغيرها — شائعة في المصحف",
+  "smallLettersTitle": "الحروف الصغيرة",
+  "smallLettersSub": "الألف الخنجرية، الواو الصغيرة، الياء الصغيرة",
+  "qpChooseDotsCount": "اختر كل حرف له {n} نقاط",
+  "@qpChooseDotsCount": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "qpChooseDotsPos": "اختر كل حرف له نقطة {pos}",
+  "@qpChooseDotsPos": {
+    "placeholders": {
+      "pos": {
+        "type": "String"
+      }
+    }
+  },
+  "qpWhichResembles": "أي حرف يشبه {name}؟",
+  "@qpWhichResembles": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qpWhichLetterShapesThis": "أي حرف مرسوم بهذا الشكل هنا؟",
+  "qpListBackward": "اذكر هذه الحروف بالعكس — اضغطها بترتيب معكوس",
+  "qpDoesThisConnect": "هل يتصل هذا الحرف بالحرف الذي يليه؟",
+  "optConnects": "يتصل",
+  "optDoesNotConnect": "لا يتصل",
+  "qpWhichLetterStacksUnder": "في هذه الكلمة، فوق أي حرف يرتفع {letter}؟",
+  "@qpWhichLetterStacksUnder": {
+    "placeholders": {
+      "letter": {
+        "type": "String"
+      }
+    }
+  },
+  "qpWhichLetterEndsWord": "أي حرف يختم هذه الكلمة؟",
+  "qpWhichHamzaForm": "أيّها {name}؟",
+  "@qpWhichHamzaForm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qpSpellForward": "اهجُ هذه الكلمة — اضغط حروفها بالترتيب",
+  "qpSpellBackward": "اهجُ هذه الكلمة بالعكس — اضغط حروفها بترتيب معكوس",
+  "qpWhichRuleThisShape": "شكل التنوين هذا يدل على أي حكم؟",
+  "qpWhichSurahOpensWith": "أي سورة تفتتح بهذا؟",
+  "qpHowManyCountsLetter": "كم حركة إذا قُرئ هذا الحرف وحده؟",
+  "qpChooseLettersInSet": "اختر كل حرف في هذه المجموعة",
+  "surahsList": "السور {list}",
+  "@surahsList": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "muqattaatCountsNote": "الحركات عند القراءة منفردًا: {counts}",
+  "@muqattaatCountsNote": {
+    "placeholders": {
+      "counts": {
+        "type": "String"
+      }
+    }
+  },
+  "tjIzharShafawiTrig": "الميم الساكنة قبل أي حرف غير الميم أو الباء.",
+  "tjIzharShafawiHow": "انطق الميم واضحة بإطباق الشفتين — بلا إخفاء ولا إدغام.",
+  "tjRaaTafkhimTrig": "الراء بفتحة أو ضمة، أو ساكنة بعد إحداهما.",
+  "tjRaaTafkhimHow": "راء ثقيلة تملأ الفم — استدر بمؤخر اللسان.",
+  "tjRaaTarqiqTrig": "الراء بكسرة، أو ساكنة بعدها.",
+  "tjRaaTarqiqHow": "راء خفيفة رقيقة — بلا استدارة ولا تفخيم.",
+  "tjLamJalalahTrig": "لام لفظ الجلالة ٱللَّٰه.",
+  "tjLamJalalahHow": "ثقيل بعد الفتحة أو الضمة، رقيق بعد الكسرة.",
+  "audio": "الصوت",
+  "listen": "استماع",
+  "watch": "مشاهدة",
+  "unitWasl": "الوصل",
+  "unitWaslSub": "ماذا يحدث عند التقاء كلمة بالتي تليها",
+  "solarLetters14": "الحروف الشمسية الأربعة عشر (حروف شمسية)",
+  "lunarLetters14": "الحروف القمرية الأربعة عشر (حروف قمرية)",
+  "zeroRectTitle": "الصفر المستطيل",
+  "zeroRectNote": "يُنطق عند الوقف على هذه الكلمة، ويسقط عند وصلها بما بعدها.",
+  "zeroRoundTitle": "الصفر المستدير",
+  "zeroRoundNote": "لا يُنطق أبدًا، وقفًا كان أو وصلًا — يُكتب ولا يُقرأ.",
+  "tanwinMeetsWaslTitle": "التنوين يلتقي بهمزة الوصل",
+  "tanwinMeetsWaslNote": "يلتقي هنا ساكنان — فنون التنوين الخفية تُكسر لتفصل بينهما.",
+  "qpLamHereDoes": "ماذا يحدث للام هنا؟",
+  "qpChooseEverySolarLetter": "اختر كل حرف شمسي",
+  "qpAlifSoundsWhen": "هل يُنطق الألف في آخر هذه الكلمة أبدًا؟",
+  "optSoundedOnStopOnly": "فقط عند الوقف على هذه الكلمة",
+  "optNeverSounded": "أبدًا — في كلتا الحالتين",
+  "tjUnitMakharij": "المخارج",
+  "tjUnitMakharijSub": "من أين يبدأ صوت كل حرف",
+  "tjUnitSifat": "الصفات",
+  "tjUnitSifatSub": "طبيعة الصوت أينما وقع",
+  "tjUnitNun": "النون الساكنة والتنوين",
+  "tjUnitNunSub": "الإظهار والإدغام والإقلاب والإخفاء",
+  "tjUnitMim": "الميم الساكنة والغنة",
+  "tjUnitMimSub": "قواعد الميم الأربعة الخاصة بها",
+  "tjUnitMadd": "المدّ",
+  "tjUnitMaddSub": "كم يُمدّ الحرف الممدود",
+  "tjUnitLam": "أحكام اللام",
+  "tjUnitLamSub": "الشمسية والقمرية ولام لفظ الجلالة",
+  "tjUnitRaa": "أحكام الراء",
+  "tjUnitRaaSub": "متى تكون ثقيلة ومتى تكون خفيفة",
+  "tjUnitQalqalah": "القلقلة",
+  "tjUnitQalqalahSub": "الارتداد الصادي لحروف قطب جد",
+  "tjUnitCases": "حالات خاصة",
+  "tjUnitCasesSub": "المواضع النادرة الشاذة في المصحف",
+  "phaseLetters": "الحروف",
+  "phaseLettersSub": "تصفّح حروف هذا الحكم",
+  "phaseRecite": "التلاوة",
+  "phaseReciteSub": "تدريب صوتي — قريبًا",
+  "browseAllRules": "تصفّح كل الأحكام",
+  "qpWhichMakhrajLetter": "من أين يخرج هذا الحرف؟",
+  "qpWhichQualityDoesThisHave": "أي صفة من هذه يملكها هذا الحرف؟",
+  "qpWhichSpecialCase": "ما هذه الحالة الخاصة؟",
+  "tjLettersInThisRule": "حروف هذا الحكم",
+  "scriptSymbols": "الرسم والرموز",
+  "scriptSymbolsSub": "علامات الوقف والسجدة، والمدني مقابل الهندي-الباكستاني",
+  "tabScriptKicker": "المدني والهندي-الباكستاني",
+  "tabScriptBlurb": "كل علامة على الصفحة — رموز الوقف، والسجدة، وكيف يختلف الرسمان.",
+  "unitScriptFamilies": "أسر الرسم",
+  "unitScriptFamiliesSub": "المدني (العثماني) والهندي-الباكستاني، جنبًا إلى جنب",
+  "unitMarksSigns": "العلامات والرموز",
+  "unitMarksSignsSub": "اصطفاف التنوين، والحروف الصغيرة، والصفران الصامتان",
+  "unitWaqfStopping": "الوقف والتوقف",
+  "unitWaqfStoppingSub": "متى يجب الوقف، ومتى يُمنع، ومتى يجوز الأمران",
+  "unitPageMarks": "علامات الصفحة",
+  "unitPageMarksSub": "السجدة وربع الحزب",
+  "foundations4Units": "مرجع · 4 وحدات",
+  "qpWhichScriptIsThis": "مدني أم هندي-باكستاني؟",
+  "qpWhichWaqfMark": "أي حكم وقف ينطبق على هذه العلامة؟",
+  "optMustStop": "يجب الوقف",
+  "optMustNotStop": "يُمنع الوقف",
+  "optEitherOk": "الأمران جائزان",
+  "optStopAtOneNotBoth": "قف عند إحداهما لا كلتيهما",
+  "optPreferContinue": "الوصل أولى",
+  "optPreferStop": "الوقف أولى",
+  "optPageMark": "علامة صفحة أو تصفّح، لا حكم وقف",
+  "qpWhichSmallMark": "ما هذه العلامة؟",
+  "qpWhichPageMark": "ما علامة الصفحة هذه؟",
+  "scriptUnitsProgress": "{done} من {total} وحدات استُكشفت"
 }

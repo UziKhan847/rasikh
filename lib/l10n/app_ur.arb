@@ -12,6 +12,7 @@
   "qiraatSub": "دس قراءتیں — اعلیٰ درجہ",
   "about": "تعارف",
   "continueLabel": "جاری رکھیں",
+  "submitAnswer": "جمع کریں",
   "wordByWord": "لفظ بہ لفظ",
   "home": "ہوم",
   "salamGreeting": "السلام علیکم،",
@@ -89,7 +90,7 @@
   "fluencySprint": "روانی کی دوڑ",
   "followGlowingCometFromGreen": "سبز نقطۂ آغاز سے چمکتے دمدار تارے کے پیچھے چلیں۔ جب چاہیں انگلی اٹھائیں اور پھر جاری رکھیں؛ نقطے آخر میں لگائیں۔",
   "formsQuiz": "اشکال کا امتحان",
-  "foundations9Units": "بنیادیں · ۹ یونٹ",
+  "foundations9Units": "بنیادیں · ۱۱ یونٹ",
   "fromFirstAlifTenQira": "پہلے الف سے دس قراءتوں تک",
   "fromLettersReadingRealWords": "حروف سے حقیقی الفاظ پڑھنے تک",
   "guidedHandwriting": "رہنمائی کے ساتھ لکھائی",
@@ -99,7 +100,7 @@
   "joiningForms": "ملنے کی اشکال",
   "jumpToSurah": "سورت پر جائیں",
   "k15LineMushaf": "۱۵ سطری مصحف",
-  "k16RulesColorCoded": "۱۶ قواعد · رنگوں میں",
+  "k16RulesColorCoded": "۲۰ قواعد · رنگوں میں",
   "learn": "سیکھیں",
   "letterQuiz": "حروف کا امتحان",
   "levelCompleteEveryLetterCleared": "🎉 مرحلہ مکمل — ہر حرف مکمل ہو گیا!",
@@ -245,6 +246,14 @@
   "ltrHa": "ہے",
   "ltrWaw": "واو",
   "ltrYa": "یے",
+  "ltrHamza": "ہمزہ",
+  "ltrAlefHamzaAbove": "الف پر ہمزہ",
+  "ltrAlefHamzaBelow": "الف کے نیچے ہمزہ",
+  "ltrWawHamza": "واؤ پر ہمزہ",
+  "ltrYehHamza": "یے پر ہمزہ",
+  "ltrTehMarbuta": "تائے مربوطہ",
+  "ltrAlefMaksura": "الف مقصورہ",
+  "ltrAlefWasla": "ہمزہ وصل",
   "formAlone": "تنہا",
   "formStart": "شروع",
   "formMiddle": "درمیان",
@@ -575,5 +584,164 @@
   "typefaces": "ٹائپ فیسز",
   "themeFamilyMint": "منٹ",
   "themeFamilyNoor": "نور",
-  "fillPageWidth": "چوڑائی بھریں"
+  "fillPageWidth": "چوڑائی بھریں",
+  "phaseLearn": "سیکھیں",
+  "phaseLearnSub": "سبق — حرکات، حروف، اور حقیقی قرآنی مثالیں۔",
+  "phaseTest": "ٹیسٹ",
+  "phaseTestSub": "ایک گریڈڈ راؤنڈ۔ اچھا سکور ستارے دلائے گا۔",
+  "phasePractice": "مشق",
+  "phasePracticeSub": "لامحدود اور بغیر گریڈ کے — کوئی ستارے نہیں، صرف دہرائی۔",
+  "practiceRoundComplete": "مشق مکمل ہوئی — کوئی ستارے نہیں، صرف دہرائی۔",
+  "unitMuqattaat": "حروفِ مقطعات",
+  "unitMuqattaatSub": "وہ الگ حروف جو ۲۹ سورتوں کا آغاز کرتے ہیں",
+  "extraLettersTitle": "۲۸ سے آگے",
+  "extraLettersSub": "ہمزہ کی نشستیں، تائے مربوطہ، اور مزید — مصحف میں عام",
+  "smallLettersTitle": "چھوٹے حروف",
+  "smallLettersSub": "الف خنجریہ، چھوٹا واؤ، چھوٹی یے",
+  "qpChooseDotsCount": "ہر وہ حرف چنیں جس کے {n} نقطے ہوں",
+  "@qpChooseDotsCount": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "qpChooseDotsPos": "ہر وہ حرف چنیں جس کا نقطہ {pos} ہو",
+  "@qpChooseDotsPos": {
+    "placeholders": {
+      "pos": {
+        "type": "String"
+      }
+    }
+  },
+  "qpWhichResembles": "کون سا حرف {name} سے ملتا جلتا ہے؟",
+  "@qpWhichResembles": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qpWhichLetterShapesThis": "یہاں یہ شکل کس حرف کی ہے؟",
+  "qpListBackward": "ان حروف کو الٹا ترتیب دیں — انہیں الٹے ترتیب میں دبائیں",
+  "qpDoesThisConnect": "کیا یہ حرف اگلے حرف سے ملتا ہے؟",
+  "optConnects": "ملتا ہے",
+  "optDoesNotConnect": "نہیں ملتا",
+  "qpWhichLetterStacksUnder": "اس لفظ میں، {letter} کس حرف کے اوپر بیٹھا ہے؟",
+  "@qpWhichLetterStacksUnder": {
+    "placeholders": {
+      "letter": {
+        "type": "String"
+      }
+    }
+  },
+  "qpWhichLetterEndsWord": "یہ لفظ کس حرف پر ختم ہوتا ہے؟",
+  "qpWhichHamzaForm": "{name} کون سا ہے؟",
+  "@qpWhichHamzaForm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qpSpellForward": "یہ لفظ ہجے کریں — اس کے حروف ترتیب سے دبائیں",
+  "qpSpellBackward": "یہ لفظ الٹا ہجے کریں — اس کے حروف الٹی ترتیب سے دبائیں",
+  "qpWhichRuleThisShape": "یہ تنوین کی شکل کس حکم کی نشاندہی کرتی ہے؟",
+  "qpWhichSurahOpensWith": "کون سی سورت اس سے شروع ہوتی ہے؟",
+  "qpHowManyCountsLetter": "یہ حرف اکیلا پڑھنے پر کتنی حرکتیں لیتا ہے؟",
+  "qpChooseLettersInSet": "اس مجموعے کا ہر حرف چنیں",
+  "surahsList": "سورتیں {list}",
+  "@surahsList": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "muqattaatCountsNote": "اکیلا پڑھنے پر حرکتیں: {counts}",
+  "@muqattaatCountsNote": {
+    "placeholders": {
+      "counts": {
+        "type": "String"
+      }
+    }
+  },
+  "tjIzharShafawiTrig": "میم ساکنہ کسی بھی حرف سے پہلے سوائے میم یا باء کے۔",
+  "tjIzharShafawiHow": "میم کو ہونٹ بند کر کے واضح ادا کریں — نہ چھپائیں نہ ملائیں۔",
+  "tjRaaTafkhimTrig": "راء فتحہ یا ضمہ کے ساتھ، یا ان کے بعد ساکن۔",
+  "tjRaaTafkhimHow": "بھاری، منہ بھرنے والی راء — زبان کا پچھلا حصہ گول کریں۔",
+  "tjRaaTarqiqTrig": "راء کسرہ کے ساتھ، یا اس کے بعد ساکن۔",
+  "tjRaaTarqiqHow": "ہلکی، باریک راء — نہ گولائی نہ بھاری پن۔",
+  "tjLamJalalahTrig": "لفظِ جلالہ ٱللَّٰه کا لام۔",
+  "tjLamJalalahHow": "فتحہ یا ضمہ کے بعد بھاری، کسرہ کے بعد باریک۔",
+  "audio": "آڈیو",
+  "listen": "سنیں",
+  "watch": "دیکھیں",
+  "unitWasl": "وصل",
+  "unitWaslSub": "جب ایک لفظ اگلے سے ملتا ہے تو کیا ہوتا ہے",
+  "solarLetters14": "چودہ حروفِ شمسیہ (حروف شمسية)",
+  "lunarLetters14": "چودہ حروفِ قمریہ (حروف قمرية)",
+  "zeroRectTitle": "مستطیل صفر",
+  "zeroRectNote": "اس لفظ پر وقف کرنے پر ادا ہوتا ہے، اگلے لفظ سے ملانے پر ساقط ہو جاتا ہے۔",
+  "zeroRoundTitle": "گول صفر",
+  "zeroRoundNote": "کبھی ادا نہیں ہوتا، وقف ہو یا وصل — لکھا جاتا ہے پڑھا نہیں جاتا۔",
+  "tanwinMeetsWaslTitle": "تنوین کا ہمزۂ وصل سے ملاپ",
+  "tanwinMeetsWaslNote": "یہاں دو ساکن آپس میں ملتے ہیں — تنوین کا پوشیدہ نون ان کو جدا کرنے کے لیے کسرہ لیتا ہے۔",
+  "qpLamHereDoes": "یہاں لام کا کیا ہوتا ہے؟",
+  "qpChooseEverySolarLetter": "ہر حرفِ شمسیہ منتخب کریں",
+  "qpAlifSoundsWhen": "کیا اس لفظ کے آخر میں الف کبھی ادا ہوتا ہے؟",
+  "optSoundedOnStopOnly": "صرف اس لفظ پر وقف کرنے پر",
+  "optNeverSounded": "کبھی نہیں — دونوں صورتوں میں",
+  "tjUnitMakharij": "مخارج",
+  "tjUnitMakharijSub": "ہر حرف کی آواز کہاں سے شروع ہوتی ہے",
+  "tjUnitSifat": "صفات",
+  "tjUnitSifatSub": "آواز کی خصوصیت، جہاں بھی بنے",
+  "tjUnitNun": "نون ساکنہ اور تنوین",
+  "tjUnitNunSub": "اظہار، ادغام، اقلاب، اخفاء",
+  "tjUnitMim": "میم ساکنہ اور غنہ",
+  "tjUnitMimSub": "میم کے اپنے چار قاعدے",
+  "tjUnitMadd": "مد",
+  "tjUnitMaddSub": "لمبی آواز کو کتنی دیر کھینچنا ہے",
+  "tjUnitLam": "لام کے احکام",
+  "tjUnitLamSub": "شمسیہ، قمریہ، اور لفظِ جلالہ کا لام",
+  "tjUnitRaa": "راء کے احکام",
+  "tjUnitRaaSub": "کب بھاری، کب ہلکی",
+  "tjUnitQalqalah": "قلقلہ",
+  "tjUnitQalqalahSub": "قطب جد کی گونجتی چھلانگ",
+  "tjUnitCases": "خاص مواقع",
+  "tjUnitCasesSub": "مصحف کے نادر، غیر معمولی مقامات",
+  "phaseLetters": "حروف",
+  "phaseLettersSub": "اس قاعدے کے حروف دیکھیں",
+  "phaseRecite": "تلاوت",
+  "phaseReciteSub": "صوتی مشق — جلد آ رہا ہے",
+  "browseAllRules": "تمام قواعد دیکھیں",
+  "qpWhichMakhrajLetter": "یہ حرف کہاں سے نکلتا ہے؟",
+  "qpWhichQualityDoesThisHave": "اس حرف میں ان میں سے کون سی صفت ہے؟",
+  "qpWhichSpecialCase": "یہ کون سا خاص مقام ہے؟",
+  "tjLettersInThisRule": "اس قاعدے کے حروف",
+  "scriptSymbols": "رسم اور علامات",
+  "scriptSymbolsSub": "علاماتِ وقف، سجدہ، اور مدنی بمقابلہ انڈوپاک رسم",
+  "tabScriptKicker": "مدنی اور انڈوپاک",
+  "tabScriptBlurb": "صفحے کی ہر علامت — علاماتِ وقف، سجدہ، اور دونوں رسموں کا فرق۔",
+  "unitScriptFamilies": "رسم کی اقسام",
+  "unitScriptFamiliesSub": "مدنی (عثمانی) اور انڈوپاک، شانہ بشانہ",
+  "unitMarksSigns": "نشانات اور علامات",
+  "unitMarksSignsSub": "تنوین کی ترتیب، چھوٹے حروف، اور دونوں خاموش صفر",
+  "unitWaqfStopping": "وقف اور رکنا",
+  "unitWaqfStoppingSub": "کب رکنا لازم ہے، کب منع، کب دونوں جائز",
+  "unitPageMarks": "صفحے کی علامات",
+  "unitPageMarksSub": "سجدہ اور ربعِ حزب",
+  "foundations4Units": "حوالہ · 4 یونٹ",
+  "qpWhichScriptIsThis": "مدنی یا انڈوپاک؟",
+  "qpWhichWaqfMark": "اس علامت پر کون سا وقف کا حکم لاگو ہوتا ہے؟",
+  "optMustStop": "رکنا لازم",
+  "optMustNotStop": "رکنا ممنوع",
+  "optEitherOk": "دونوں جائز",
+  "optStopAtOneNotBoth": "ایک پر رکیں، دونوں پر نہیں",
+  "optPreferContinue": "ملانا بہتر ہے",
+  "optPreferStop": "رکنا بہتر ہے",
+  "optPageMark": "صفحے یا رہنمائی کی علامت، وقف کا حکم نہیں",
+  "qpWhichSmallMark": "یہ کون سی علامت ہے؟",
+  "qpWhichPageMark": "یہ صفحے کی کون سی علامت ہے؟",
+  "scriptUnitsProgress": "{total} میں سے {done} یونٹس دیکھے گئے"
 }

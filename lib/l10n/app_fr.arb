@@ -12,6 +12,7 @@
   "qiraatSub": "Les dix lectures — mode avancé",
   "about": "À propos",
   "continueLabel": "Continuer",
+  "submitAnswer": "Valider",
   "wordByWord": "Mot à mot",
   "home": "Accueil",
   "salamGreeting": "As-salāmu ʿalaykum,",
@@ -89,7 +90,7 @@
   "fluencySprint": "Sprint de fluidité",
   "followGlowingCometFromGreen": "Suivez la comète lumineuse depuis le départ vert. Levez le doigt quand vous voulez et reprenez ; les points en dernier.",
   "formsQuiz": "Quiz des formes",
-  "foundations9Units": "Fondations · 9 unités",
+  "foundations9Units": "Fondations · 11 unités",
   "fromFirstAlifTenQira": "De votre premier alif aux dix Qirāʼāt",
   "fromLettersReadingRealWords": "Des lettres à la lecture de vrais mots",
   "guidedHandwriting": "Écriture guidée",
@@ -99,7 +100,7 @@
   "joiningForms": "Formes de liaison",
   "jumpToSurah": "Aller à une sourate",
   "k15LineMushaf": "Muṣḥaf 15 lignes",
-  "k16RulesColorCoded": "16 règles · en couleurs",
+  "k16RulesColorCoded": "20 règles · en couleurs",
   "learn": "APPRENDRE",
   "letterQuiz": "Quiz des lettres",
   "levelCompleteEveryLetterCleared": "🎉 Niveau terminé — toutes les lettres réussies !",
@@ -245,6 +246,14 @@
   "ltrHa": "Hā’",
   "ltrWaw": "Wāw",
   "ltrYa": "Yā’",
+  "ltrHamza": "Hamza",
+  "ltrAlefHamzaAbove": "Hamza sur alif",
+  "ltrAlefHamzaBelow": "Hamza sous alif",
+  "ltrWawHamza": "Hamza sur wāw",
+  "ltrYehHamza": "Hamza sur yā’",
+  "ltrTehMarbuta": "Tā’ Marbūṭah",
+  "ltrAlefMaksura": "Alif Maqṣūrah",
+  "ltrAlefWasla": "Alif al-Waṣl",
   "formAlone": "Isolée",
   "formStart": "Initiale",
   "formMiddle": "Médiane",
@@ -419,7 +428,7 @@
   "explorePath": "Explorez le parcours",
   "lettersToWords": "Lettres → mots",
   "writeByHand": "Écrire à la main",
-  "coloredRules16": "16 règles en couleur",
+  "coloredRules16": "20 règles en couleur",
   "surahs114": "114 sourates",
   "vowelsMarks": "Voyelles et signes",
   "lookAlikeDrills": "Exercices sur les sosies",
@@ -575,5 +584,164 @@
   "typefaces": "Typographies",
   "themeFamilyMint": "Menthe",
   "themeFamilyNoor": "Noor",
-  "fillPageWidth": "Remplir la largeur"
+  "fillPageWidth": "Remplir la largeur",
+  "phaseLearn": "Apprendre",
+  "phaseLearnSub": "La leçon — signes, lettres et vrais exemples coraniques.",
+  "phaseTest": "Test",
+  "phaseTestSub": "Un test noté. Un bon score rapporte des étoiles.",
+  "phasePractice": "Entraînement",
+  "phasePracticeSub": "Illimité et non noté — pas d'étoiles, juste de la répétition.",
+  "practiceRoundComplete": "Entraînement terminé — pas d'étoiles, juste de la répétition.",
+  "unitMuqattaat": "Ḥurūf Muqaṭṭaʿāt",
+  "unitMuqattaatSub": "Les lettres isolées qui ouvrent 29 sourates",
+  "extraLettersTitle": "Au-delà des 28",
+  "extraLettersSub": "Les sièges du hamza, le tāʼ marbūṭah, et plus — constants dans le muṣḥaf",
+  "smallLettersTitle": "Petites lettres",
+  "smallLettersSub": "Alif poignard, petit wāw, petit yāʼ",
+  "qpChooseDotsCount": "Choisissez chaque lettre avec {n} points",
+  "@qpChooseDotsCount": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "qpChooseDotsPos": "Choisissez chaque lettre avec un point {pos}",
+  "@qpChooseDotsPos": {
+    "placeholders": {
+      "pos": {
+        "type": "String"
+      }
+    }
+  },
+  "qpWhichResembles": "Quelle lettre ressemble à {name} ?",
+  "@qpWhichResembles": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qpWhichLetterShapesThis": "Quelle lettre a cette forme ici ?",
+  "qpListBackward": "Listez ces lettres à l'envers — touchez-les dans l'ordre inverse",
+  "qpDoesThisConnect": "Cette lettre se lie-t-elle à la lettre suivante ?",
+  "optConnects": "Se lie",
+  "optDoesNotConnect": "Ne se lie pas",
+  "qpWhichLetterStacksUnder": "Dans ce mot, sur quelle lettre {letter} s'empile-t-il ?",
+  "@qpWhichLetterStacksUnder": {
+    "placeholders": {
+      "letter": {
+        "type": "String"
+      }
+    }
+  },
+  "qpWhichLetterEndsWord": "Quelle lettre termine ce mot ?",
+  "qpWhichHamzaForm": "Laquelle est {name} ?",
+  "@qpWhichHamzaForm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qpSpellForward": "Épelez ce mot — touchez ses lettres dans l'ordre",
+  "qpSpellBackward": "Épelez ce mot à l'envers — touchez ses lettres dans l'ordre inverse",
+  "qpWhichRuleThisShape": "Cette forme de tanwīn signale quelle règle ?",
+  "qpWhichSurahOpensWith": "Quelle sourate commence par ceci ?",
+  "qpHowManyCountsLetter": "Combien de temps quand cette lettre est lue seule ?",
+  "qpChooseLettersInSet": "Choisissez chaque lettre de cet ensemble",
+  "surahsList": "Sourates {list}",
+  "@surahsList": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "muqattaatCountsNote": "Temps lue seule : {counts}",
+  "@muqattaatCountsNote": {
+    "placeholders": {
+      "counts": {
+        "type": "String"
+      }
+    }
+  },
+  "tjIzharShafawiTrig": "Mīm sākinah avant toute lettre sauf م ou ب.",
+  "tjIzharShafawiHow": "Prononcez le mīm clairement, lèvres fermées — sans le cacher ni le fondre.",
+  "tjRaaTafkhimTrig": "Rā’ avec fatḥah ou ḍammah, ou sākinah après l’une d’elles.",
+  "tjRaaTafkhimHow": "Un rā’ lourd, pleine bouche — arrondissez l’arrière de la langue.",
+  "tjRaaTarqiqTrig": "Rā’ avec kasrah, ou sākinah après elle.",
+  "tjRaaTarqiqHow": "Un rā’ léger et fin — sans arrondi, sans lourdeur.",
+  "tjLamJalalahTrig": "Le lām du nom d’Allāh, ٱللَّٰه.",
+  "tjLamJalalahHow": "Lourd après fatḥah/ḍammah, léger après kasrah.",
+  "audio": "Audio",
+  "listen": "Écouter",
+  "watch": "Regarder",
+  "unitWasl": "Waṣl",
+  "unitWaslSub": "Ce qui se passe là où un mot rencontre le suivant",
+  "solarLetters14": "Les 14 lettres solaires (حروف شمسية)",
+  "lunarLetters14": "Les 14 lettres lunaires (حروف قمرية)",
+  "zeroRectTitle": "Le zéro rectangulaire",
+  "zeroRectNote": "Prononcé si l’on s’arrête sur ce mot, silencieux si l’on continue.",
+  "zeroRoundTitle": "Le zéro rond",
+  "zeroRoundNote": "Jamais prononcé, à l’arrêt comme en continuant — écrit mais non lu.",
+  "tanwinMeetsWaslTitle": "Le tanwīn rencontre le hamzat al-waṣl",
+  "tanwinMeetsWaslNote": "Deux sons sākin se rencontreraient ici — le nūn caché du tanwīn prend une kasrah pour les séparer.",
+  "qpLamHereDoes": "Que devient le lām ici ?",
+  "qpChooseEverySolarLetter": "Choisissez chaque lettre solaire",
+  "qpAlifSoundsWhen": "L’alif à la fin de ce mot se prononce-t-il jamais ?",
+  "optSoundedOnStopOnly": "Seulement si l’on s’arrête sur ce mot",
+  "optNeverSounded": "Jamais — dans les deux cas",
+  "tjUnitMakharij": "Makhārij",
+  "tjUnitMakharijSub": "D’où commence le son de chaque lettre",
+  "tjUnitSifat": "Ṣifāt",
+  "tjUnitSifatSub": "Le caractère d’un son, où qu’il soit produit",
+  "tjUnitNun": "Nūn Sākinah et Tanwīn",
+  "tjUnitNunSub": "Iẓhār, idghām, iqlāb, ikhfā’",
+  "tjUnitMim": "Mīm Sākinah et Ghunnah",
+  "tjUnitMimSub": "Les quatre règles propres au mīm",
+  "tjUnitMadd": "Madd",
+  "tjUnitMaddSub": "Combien de temps tenir une voyelle allongée",
+  "tjUnitLam": "Règles du Lām",
+  "tjUnitLamSub": "Solaire, lunaire, et le lām du nom d’Allāh",
+  "tjUnitRaa": "Règles du Rā’",
+  "tjUnitRaaSub": "Quand il est lourd, quand il est léger",
+  "tjUnitQalqalah": "Qalqalah",
+  "tjUnitQalqalahSub": "Le rebond sonore de قطب جد",
+  "tjUnitCases": "Cas particuliers",
+  "tjUnitCasesSub": "Les rares endroits irréguliers du muṣḥaf",
+  "phaseLetters": "Lettres",
+  "phaseLettersSub": "Parcourir les lettres concernées par cette règle",
+  "phaseRecite": "Réciter",
+  "phaseReciteSub": "Entraînement vocal — bientôt disponible",
+  "browseAllRules": "Parcourir toutes les règles",
+  "qpWhichMakhrajLetter": "Où ce son est-il articulé ?",
+  "qpWhichQualityDoesThisHave": "Laquelle de ces qualités cette lettre possède-t-elle ?",
+  "qpWhichSpecialCase": "Quel est ce cas particulier ?",
+  "tjLettersInThisRule": "Les lettres de cette règle",
+  "scriptSymbols": "Écriture & Symboles",
+  "scriptSymbolsSub": "Signes de waqf, sajdah, et Madani vs Indo-Pak",
+  "tabScriptKicker": "Madani et Indo-Pak",
+  "tabScriptBlurb": "Chaque signe sur la page — signes de waqf, sajdah, et les différences entre les deux écritures.",
+  "unitScriptFamilies": "Familles d’écriture",
+  "unitScriptFamiliesSub": "Madani (Uthmānī) et Indo-Pak, côte à côte",
+  "unitMarksSigns": "Marques & Signes",
+  "unitMarksSignsSub": "Alignement du tanwīn, petites lettres, les deux zéros silencieux",
+  "unitWaqfStopping": "Waqf & Arrêt",
+  "unitWaqfStoppingSub": "Quand il faut s’arrêter, quand il ne faut pas, ou quand les deux conviennent",
+  "unitPageMarks": "Marques de Page",
+  "unitPageMarksSub": "Sajdah et rubʿ al-ḥizb",
+  "foundations4Units": "Référence · 4 unités",
+  "qpWhichScriptIsThis": "Madani ou Indo-Pak ?",
+  "qpWhichWaqfMark": "Quelle règle d’arrêt s’applique à ce signe ?",
+  "optMustStop": "Arrêt obligatoire",
+  "optMustNotStop": "Ne pas s’arrêter",
+  "optEitherOk": "Les deux conviennent",
+  "optStopAtOneNotBoth": "Arrêtez-vous à l’une, jamais aux deux",
+  "optPreferContinue": "Mieux vaut continuer",
+  "optPreferStop": "Mieux vaut s’arrêter",
+  "optPageMark": "Une marque de page/navigation, pas une règle d’arrêt",
+  "qpWhichSmallMark": "Quel est ce signe ?",
+  "qpWhichPageMark": "Quelle est cette marque de page ?",
+  "scriptUnitsProgress": "{done} sur {total} unités explorées"
 }

@@ -44,6 +44,8 @@ Path smoothPathScaled(List<Offset> pts, double u) =>
 
 // ── registries ──────────────────────────────────────────────────────
 
+// Mirrors ArabicLetter.joins in letters.dart (that is the source of truth
+// for the Qaidah quizzes; this copy is tracing-only and has no callers yet).
 const String _noJoin = 'اودذرز'; // letters with no start/middle form
 
 bool letterJoins(String ch) => !_noJoin.contains(ch);

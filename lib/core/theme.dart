@@ -31,6 +31,7 @@ class AppColors {
   static const tjMadd6 = Color(0xFFE2554F);
   static const tjShamsiyya = Color(0xFFE0709A);
   static const tjQamariyya = Color(0xFF6E8FE8);
+  static const tjRaa = Color(0xFFB86B4B);
 }
 
 /// Mode-dependent surface & text tokens.

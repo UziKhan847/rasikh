@@ -639,7 +639,14 @@ class _BeatsPainter extends CustomPainter {
       old.progress != progress || old.beat != beat || old.counts != counts;
 }
 
-QuizScreen _tashkilQuiz(BuildContext context, bool focusCounts) {
+/// Public entry point for the Qaidah "Madd & Līn" unit's Test/Practice
+/// phases — the counts-focused tashkīl quiz, without exposing [_tashkilQuiz]
+/// itself.
+QuizScreen maddLinQuizScreen(BuildContext context, {bool graded = true}) =>
+    _tashkilQuiz(context, true, graded: graded);
+
+QuizScreen _tashkilQuiz(BuildContext context, bool focusCounts,
+    {bool graded = true}) {
   final rng = math.Random();
   final items =
       (focusCounts ? tashkil.where((t) => t.counts >= 2).toList() : tashkil)
@@ -680,5 +687,6 @@ QuizScreen _tashkilQuiz(BuildContext context, bool focusCounts) {
   return QuizScreen(
       title: context.l10n.tashkilQuiz,
       progressId: focusCounts ? 'qaidah.madd' : 'tashkil.quiz',
-      questions: qs);
+      questions: qs,
+      graded: graded);
 }

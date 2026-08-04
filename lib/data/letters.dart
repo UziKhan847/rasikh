@@ -28,7 +28,17 @@ class ArabicLetter {
   String get initial => '$char\u0640';
   String get medial => '\u0640$char\u0640';
   String get finalForm => '\u0640$char';
+
+  /// Whether this letter connects to the LETTER AFTER it. The six
+  /// non-connectors (\u0627 \u0648 \u062f \u0630 \u0631 \u0632) only ever join on their right side, so they
+  /// have just two real shapes \u2014 alone and joined-final \u2014 never a start or
+  /// middle form. Single source of truth: previously duplicated as
+  /// `_noJoin`/`letterJoins()` in strokes.dart and `_nonJoiners` in
+  /// qaidah_screen.dart.
+  bool get joins => !_nonConnectors.contains(char);
 }
+
+const _nonConnectors = '\u0627\u0648\u062f\u0630\u0631\u0632';
 
 const letters = <ArabicLetter>[
   ArabicLetter(char: 'ا', name: 'Alif', translit: 'ā', dotCount: 0, dotPos: 'none', similarGroup: null, exampleWord: 'أَحَدٌ', exampleRef: '112:1', glyphId: 'alif'),

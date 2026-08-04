@@ -36,6 +36,7 @@ class _DesktopShellState extends State<DesktopShell> {
     DeskTab.tashkil,
     DeskTab.tajwid,
     DeskTab.coach,
+    DeskTab.script,
     DeskTab.qiraat,
   ];
 
@@ -107,6 +108,8 @@ class _DesktopShellState extends State<DesktopShell> {
         return const DesktopTajwid();
       case DeskTab.coach:
         return const DesktopCoach();
+      case DeskTab.script:
+        return const DesktopScript();
       case DeskTab.qiraat:
         return const DesktopQiraat();
       case DeskTab.about:

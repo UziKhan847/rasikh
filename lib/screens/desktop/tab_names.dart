@@ -17,6 +17,7 @@ String deskTitleOf(BuildContext context, DeskTab t) => switch (t) {
       DeskTab.tashkil => context.l10n.tashkilLab,
       DeskTab.tajwid => context.l10n.tajwidAcademy,
       DeskTab.coach => context.l10n.readingCoach,
+      DeskTab.script => context.l10n.scriptSymbols,
       DeskTab.qiraat => context.l10n.qiraHallAdvanced,
       DeskTab.about => context.l10n.about,
     };
@@ -29,6 +30,7 @@ String deskKickerOf(BuildContext context, DeskTab t) => switch (t) {
       DeskTab.tashkil => context.l10n.tabTashkilKicker,
       DeskTab.tajwid => context.l10n.tabTajwidKicker,
       DeskTab.coach => context.l10n.tabCoachKicker,
+      DeskTab.script => context.l10n.tabScriptKicker,
       DeskTab.qiraat => context.l10n.tabQiraatKicker,
       DeskTab.about => context.l10n.qiraahArabiyyah,
     };
@@ -41,6 +43,7 @@ String deskBlurbOf(BuildContext context, DeskTab t) => switch (t) {
       DeskTab.tashkil => context.l10n.tabTashkilBlurb,
       DeskTab.tajwid => context.l10n.tabTajwidBlurb,
       DeskTab.coach => context.l10n.tabCoachBlurb,
+      DeskTab.script => context.l10n.tabScriptBlurb,
       DeskTab.qiraat => context.l10n.tabQiraatBlurb,
       DeskTab.about => context.l10n.tabAboutBlurb,
     };

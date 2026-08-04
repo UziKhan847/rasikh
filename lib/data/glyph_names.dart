@@ -48,6 +48,14 @@ String letterNameOf(BuildContext context, String char) => switch (char) {
       'ه' => context.l10n.ltrHa,
       'و' => context.l10n.ltrWaw,
       'ي' => context.l10n.ltrYa,
+      'ء' => context.l10n.ltrHamza,
+      'أ' => context.l10n.ltrAlefHamzaAbove,
+      'إ' => context.l10n.ltrAlefHamzaBelow,
+      'ؤ' => context.l10n.ltrWawHamza,
+      'ئ' => context.l10n.ltrYehHamza,
+      'ة' => context.l10n.ltrTehMarbuta,
+      'ى' => context.l10n.ltrAlefMaksura,
+      'ٱ' => context.l10n.ltrAlefWasla,
       _ => char,
     };
 
@@ -220,6 +228,10 @@ String tajwidTrigger(BuildContext context, TajwidRule r) => switch (r.id) {
       'shamsiyya' => context.l10n.tjShamsiyyaTrig,
       'qamariyya' => context.l10n.tjQamariyyaTrig,
       'tafkhim' => context.l10n.tjTafkhimTrig,
+      'izhar_shafawi' => context.l10n.tjIzharShafawiTrig,
+      'raa_tafkhim' => context.l10n.tjRaaTafkhimTrig,
+      'raa_tarqiq' => context.l10n.tjRaaTarqiqTrig,
+      'lam_jalalah' => context.l10n.tjLamJalalahTrig,
       _ => context.l10n.tjGhunnahTrig,
     };
 
@@ -240,5 +252,9 @@ String tajwidHow(BuildContext context, TajwidRule r) => switch (r.id) {
       'shamsiyya' => context.l10n.tjShamsiyyaHow,
       'qamariyya' => context.l10n.tjQamariyyaHow,
       'tafkhim' => context.l10n.tjTafkhimHow,
+      'izhar_shafawi' => context.l10n.tjIzharShafawiHow,
+      'raa_tafkhim' => context.l10n.tjRaaTafkhimHow,
+      'raa_tarqiq' => context.l10n.tjRaaTarqiqHow,
+      'lam_jalalah' => context.l10n.tjLamJalalahHow,
       _ => context.l10n.tjGhunnahHow,
     };

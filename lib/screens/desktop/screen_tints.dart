@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// Per-tab color identity, copied from the desktop reference. Each learning
 /// area has its own hero gradient, kicker color, soft tint, and watermark —
 /// so every screen reads as its own place while sharing one design language.
-enum DeskTab { home, reader, qaidah, tracing, tashkil, tajwid, coach, qiraat, about }
+enum DeskTab { home, reader, qaidah, tracing, tashkil, tajwid, coach, script, qiraat, about }
 
 class TabTint {
   final String kicker; // small caps label above the title
@@ -35,6 +35,7 @@ const _green = [Color(0xFF43B36A), Color(0xFF2E9B53)];
 const _teal = [Color(0xFF23C5AE), Color(0xFF149C8B)];
 const _coral = [Color(0xFFF08478), Color(0xFFE45F52)];
 const _purple = [Color(0xFF8E7DC4), Color(0xFF6E5BB0)];
+const _amber = [Color(0xFFD9A441), Color(0xFFB9832A)];
 
 const Map<DeskTab, TabTint> kTint = {
   DeskTab.home: TabTint('Assalāmu ʿalaykum', 'Home',
@@ -65,6 +66,10 @@ const Map<DeskTab, TabTint> kTint = {
       'Same shape, different dots — drills until you read without a pause.',
       _coral, Color(0xFFE45F52), Color(0xFFFCE7E3), 'ث',
       Icons.remove_red_eye_rounded, softDark: Color(0xFF2A1512)),
+  DeskTab.script: TabTint('Madani & Indo-Pak', 'Script & Symbols',
+      'Every mark on the page — waqf signs, sajdah, and how the two scripts differ.',
+      _amber, Color(0xFFB9832A), Color(0xFFF7ECD9), '۩',
+      Icons.style_rounded, softDark: Color(0xFF2E2412)),
   DeskTab.qiraat: TabTint('The ten readings', 'Qirā’āt Hall',
       'The ten canonical readers, their cities, and their transmitters.',
       _purple, Color(0xFF7259B0), Color(0xFFEDE7F8), 'ط',

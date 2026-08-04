@@ -14,12 +14,14 @@ import '../../data/tajweed.dart';
 import '../../data/glyph_names.dart';
 import '../../data/tashkeel.dart';
 import '../../data/tracing_levels.dart';
-import '../../widgets/common.dart' show StarRow, TapScale, QuizHostScope;
+import '../../widgets/common.dart'
+    show StarRow, TapScale, QuizHostScope, PhaseHub;
 import '../dyslexia_screen.dart'
     show SpotTheLetterDrill, DotDetectiveDrill, FluencySprint, mistakeReviewQuiz;
 import '../qaidah_screen.dart' show QaidahUnit, qaidahUnits;
 import '../quran_screen.dart' show SurahReaderScreen;
-import '../tajweed_screen.dart' show tajwidQuizScreen;
+import '../script_screen.dart' show ScriptUnit, scriptUnits;
+import '../tajweed_screen.dart' show tajwidQuizScreen, TajwidUnit, tajwidUnits;
 import '../tashkeel_screen.dart' show CountsStudio;
 import '../tracing_screen.dart' show TracingBoard;
 import 'screen_tints.dart';
@@ -155,11 +157,71 @@ Widget _scroll(BuildContext context, List<Widget> children) => ListView(
     );
 
 // ═══════════════════════════ TAJWĪD ACADEMY ══════════════════════════════════
-class DesktopTajwid extends StatelessWidget {
+class DesktopTajwid extends StatefulWidget {
   const DesktopTajwid({super.key});
+  @override
+  State<DesktopTajwid> createState() => _DesktopTajwidState();
+}
+
+class _DesktopTajwidState extends State<DesktopTajwid> {
+  TajwidUnit? open;
+  int? openPhase;
 
   @override
   Widget build(BuildContext context) {
+    if (open != null) {
+      final phaseBuilder = openPhase == null ? null : open!.phases[openPhase!].builder;
+      return Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(34, 0, 34, 8),
+          child: Row(children: [
+            Material(
+              color: pal(context).surface,
+              borderRadius: BorderRadius.circular(13),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(13),
+                onTap: () => setState(() {
+                  if (openPhase != null) {
+                    openPhase = null;
+                  } else {
+                    open = null;
+                  }
+                }),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                      border: Border.all(color: pal(context).surfaceHigh),
+                      borderRadius: BorderRadius.circular(13)),
+                  child: Icon(Icons.arrow_back_rounded, color: pal(context).text),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Text(open!.title,
+                style: uiStyle(context, size: 22, weight: FontWeight.w900)),
+          ]),
+        ),
+        Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1280),
+              child: phaseBuilder == null
+                  ? PhaseHub(
+                      subtitle: open!.subtitle,
+                      phases: open!.phases,
+                      onPick: (i) => setState(() => openPhase = i),
+                    )
+                  : QuizHostScope(
+                      embedded: true,
+                      child: _UnitHost(builder: phaseBuilder),
+                    ),
+            ),
+          ),
+        ),
+      ]);
+    }
+    final units = tajwidUnits(context);
     return _scroll(context, [
       deskHero(context, DeskTab.tajwid,
           kicker: context.l10n.k16RulesColorCoded,
@@ -206,54 +268,173 @@ class DesktopTajwid extends StatelessWidget {
       const SizedBox(height: 26),
       deskSection(context, DeskTab.tajwid, context.l10n.theRules, action: context.l10n.takeTheQuiz,
           onAction: () => pushAdaptive(context, tajwidQuizScreen(context))),
-      deskGrid([for (final r in tajwidRules) _ruleCard(context, r)],
-          minWidth: 300),
+      deskGrid([
+        for (final u in units) _unitCard(context, u)
+      ], minWidth: 300),
     ]);
   }
 
-  Widget _ruleCard(BuildContext context, TajwidRule r) {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: pal(context).surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border(top: BorderSide(color: r.color, width: 4)),
-        boxShadow: [
-          BoxShadow(
-              color: pal(context).shadow,
-              blurRadius: 12,
-              offset: const Offset(0, 4)),
-        ],
+  Widget _unitCard(BuildContext context, TajwidUnit u) {
+    return Material(
+      color: pal(context).surface,
+      borderRadius: BorderRadius.circular(18),
+      elevation: 5,
+      shadowColor: pal(context).shadow,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => setState(() => open = u),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(children: [
+            Container(
+              width: 52, height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: pal(context).surfaceHigh,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(u.arabicBadge,
+                  style: quranicStyle(context, size: 22, height: 1.3,
+                      color: pal(context).accent)),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(u.title,
+                      style: uiStyle(context, size: 16.5, weight: FontWeight.w700)),
+                  const SizedBox(height: 3),
+                  Text(u.subtitle,
+                      style: uiStyle(context, size: 13, color: pal(context).textDim)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: pal(context).textDim),
+          ]),
+        ),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text(r.arabicName,
-              style: quranicStyle(context, size: 32, height: 1.85, color: r.color)),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-            decoration: BoxDecoration(
-                color: r.color.withValues(alpha: .14),
-                borderRadius: BorderRadius.circular(9)),
-            child: Text(r.name,
-                style: uiStyle(context,
-                    size: 11.5, weight: FontWeight.w800, color: r.color)),
+    );
+  }
+}
+
+// ═════════════════════════ SCRIPT & SYMBOLS ═══════════════════════════════════
+class DesktopScript extends StatefulWidget {
+  const DesktopScript({super.key});
+  @override
+  State<DesktopScript> createState() => _DesktopScriptState();
+}
+
+class _DesktopScriptState extends State<DesktopScript> {
+  ScriptUnit? open;
+  int? openPhase;
+
+  @override
+  Widget build(BuildContext context) {
+    if (open != null) {
+      final phaseBuilder = openPhase == null ? null : open!.phases[openPhase!].builder;
+      return Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(34, 0, 34, 8),
+          child: Row(children: [
+            Material(
+              color: pal(context).surface,
+              borderRadius: BorderRadius.circular(13),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(13),
+                onTap: () => setState(() {
+                  if (openPhase != null) {
+                    openPhase = null;
+                  } else {
+                    open = null;
+                  }
+                }),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                      border: Border.all(color: pal(context).surfaceHigh),
+                      borderRadius: BorderRadius.circular(13)),
+                  child: Icon(Icons.arrow_back_rounded, color: pal(context).text),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Text(open!.title,
+                style: uiStyle(context, size: 22, weight: FontWeight.w900)),
+          ]),
+        ),
+        Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1280),
+              child: phaseBuilder == null
+                  ? PhaseHub(
+                      subtitle: open!.subtitle,
+                      phases: open!.phases,
+                      onPick: (i) => setState(() => openPhase = i),
+                    )
+                  : QuizHostScope(
+                      embedded: true,
+                      child: _UnitHost(builder: phaseBuilder),
+                    ),
+            ),
           ),
-        ]),
-        const SizedBox(height: 14),
-        Text(r.name,
-            style: uiStyle(context, size: 17, weight: FontWeight.w800)),
-        const SizedBox(height: 5),
-        Text(tajwidTrigger(context, r),
-            style: uiStyle(context, size: 13.5, color: pal(context).textDim)
-                .copyWith(height: 1.5)),
-        const SizedBox(height: 16),
-        const Divider(height: 1),
-        const SizedBox(height: 14),
-        Text(tajwidHow(context, r),
-            style: uiStyle(context, size: 13, color: pal(context).text)
-                .copyWith(height: 1.5)),
-      ]),
+        ),
+      ]);
+    }
+    final units = scriptUnits(context);
+    return _scroll(context, [
+      deskHero(context, DeskTab.script,
+          kicker: context.l10n.foundations4Units,
+          title: context.l10n.scriptSymbols,
+          blurb: context.l10n.scriptSymbolsSub),
+      const SizedBox(height: 24),
+      deskSection(context, DeskTab.script, context.l10n.everyUnit),
+      deskGrid([for (final u in units) _unitCard(context, u)], minWidth: 320),
+    ]);
+  }
+
+  Widget _unitCard(BuildContext context, ScriptUnit u) {
+    return Material(
+      color: pal(context).surface,
+      borderRadius: BorderRadius.circular(18),
+      elevation: 5,
+      shadowColor: pal(context).shadow,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => setState(() => open = u),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(children: [
+            Container(
+              width: 52, height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: pal(context).surfaceHigh,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(u.arabicBadge,
+                  style: quranicStyle(context, size: 20, height: 1.3,
+                      color: pal(context).accent)),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(u.title,
+                      style: uiStyle(context, size: 16.5, weight: FontWeight.w700)),
+                  const SizedBox(height: 3),
+                  Text(u.subtitle,
+                      style: uiStyle(context, size: 13, color: pal(context).textDim)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: pal(context).textDim),
+          ]),
+        ),
+      ),
     );
   }
 }
@@ -464,11 +645,15 @@ class DesktopQaidah extends StatefulWidget {
 
 class _DesktopQaidahState extends State<DesktopQaidah> {
   QaidahUnit? open;
+  int? openPhase;
 
   @override
   Widget build(BuildContext context) {
     if (open != null) {
-      // host the unit inside the shell with a desktop back header
+      // host the unit (phase hub, then the picked phase) inside the shell
+      // with a desktop back header — back from a phase returns to the hub,
+      // back from the hub returns to the unit list.
+      final phaseBuilder = openPhase == null ? null : open!.phases[openPhase!].builder;
       return Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(34, 0, 34, 8),
@@ -478,7 +663,13 @@ class _DesktopQaidahState extends State<DesktopQaidah> {
               borderRadius: BorderRadius.circular(13),
               child: InkWell(
                 borderRadius: BorderRadius.circular(13),
-                onTap: () => setState(() => open = null),
+                onTap: () => setState(() {
+                  if (openPhase != null) {
+                    openPhase = null;
+                  } else {
+                    open = null;
+                  }
+                }),
                 child: Container(
                   width: 44,
                   height: 44,
@@ -498,10 +689,16 @@ class _DesktopQaidahState extends State<DesktopQaidah> {
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1280),
-              child: QuizHostScope(
-                embedded: true,
-                child: _UnitHost(builder: open!.builder),
-              ),
+              child: phaseBuilder == null
+                  ? PhaseHub(
+                      subtitle: open!.subtitle,
+                      phases: open!.phases,
+                      onPick: (i) => setState(() => openPhase = i),
+                    )
+                  : QuizHostScope(
+                      embedded: true,
+                      child: _UnitHost(builder: phaseBuilder),
+                    ),
             ),
           ),
         ),
