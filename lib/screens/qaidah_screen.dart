@@ -9,6 +9,7 @@ import '../core/theme.dart';
 import '../data/extra_letters.dart';
 import '../data/glyph_names.dart';
 import '../data/letters.dart';
+import '../data/makharij.dart';
 import '../data/muqattaat.dart';
 import '../data/quran.dart' show stripTashkil;
 import '../data/small_letters.dart';
@@ -18,6 +19,10 @@ import '../data/tashkeel.dart';
 import '../data/variants.dart';
 import '../data/wasl.dart';
 import '../widgets/common.dart';
+import '../widgets/lesson.dart';
+import 'lessons/forms_lessons.dart';
+import 'lessons/qaidah_lessons.dart';
+import 'lessons/tajwid_lessons.dart';
 import 'tashkeel_screen.dart';
 
 /// 📖 The Qaidah Path — the full beginner journey, in the order a
@@ -124,7 +129,7 @@ List<QaidahUnit> qaidahUnits(BuildContext context) => [
       QaidahUnit(context.l10n.unitJoiningForms, context.l10n.unitJoiningFormsSub,
           'ـبـ', 'qaidah.forms',
           phases: standardPhases(context,
-              learn: (_) => const FormsLab(),
+              learn: (c) => lessonEntryScreen(formsLessonRoot(c)),
               test: (c) => _formsQuiz(c),
               practice: (c) => _formsPracticeQuiz(c))),
       QaidahUnit(context.l10n.unitHarakat, context.l10n.unitHarakatSub, 'بَ',
@@ -157,7 +162,7 @@ List<QaidahUnit> qaidahUnits(BuildContext context) => [
       QaidahUnit(context.l10n.unitMaddLin, context.l10n.unitMaddLinSub, 'بَا',
           'qaidah.madd',
           phases: standardPhases(context,
-              learn: (_) => const TashkeelScreen(focusCounts: true),
+              learn: (c) => lessonEntryScreen(tashkilLessonRoot(c, focusCounts: true)),
               test: (c) => maddLinQuizScreen(c),
               practice: (c) => maddLinQuizScreen(c, graded: false))),
       QaidahUnit(context.l10n.readingWords, context.l10n.unitReadingWordsSub,
@@ -308,15 +313,19 @@ class LettersExplorer extends StatelessWidget {
             runSpacing: 12,
             children: [
               for (final s in smallLetters)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  decoration: _deskCard(context),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text(s.mark,
-                        style: quranicStyle(context, size: 30, color: pal(context).accent)),
-                    const SizedBox(height: 6),
-                    Text(s.name, style: uiStyle(context, size: 12.5)),
-                  ]),
+                TapScale(
+                  onTap: () => pushAdaptive(
+                      context, LessonDetailScreen(node: smallLetterLessonNode(context, s))),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                    decoration: _deskCard(context),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text(s.mark,
+                          style: quranicStyle(context, size: 30, color: pal(context).accent)),
+                      const SizedBox(height: 6),
+                      Text(s.name, style: uiStyle(context, size: 12.5)),
+                    ]),
+                  ),
                 ),
             ],
           ),
@@ -331,7 +340,8 @@ class LettersExplorer extends StatelessWidget {
   const LettersExplorer({super.key});
 
   Widget _smallGrid(BuildContext context, List<ArabicLetter> items,
-          void Function(ArabicLetter) onTap) =>
+          void Function(ArabicLetter) onTap,
+          {int startDelay = 0}) =>
       GridView.builder(
         padding: EdgeInsets.zero,
         shrinkWrap: true,
@@ -341,15 +351,18 @@ class LettersExplorer extends StatelessWidget {
         itemCount: items.length,
         itemBuilder: (context, i) {
           final l = items[i];
-          return TapScale(
-            onTap: () => onTap(l),
-            child: Container(
-              decoration: BoxDecoration(
-                color: pal(context).surface,
-                borderRadius: BorderRadius.circular(18),
+          return FadeSlideIn(
+            delayMs: startDelay + 22 * i,
+            child: TapScale(
+              onTap: () => onTap(l),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: pal(context).surface,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                alignment: Alignment.center,
+                child: Text(l.char, style: quranicStyle(context, size: 34)),
               ),
-              alignment: Alignment.center,
-              child: Text(l.char, style: quranicStyle(context, size: 34)),
             ),
           );
         },
@@ -397,28 +410,36 @@ class LettersExplorer extends StatelessWidget {
             ),
             SectionHeader(context.l10n.extraLettersTitle,
                 subtitle: context.l10n.extraLettersSub),
-            _smallGrid(context, extraLetters,
-                (l) => pushAdaptive(context, LetterDetail(letter: l))),
+            _smallGrid(
+                context, extraLetters, (l) => pushAdaptive(context, LetterDetail(letter: l)),
+                startDelay: 22 * letters.length),
             SectionHeader(context.l10n.smallLettersTitle,
                 subtitle: context.l10n.smallLettersSub),
             Wrap(
               spacing: 10,
               runSpacing: 10,
               children: [
-                for (final s in smallLetters)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: pal(context).surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: pal(context).surfaceHigh),
+                for (var i = 0; i < smallLetters.length; i++)
+                  FadeSlideIn(
+                    delayMs: 22 * (letters.length + extraLetters.length) + 22 * i,
+                    child: TapScale(
+                      onTap: () => pushAdaptive(
+                          context, LessonDetailScreen(node: smallLetterLessonNode(context, smallLetters[i]))),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: pal(context).surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: pal(context).surfaceHigh),
+                        ),
+                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                          Text(smallLetters[i].mark,
+                              style: quranicStyle(context, size: 26, color: pal(context).accent)),
+                          const SizedBox(height: 4),
+                          Text(smallLetters[i].name, style: uiStyle(context, size: 11.5)),
+                        ]),
+                      ),
                     ),
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text(s.mark,
-                          style: quranicStyle(context, size: 26, color: pal(context).accent)),
-                      const SizedBox(height: 4),
-                      Text(s.name, style: uiStyle(context, size: 11.5)),
-                    ]),
                   ),
               ],
             ),
@@ -436,6 +457,125 @@ class LettersExplorer extends StatelessWidget {
   }
 }
 
+/// 'beginning' | 'middle' | 'end' → the reader's language.
+String _posLabel(BuildContext context, String p) => switch (p) {
+      'beginning' => context.l10n.posBeginning,
+      'middle' => context.l10n.posMiddle,
+      _ => context.l10n.posEnd,
+    };
+
+/// One real word showing a letter in context, tagged with where it sits —
+/// used by [LetterDetail] so "several real examples, not just one" looks and
+/// behaves the same everywhere it appears.
+Widget _wordCard(BuildContext context, LetterExample w) {
+  return Container(
+    padding: const EdgeInsets.fromLTRB(16, 22, 16, 24),
+    decoration: _deskCard(context),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+            color: pal(context).accent.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(_posLabel(context, w.position),
+              style: uiStyle(context,
+                  size: 11.5, weight: FontWeight.w800, color: pal(context).accent)),
+        ),
+        Text(w.word,
+            textDirection: TextDirection.rtl,
+            style: quranicStyle(context, size: 56, height: 1.85, color: pal(context).text)),
+        Text(w.translit,
+            style: uiStyle(context,
+                size: 14, weight: FontWeight.w600, color: pal(context).textDim)),
+      ],
+    ),
+  );
+}
+
+/// Mobile counterpart of [_wordCard] — a compact row instead of a tall card.
+Widget _mobWordCard(BuildContext context, LetterExample w) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: pal(context).surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: pal(context).surfaceHigh),
+      ),
+      child: Row(children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: pal(context).accent.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Text(_posLabel(context, w.position),
+              style: uiStyle(context,
+                  size: 10.5, weight: FontWeight.w800, color: pal(context).accent)),
+        ),
+        const Spacer(),
+        Text(w.translit,
+            style: uiStyle(context,
+                size: 12.5, weight: FontWeight.w600, color: pal(context).textDim)),
+        const SizedBox(width: 12),
+        Text(w.word, textDirection: TextDirection.rtl, style: quranicStyle(context, size: 30)),
+      ]),
+    );
+
+/// A letter's articulation point, cross-linking into its Tajwīd Makhārij
+/// lesson page — real data ([makhrajOfLetter]/[makhrajOfExtraLetter])
+/// already existed for the quiz engine but was never surfaced here.
+Widget _makhrajRow(BuildContext context, String char) {
+  final id = makhrajOfLetter[char] ?? makhrajOfExtraLetter[char];
+  if (id == null) return const SizedBox.shrink();
+  final m = makhrajById(id);
+  return TapScale(
+    onTap: () => openLesson(context, makharijPointNode(context, id)),
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: pal(context).surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: pal(context).surfaceHigh),
+      ),
+      child: Row(children: [
+        Container(
+          width: 46, height: 46,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: pal(context).accent.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: m.letters.isEmpty
+              ? Text(char,
+                  textDirection: TextDirection.rtl,
+                  style: quranicStyle(context, size: 17, color: pal(context).accent))
+              : FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: separatedLetters(context, m.letters,
+                      size: 17, color: pal(context).accent, max: 3),
+                ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(m.name, style: uiStyle(context, size: 14.5, weight: FontWeight.w700)),
+              Text(m.arabicName,
+                  textDirection: TextDirection.rtl,
+                  style: arabicStyle(context, size: 13, color: pal(context).textDim)),
+            ],
+          ),
+        ),
+        Icon(Icons.chevron_right_rounded, color: pal(context).textDim),
+      ]),
+    ),
+  );
+}
+
 class LetterDetail extends StatelessWidget with DesktopAware {
   final ArabicLetter letter;
   final String mode; // 'letters' | 'joining'
@@ -445,6 +585,7 @@ class LetterDetail extends StatelessWidget with DesktopAware {
   /// left and the "Easily confused with" family on the right.
   Widget _desktopBuild(BuildContext context) {
     final dotInfo = dotsDescForLetter(context, letter);
+    final words = letterExamples[letter.char] ?? const <LetterExample>[];
     final fam = letter.similarGroup == null
         ? <ArabicLetter>[letter]
         : [
@@ -575,6 +716,33 @@ class LetterDetail extends StatelessWidget with DesktopAware {
               ),
             ),
           ),
+          const SizedBox(height: 26),
+          _deskSection(context, context.l10n.seeItInWords,
+              sub: context.l10n.seeItInWordsSub),
+          if (words.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              alignment: Alignment.center,
+              decoration: _deskCard(context),
+              child: Text(context.l10n.wordExamplesComingThisLetter,
+                  style: uiStyle(context, size: 13.5, color: pal(context).textDim)),
+            )
+          else
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < words.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 16),
+                    Expanded(child: _wordCard(context, words[i])),
+                  ],
+                ],
+              ),
+            ),
+          const SizedBox(height: 26),
+          _deskSection(context, context.l10n.lsnArticulationPoint),
+          _makhrajRow(context, letter.char),
         ],
       )),
     );
@@ -620,6 +788,7 @@ class LetterDetail extends StatelessWidget with DesktopAware {
     if (useDesktop(context)) return _desktopBuild(context);
     final s = SettingsScope.of(context);
     final dotInfo = dotsDescForLetter(context, letter);
+    final words = letterExamples[letter.char] ?? const <LetterExample>[];
     return Scaffold(
       appBar: AppBar(title: Text(letterName(context, letter))),
       body: SafeArea(
@@ -672,491 +841,19 @@ class LetterDetail extends StatelessWidget with DesktopAware {
               ),
             ),
           ],
-        ],
-      )),
-    );
-  }
-
-}
-
-/// Desktop letter/joining detail — two-column: hero + actions on the left,
-/// content cards on the right. Content differs by [mode].
-class FormsLab extends StatefulWidget {
-  const FormsLab({super.key});
-
-  @override
-  State<FormsLab> createState() => _FormsLabState();
-}
-
-class _FormsLabState extends State<FormsLab> {
-  ArabicLetter sel = letters[1];
-
-  /// Desktop: the reference "Joining forms" — letter strip, the four Shapes,
-  /// "In the Qur'an", and "See it in Words", plus the Forms Quiz CTA.
-  Widget _desktopBuild(BuildContext context) {
-    final joins = sel.joins;
-    final shapes = joins
-        ? <(String, String)>[
-            (sel.finalForm, context.l10n.formEnd),
-            (sel.medial, context.l10n.formMiddle),
-            (sel.initial, context.l10n.formStart),
-            (sel.char, context.l10n.formAlone),
-          ]
-        : <(String, String)>[
-            (sel.finalForm, context.l10n.formJoined),
-            (sel.char, context.l10n.formAlone),
-          ];
-    final words = letterExamples[sel.char] ?? const <LetterExample>[];
-    return Scaffold(
-      backgroundColor: pal(context).bg,
-      body: SafeArea(
-        top: false,
-        child: ListView(
-        padding: const EdgeInsets.fromLTRB(8, 4, 8, 32),
-        children: [
-          // ── letter strip ──
-          Wrap(
-            spacing: 9,
-            runSpacing: 9,
-            children: [
-              for (final l in letters)
-                TapScale(
-                  onTap: () => setState(() => sel = l),
-                  child: Container(
-                    width: 54,
-                    height: 54,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: l.char == sel.char
-                          ? pal(context).accent
-                          : pal(context).surface,
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(
-                          color: l.char == sel.char
-                              ? pal(context).accent
-                              : pal(context).surfaceHigh.withValues(alpha: .7)),
-                    ),
-                    child: Text(l.char,
-                        style: quranicStyle(context,
-                            size: 26,
-                            color: l.char == sel.char
-                                ? Colors.white
-                                : pal(context).text)),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _deskSection(context, context.l10n.shapes,
-              sub: joins
-                  ? context.l10n.shapesSubJoin
-                  : context.l10n.shapesSubNonJoin),
-          Row(children: [
-            for (var i = 0; i < shapes.length; i++) ...[
-              if (i > 0) const SizedBox(width: 16),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(20, 38, 20, 24),
-                  decoration: _deskCard(context),
-                  child: Column(children: [
-                    Text(shapes[i].$1,
-                        textDirection: TextDirection.rtl,
-                        style: quranicStyle(context,
-                            size: 74, height: 1.85, color: pal(context).text)),
-                    const SizedBox(height: 20),
-                    Text(shapes[i].$2,
-                        style: uiStyle(context,
-                            size: 13,
-                            weight: FontWeight.w600,
-                            color: pal(context).textDim)),
-                  ]),
-                ),
+          if (words.isNotEmpty) ...[
+            SectionHeader(context.l10n.seeItInWords,
+                subtitle: context.l10n.seeItInWordsSub),
+            for (var i = 0; i < words.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _mobWordCard(context, words[i]),
               ),
-            ],
-          ]),
-          const SizedBox(height: 34),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  flex: 10,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _deskSection(context, context.l10n.inTheQuran),
-                      Expanded(
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 42, horizontal: 30),
-                          decoration: _deskCard(context),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(sel.exampleWord,
-                                  textDirection: TextDirection.rtl,
-                                  style: quranicStyle(context,
-                                      size: 76,
-                                      height: 1.85,
-                                      color: pal(context).text)),
-                              const SizedBox(height: 22),
-                              Text(context.l10n.surahRef(sel.exampleRef),
-                                  style: uiStyle(context,
-                                      size: 13,
-                                      color: pal(context).textDim)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  flex: 15,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _deskSection(context, context.l10n.seeItInWords,
-                          sub: context.l10n.seeItInWordsSub),
-                      Expanded(
-                        child: words.isEmpty
-                            ? Container(
-                                width: double.infinity,
-                                alignment: Alignment.center,
-                                decoration: _deskCard(context),
-                                child: Text(context.l10n.wordExamplesComingThisLetter,
-                                    style: uiStyle(context,
-                                        size: 13.5,
-                                        color: pal(context).textDim)),
-                              )
-                            : Row(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.stretch,
-                                children: [
-                                  for (var i = 0; i < words.length; i++) ...[
-                                    if (i > 0) const SizedBox(width: 16),
-                                    Expanded(
-                                        child: _wordCard(context, words[i])),
-                                  ],
-                                ],
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 30),
-          _deskCta(context, context.l10n.formsQuiz,
-              () => pushAdaptive(context, _formsQuiz(context))),
-        ],
-      )),
-    );
-  }
-
-  Widget _wordCard(BuildContext context, LetterExample w) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 22, 16, 24),
-      decoration: _deskCard(context),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: pal(context).accent.withValues(alpha: .12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(_posLabel(context, w.position),
-                style: uiStyle(context,
-                    size: 11.5,
-                    weight: FontWeight.w800,
-                    color: pal(context).accent)),
-          ),
-          Text(w.word,
-              textDirection: TextDirection.rtl,
-              style: quranicStyle(context,
-                  size: 56, height: 1.85, color: pal(context).text)),
-          Text(w.translit,
-              style: uiStyle(context,
-                  size: 14,
-                  weight: FontWeight.w600,
-                  color: pal(context).textDim)),
-        ],
-      ),
-    );
-  }
-
-  /// Forms laid out right-to-left (alone on the right), wrapping wide letters
-  /// like ṣād into a 2×2 grid while narrow letters stay on one row.
-  /// 'beginning' | 'middle' | 'end' → the reader's language.
-  String _posLabel(BuildContext context, String p) => switch (p) {
-        'beginning' => context.l10n.posBeginning,
-        'middle' => context.l10n.posMiddle,
-        _ => context.l10n.posEnd,
-      };
-
-  Widget _formsGrid(BuildContext context, ArabicLetter l) {
-    final joins = l.joins;
-    final forms = joins
-        ? <(String, String)>[
-            (l.char, context.l10n.formAlone),
-            (l.initial, context.l10n.formStart),
-            (l.medial, context.l10n.formMiddle),
-            (l.finalForm, context.l10n.formEnd),
-          ]
-        : <(String, String)>[
-            (l.char, context.l10n.formAlone),
-            (l.finalForm, context.l10n.formJoined),
-          ];
-
-    return LayoutBuilder(builder: (context, c) {
-      final glyphStyle = quranicStyle(context, size: 46);
-      const hpad = 14.0, spacing = 10.0;
-      final maxW = c.maxWidth;
-
-      double measure(String t) {
-        final tp = TextPainter(
-          text: TextSpan(text: t, style: glyphStyle),
-          textDirection: TextDirection.rtl,
-        )..layout();
-        return tp.width + hpad * 2;
-      }
-
-      final widths = [for (final f in forms) measure(f.$1)];
-      final oneRowWidth =
-          widths.fold(0.0, (a, b) => a + b) + spacing * (forms.length - 1);
-      final oneRow = oneRowWidth <= maxW;
-      final cellW = oneRow ? null : (maxW - spacing) / 2; // 2-col grid
-
-      Widget cell((String, String) f) => Container(
-            width: cellW,
-            constraints: cellW == null
-                ? const BoxConstraints(minWidth: 70)
-                : null,
-            padding: const EdgeInsets.symmetric(horizontal: hpad, vertical: 10),
-            decoration: BoxDecoration(
-              color: pal(context).surface,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: pal(context).surfaceHigh),
-            ),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              SizedBox(
-                height: 56,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(f.$1,
-                      textDirection: TextDirection.rtl, style: glyphStyle),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(f.$2,
-                  style: uiStyle(context,
-                      size: 11.5, color: pal(context).textDim)),
-            ]),
-          );
-
-      // Always lay out right-to-left: "Alone" sits on the right.
-      return Wrap(
-        textDirection: TextDirection.rtl,
-        alignment: WrapAlignment.center,
-        runAlignment: WrapAlignment.center,
-        spacing: spacing,
-        runSpacing: spacing,
-        children: [for (final f in forms) cell(f)],
-      );
-    });
-  }
-
-  /// Small section heading for the phone lab — mirrors the desktop's
-  /// _deskSection so both layouts label the same material the same way.
-  Widget _mobSection(BuildContext context, String title, String? sub) => Padding(
-        padding: const EdgeInsets.only(bottom: 8, top: 2),
-        child: Row(children: [
-          Container(
-            width: 3,
-            height: 15,
-            decoration: BoxDecoration(
-              color: pal(context).accent,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(title,
-              style: uiStyle(context, size: 14.5, weight: FontWeight.w800)),
-          if (sub != null) ...[
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(sub,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: uiStyle(context, size: 11, color: pal(context).textDim)),
-            ),
           ],
-        ]),
-      );
-
-  /// The letter inside a real word, tagged with where it sits.
-  Widget _mobWordCard(BuildContext context, LetterExample w) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: pal(context).surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: pal(context).surfaceHigh),
-        ),
-        child: Row(children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: pal(context).accent.withValues(alpha: .12),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Text(_posLabel(context, w.position),
-                style: uiStyle(context,
-                    size: 10.5,
-                    weight: FontWeight.w800,
-                    color: pal(context).accent)),
-          ),
-          const Spacer(),
-          Text(w.translit,
-              style: uiStyle(context,
-                  size: 12.5,
-                  weight: FontWeight.w600,
-                  color: pal(context).textDim)),
-          const SizedBox(width: 12),
-          Text(w.word,
-              textDirection: TextDirection.rtl,
-              style: quranicStyle(context, size: 30)),
-        ]),
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    if (useDesktop(context)) return _desktopBuild(context);
-    final joins = sel.joins;
-    final words = letterExamples[sel.char] ?? const <LetterExample>[];
-    return Scaffold(
-      appBar: AppBar(title:  Text(context.l10n.joiningForms)),
-      body: SafeArea(
-        top: false,
-        child: Column(children: [
-        // Same material as the desktop lab — shapes, the Qur'anic example with
-        // its reference, and the letter seen at the beginning/middle/end of
-        // real words — just stacked and scrollable for a phone.
-        Expanded(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder: (child, anim) =>
-                FadeTransition(opacity: anim, child: child),
-            child: ListView(
-              key: ValueKey(sel.char),
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              children: [
-                _mobSection(context, context.l10n.shapes,
-                    joins
-                        ? context.l10n.shapesSubJoin
-                        : context.l10n.shapesSubNonJoin),
-                _formsGrid(context, sel),
-                const SizedBox(height: 18),
-                _mobSection(context, context.l10n.inTheQuran, null),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: pal(context).surface,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: pal(context).surfaceHigh),
-                  ),
-                  child: Column(children: [
-                    Text(context.l10n.letterInAWord(letterName(context, sel)),
-                        style: uiStyle(context,
-                            size: 13, color: pal(context).textDim)),
-                    const SizedBox(height: 6),
-                    Text(sel.exampleWord,
-                        textDirection: TextDirection.rtl,
-                        style: quranicStyle(context,
-                            size: 40, color: pal(context).accent)),
-                    const SizedBox(height: 6),
-                    Text(context.l10n.surahRef(sel.exampleRef),
-                        style: uiStyle(context,
-                            size: 12, color: pal(context).textDim)),
-                  ]),
-                ),
-                const SizedBox(height: 18),
-                _mobSection(context, context.l10n.seeItInWords,
-                    context.l10n.seeItInWordsSub),
-                if (words.isEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: pal(context).surface,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: pal(context).surfaceHigh),
-                    ),
-                    child: Text(context.l10n.wordExamplesComingThisLetter,
-                        textAlign: TextAlign.center,
-                        style: uiStyle(context,
-                            size: 12.5, color: pal(context).textDim)),
-                  )
-                else
-                  for (final w in words) ...[
-                    _mobWordCard(context, w),
-                    if (w != words.last) const SizedBox(height: 8),
-                  ],
-              ],
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 70,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: letters.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 8),
-            itemBuilder: (context, i) => TapScale(
-              onTap: () => setState(() => sel = letters[i]),
-              child: Container(
-                width: 54,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: sel == letters[i]
-                      ? pal(context).surfaceHigh
-                      : pal(context).surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                      color: sel == letters[i]
-                          ? pal(context).accent
-                          : Colors.transparent),
-                ),
-                child: Text(letters[i].char,
-                    style: quranicStyle(context, size: 26)),
-              ),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                  backgroundColor: pal(context).accent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14)),
-              onPressed: () => pushAdaptive(context, _formsQuiz(context)),
-              icon: const Icon(Icons.quiz_rounded),
-              label:  Text(context.l10n.formsQuiz),
-            ),
-          ),
-        ),
-      ])),
+          SectionHeader(context.l10n.lsnArticulationPoint),
+          _makhrajRow(context, letter.char),
+        ],
+      )),
     );
   }
 }
@@ -1279,12 +976,42 @@ QuizScreen _sukunQuiz(BuildContext context, {bool graded = true}) {
         reviewId: 'qaidah.sukun.lamyalid',
         options: o5.options,
         correct: o5.correct),
-  ];
+    ..._tashkilMarkQuestions(context, 'sukun', 2),
+  ]..shuffle(_rng);
   return QuizScreen(
       title: tashkilName(context, tashkil.firstWhere((t) => t.id == 'sukun')),
       progressId: 'qaidah.sukun',
       questions: qs,
       graded: graded);
+}
+
+/// A few "identify the mark" questions for [tashkilId], drawn from its real
+/// corpus examples (the primary plus `moreExamples`) — the same recognition
+/// format tashkeel_screen.dart's `_tashkilQuiz` already uses, reused here
+/// instead of Units 5-6 repeating the exact same handful of hand-authored
+/// questions every session.
+List<QuizQuestion> _tashkilMarkQuestions(
+    BuildContext context, String tashkilId, int count) {
+  final t = tashkil.firstWhere((x) => x.id == tashkilId);
+  final examples = [
+    (t.example, t.ref, t.highlight),
+    ...t.moreExamples,
+  ];
+  final pool = tashkil.map((x) => tashkilName(context, x)).toList();
+  final qs = <QuizQuestion>[];
+  for (final (word, ref, hl) in pickN(examples, count, _rng)) {
+    final o = buildOptions(tashkilName(context, t), pool, _rng);
+    qs.add(QuizQuestion(
+      prompt: context.l10n.qpIdentifyGoldenMark,
+      arabic: word,
+      highlight: hl,
+      reviewId: 'qaidah.$tashkilId.mark.$ref',
+      options: o.options,
+      correct: o.correct,
+      explain: t.note,
+    ));
+  }
+  return qs;
 }
 
 QuizScreen _shaddaQuiz(BuildContext context, {bool graded = true}) {
@@ -1321,7 +1048,8 @@ QuizScreen _shaddaQuiz(BuildContext context, {bool graded = true}) {
         reviewId: 'qaidah.shadda.thumma',
         options: o4.options,
         correct: o4.correct),
-  ];
+    ..._tashkilMarkQuestions(context, 'shadda', 2),
+  ]..shuffle(_rng);
   return QuizScreen(
       title: context.l10n.shaddah,
       progressId: 'qaidah.shadda',
@@ -1445,8 +1173,7 @@ QuizQuestion? _spellQuestion(BuildContext context, String word,
 
 // ───────────────────────── Unit 1 practice: Letters ────────────────────────
 
-QuizQuestion _dotCountQuestion(BuildContext context) {
-  final n = [0, 1, 2, 3][_rng.nextInt(4)];
+QuizQuestion _dotCountQuestion(BuildContext context, int n) {
   final sample = ([...letters]..shuffle(_rng)).take(8).toList();
   if (!sample.any((l) => l.dotCount == n)) {
     sample[0] = letters.firstWhere((l) => l.dotCount == n);
@@ -1508,12 +1235,14 @@ QuizQuestion? _resemblesQuestion(BuildContext context) {
 /// isn't the abstract fact "this letter has a variant", it's being able to
 /// still read the letter when the font draws it differently.
 QuizQuestion? _variantIdQuestion(BuildContext context) {
-  final single = letterVariants.where((v) => v.letter.length == 1).toList();
-  if (single.isEmpty) return null;
-  final v = single[_rng.nextInt(single.length)];
+  final eligible =
+      letterVariants.where((v) => v.letter.length == 1 || v.kind == 'ligature').toList();
+  if (eligible.isEmpty) return null;
+  final v = eligible[_rng.nextInt(eligible.length)];
   final pool = [
     ...letters.map((l) => l.char),
     ...extraLetters.map((l) => l.char),
+    ...letterVariants.where((x) => x.kind == 'ligature').map((x) => x.letter),
   ];
   final o = buildOptions(v.letter, pool, _rng);
   return QuizQuestion(
@@ -1529,11 +1258,10 @@ QuizQuestion? _variantIdQuestion(BuildContext context) {
 
 QuizScreen _letterPracticeQuiz(BuildContext context) {
   final qs = <QuizQuestion>[
-    _dotCountQuestion(context),
+    for (final n in pickN([0, 1, 2, 3], 2, _rng)) _dotCountQuestion(context, n),
     _dotPosQuestion(context),
-    _dotCountQuestion(context),
     for (final q in [_resemblesQuestion(context), _variantIdQuestion(context)])
-      if (q != null) q,
+      ?q,
   ];
   final sample = [...letters]..shuffle(_rng);
   final pool = letters.map((l) => letterName(context, l)).toList();
@@ -1556,8 +1284,7 @@ QuizScreen _letterPracticeQuiz(BuildContext context) {
 
 // ──────────────────────── Unit 2 practice: Forms ───────────────────────────
 
-QuizQuestion _connectorQuestion(BuildContext context) {
-  final l = ([...letters]..shuffle(_rng)).first;
+QuizQuestion _connectorQuestion(BuildContext context, ArabicLetter l) {
   final answer = l.joins ? context.l10n.optConnects : context.l10n.optDoesNotConnect;
   final o = buildOptions(
       answer, [context.l10n.optConnects, context.l10n.optDoesNotConnect], _rng);
@@ -1609,6 +1336,26 @@ QuizQuestion? _haaVsTaaMarbutaQuestion(BuildContext context) {
   );
 }
 
+/// Recognise the lām-alif ligature family by shape — the compound reading
+/// this project's Qaidah books teach right after the four tatweel forms
+/// (Round 13's Special Shapes).
+QuizQuestion? _ligatureQuestion(BuildContext context) {
+  final ligatures = letterVariants.where((v) => v.kind == 'ligature').toList();
+  if (ligatures.isEmpty) return null;
+  final v = ligatures[_rng.nextInt(ligatures.length)];
+  final pool = ligatures.map((x) => x.letter).toList();
+  final o = buildOptions(v.letter, pool, _rng);
+  return QuizQuestion(
+    prompt: context.l10n.qpWhichLettersFormThis,
+    arabic: v.word,
+    highlight: v.highlight,
+    reviewId: 'variant.${v.id}',
+    options: o.options,
+    optionsAreArabic: true,
+    correct: o.correct,
+  );
+}
+
 const _hamzaCarrierChars = ['ء', 'أ', 'إ', 'ؤ', 'ئ'];
 
 QuizQuestion _hamzaCarrierQuestion(BuildContext context) {
@@ -1635,12 +1382,14 @@ QuizScreen _formsPracticeQuiz(BuildContext context) {
       prompt: context.l10n.qpListBackward,
       options: [...names]..shuffle(_rng),
       sequence: names.reversed.toList()));
+  for (final l in pickN(letters, 2, _rng)) {
+    qs.add(_connectorQuestion(context, l));
+  }
   for (final q in [
-    _connectorQuestion(context),
-    _connectorQuestion(context),
     _stackQuestion(context),
     _haaVsTaaMarbutaQuestion(context),
     _hamzaCarrierQuestion(context),
+    _ligatureQuestion(context),
   ]) {
     if (q != null) qs.add(q);
   }
@@ -1654,23 +1403,7 @@ QuizScreen _formsPracticeQuiz(BuildContext context) {
 
 // ───────────────────── Units 3–4: Ḥarakāt / Tanwīn learn ──────────────────
 
-Widget _harakatLearn(BuildContext context) {
-  final items =
-      tashkil.where((t) => ['fatha', 'kasra', 'damma'].contains(t.id)).toList();
-  return ConceptLearnScreen(
-    title: context.l10n.unitHarakat,
-    cards: [
-      for (final t in items)
-        ConceptCard(
-            glyph: t.mark,
-            title: tashkilName(context, t),
-            subtitle: t.sound,
-            note: t.note,
-            example: t.example,
-            exampleRef: t.ref),
-    ],
-  );
-}
+Widget _harakatLearn(BuildContext context) => lessonEntryScreen(harakatLessonRoot(context));
 
 QuizScreen _harakatPracticeQuiz(BuildContext context) {
   final base = _syllableQuiz(
@@ -1687,35 +1420,10 @@ QuizScreen _harakatPracticeQuiz(BuildContext context) {
       title: base.title, progressId: base.progressId, questions: qs, graded: false);
 }
 
-Widget _tanwinLearn(BuildContext context) {
-  final items = tashkil
-      .where((t) => ['fathatan', 'kasratan', 'dammatan'].contains(t.id))
-      .toList();
-  final cards = <ConceptCard>[
-    for (final t in items)
-      ConceptCard(
-          glyph: t.mark,
-          title: tashkilName(context, t),
-          subtitle: t.sound,
-          note: t.note,
-          example: t.example,
-          exampleRef: t.ref),
-    for (final a in tanwinAllographs)
-      ConceptCard(
-        glyph: a.highlight,
-        title:
-            '${tashkilName(context, tashkil.firstWhere((t) => t.id == a.tanwinId))} · ${a.form}',
-        subtitle: tajwidName(context, tajwidRules.firstWhere((r) => r.id == a.ruleId)),
-        note: tajwidHow(context, tajwidRules.firstWhere((r) => r.id == a.ruleId)),
-        example: a.example,
-        exampleRef: a.ref,
-      ),
-  ];
-  return ConceptLearnScreen(title: context.l10n.unitTanwin, cards: cards);
-}
+Widget _tanwinLearn(BuildContext context) => lessonEntryScreen(tanwinLessonRoot(context));
 
-QuizQuestion _allographRuleQuestion(BuildContext context) {
-  final a = tanwinAllographs[_rng.nextInt(tanwinAllographs.length)];
+QuizQuestion _allographRuleQuestion(BuildContext context, TanwinAllograph a,
+    String text, String hl) {
   final rule = tajwidRules.firstWhere((r) => r.id == a.ruleId);
   final pool = tajwidRules
       .where((r) => ['izhar', 'idgham_g', 'idgham_ng', 'ikhfa', 'iqlab'].contains(r.id))
@@ -1724,8 +1432,8 @@ QuizQuestion _allographRuleQuestion(BuildContext context) {
   final o = buildOptions(tajwidName(context, rule), pool, _rng);
   return QuizQuestion(
     prompt: context.l10n.qpWhichRuleThisShape,
-    arabic: a.example,
-    highlight: a.highlight,
+    arabic: text,
+    highlight: hl,
     reviewId: 'tanwin.allograph.${a.id}',
     options: o.options,
     correct: o.correct,
@@ -1737,49 +1445,49 @@ QuizScreen _tanwinPracticeQuiz(BuildContext context) {
   final base = _syllableQuiz(
       context, context.l10n.tanwinDrill, 'qaidah.tanwin', tanwin,
       graded: false);
-  final qs = [...base.questions, _allographRuleQuestion(context), _allographRuleQuestion(context)];
-  qs.shuffle(_rng);
+  final instances = <(TanwinAllograph, String, String)>[
+    for (final a in tanwinAllographs) ...[
+      (a, a.example, a.highlight),
+      for (final (t, _, h) in a.moreExamples) (a, t, h),
+    ],
+  ];
+  final qs = [
+    ...base.questions,
+    for (final (a, t, h) in pickN(instances, 2, _rng))
+      _allographRuleQuestion(context, a, t, h),
+  ]..shuffle(_rng);
   return QuizScreen(
       title: base.title, progressId: base.progressId, questions: qs, graded: false);
 }
 
 // ───────────────────────── Units 5–6: Sukūn / Shaddah ──────────────────────
 
-Widget _sukunLearn(BuildContext context) {
-  final t = tashkil.firstWhere((t) => t.id == 'sukun');
-  return ConceptLearnScreen(title: tashkilName(context, t), cards: [
-    ConceptCard(
-        glyph: t.mark,
-        title: tashkilName(context, t),
-        subtitle: t.sound,
-        note: t.note,
-        example: t.example,
-        exampleRef: t.ref),
-  ]);
-}
+Widget _sukunLearn(BuildContext context) => lessonEntryScreen(sukunLessonRoot(context));
 
-Widget _shaddaLearn(BuildContext context) {
-  final t = tashkil.firstWhere((t) => t.id == 'shadda');
-  return ConceptLearnScreen(title: context.l10n.shaddah, cards: [
-    ConceptCard(
-        glyph: t.mark,
-        title: tashkilName(context, t),
-        subtitle: t.sound,
-        note: t.note,
-        example: t.example,
-        exampleRef: t.ref),
-  ]);
-}
+Widget _shaddaLearn(BuildContext context) => lessonEntryScreen(shaddaLessonRoot(context));
 
 // ─────────────────────── Unit 8: Reading Words ─────────────────────────────
 
-Widget _wordsLearn(BuildContext context) => ConceptLearnScreen(
+// Each leaf here IS one word to practice reading — there's no second "more
+// examples of this word" the way a rule or a mark has several demonstrating
+// verses; the 16 different words together are the unit's breadth.
+Widget _wordsLearn(BuildContext context) => lessonEntryScreen(LessonNode(
+      id: 'qaidah.words',
       title: context.l10n.readingWords,
-      cards: [
+      children: [
         for (final (ar, tr) in _quranWords)
-          ConceptCard(glyph: ar, title: tr, example: ar),
+          LessonNode(
+            id: 'word.$tr',
+            glyph: ar,
+            title: tr,
+            detail: LessonDetail(
+              hero: ar,
+              letters: stripTashkil(ar),
+              examples: [(text: ar, ref: '', highlight: null)],
+            ),
+          ),
       ],
-    );
+    ));
 
 QuizScreen _wordsPracticeQuiz(BuildContext context) {
   final qs = <QuizQuestion>[];
@@ -1802,69 +1510,9 @@ QuizScreen _wordsPracticeQuiz(BuildContext context) {
 
 // ───────────────────────────── Unit 9: Waṣl ────────────────────────────────
 
-Widget _waslLearn(BuildContext context) {
-  final shamsiyya = tajwidRules.firstWhere((r) => r.id == 'shamsiyya');
-  final qamariyya = tajwidRules.firstWhere((r) => r.id == 'qamariyya');
-  final solarEx = waslOfKind('solar').firstWhere((w) => w.letter == 'ل');
-  final lunarEx = waslOfKind('lunar').firstWhere((w) => w.letter == 'م');
-  final rect = waslOfKind('zero_rect').first;
-  final round = waslOfKind('zero_round').first;
-  final tanwinWasl = waslOfKind('tanwin_wasl').first;
-  final waslConcept = waslOfKind('wasl').first;
-  final waslTashkil = tashkil.firstWhere((t) => t.id == 'wasl');
-  return ConceptLearnScreen(
-    title: context.l10n.unitWasl,
-    cards: [
-      ConceptCard(
-          glyph: waslTashkil.mark,
-          title: tashkilName(context, waslTashkil),
-          note: waslTashkil.note,
-          example: waslConcept.example,
-          exampleRef: waslConcept.ref),
-      ConceptCard(
-        glyph: 'ت ث د ذ ر ز س ش ص ض ط ظ ل ن',
-        title: context.l10n.solarLetters14,
-        subtitle: tajwidName(context, shamsiyya),
-        note: tajwidHow(context, shamsiyya),
-        example: solarEx.example,
-        exampleRef: solarEx.ref,
-      ),
-      ConceptCard(
-        glyph: 'ء ب ج ح خ ع غ ف ق ك م ه و ي',
-        title: context.l10n.lunarLetters14,
-        subtitle: tajwidName(context, qamariyya),
-        note: tajwidHow(context, qamariyya),
-        example: lunarEx.example,
-        exampleRef: lunarEx.ref,
-      ),
-      ConceptCard(
-        glyph: '۠',
-        title: context.l10n.zeroRectTitle,
-        note: context.l10n.zeroRectNote,
-        example: rect.example,
-        exampleRef: rect.ref,
-      ),
-      ConceptCard(
-        glyph: 'ۡ',
-        title: context.l10n.zeroRoundTitle,
-        note: context.l10n.zeroRoundNote,
-        example: round.example,
-        exampleRef: round.ref,
-      ),
-      ConceptCard(
-        glyph: 'ً ٱ',
-        title: context.l10n.tanwinMeetsWaslTitle,
-        note: context.l10n.tanwinMeetsWaslNote,
-        example: tanwinWasl.example,
-        exampleRef: tanwinWasl.ref,
-      ),
-    ],
-  );
-}
+Widget _waslLearn(BuildContext context) => lessonEntryScreen(waslLessonRoot(context));
 
-QuizQuestion _waslSeamQuestion(BuildContext context) {
-  final solarOrLunar = [...waslOfKind('solar'), ...waslOfKind('lunar')]..shuffle(_rng);
-  final w = solarOrLunar.first;
+QuizQuestion _waslSeamQuestion(BuildContext context, WaslItem w) {
   final isSolar = w.kind == 'solar';
   final shamsiyya = tajwidRules.firstWhere((r) => r.id == 'shamsiyya');
   final qamariyya = tajwidRules.firstWhere((r) => r.id == 'qamariyya');
@@ -1900,15 +1548,13 @@ QuizQuestion _waslSolarSetQuestion(BuildContext context) {
   );
 }
 
-QuizQuestion _waslZeroQuestion(BuildContext context) {
-  final zeros = [...waslOfKind('zero_rect'), ...waslOfKind('zero_round')]..shuffle(_rng);
-  final w = zeros.first;
+QuizQuestion _waslZeroQuestion(BuildContext context, WaslItem w, String text, String hl) {
   final sounded = w.kind == 'zero_rect';
   final options = [context.l10n.optSoundedOnStopOnly, context.l10n.optNeverSounded];
   return QuizQuestion(
     prompt: context.l10n.qpAlifSoundsWhen,
-    arabic: w.example,
-    highlight: w.highlight,
+    arabic: text,
+    highlight: hl,
     reviewId: 'wasl.zero.${w.id}',
     options: options,
     correct: sounded ? 0 : 1,
@@ -1916,11 +1562,19 @@ QuizQuestion _waslZeroQuestion(BuildContext context) {
 }
 
 QuizScreen _waslQuiz(BuildContext context, {bool graded = true}) {
+  final seamPool = [...waslOfKind('solar'), ...waslOfKind('lunar')];
+  final zeroInstances = <(WaslItem, String, String)>[
+    for (final w in [...waslOfKind('zero_rect'), ...waslOfKind('zero_round')]) ...[
+      (w, w.example, w.highlight),
+      for (final (t, _, h) in w.moreExamples) (w, t, h),
+    ],
+  ];
   final qs = <QuizQuestion>[
-    for (var i = 0; i < 4; i++) _waslSeamQuestion(context),
+    for (final w in pickN(seamPool, 4, _rng)) _waslSeamQuestion(context, w),
     _waslSolarSetQuestion(context),
     _waslSolarSetQuestion(context),
-    for (var i = 0; i < 3; i++) _waslZeroQuestion(context),
+    for (final (w, t, h) in pickN(zeroInstances, 3, _rng))
+      _waslZeroQuestion(context, w, t, h),
   ];
   qs.shuffle(_rng);
   return QuizScreen(
@@ -1932,52 +1586,13 @@ QuizScreen _waslQuiz(BuildContext context, {bool graded = true}) {
 
 // ───────────────────────────── Unit 10: Review ─────────────────────────────
 
-Widget _reviewLearn(BuildContext context) => ConceptLearnScreen(
-      title: context.l10n.qaidahReview,
-      cards: [
-        ConceptCard(
-            glyph: 'ا ب', title: context.l10n.unitLetters, note: context.l10n.unitLettersSub),
-        ConceptCard(
-            glyph: 'ـبـ',
-            title: context.l10n.unitJoiningForms,
-            note: context.l10n.unitJoiningFormsSub),
-        ConceptCard(glyph: 'بَ', title: context.l10n.unitHarakat, note: context.l10n.unitHarakatSub),
-        ConceptCard(glyph: 'بً', title: context.l10n.unitTanwin, note: context.l10n.unitTanwinSub),
-        ConceptCard(
-            glyph: 'بۡ',
-            title: tashkilName(context, tashkil.firstWhere((t) => t.id == 'sukun')),
-            note: context.l10n.unitSukunSub),
-        ConceptCard(glyph: 'بّ', title: context.l10n.shaddah, note: context.l10n.unitShaddahSub),
-        ConceptCard(
-            glyph: 'بَا', title: context.l10n.unitMaddLin, note: context.l10n.unitMaddLinSub),
-        ConceptCard(
-            glyph: 'قُلۡ',
-            title: context.l10n.readingWords,
-            note: context.l10n.unitReadingWordsSub),
-      ],
-    );
+Widget _reviewLearn(BuildContext context) => lessonEntryScreen(reviewLessonRoot(context));
 
 // ─────────────────────── Unit 10: Ḥurūf Muqaṭṭaʿāt ─────────────────────────
 
-Widget _muqattaatLearn(BuildContext context) => ConceptLearnScreen(
-      title: context.l10n.unitMuqattaat,
-      cards: [
-        for (final m in muqattaatSets)
-          ConceptCard(
-            glyph: m.displayText,
-            title: m.displayText,
-            subtitle: context.l10n.surahsList(m.surahs.join(', ')),
-            note: context.l10n.muqattaatCountsNote(
-                [for (final l in m.letters.split('')) '$l:${muqattaatCounts[l]}']
-                    .join('  ')),
-            example: m.ref == '42:1-2' ? null : m.example,
-            exampleRef: m.ref == '42:1-2' ? null : m.ref,
-          ),
-      ],
-    );
+Widget _muqattaatLearn(BuildContext context) => lessonEntryScreen(muqattaatLessonRoot(context));
 
-QuizQuestion _muqattaatSurahQuestion(BuildContext context) {
-  final m = muqattaatSets[_rng.nextInt(muqattaatSets.length)];
+QuizQuestion _muqattaatSurahQuestion(BuildContext context, MuqattaatSet m) {
   final surah = m.surahs[_rng.nextInt(m.surahs.length)];
   final pool = muqattaatSets.expand((s) => s.surahs).map((s) => '$s').toList();
   final o = buildOptions('$surah', pool, _rng);
@@ -1990,8 +1605,7 @@ QuizQuestion _muqattaatSurahQuestion(BuildContext context) {
   );
 }
 
-QuizQuestion _muqattaatCountsQuestion(BuildContext context) {
-  final letter = muqattaatCounts.keys.elementAt(_rng.nextInt(muqattaatCounts.length));
+QuizQuestion _muqattaatCountsQuestion(BuildContext context, String letter) {
   final answer = muqattaatCounts[letter]!;
   final o = buildOptions(answer, muqattaatCounts.values.toSet().toList(), _rng);
   return QuizQuestion(
@@ -2003,8 +1617,7 @@ QuizQuestion _muqattaatCountsQuestion(BuildContext context) {
   );
 }
 
-QuizQuestion _muqattaatLettersQuestion(BuildContext context) {
-  final m = muqattaatSets[_rng.nextInt(muqattaatSets.length)];
+QuizQuestion _muqattaatLettersQuestion(BuildContext context, MuqattaatSet m) {
   final correctChars = m.letters.split('').toSet();
   const all14 = 'احرسصطعقكلمنهي';
   final distractorPool = all14.split('').where((c) => !correctChars.contains(c)).toList()
@@ -2027,10 +1640,10 @@ QuizQuestion _muqattaatLettersQuestion(BuildContext context) {
 
 QuizScreen _muqattaatTest(BuildContext context, {bool graded = true}) {
   final qs = <QuizQuestion>[
-    for (var i = 0; i < 3; i++) _muqattaatSurahQuestion(context),
-    for (var i = 0; i < 3; i++) _muqattaatCountsQuestion(context),
-    _muqattaatLettersQuestion(context),
-    _muqattaatLettersQuestion(context),
+    for (final m in pickN(muqattaatSets, 3, _rng)) _muqattaatSurahQuestion(context, m),
+    for (final l in pickN(muqattaatCounts.keys.toList(), 3, _rng))
+      _muqattaatCountsQuestion(context, l),
+    for (final m in pickN(muqattaatSets, 2, _rng)) _muqattaatLettersQuestion(context, m),
   ];
   qs.shuffle(_rng);
   return QuizScreen(

@@ -467,10 +467,11 @@ class DesktopHome extends StatelessWidget {
       deskSection(context, DeskTab.home, context.l10n.explorePath),
       deskGrid([
         _jump(context, DeskTab.qaidah, context.l10n.qaidahPath, context.l10n.lettersToWords),
-        _jump(context, DeskTab.tracing, context.l10n.tracingStudio, context.l10n.writeByHand),
         _jump(context, DeskTab.tajwid, context.l10n.tajwidAcademy, context.l10n.coloredRules16),
-        _jump(context, DeskTab.reader, context.l10n.quranReader, context.l10n.surahs114),
         _jump(context, DeskTab.tashkil, context.l10n.tashkilLab, context.l10n.vowelsMarks),
+        _jump(context, DeskTab.script, context.l10n.scriptSymbols, context.l10n.scriptSymbolsSub),
+        _jump(context, DeskTab.tracing, context.l10n.tracingStudio, context.l10n.writeByHand),
+        _jump(context, DeskTab.reader, context.l10n.quranReader, context.l10n.surahs114),
         _jump(context, DeskTab.coach, context.l10n.readingCoach, context.l10n.lookAlikeDrills),
       ], minWidth: 260),
     ]);

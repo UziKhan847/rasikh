@@ -83,8 +83,9 @@ void main() {
   });
 
   testWidgets(
-      'Tajwīd path: Makhārij unit\'s Learn cards carry a MediaRow, and '
-      'Listen with no ref falls back to coming-soon', (tester) async {
+      'Tajwīd path: Makhārij\'s Learn drills down (5 zones → Tongue\'s points → '
+      'a point\'s detail page), which carries real examples and a MediaRow',
+      (tester) async {
     final (settings, progress) = await _boot();
     await tester.pumpWidget(_harness(settings, progress, const TajweedScreen()));
     await tester.pumpAndSettle();
@@ -96,17 +97,58 @@ void main() {
     await tester.tap(find.text('Learn'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(MediaRow), findsWidgets);
-    expect(find.text('Listen'), findsWidgets);
-    expect(find.text('Watch'), findsWidgets);
+    // The Learn phase now opens a 5-zone index — Oral Cavity, Throat,
+    // Tongue, Lips, Nasal Cavity — not a flat list of 17 makhārij.
+    expect(find.text('The Tongue'), findsOneWidget);
+    expect(find.text('The Throat'), findsOneWidget);
 
-    // Makhārij cards have no example ref, so Listen must fall back too.
-    await tester.tap(find.text('Listen').first);
+    // The Tongue has 10 points grouped into 4 sub-headings — tapping it
+    // opens that grouped index, not a single detail page (10 points, so the
+    // single-child collapse rule does not apply here).
+    await tester.tap(find.text('The Tongue'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Tongue Tip — Nūn'), 300,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.text('Tongue Tip — Nūn'), findsOneWidget);
+
+    // Tapping one point reaches its detail page: real corpus examples and a
+    // MediaRow that can really play audio (Round 10 gave every makhraj real
+    // examples).
+    await tester.tap(find.text('Tongue Tip — Nūn'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.byType(MediaRow), 300,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.byType(MediaRow), findsOneWidget);
+    expect(find.text('Listen'), findsOneWidget);
+    expect(find.text('Watch'), findsOneWidget);
+
+    // Watch is always coming-soon, regardless of ref — no video pipeline
+    // exists anywhere in the app.
+    await tester.tap(find.text('Watch'));
     await tester.pump();
     expect(find.byType(SnackBar), findsOneWidget);
-    await tester.pumpAndSettle(const Duration(seconds: 5));
+  });
 
-    await tester.tap(find.text('Watch').first);
+  testWidgets('MediaRow: Listen falls back to coming-soon when there is no ref',
+      (tester) async {
+    final (settings, progress) = await _boot();
+    await tester.pumpWidget(_harness(
+        settings, progress, const Scaffold(body: MediaRow(ref: null))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Listen'));
+    await tester.pump();
+    expect(find.byType(SnackBar), findsOneWidget);
+  });
+
+  testWidgets('MediaRow: Watch is always coming-soon, even with a real ref',
+      (tester) async {
+    final (settings, progress) = await _boot();
+    await tester.pumpWidget(_harness(
+        settings, progress, const Scaffold(body: MediaRow(ref: '1:1'))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Watch'));
     await tester.pump();
     expect(find.byType(SnackBar), findsOneWidget);
   });

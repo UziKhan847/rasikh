@@ -25,6 +25,11 @@ class TajwidRule {
   final String how; // how to perform it
   final String letters; // trigger/associated letters, bare (no tashkīl); '' if not letter-keyed
   final VerseExample example;
+  // Additional real verses beyond `example` (word/phrase, ref, highlight
+  // substring) — several examples make the rule's presence a demonstrated
+  // fact rather than a single assertion, and let Test/Practice ask about
+  // the same rule without repeating the identical verse every time.
+  final List<(String, String, String)> moreExamples;
 
   const TajwidRule({
     required this.id,
@@ -35,6 +40,7 @@ class TajwidRule {
     required this.how,
     required this.letters,
     required this.example,
+    this.moreExamples = const [],
   });
 }
 
@@ -50,6 +56,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('108:1', [
       Seg('إِ'), Seg('نَّ', 'ghunnah'), Seg('آ أَعۡطَيۡنَٰكَ ٱلۡكَوۡثَرَ'),
     ]),
+    moreExamples: [('وَمِمَّا', '2:3', 'مّ'), ('مِّن', '2:5', 'مّ'), ('إِنَّ', '2:6', 'نّ'), ('ٱلنَّاسِ', '2:8', 'نّ'), ('ءَامَنَّا', '2:8', 'نّ')],
   ),
   TajwidRule(
     id: 'izhar',
@@ -62,6 +69,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('106:4', [
       Seg('ٱلَّذِيٓ أَطۡعَمَهُم مِّن جُوعٖ وَءَامَنَهُم '), Seg('مِّنۡ خَ', 'izhar'), Seg('وۡفِۭ'),
     ]),
+    moreExamples: [('سَوَآءٌ عَلَيۡهِمۡ', '2:6', 'ءٌ عَ'), ('عَذَابٌ عَظِيمٞ', '2:7', 'بٌ عَ'), ('بُكۡمٌ عُمۡيٞ', '2:18', 'مٌ عُ'), ('شَيۡءٍ عَلِيمٞ', '2:29', 'ءٍ عَ'), ('لِبَعۡضٍ عَدُوّٞۖ', '2:36', 'ضٍ عَ')],
   ),
   TajwidRule(
     id: 'idgham_g',
@@ -74,6 +82,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('99:7', [
       Seg('فَمَ'), Seg('ن يَ', 'idgham_g'), Seg('عۡمَلۡ مِثۡقَالَ ذَرَّةٍ خَيۡرٗا يَرَهُۥ'),
     ]),
+    moreExamples: [('مَن يَقُولُ', '2:8', 'َن يَ'), ('كَصَيِّبٖ مِّنَ', '2:19', 'بٖ مّ'), ('ظُلُمَٰتٞ وَرَعۡدٞ', '2:19', 'تٞ وَ'), ('وَرَعۡدٞ وَبَرۡقٞ', '2:19', 'دٞ وَ'), ('وَبَرۡقٞ يَجۡعَلُونَ', '2:19', 'قٞ يَ')],
   ),
   TajwidRule(
     id: 'idgham_ng',
@@ -86,6 +95,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('2:5', [
       Seg('أُوْلَـٰٓئِكَ عَلَىٰ هُدٗى '), Seg('مِّن رَّ', 'idgham_ng'), Seg('بِّهِمۡۖ وَأُوْلَـٰٓئِكَ هُمُ ٱلۡمُفۡلِحُونَ'),
     ]),
+    moreExamples: [('مِّن رَّبِّهِمۡۖ', '2:5', 'ِن رّ'), ('وَلَٰكِن لَّا', '2:12', 'ِن لّ'), ('وَلَٰكِن لَّا', '2:13', 'ِن لّ'), ('ظُلُمَٰتٖ لَّا', '2:17', 'تٖ لّ'), ('فَإِن لَّمۡ', '2:24', 'ِن لّ')],
   ),
   TajwidRule(
     id: 'iqlab',
@@ -98,6 +108,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('104:4', [
       Seg('كَلَّاۖ لَيُ'), Seg('نۢبَ', 'iqlab'), Seg('ذَنَّ فِي ٱلۡحُطَمَةِ'),
     ]),
+    moreExamples: [('أَلِيمُۢ', '2:10', 'ُۢ'), ('صُمُّۢ', '2:18', 'ُۢ'), ('مُحِيطُۢ', '2:19', 'ُۢ'), ('مِنۢ', '2:27', 'نۢ'), ('أَنۢبِـُٔونِي', '2:31', 'نۢب')],
   ),
   TajwidRule(
     id: 'ikhfa',
@@ -110,6 +121,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('103:2', [
       Seg('إِنَّ ٱلۡإِ'), Seg('نسَ', 'ikhfa'), Seg('ٰنَ لَفِي خُسۡرٍ'),
     ]),
+    moreExamples: [('مِن قَبۡلِكَ', '2:4', 'ِن قَ'), ('مَّرَضٞ فَزَادَهُمُ', '2:10', 'ضٞ فَ'), ('عَذَابٌ أَلِيمُۢ', '2:10', 'بٌ أَ'), ('عُمۡيٞ فَهُمۡ', '2:18', 'يٞ فَ'), ('شَيۡءٖ قَدِيرٞ', '2:20', 'ءٖ قَ')],
   ),
   TajwidRule(
     id: 'qalqalah',
@@ -122,6 +134,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('113:1', [
       Seg('قُلۡ أَعُوذُ بِرَبِّ ٱلۡفَلَ'), Seg('قِ', 'qalqalah'),
     ]),
+    moreExamples: [('رَزَقۡنَٰهُمۡ', '2:3', 'قۡ'), ('قَبۡلِكَ', '2:4', 'بۡ'), ('أَبۡصَٰرِهِمۡ', '2:7', 'بۡ'), ('يُبۡصِرُونَ', '2:17', 'بۡ'), ('يَجۡعَلُونَ', '2:19', 'جۡ')],
   ),
   TajwidRule(
     id: 'ikhfa_shafawi',
@@ -134,6 +147,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('105:4', [
       Seg('تَرۡمِي'), Seg('هِم بِ', 'ikhfa_shafawi'), Seg('حِجَارَةٖ مِّن سِجِّيلٖ'),
     ]),
+    moreExamples: [('هُم بِمُؤۡمِنِينَ', '2:8', 'ُم بِ'), ('أَنۢبِئۡهُم بِأَسۡمَآئِهِمۡۖ', '2:33', 'ُم بِ'), ('أَنۢبَأَهُم بِأَسۡمَآئِهِمۡ', '2:33', 'ُم بِ'), ('ذَٰلِكُم بَلَآءٞ', '2:49', 'ُم بَ'), ('أَنفُسَكُم بِٱتِّخَاذِكُمُ', '2:54', 'ُم بِ')],
   ),
   TajwidRule(
     id: 'idgham_shafawi',
@@ -146,6 +160,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('106:4', [
       Seg('ٱلَّذِيٓ أَطۡعَمَ'), Seg('هُم مِّ', 'idgham_shafawi'), Seg('ن جُوعٖ وَءَامَنَهُم مِّنۡ خَوۡفِۭ'),
     ]),
+    moreExamples: [('قُلُوبِهِم مَّرَضٞ', '2:10', 'ِم مّ'), ('ءَاذَانِهِم مِّنَ', '2:19', 'ِم مّ'), ('لَهُم مَّشَوۡاْ', '2:20', 'ُم مّ'), ('شُهَدَآءَكُم مِّن', '2:23', 'ُم مّ'), ('لَكُم مَّا', '2:29', 'ُم مّ')],
   ),
   TajwidRule(
     id: 'izhar_shafawi',
@@ -158,6 +173,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('1:7', [
       Seg('صِرَٰطَ ٱلَّذِينَ أَنۡعَمۡتَ عَلَيۡهِ'), Seg('مۡ غَ', 'izhar_shafawi'), Seg('يۡرِ ٱلۡمَغۡضُوبِ عَلَيۡهِمۡ وَلَا ٱلضَّآلِّينَ'),
     ]),
+    moreExamples: [('عَلَيۡهِمۡ غَيۡرِ', '1:7', 'مۡ غَ'), ('عَلَيۡهِمۡ وَلَا', '1:7', 'مۡ وَ'), ('رَزَقۡنَٰهُمۡ يُنفِقُونَ', '2:3', 'مۡ يُ'), ('هُمۡ يُوقِنُونَ', '2:4', 'مۡ يُ'), ('عَلَيۡهِمۡ ءَأَنذَرۡتَهُمۡ', '2:6', 'مۡ ءَ')],
   ),
   TajwidRule(
     id: 'madd2',
@@ -170,6 +186,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('1:4', [
       Seg('مَٰ', 'madd2'), Seg('لِكِ يَوۡمِ ٱلدِّينِ'),
     ]),
+    moreExamples: [('ٱلرَّحِيمِ', '1:1', 'ي'), ('ٱلۡعَٰلَمِينَ', '1:2', 'ي'), ('ٱلرَّحِيمِ', '1:3', 'ي'), ('يَوۡمِ', '1:4', 'ي'), ('ٱلدِّينِ', '1:4', 'ي')],
   ),
   TajwidRule(
     id: 'madd4',
@@ -182,6 +199,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('110:1', [
       Seg('إِذَا '), Seg('جَآءَ', 'madd4'), Seg(' نَصۡرُ ٱللَّهِ وَٱلۡفَتۡحُ'),
     ]),
+    moreExamples: [('ٱهۡدِنَا', '1:6', 'ا'), ('وَلَا', '1:7', 'ا'), ('لَا', '2:2', 'ا'), ('وَمِمَّا', '2:3', 'ا'), ('لَا', '2:6', 'ا')],
   ),
   TajwidRule(
     id: 'madd45',
@@ -194,6 +212,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('97:1', [
       Seg('إِ'), Seg('نَّ', 'ghunnah'), Seg('آ أَ', 'madd45'), Seg('نزَلۡنَٰهُ فِي لَيۡلَةِ ٱلۡقَدۡرِ'),
     ]),
+    moreExamples: [('بَغۡيًا أَن', '2:90', 'ًا أ'), ('هُودًا أَوۡ', '2:111', 'ًا أ'), ('بَلَدًا ءَامِنٗا', '2:126', 'ًا ء'), ('هُودًا أَوۡ', '2:135', 'ًا أ'), ('هُودًا أَوۡ', '2:140', 'ًا أ')],
   ),
   TajwidRule(
     id: 'madd6',
@@ -206,6 +225,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('1:7', [
       Seg('صِرَٰطَ ٱلَّذِينَ أَنۡعَمۡتَ عَلَيۡهِمۡ غَيۡرِ ٱلۡمَغۡضُوبِ عَلَيۡهِمۡ وَلَا ٱل'), Seg('ضَّآلّ', 'madd6'), Seg('ِينَ'),
     ]),
+    moreExamples: [('يَوۡمِ', '1:4', 'وۡ'), ('إِيَّاكَ', '1:5', 'يّ'), ('وَإِيَّاكَ', '1:5', 'يّ'), ('عَلَيۡهِمۡ', '1:7', 'يۡ'), ('غَيۡرِ', '1:7', 'يۡ')],
   ),
   TajwidRule(
     id: 'shamsiyya',
@@ -218,6 +238,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('91:1', [
       Seg('وَ'), Seg('ٱلشَّ', 'shamsiyya'), Seg('مۡسِ وَضُحَىٰهَا'),
     ]),
+    moreExamples: [('ٱلتَّوَّابُ', '2:37', 'ٱلتّ'), ('ٱلثَّمَرَٰتِ', '2:22', 'ٱلثّ'), ('ٱلدِّينِ', '1:4', 'ٱلدّ'), ('ٱلذِّلَّةُ', '2:61', 'ٱلذّ'), ('ٱلرَّحۡمَٰنِ', '1:1', 'ٱلرّ'), ('ٱلزَّكَوٰةَ', '2:43', 'ٱلزّ')],
   ),
   TajwidRule(
     id: 'qamariyya',
@@ -230,6 +251,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('91:2', [
       Seg('وَ'), Seg('ٱلۡقَ', 'qamariyya'), Seg('مَرِ إِذَا تَلَىٰهَا'),
     ]),
+    moreExamples: [('ٱلۡأٓخِرِ', '2:8', 'ٱلۡأ'), ('ٱلۡبَرۡقُ', '2:20', 'ٱلۡب'), ('ٱلۡجَنَّةَ', '2:35', 'ٱلۡج'), ('ٱلۡحَمۡدُ', '1:2', 'ٱلۡح'), ('ٱلۡخَٰسِرُونَ', '2:27', 'ٱلۡخ'), ('ٱلۡعَٰلَمِينَ', '1:2', 'ٱلۡع')],
   ),
   TajwidRule(
     id: 'raa_tafkhim',
@@ -242,6 +264,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('1:2', [
       Seg('ٱلۡحَمۡدُ لِلَّهِ '), Seg('رَ', 'raa_tafkhim'), Seg('بِّ ٱلۡعَٰلَمِينَ'),
     ]),
+    moreExamples: [('رَبِّ', '1:2', 'رَ'), ('ٱلصِّرَٰطَ', '1:6', 'رَ'), ('صِرَٰطَ', '1:7', 'رَ'), ('رَيۡبَۛ', '2:2', 'رَ'), ('رَزَقۡنَٰهُمۡ', '2:3', 'رَ')],
   ),
   TajwidRule(
     id: 'raa_tarqiq',
@@ -254,6 +277,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('1:7', [
       Seg('صِرَٰطَ ٱلَّذِينَ أَنۡعَمۡتَ عَلَيۡهِمۡ غَيۡ'), Seg('رِ', 'raa_tarqiq'), Seg(' ٱلۡمَغۡضُوبِ عَلَيۡهِمۡ وَلَا ٱلضَّآلِّينَ'),
     ]),
+    moreExamples: [('غَيۡرِ', '1:7', 'رِ'), ('أَبۡصَٰرِهِمۡ', '2:7', 'رِ'), ('ٱلۡأٓخِرِ', '2:8', 'رِ'), ('بِنُورِهِمۡ', '2:17', 'رِ'), ('بِٱلۡكَٰفِرِينَ', '2:19', 'رِ')],
   ),
   TajwidRule(
     id: 'tafkhim',
@@ -266,6 +290,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('112:2', [
       Seg('ٱللَّهُ ٱل'), Seg('صّ', 'tafkhim'), Seg('َمَدُ'),
     ]),
+    moreExamples: [('ٱلصِّرَٰطَ', '1:6', 'صّ'), ('ٱلضَّآلِّينَ', '1:7', 'ضّ'), ('ٱلصَّلَوٰةَ', '2:3', 'صّ'), ('ٱلضَّلَٰلَةَ', '2:16', 'ضّ'), ('ٱلصَّوَٰعِقِ', '2:19', 'صّ')],
   ),
   TajwidRule(
     id: 'lam_jalalah',
@@ -278,6 +303,7 @@ const tajwidRules = <TajwidRule>[
     example: VerseExample('1:2', [
       Seg('ٱلۡحَمۡدُ لِ'), Seg('لَّهِ', 'lam_jalalah'), Seg(' رَبِّ ٱلۡعَٰلَمِينَ'),
     ]),
+    moreExamples: [('ٱللَّهِ', '1:1', 'للّ'), ('ٱللَّهُ', '2:7', 'للّ'), ('بِٱللَّهِ', '2:8', 'للّ'), ('ٱللَّهَ', '2:9', 'للّ'), ('ٱللَّهُ', '2:10', 'للّ')],
   ),
 ];
 

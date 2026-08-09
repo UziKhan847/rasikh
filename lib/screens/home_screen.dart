@@ -7,15 +7,16 @@ import '../core/l10n.dart';
 import '../core/audio.dart';
 import '../data/votd.dart';
 import '../widgets/common.dart';
+import '../widgets/lesson.dart';
 import 'about_screen.dart';
 import 'dyslexia_screen.dart';
+import 'lessons/qaidah_lessons.dart';
 import 'qaidah_screen.dart';
 import 'qiraat_screen.dart';
 import 'quran_screen.dart';
 import 'script_screen.dart';
 import 'search.dart';
 import 'tajweed_screen.dart';
-import 'tashkeel_screen.dart';
 import 'tracing_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -30,16 +31,16 @@ class HomeScreen extends StatelessWidget {
           pal(context).accentDeep, (_) => const SurahListScreen()),
       _M(context.l10n.qaidahPath, context.l10n.qaidahSub, 'ق',
           pal(context).accent, (_) => const QaidahScreen()),
-      _M(context.l10n.tracingStudio, context.l10n.tracingSub, 'ب',
-          pal(context).accent2, (_) => const TracingScreen()),
-      _M(context.l10n.tashkilLab, context.l10n.tashkilSub, 'بَ',
-          AppColors.lilac, (_) => const TashkeelScreen()),
       _M(context.l10n.tajwidAcademy, context.l10n.tajwidSub, 'ج',
           AppColors.tjGhunnah, (_) => const TajweedScreen()),
-      _M(context.l10n.readingCoach, context.l10n.coachSub, 'ت',
-          pal(context).accent2, (_) => const DyslexiaScreen()),
+      _M(context.l10n.tashkilLab, context.l10n.tashkilSub, 'بَ',
+          AppColors.lilac, (c) => lessonEntryScreen(tashkilLessonRoot(c))),
       _M(context.l10n.scriptSymbols, context.l10n.scriptSymbolsSub, '۩',
           const Color(0xFFB9832A), (_) => const ScriptScreen()),
+      _M(context.l10n.tracingStudio, context.l10n.tracingSub, 'ب',
+          pal(context).accent2, (_) => const TracingScreen()),
+      _M(context.l10n.readingCoach, context.l10n.coachSub, 'ت',
+          pal(context).accent2, (_) => const DyslexiaScreen()),
       _M(context.l10n.qiraHallAdvanced, context.l10n.qiraatSub, '١٠',
           AppColors.tjMadd4, (_) => const QiraatScreen(), soon: true),
     ];

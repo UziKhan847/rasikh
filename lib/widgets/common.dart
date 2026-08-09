@@ -1,6 +1,7 @@
 import '../core/audio.dart';
 import '../core/l10n.dart';
 import '../core/responsive.dart';
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -53,17 +54,21 @@ class _FadeSlideInState extends State<FadeSlideIn>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 480));
+  Timer? _delay;
 
   @override
   void initState() {
     super.initState();
-    Future.delayed(Duration(milliseconds: widget.delayMs), () {
-      if (mounted) _c.forward();
-    });
+    _delay = Timer(Duration(milliseconds: widget.delayMs), () => _c.forward());
   }
 
   @override
   void dispose() {
+    // A long staggered list (e.g. Joining Forms' 28-letter + Special Shapes
+    // picker) can scroll an item out of view — and get it disposed by Sliver
+    // virtualization — before its delay elapses. Without canceling here,
+    // that leaves a dangling Timer for the rest of the app's lifetime.
+    _delay?.cancel();
     _c.dispose();
     super.dispose();
   }
@@ -911,6 +916,28 @@ class _ResultView extends StatelessWidget {
   return (options: opts, correct: opts.indexOf(answer));
 }
 
+/// Samples [n] items from [pool] without replacement; if `n > pool.length`,
+/// cycles through additional reshuffled passes so nothing repeats until
+/// every item in the pool has appeared once. This is the "shuffle once, take
+/// N" pattern several quiz builders already used ad hoc (`_letterQuiz`,
+/// `_formsQuiz`, `_wordQuiz`) — shared here so every quiz session draws
+/// without replacement instead of risking the same question twice by chance.
+List<T> pickN<T>(List<T> pool, int n, math.Random rng) {
+  if (pool.isEmpty || n <= 0) return const [];
+  final out = <T>[];
+  var shuffled = [...pool]..shuffle(rng);
+  var i = 0;
+  while (out.length < n) {
+    if (i >= shuffled.length) {
+      shuffled = [...pool]..shuffle(rng);
+      i = 0;
+    }
+    out.add(shuffled[i]);
+    i++;
+  }
+  return out;
+}
+
 // ─────────────────────── Learn-phase shared surface ───────────────────────
 
 /// The Listen/Watch row every lesson card carries. Watch always falls back to
@@ -967,127 +994,24 @@ class MediaRow extends StatelessWidget {
   }
 }
 
-/// One learnable fact for a [ConceptLearnScreen] card — a mark, a small
-/// letter, a muqaṭṭaʿah set, or any other single teachable unit: its display
-/// glyph, name, a short note, and an optional Qurʼanic example.
-class ConceptCard {
-  final String glyph; // big Qurʼanic-font display
-  final String title;
-  final String subtitle;
-  final String note;
-  final String? example;
-  final String? exampleRef;
-  const ConceptCard({
-    required this.glyph,
-    required this.title,
-    this.subtitle = '',
-    this.note = '',
-    this.example,
-    this.exampleRef,
-  });
-}
+/// One real Qurʼanic example demonstrating a lesson's concept (see
+/// `LessonDetail.examples` in `widgets/lesson.dart`): the word/phrase, its
+/// surah:ayah ref, and an optional substring to highlight.
+typedef ConceptExample = ({String text, String ref, String? highlight});
 
-/// A shared "browse these concepts" Learn-phase surface, one card per
-/// [ConceptCard] — used by every Qaidah unit that doesn't already have a
-/// bespoke learning surface (Letters/Forms/Madd have their own).
-class ConceptLearnScreen extends StatelessWidget with DesktopAware {
-  final String title;
-  final List<ConceptCard> cards;
-  const ConceptLearnScreen({super.key, required this.title, required this.cards});
-
-  @override
-  Widget build(BuildContext context) {
-    if (useDesktop(context)) return _desktopBuild(context);
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-          children: [
-            for (var i = 0; i < cards.length; i++)
-              FadeSlideIn(delayMs: 30 * i, child: _card(context, cards[i])),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _card(BuildContext context, ConceptCard c) => Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: pal(context).surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: pal(context).surfaceHigh),
-        ),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            width: 64,
-            height: 64,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: pal(context).surfaceHigh,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(c.glyph,
-                textDirection: TextDirection.rtl,
-                style: quranicStyle(context, size: 28, color: pal(context).accent)),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
-                Text(c.title, style: uiStyle(context, size: 16, weight: FontWeight.w700)),
-                if (c.subtitle.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Text(c.subtitle,
-                      style: uiStyle(context, size: 13, color: pal(context).textDim)),
-                ],
-              ]),
-              if (c.note.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(c.note, style: uiStyle(context, size: 13.5, color: pal(context).textDim)),
-              ],
-              if (c.example != null) ...[
-                const SizedBox(height: 10),
-                Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 10, children: [
-                  Text(c.example!,
-                      textDirection: TextDirection.rtl,
-                      style: quranicStyle(context, size: 22)),
-                  if (c.exampleRef != null)
-                    Text(context.l10n.surahRef(c.exampleRef!),
-                        style: uiStyle(context, size: 11.5, color: pal(context).textDim)),
-                ]),
-              ],
-              const SizedBox(height: 4),
-              MediaRow(ref: c.exampleRef),
-            ]),
-          ),
-        ]),
-      );
-
-  Widget _desktopBuild(BuildContext context) => Scaffold(
-        backgroundColor: pal(context).bg,
-        body: SafeArea(
-          top: false,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 32),
-            children: [
-              Text(title, style: uiStyle(context, size: 22, weight: FontWeight.w900)),
-              const SizedBox(height: 18),
-              Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: [
-                  for (final c in cards) SizedBox(width: 380, child: _card(context, c)),
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
-}
+/// Builds a `LessonDetail.examples` list from a primary (text, ref) pair plus
+/// its data class's `moreExamples`/`examples` tuples — the shared "one
+/// primary example + several more" shape every Learn-phase data file uses
+/// (`TajwidRule.moreExamples`, `WaslItem.moreExamples`, `WaqfMark.moreExamples`,
+/// etc.), so call sites don't each hand-roll the same conversion.
+List<ConceptExample> conceptExamples(
+        String primary, String primaryRef,
+        [List<(String, String, String)> more = const [],
+        String? primaryHighlight]) =>
+    [
+      (text: primary, ref: primaryRef, highlight: primaryHighlight),
+      for (final (t, r, h) in more) (text: t, ref: r, highlight: h),
+    ];
 
 // ──────────────────────── Learn → Test → Practice hub ─────────────────────
 

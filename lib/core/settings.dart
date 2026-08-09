@@ -60,7 +60,7 @@ class AppSettings extends ChangeNotifier {
   bool readerHeaderCollapsed = false; // retract the reader control panel
   String fontUthmani = 'UthmanicHafs'; // or 'ScheherazadeNew'
   String fontIndopak = 'DigitalKhattIndoPak';
-  String reciter = 'tunaiji'; // 'tunaiji' | 'alafasy' (word-sync highlight)
+  String reciter = 'tunaiji'; // 'tunaiji' | 'alafasy' | 'husary'
   String readerLayout = 'cards'; // 'cards' | 'mushaf' (continuous flow)
   String reciteFlow = 'single'; // 'single' | 'auto' (continue) | 'repeat'
   bool playerBarPinned = true; // recitation player bar: fixed vs. floating/draggable

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qiraah_arabiyyah/data/extra_letters.dart';
 import 'package:qiraah_arabiyyah/data/letters.dart';
+import 'package:qiraah_arabiyyah/data/makharij.dart';
 import 'package:qiraah_arabiyyah/data/muqattaat.dart';
 import 'package:qiraah_arabiyyah/data/small_letters.dart';
 import 'package:qiraah_arabiyyah/data/tajweed.dart';
@@ -52,6 +53,50 @@ void main() {
         expect(kinds.contains(v.kind), isTrue,
             reason: 'Variant "${v.id}" has an undocumented kind: ${v.kind}');
       }
+    });
+
+    test('every moreExamples entry is a verbatim substring of its āyah, with '
+        'a substring highlight (Round 13)', () {
+      for (final v in letterVariants) {
+        for (final (word, ref, hl) in v.moreExamples) {
+          final ayah = ayahAt(ref);
+          expect(ayah.contains(word), isTrue,
+              reason: 'Variant "${v.id}" moreExample is not verbatim in '
+                  '$ref.\n  word: $word\n  āyah: $ayah');
+          expect(word.contains(hl), isTrue,
+              reason: 'Variant "${v.id}" moreExample highlight is not inside '
+                  'its word.\n  highlight: $hl\n  word: $word');
+        }
+      }
+    });
+
+    test('every variant has a non-empty note — 13 are superseded by a '
+        'hand-drawn shape in special_shapes.dart, the other 7 use it as '
+        "their coming-soon row's summary until their own shape is drawn",
+        () {
+      for (final v in letterVariants) {
+        expect(v.note, isNotEmpty, reason: 'Variant "${v.id}" has no note');
+      }
+    });
+
+    test('variantById finds every id, and only real ids', () {
+      for (final v in letterVariants) {
+        expect(variantById(v.id).id, v.id);
+      }
+      expect(() => variantById('nope'), throwsStateError);
+    });
+
+    test('the lām-alif family (لا لأ لإ) are all kind ligature, letter '
+        'length 2, and distinct', () {
+      final ids = ['lam_alif.ligature', 'lam_alif.hamza_above', 'lam_alif.hamza_below'];
+      final lettersSeen = <String>{};
+      for (final id in ids) {
+        final v = variantById(id);
+        expect(v.kind, 'ligature', reason: id);
+        expect(v.letter.length, 2, reason: id);
+        lettersSeen.add(v.letter);
+      }
+      expect(lettersSeen.length, 3, reason: 'all three should be distinct shapes');
     });
   });
 
@@ -159,6 +204,37 @@ void main() {
             reason: 'U+0622 has zero occurrences in the Uthmani corpus and '
                 'should stay decomposed, not modelled as its own letter');
       }
+    });
+
+    test('extraLetterMoreExamples: every entry is a verbatim substring of '
+        'its āyah, with a substring highlight (Round 12)', () {
+      for (final l in extraLetters) {
+        final more = extraLetterMoreExamples[l.char] ?? const [];
+        expect(more, isNotEmpty, reason: '${l.char} has no moreExamples');
+        for (final (word, ref, hl) in more) {
+          final ayah = ayahAt(ref);
+          expect(ayah.contains(word), isTrue,
+              reason: 'Extra letter "${l.char}" moreExample is not verbatim '
+                  'in $ref.\n  word: $word\n  āyah: $ayah');
+          expect(word.contains(hl), isTrue, reason: l.char);
+        }
+      }
+    });
+
+    test('makhrajOfExtraLetter maps exactly the 8 extra letters, each to a '
+        'real makhraj id', () {
+      final ids = makharij.map((m) => m.id).toSet();
+      expect(makhrajOfExtraLetter.keys.toSet(),
+          extraLetters.map((l) => l.char).toSet());
+      for (final entry in makhrajOfExtraLetter.entries) {
+        expect(ids.contains(entry.value), isTrue,
+            reason: '${entry.key} points at unknown makhraj ${entry.value}');
+      }
+    });
+
+    test('extraLetterNotes covers exactly the 8 extra letters', () {
+      expect(extraLetterNotes.keys.toSet(),
+          extraLetters.map((l) => l.char).toSet());
     });
   });
 

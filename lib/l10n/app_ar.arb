@@ -636,6 +636,7 @@
     }
   },
   "qpWhichLetterEndsWord": "أي حرف يختم هذه الكلمة؟",
+  "qpWhichLettersFormThis": "ما الحرفان اللذان يكوّنان هذا الشكل؟",
   "qpWhichHamzaForm": "أيّها {name}؟",
   "@qpWhichHamzaForm": {
     "placeholders": {
@@ -743,5 +744,125 @@
   "optPageMark": "علامة صفحة أو تصفّح، لا حكم وقف",
   "qpWhichSmallMark": "ما هذه العلامة؟",
   "qpWhichPageMark": "ما علامة الصفحة هذه؟",
-  "scriptUnitsProgress": "{done} من {total} وحدات استُكشفت"
+  "scriptUnitsProgress": "{done} من {total} وحدات استُكشفت",
+  "downloads": "التنزيلات",
+  "manageDownloads": "إدارة التنزيلات",
+  "downloadsIntro": "تعرّف على ما تم حفظه للاستخدام دون إنترنت، واختر ما تريد تنزيله مسبقًا.",
+  "afasyName": "العفاسي",
+  "husaryName": "الحصري",
+  "tunaijiDownloadNote": "تلاوة الشيخ خليفة التنيجي تُبث من EveryAyah.com، ويمكن تنزيلها سورة سورة من داخل قارئ القرآن — لكنها غير متاحة هنا للتنزيل الجماعي إلى حين ورود تأكيد الترخيص من EveryAyah.",
+  "complianceNote": "يتم تحديث صوت العفاسي والحصري وصوت كلمة-كلمة تلقائيًا مرة واحدة على الأقل أسبوعيًا، وفقًا لشروط مؤسسة القرآن للتخزين دون إنترنت.",
+  "checkForUpdates": "التحقق من التحديثات",
+  "checkedForUpdates": "تم التحقق من التحديثات.",
+  "downloadAll": "تنزيل الكل",
+  "downloadAllFor": "تنزيل الكل — {name}",
+  "@downloadAllFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteAllFor": "حذف الكل — {name}",
+  "@deleteAllFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmBulkDownloadBody": "تنزيل {name} لجميع السور الـ114؟ قد يستغرق هذا كمية كبيرة من البيانات ووقتًا طويلًا.",
+  "@confirmBulkDownloadBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmDeleteAllBody": "حذف جميع ملفات {name} التي تم تنزيلها؟ يمكنك تنزيلها مرة أخرى لاحقًا.",
+  "@confirmDeleteAllBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmDeleteOneBody": "حذف صوت {name} الذي تم تنزيله لسورة {surah}؟",
+  "@confirmDeleteOneBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "surah": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadedFull": "تم التنزيل",
+  "downloadedPartial": "تنزيل جزئي",
+  "notDownloaded": "لم يُنزَّل",
+  "bulkDownloadProgress": "جارٍ تنزيل السورة {i} من {total}…",
+  "@bulkDownloadProgress": {
+    "placeholders": {
+      "i": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "bulkDownloadCancelling": "جارٍ الإلغاء بعد هذه السورة…",
+  "bulkDownloadComplete": "اكتمل تنزيل {name}.",
+  "@bulkDownloadComplete": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailed": "تعذّر تنزيل بعض الملفات — تحقق من اتصالك وحاول مرة أخرى.",
+  "wbwAudioSaved": "حُفظ صوت كلمة-كلمة لسورة {name} للاستخدام دون إنترنت.",
+  "@wbwAudioSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "إلغاء",
+  "delete": "حذف",
+  "download": "تنزيل",
+  "lsnSound": "النطق",
+  "lsnHowWritten": "كيف تُكتب",
+  "lsnOnWaqf": "عند الوقف",
+  "lsnShapeSignals": "ما يدل عليه الشكل",
+  "lsnCounts": "الحركات (العدّ)",
+  "lsnTanwinShapes": "أشكال التنوين",
+  "lsnSmallLetters": "الحروف الصغيرة",
+  "lsnTwoZeros": "الصفران",
+  "lsnSinOverSad": "السين فوق الصاد",
+  "lsnRequirement": "الحكم",
+  "lsnWhere": "أين",
+  "mkZoneJawf": "الجوف",
+  "mkZoneHalq": "الحلق",
+  "mkZoneLisan": "اللسان",
+  "mkZoneShafatan": "الشفتان",
+  "mkZoneKhayshum": "الخيشوم",
+  "mkGroupBack": "أقصى اللسان",
+  "mkGroupMiddle": "وسط اللسان",
+  "mkGroupEdge": "حافة اللسان",
+  "mkGroupTip": "طرف اللسان",
+  "sifatStandaloneGroup": "صفات منفردة",
+  "lsnArticulationPoint": "مخرج الحرف",
+  "lsnExamples": "أمثلة",
+  "lsnLetters": "الحروف",
+  "lsnSpecialShapes": "أشكال خاصة",
+  "lsnLigatures": "الحروف المركبة",
+  "lsnKafsWrap": "التفاف الكاف",
+  "lsnStacking": "التراكب",
+  "lsnHeightsAndTails": "الارتفاعات والذيول",
+  "lsnApart": "منفصلة",
+  "lsnJoinedShape": "متصلة في شكل واحد",
+  "lsnTellApart": "كيف تميّز بينها"
 }

@@ -636,6 +636,7 @@
     }
   },
   "qpWhichLetterEndsWord": "¿Qué letra termina esta palabra?",
+  "qpWhichLettersFormThis": "¿Qué dos letras forman esta forma?",
   "qpWhichHamzaForm": "¿Cuál es {name}?",
   "@qpWhichHamzaForm": {
     "placeholders": {
@@ -743,5 +744,125 @@
   "optPageMark": "Una marca de página/navegación, no una regla de parada",
   "qpWhichSmallMark": "¿Cuál es esta señal?",
   "qpWhichPageMark": "¿Cuál es esta marca de página?",
-  "scriptUnitsProgress": "{done} de {total} unidades exploradas"
+  "scriptUnitsProgress": "{done} de {total} unidades exploradas",
+  "downloads": "Descargas",
+  "manageDownloads": "Gestionar descargas",
+  "downloadsIntro": "Consulta lo que ya está guardado sin conexión y elige qué descargar por adelantado.",
+  "afasyName": "Al-ʿAfāsī",
+  "husaryName": "Al-Ḥuṣarī",
+  "tunaijiDownloadNote": "La recitación del Jeque Khalifah Al-Tunaiji se transmite desde EveryAyah.com y aún puede descargarse sura por sura desde el lector — no se ofrece aquí para descarga masiva mientras esté pendiente la confirmación de licencia de EveryAyah.",
+  "complianceNote": "El audio de Al-ʿAfāsī, Al-Ḥuṣarī y palabra por palabra se actualiza automáticamente al menos una vez por semana, según los términos de Quran Foundation para el almacenamiento sin conexión.",
+  "checkForUpdates": "Buscar actualizaciones",
+  "checkedForUpdates": "Actualizaciones comprobadas.",
+  "downloadAll": "Descargar todo",
+  "downloadAllFor": "Descargar todo — {name}",
+  "@downloadAllFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteAllFor": "Eliminar todo — {name}",
+  "@deleteAllFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmBulkDownloadBody": "¿Descargar {name} para las 114 suras? Puede suponer una gran cantidad de datos y tardar un tiempo.",
+  "@confirmBulkDownloadBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmDeleteAllBody": "¿Eliminar todos los archivos descargados de {name}? Puedes volver a descargarlos más tarde.",
+  "@confirmDeleteAllBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmDeleteOneBody": "¿Eliminar el audio de {name} descargado para la sura {surah}?",
+  "@confirmDeleteOneBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "surah": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadedFull": "Descargado",
+  "downloadedPartial": "Descargado parcialmente",
+  "notDownloaded": "No descargado",
+  "bulkDownloadProgress": "Descargando sura {i} de {total}…",
+  "@bulkDownloadProgress": {
+    "placeholders": {
+      "i": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "bulkDownloadCancelling": "Cancelando después de esta sura…",
+  "bulkDownloadComplete": "Descarga de {name} completa.",
+  "@bulkDownloadComplete": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailed": "Algunos archivos no se pudieron descargar — comprueba tu conexión e inténtalo de nuevo.",
+  "wbwAudioSaved": "Audio palabra por palabra de la sura {name} guardado sin conexión.",
+  "@wbwAudioSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "Cancelar",
+  "delete": "Eliminar",
+  "download": "Descargar",
+  "lsnSound": "Sonido",
+  "lsnHowWritten": "Cómo se escribe",
+  "lsnOnWaqf": "Al detenerse (waqf)",
+  "lsnShapeSignals": "Lo que indica su forma",
+  "lsnCounts": "Tiempos",
+  "lsnTanwinShapes": "Formas del tanwīn",
+  "lsnSmallLetters": "Letras pequeñas",
+  "lsnTwoZeros": "Los dos ceros",
+  "lsnSinOverSad": "Sīn sobre ṣād",
+  "lsnRequirement": "Obligación",
+  "lsnWhere": "Dónde",
+  "mkZoneJawf": "La cavidad oral",
+  "mkZoneHalq": "La garganta",
+  "mkZoneLisan": "La lengua",
+  "mkZoneShafatan": "Los labios",
+  "mkZoneKhayshum": "La cavidad nasal",
+  "mkGroupBack": "Base de la lengua",
+  "mkGroupMiddle": "Medio de la lengua",
+  "mkGroupEdge": "Borde de la lengua",
+  "mkGroupTip": "Punta de la lengua",
+  "sifatStandaloneGroup": "Cualidades independientes",
+  "lsnArticulationPoint": "Punto de articulación",
+  "lsnExamples": "Ejemplos",
+  "lsnLetters": "Letras",
+  "lsnSpecialShapes": "Formas especiales",
+  "lsnLigatures": "Ligaduras",
+  "lsnKafsWrap": "El envoltorio de la kāf",
+  "lsnStacking": "Apilamiento",
+  "lsnHeightsAndTails": "Alturas y colas",
+  "lsnApart": "Separadas",
+  "lsnJoinedShape": "Unidas en una sola forma",
+  "lsnTellApart": "Cómo distinguirlas"
 }

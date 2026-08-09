@@ -32,11 +32,11 @@ class _DesktopShellState extends State<DesktopShell> {
     DeskTab.home,
     DeskTab.reader,
     DeskTab.qaidah,
-    DeskTab.tracing,
-    DeskTab.tashkil,
     DeskTab.tajwid,
-    DeskTab.coach,
+    DeskTab.tashkil,
     DeskTab.script,
+    DeskTab.tracing,
+    DeskTab.coach,
     DeskTab.qiraat,
   ];
 

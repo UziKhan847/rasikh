@@ -1153,6 +1153,7 @@
     }
   },
   "qpWhichLetterEndsWord": "Which letter ends this word?",
+  "qpWhichLettersFormThis": "Which two letters make this shape?",
   "qpWhichHamzaForm": "Which is {name}?",
   "@qpWhichHamzaForm": {
     "placeholders": {
@@ -1244,8 +1245,12 @@
   "scriptUnitsProgress": "{done} of {total} units explored",
   "@scriptUnitsProgress": {
     "placeholders": {
-      "done": {"type": "int"},
-      "total": {"type": "int"}
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "qpWhichScriptIsThis": "Madani or Indo-Pak?",
@@ -1258,5 +1263,125 @@
   "optPreferStop": "Better to stop",
   "optPageMark": "A page/navigation mark, not a stop rule",
   "qpWhichSmallMark": "Which mark is this?",
-  "qpWhichPageMark": "Which page mark is this?"
+  "qpWhichPageMark": "Which page mark is this?",
+  "downloads": "Downloads",
+  "manageDownloads": "Manage downloads",
+  "downloadsIntro": "See what's already saved for offline use, and choose what to download ahead of time.",
+  "afasyName": "Al-ʿAfāsī",
+  "husaryName": "Al-Ḥuṣarī",
+  "tunaijiDownloadNote": "Shaykh Khalifah Al-Tunaiji's recitation streams from EveryAyah.com and can still be downloaded one sūrah at a time from the reader — it isn't offered here for bulk download while a licensing confirmation from EveryAyah is still pending.",
+  "complianceNote": "Al-ʿAfāsī, Al-Ḥuṣarī and word-by-word audio are refreshed automatically at least once a week, per Quran Foundation's terms for offline caching.",
+  "checkForUpdates": "Check for updates",
+  "checkedForUpdates": "Checked for updates.",
+  "downloadAll": "Download all",
+  "downloadAllFor": "Download all — {name}",
+  "@downloadAllFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteAllFor": "Delete all — {name}",
+  "@deleteAllFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmBulkDownloadBody": "Download {name} for all 114 sūrahs? This can be a large amount of data and take a while.",
+  "@confirmBulkDownloadBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmDeleteAllBody": "Delete all downloaded {name} files? You can download them again later.",
+  "@confirmDeleteAllBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmDeleteOneBody": "Delete the downloaded {name} audio for Sūrah {surah}?",
+  "@confirmDeleteOneBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "surah": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadedFull": "Downloaded",
+  "downloadedPartial": "Partially downloaded",
+  "notDownloaded": "Not downloaded",
+  "bulkDownloadProgress": "Downloading sūrah {i} of {total}…",
+  "@bulkDownloadProgress": {
+    "placeholders": {
+      "i": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "bulkDownloadCancelling": "Cancelling after this sūrah…",
+  "bulkDownloadComplete": "{name} download complete.",
+  "@bulkDownloadComplete": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailed": "Some files couldn't be downloaded — check your connection and try again.",
+  "wbwAudioSaved": "Word-by-word audio for Sūrah {name} saved for offline use.",
+  "@wbwAudioSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "download": "Download",
+  "lsnSound": "Sound",
+  "lsnHowWritten": "How It's Written",
+  "lsnOnWaqf": "On Stopping (Waqf)",
+  "lsnShapeSignals": "What Its Shape Signals",
+  "lsnCounts": "Counts",
+  "lsnTanwinShapes": "Tanwīn Shapes",
+  "lsnSmallLetters": "Small Letters",
+  "lsnTwoZeros": "The Two Zeros",
+  "lsnSinOverSad": "Sīn Over Ṣād",
+  "lsnRequirement": "Requirement",
+  "lsnWhere": "Where",
+  "mkZoneJawf": "The Oral Cavity",
+  "mkZoneHalq": "The Throat",
+  "mkZoneLisan": "The Tongue",
+  "mkZoneShafatan": "The Lips",
+  "mkZoneKhayshum": "The Nasal Cavity",
+  "mkGroupBack": "Back of the Tongue",
+  "mkGroupMiddle": "Middle of the Tongue",
+  "mkGroupEdge": "Edge of the Tongue",
+  "mkGroupTip": "Tip of the Tongue",
+  "sifatStandaloneGroup": "Standalone Qualities",
+  "lsnArticulationPoint": "Articulation Point",
+  "lsnExamples": "Examples",
+  "lsnLetters": "Letters",
+  "lsnSpecialShapes": "Special Shapes",
+  "lsnLigatures": "Ligatures",
+  "lsnKafsWrap": "Kāf's Wrap",
+  "lsnStacking": "Stacking",
+  "lsnHeightsAndTails": "Heights & Tails",
+  "lsnApart": "Apart",
+  "lsnJoinedShape": "Joined as One Shape",
+  "lsnTellApart": "Telling Them Apart"
 }

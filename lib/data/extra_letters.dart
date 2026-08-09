@@ -27,6 +27,51 @@ const extraLetters = <ArabicLetter>[
 /// Looks up a character in [letters] first, then [extraLetters]. Returns
 /// null instead of throwing when the character is in neither — unlike
 /// [letterFor], which is only ever called with a known-28 character.
+
+/// A short note on how/when each extra letter is actually read — shown on
+/// its Learn-phase lesson page alongside its makhraj cross-link.
+const Map<String, String> extraLetterNotes = {
+  'ء': 'A glottal stop with no seat of its own — written bare when it opens a word after a long vowel, or floats between two vowels mid-word.',
+  'أ': 'Hamzah seated on an alif, written above it — used when the hamzah itself carries a fatḥah or ḍammah.',
+  'إ': 'Hamzah seated on an alif, written below it — used when the hamzah itself carries a kasrah.',
+  'ؤ': 'Hamzah seated on a wāw — used when the hamzah carries or follows a ḍammah.',
+  'ئ': 'Hamzah seated on a dotless yāʼ — used when the hamzah carries or follows a kasrah.',
+  'ة': 'The feminine ending. Read as a plain ت when recitation continues into the next word (waṣl); read as a silent ه when you stop (waqf) — the -t sound never carries over into a pause.',
+  'ى': 'A madd letter written without the two dots of a full yāʼ — pronounced exactly like a plain alif of madd.',
+  'ٱ': 'A hamzah with no vowel of its own. Sounded, lightly, only when you START with it; silent — and unmarked in plain text — when you join it from the word before.',
+};
+
+/// Each extra letter's articulation point — a separate map from
+/// [makhrajOfLetter] (test/tajwid_symbols_data_test.dart pins that one at
+/// exactly 29 entries: the 28 core letters + hamzah), the same reason
+/// [extraLetters] is a separate list from [letters]. تāʼ marbūṭah maps to
+/// its joined (ت) reading, since that is how it is read whenever recitation
+/// continues past it — see its note for the pausal ه alternative.
+const Map<String, String> makhrajOfExtraLetter = {
+  'ء': 'halq_aqsa',
+  'أ': 'halq_aqsa',
+  'إ': 'halq_aqsa',
+  'ؤ': 'halq_aqsa',
+  'ئ': 'halq_aqsa',
+  'ة': 'lisan_tarf_tdt',
+  'ى': 'jawf',
+  'ٱ': 'halq_aqsa',
+};
+
+/// 2-3 more real corpus examples per extra letter, beyond its single
+/// `exampleWord` — same "several examples, not just one" shape the rest of
+/// the Learn phase uses. Highlight is the character itself.
+const Map<String, List<(String, String, String)>> extraLetterMoreExamples = {
+  'ء': [('ءَأَنذَرۡتَهُمۡ', '2:6', 'ء'), ('ءَامَنَّا', '2:8', 'ء'), ('ءَامَنُواْ', '2:9', 'ء')],
+  'أ': [('أَنۡعَمۡتَ', '1:7', 'أ'), ('وَبِٱلۡأٓخِرَةِ', '2:4', 'أ'), ('أُوْلَـٰٓئِكَ', '2:5', 'أ')],
+  'إ': [('وَإِيَّاكَ', '1:5', 'إ'), ('إِلَيۡكَ', '2:4', 'إ'), ('إِنَّ', '2:6', 'إ')],
+  'ؤ': [('يُؤۡمِنُونَ', '2:3', 'ؤ'), ('بِمُؤۡمِنِينَ', '2:8', 'ؤ'), ('أَنُؤۡمِنُ', '2:13', 'ؤ')],
+  'ئ': [('أُوْلَـٰٓئِكَ', '2:5', 'ئ'), ('وَأُوْلَـٰٓئِكَ', '2:5', 'ئ'), ('يَسۡتَهۡزِئُ', '2:15', 'ئ')],
+  'ة': [('ٱلصَّلَوٰةَ', '2:3', 'ة'), ('وَبِٱلۡأٓخِرَةِ', '2:4', 'ة'), ('غِشَٰوَةٞۖ', '2:7', 'ة')],
+  'ى': [('عَلَىٰ', '2:5', 'ى'), ('وَعَلَىٰ', '2:7', 'ى'), ('وَعَلَىٰٓ', '2:7', 'ى')],
+  'ٱ': [('ٱلرَّحۡمَٰنِ', '1:1', 'ٱ'), ('ٱلرَّحِيمِ', '1:1', 'ٱ'), ('ٱلۡحَمۡدُ', '1:2', 'ٱ')],
+};
+
 ArabicLetter? letterForAny(String ch) {
   for (final l in letters) {
     if (l.char == ch) return l;

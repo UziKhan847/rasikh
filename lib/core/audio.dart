@@ -235,6 +235,63 @@ class WbwAudio {
     return allPresent;
   }
 
+  /// Per-surah downloaded-file counts, from a single directory listing —
+  /// same approach as [AyahAudio.downloadedCounts].
+  Future<Map<int, int>> downloadedCounts() async {
+    final dir = await _localDir();
+    if (dir == null || !await dir.exists()) return {};
+    final counts = <int, int>{};
+    await for (final e in dir.list()) {
+      if (e is! File) continue;
+      final surah = int.tryParse(e.uri.pathSegments.last.split('_').first);
+      if (surah == null) continue;
+      counts[surah] = (counts[surah] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  /// Total bytes on disk for downloaded word-by-word audio.
+  Future<int> bytesUsed() async {
+    final dir = await _localDir();
+    if (dir == null || !await dir.exists()) return 0;
+    var total = 0;
+    await for (final e in dir.list()) {
+      if (e is File) {
+        try {
+          total += await e.length();
+        } catch (_) {}
+      }
+    }
+    return total;
+  }
+
+  /// Deletes downloaded word-by-word audio for one sūrah.
+  Future<void> deleteSurah(int surah) async {
+    final dir = await _localDir();
+    if (dir == null) return;
+    final prefix = '${surah.toString().padLeft(3, '0')}_';
+    await for (final e in dir.list()) {
+      if (e is File && e.uri.pathSegments.last.startsWith(prefix)) {
+        try {
+          await e.delete();
+        } catch (_) {}
+      }
+    }
+  }
+
+  /// Deletes every downloaded word-by-word audio file.
+  Future<void> deleteAll() async {
+    final dir = await _localDir();
+    if (dir == null || !await dir.exists()) return;
+    await for (final e in dir.list()) {
+      if (e is File) {
+        try {
+          await e.delete();
+        } catch (_) {}
+      }
+    }
+  }
+
   /// Re-fetches word-by-word files older than 7 days. See
   /// AyahAudio.refreshStaleCache / [refreshStaleQuranCache].
   Future<void> refreshStaleWords() async {
@@ -602,6 +659,67 @@ class AyahAudio {
       onProgress(done, ayahs);
     }
     return allPresent;
+  }
+
+  /// Per-surah downloaded-file counts for [reciter], built from a single
+  /// directory listing rather than probing every expected filename — cheap
+  /// even across the whole muṣḥaf. Powers the Downloads screen's "what's
+  /// already on disk" view; there is no separate persisted manifest.
+  Future<Map<int, int>> downloadedCounts(String reciter) async {
+    final dir = await _localDir(reciter);
+    if (dir == null || !await dir.exists()) return {};
+    final counts = <int, int>{};
+    await for (final e in dir.list()) {
+      if (e is! File) continue;
+      final name = e.uri.pathSegments.last;
+      if (name.length < 6) continue;
+      final surah = int.tryParse(name.substring(0, 3));
+      if (surah == null) continue;
+      counts[surah] = (counts[surah] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  /// Total bytes on disk for [reciter]'s downloaded verse audio.
+  Future<int> bytesUsed(String reciter) async {
+    final dir = await _localDir(reciter);
+    if (dir == null || !await dir.exists()) return 0;
+    var total = 0;
+    await for (final e in dir.list()) {
+      if (e is File) {
+        try {
+          total += await e.length();
+        } catch (_) {}
+      }
+    }
+    return total;
+  }
+
+  /// Deletes [reciter]'s downloaded verse audio for one sūrah.
+  Future<void> deleteSurah(String reciter, int surah) async {
+    final dir = await _localDir(reciter);
+    if (dir == null) return;
+    final prefix = surah.toString().padLeft(3, '0');
+    await for (final e in dir.list()) {
+      if (e is File && e.uri.pathSegments.last.startsWith(prefix)) {
+        try {
+          await e.delete();
+        } catch (_) {}
+      }
+    }
+  }
+
+  /// Deletes every downloaded verse audio file for [reciter].
+  Future<void> deleteAll(String reciter) async {
+    final dir = await _localDir(reciter);
+    if (dir == null || !await dir.exists()) return;
+    await for (final e in dir.list()) {
+      if (e is File) {
+        try {
+          await e.delete();
+        } catch (_) {}
+      }
+    }
   }
 
   /// Re-fetches this reciter's quran.com-sourced timings/verse audio older

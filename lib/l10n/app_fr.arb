@@ -636,6 +636,7 @@
     }
   },
   "qpWhichLetterEndsWord": "Quelle lettre termine ce mot ?",
+  "qpWhichLettersFormThis": "Quelles deux lettres forment cette forme ?",
   "qpWhichHamzaForm": "Laquelle est {name} ?",
   "@qpWhichHamzaForm": {
     "placeholders": {
@@ -743,5 +744,125 @@
   "optPageMark": "Une marque de page/navigation, pas une règle d’arrêt",
   "qpWhichSmallMark": "Quel est ce signe ?",
   "qpWhichPageMark": "Quelle est cette marque de page ?",
-  "scriptUnitsProgress": "{done} sur {total} unités explorées"
+  "scriptUnitsProgress": "{done} sur {total} unités explorées",
+  "downloads": "Téléchargements",
+  "manageDownloads": "Gérer les téléchargements",
+  "downloadsIntro": "Consultez ce qui est déjà enregistré hors ligne et choisissez quoi télécharger à l'avance.",
+  "afasyName": "Al-ʿAfāsī",
+  "husaryName": "Al-Ḥuṣarī",
+  "tunaijiDownloadNote": "La récitation du Cheikh Khalifah Al-Tunaiji est diffusée depuis EveryAyah.com et peut toujours être téléchargée sourate par sourate depuis le lecteur — elle n'est pas proposée ici pour un téléchargement groupé tant que la confirmation de licence d'EveryAyah est en attente.",
+  "complianceNote": "L'audio d'Al-ʿAfāsī, d'Al-Ḥuṣarī et mot à mot est actualisé automatiquement au moins une fois par semaine, conformément aux conditions de Quran Foundation pour la mise en cache hors ligne.",
+  "checkForUpdates": "Vérifier les mises à jour",
+  "checkedForUpdates": "Mises à jour vérifiées.",
+  "downloadAll": "Tout télécharger",
+  "downloadAllFor": "Tout télécharger — {name}",
+  "@downloadAllFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteAllFor": "Tout supprimer — {name}",
+  "@deleteAllFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmBulkDownloadBody": "Télécharger {name} pour les 114 sourates ? Cela peut représenter une grande quantité de données et prendre du temps.",
+  "@confirmBulkDownloadBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmDeleteAllBody": "Supprimer tous les fichiers téléchargés de {name} ? Vous pourrez les retélécharger plus tard.",
+  "@confirmDeleteAllBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmDeleteOneBody": "Supprimer l'audio {name} téléchargé pour la sourate {surah} ?",
+  "@confirmDeleteOneBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "surah": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadedFull": "Téléchargé",
+  "downloadedPartial": "Partiellement téléchargé",
+  "notDownloaded": "Non téléchargé",
+  "bulkDownloadProgress": "Téléchargement de la sourate {i} sur {total}…",
+  "@bulkDownloadProgress": {
+    "placeholders": {
+      "i": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "bulkDownloadCancelling": "Annulation après cette sourate…",
+  "bulkDownloadComplete": "Téléchargement de {name} terminé.",
+  "@bulkDownloadComplete": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailed": "Certains fichiers n'ont pas pu être téléchargés — vérifiez votre connexion et réessayez.",
+  "wbwAudioSaved": "Audio mot à mot de la sourate {name} enregistré hors ligne.",
+  "@wbwAudioSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "Annuler",
+  "delete": "Supprimer",
+  "download": "Télécharger",
+  "lsnSound": "Son",
+  "lsnHowWritten": "Comment elle s'écrit",
+  "lsnOnWaqf": "À l'arrêt (waqf)",
+  "lsnShapeSignals": "Ce que sa forme indique",
+  "lsnCounts": "Temps",
+  "lsnTanwinShapes": "Formes du tanwīn",
+  "lsnSmallLetters": "Petites lettres",
+  "lsnTwoZeros": "Les deux zéros",
+  "lsnSinOverSad": "Sīn sur ṣād",
+  "lsnRequirement": "Obligation",
+  "lsnWhere": "Où",
+  "mkZoneJawf": "La cavité buccale",
+  "mkZoneHalq": "La gorge",
+  "mkZoneLisan": "La langue",
+  "mkZoneShafatan": "Les lèvres",
+  "mkZoneKhayshum": "La cavité nasale",
+  "mkGroupBack": "Arrière de la langue",
+  "mkGroupMiddle": "Milieu de la langue",
+  "mkGroupEdge": "Bord de la langue",
+  "mkGroupTip": "Pointe de la langue",
+  "sifatStandaloneGroup": "Qualités indépendantes",
+  "lsnArticulationPoint": "Point d'articulation",
+  "lsnExamples": "Exemples",
+  "lsnLetters": "Lettres",
+  "lsnSpecialShapes": "Formes spéciales",
+  "lsnLigatures": "Ligatures",
+  "lsnKafsWrap": "L'enroulement du kāf",
+  "lsnStacking": "Empilement",
+  "lsnHeightsAndTails": "Hauteurs et queues",
+  "lsnApart": "Séparées",
+  "lsnJoinedShape": "Unies en une seule forme",
+  "lsnTellApart": "Comment les distinguer"
 }

@@ -636,6 +636,7 @@
     }
   },
   "qpWhichLetterEndsWord": "یہ لفظ کس حرف پر ختم ہوتا ہے؟",
+  "qpWhichLettersFormThis": "کون سے دو حروف مل کر یہ شکل بناتے ہیں؟",
   "qpWhichHamzaForm": "{name} کون سا ہے؟",
   "@qpWhichHamzaForm": {
     "placeholders": {
@@ -743,5 +744,125 @@
   "optPageMark": "صفحے یا رہنمائی کی علامت، وقف کا حکم نہیں",
   "qpWhichSmallMark": "یہ کون سی علامت ہے؟",
   "qpWhichPageMark": "یہ صفحے کی کون سی علامت ہے؟",
-  "scriptUnitsProgress": "{total} میں سے {done} یونٹس دیکھے گئے"
+  "scriptUnitsProgress": "{total} میں سے {done} یونٹس دیکھے گئے",
+  "downloads": "ڈاؤن لوڈز",
+  "manageDownloads": "ڈاؤن لوڈز کا نظم",
+  "downloadsIntro": "دیکھیں کیا پہلے سے آف لائن استعمال کے لیے محفوظ ہے، اور طے کریں کہ پہلے سے کیا ڈاؤن لوڈ کرنا ہے۔",
+  "afasyName": "العفاسی",
+  "husaryName": "الحصری",
+  "tunaijiDownloadNote": "شیخ خلیفہ التنیجی کی تلاوت EveryAyah.com سے اسٹریم ہوتی ہے اور اب بھی ریڈر کے اندر سے سورت بہ سورت ڈاؤن لوڈ کی جا سکتی ہے — لیکن EveryAyah کی جانب سے لائسنس کی تصدیق آنے تک یہاں بلک ڈاؤن لوڈ کے لیے پیش نہیں کی جاتی۔",
+  "complianceNote": "العفاسی، الحصری اور لفظ بہ لفظ آڈیو، قرآن فاؤنڈیشن کی آف لائن کیشنگ شرائط کے مطابق، ہفتے میں کم از کم ایک بار خودکار طور پر تازہ کی جاتی ہے۔",
+  "checkForUpdates": "تازہ کاری کی جانچ کریں",
+  "checkedForUpdates": "تازہ کاری کی جانچ ہو گئی۔",
+  "downloadAll": "سب ڈاؤن لوڈ کریں",
+  "downloadAllFor": "سب ڈاؤن لوڈ کریں — {name}",
+  "@downloadAllFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteAllFor": "سب حذف کریں — {name}",
+  "@deleteAllFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmBulkDownloadBody": "کیا تمام 114 سورتوں کے لیے {name} ڈاؤن لوڈ کریں؟ اس میں کافی زیادہ ڈیٹا اور وقت لگ سکتا ہے۔",
+  "@confirmBulkDownloadBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmDeleteAllBody": "کیا ڈاؤن لوڈ شدہ {name} کی تمام فائلیں حذف کریں؟ آپ انہیں بعد میں دوبارہ ڈاؤن لوڈ کر سکتے ہیں۔",
+  "@confirmDeleteAllBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmDeleteOneBody": "کیا سورت {surah} کے لیے ڈاؤن لوڈ شدہ {name} آڈیو حذف کریں؟",
+  "@confirmDeleteOneBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "surah": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadedFull": "ڈاؤن لوڈ ہو چکا",
+  "downloadedPartial": "جزوی طور پر ڈاؤن لوڈ",
+  "notDownloaded": "ڈاؤن لوڈ نہیں ہوا",
+  "bulkDownloadProgress": "سورت {i} از {total} ڈاؤن لوڈ ہو رہی ہے…",
+  "@bulkDownloadProgress": {
+    "placeholders": {
+      "i": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "bulkDownloadCancelling": "اس سورت کے بعد منسوخ کیا جا رہا ہے…",
+  "bulkDownloadComplete": "{name} کا ڈاؤن لوڈ مکمل ہو گیا۔",
+  "@bulkDownloadComplete": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadFailed": "کچھ فائلیں ڈاؤن لوڈ نہیں ہو سکیں — اپنا کنکشن چیک کریں اور دوبارہ کوشش کریں۔",
+  "wbwAudioSaved": "سورت {name} کی لفظ بہ لفظ آڈیو آف لائن کے لیے محفوظ ہو گئی۔",
+  "@wbwAudioSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "منسوخ کریں",
+  "delete": "حذف کریں",
+  "download": "ڈاؤن لوڈ",
+  "lsnSound": "آواز",
+  "lsnHowWritten": "کیسے لکھی جاتی ہے",
+  "lsnOnWaqf": "وقف کے وقت",
+  "lsnShapeSignals": "شکل کیا ظاہر کرتی ہے",
+  "lsnCounts": "شمار (حرکات)",
+  "lsnTanwinShapes": "تنوین کی شکلیں",
+  "lsnSmallLetters": "چھوٹے حروف",
+  "lsnTwoZeros": "دونوں صفر",
+  "lsnSinOverSad": "صاد پر سین",
+  "lsnRequirement": "حکم",
+  "lsnWhere": "کہاں",
+  "mkZoneJawf": "جوف",
+  "mkZoneHalq": "حلق",
+  "mkZoneLisan": "زبان",
+  "mkZoneShafatan": "ہونٹ",
+  "mkZoneKhayshum": "خیشوم",
+  "mkGroupBack": "زبان کا پچھلا حصہ",
+  "mkGroupMiddle": "زبان کا درمیانی حصہ",
+  "mkGroupEdge": "زبان کا کنارہ",
+  "mkGroupTip": "زبان کی نوک",
+  "sifatStandaloneGroup": "منفرد صفات",
+  "lsnArticulationPoint": "مخرج",
+  "lsnExamples": "مثالیں",
+  "lsnLetters": "حروف",
+  "lsnSpecialShapes": "خصوصی اشکال",
+  "lsnLigatures": "مرکب حروف",
+  "lsnKafsWrap": "کاف کا لپیٹ",
+  "lsnStacking": "تہہ بندی",
+  "lsnHeightsAndTails": "اونچائی اور دُم",
+  "lsnApart": "الگ الگ",
+  "lsnJoinedShape": "ایک شکل میں جڑے ہوئے",
+  "lsnTellApart": "ان میں فرق کیسے کریں"
 }

@@ -13,6 +13,8 @@ import '../data/tajweed.dart';
 import '../data/tajwid_cases.dart';
 import '../data/tajwid_path.dart';
 import '../widgets/common.dart';
+import '../widgets/lesson.dart';
+import 'lessons/tajwid_lessons.dart';
 
 final _rng = math.Random();
 
@@ -507,7 +509,9 @@ TajwidUnit _ruleUnit(BuildContext context, String title, String subtitle,
         icon: Icons.menu_book_rounded,
         label: context.l10n.phaseLearn,
         sub: context.l10n.phaseLearnSub,
-        builder: (_) => _ruleFamilyLearn(context, title, rules)),
+        builder: (_) => topicId == 'madd'
+            ? lessonEntryScreen(maddLessonRoot(context))
+            : _ruleFamilyLearn(context, title, rules)),
     UnitPhase(
         icon: Icons.grid_view_rounded,
         label: context.l10n.phaseLetters,
@@ -557,20 +561,7 @@ class TajwidUnitHub extends StatelessWidget {
 // ── rule-family phases (Nūn, Mīm, Madd, Lām, Rā', Qalqalah) ────────────────
 
 Widget _ruleFamilyLearn(BuildContext context, String title, List<TajwidRule> rules) =>
-    ConceptLearnScreen(
-      title: title,
-      cards: [
-        for (final r in rules)
-          ConceptCard(
-            glyph: r.arabicName,
-            title: tajwidName(context, r),
-            subtitle: r.arabicName,
-            note: '${tajwidTrigger(context, r)} ${tajwidHow(context, r)}',
-            example: r.example.plain,
-            exampleRef: r.example.ref,
-          ),
-      ],
-    );
+    lessonEntryScreen(ruleFamilyLessonRoot(context, title, rules));
 
 /// A read-only browse of a rule family's trigger letters — tap a chip to see
 /// its name. Not a drill; the drilling happens in Test/Practice.
@@ -619,10 +610,17 @@ Widget _lettersScreen(BuildContext context, String title, List<TajwidRule> rules
 }
 
 /// One family-quiz question: which rule does this verse's highlighted
-/// segment show? Distractors come from the family first, padded with the
-/// full rule set when the family is too small to give four real options.
-QuizQuestion _ruleFamilyQuestion(BuildContext context, List<TajwidRule> rules) {
-  final r = rules[_rng.nextInt(rules.length)];
+/// segment show? [text]/[ref]/[hl] come from one of [r]'s real examples
+/// (the primary one or one of its `moreExamples`) — drawn without
+/// replacement across a session by [_ruleFamilyQuiz], so a thin family (even
+/// Qalqalah's single rule) asks about several different verses instead of
+/// repeating the same one. Distractors come from the family first, padded
+/// with the full rule set when the family is too small to give four real
+/// options. [reviewId] stays keyed to the rule alone (not the verse), so the
+/// spaced-repetition queue tracks "review this rule", matching how it
+/// behaved when every question showed the same one verse.
+QuizQuestion _ruleFamilyQuestion(BuildContext context, TajwidRule r, String text,
+    String ref, String hl, List<TajwidRule> rules) {
   var pool = rules.map((x) => tajwidName(context, x)).toSet().toList();
   if (pool.length < 4) {
     final extra = tajwidRules
@@ -634,8 +632,9 @@ QuizQuestion _ruleFamilyQuestion(BuildContext context, List<TajwidRule> rules) {
   }
   final o = buildOptions(tajwidName(context, r), pool, _rng);
   return QuizQuestion(
-    prompt: context.l10n.qpWhichRuleInVerse(r.example.ref),
-    arabic: r.example.plain,
+    prompt: context.l10n.qpWhichRuleInVerse(ref),
+    arabic: text,
+    highlight: hl,
     reviewId: 'tajwid.${r.id}',
     options: o.options,
     correct: o.correct,
@@ -645,29 +644,30 @@ QuizQuestion _ruleFamilyQuestion(BuildContext context, List<TajwidRule> rules) {
 
 QuizScreen _ruleFamilyQuiz(BuildContext context, String title, String progressId,
     List<TajwidRule> rules, {bool graded = true}) {
-  final qs = [for (var i = 0; i < math.max(6, rules.length * 2); i++) _ruleFamilyQuestion(context, rules)];
+  final instances = <(TajwidRule, String, String, String)>[
+    for (final r in rules) ...[
+      (
+        r,
+        r.example.plain,
+        r.example.ref,
+        r.example.segs.where((s) => s.ruleId == r.id).map((s) => s.text).join(),
+      ),
+      for (final (t, ref, h) in r.moreExamples) (r, t, ref, h),
+    ],
+  ];
+  final n = math.max(6, rules.length * 2);
+  final qs = [
+    for (final (r, t, ref, h) in pickN(instances, n, _rng))
+      _ruleFamilyQuestion(context, r, t, ref, h, rules),
+  ];
   return QuizScreen(title: title, progressId: progressId, questions: qs, graded: graded);
 }
 
 // ── Makhārij phases ─────────────────────────────────────────────────────
 
-Widget _makharijLearn(BuildContext context) => ConceptLearnScreen(
-      title: context.l10n.tjUnitMakharij,
-      cards: [
-        for (final m in makharij)
-          ConceptCard(
-            glyph: m.letters.isEmpty ? '·' : m.letters,
-            title: m.name,
-            subtitle: m.arabicName,
-            note: m.note,
-          ),
-      ],
-    );
+Widget _makharijLearn(BuildContext context) => lessonEntryScreen(makharijLessonRoot(context));
 
-QuizQuestion _makharijQuestion(BuildContext context) {
-  final entry = makhrajOfLetter.entries.elementAt(_rng.nextInt(makhrajOfLetter.length));
-  final letter = entry.key;
-  final m = makhrajById(entry.value);
+QuizQuestion _makharijQuestion(BuildContext context, String letter, Makhraj m) {
   final pool = makharij.where((x) => x.id != 'khayshum').map((x) => x.name).toList();
   final o = buildOptions(m.name, pool, _rng);
   return QuizQuestion(
@@ -681,7 +681,11 @@ QuizQuestion _makharijQuestion(BuildContext context) {
 }
 
 QuizScreen _makharijQuiz(BuildContext context, {bool graded = true}) {
-  final qs = [for (var i = 0; i < 8; i++) _makharijQuestion(context)];
+  final entries = makhrajOfLetter.entries.toList();
+  final qs = [
+    for (final e in pickN(entries, 8, _rng))
+      _makharijQuestion(context, e.key, makhrajById(e.value)),
+  ];
   return QuizScreen(
       title: context.l10n.tjUnitMakharij,
       progressId: 'tajwid.makharij',
@@ -691,33 +695,11 @@ QuizScreen _makharijQuiz(BuildContext context, {bool graded = true}) {
 
 // ── Ṣifāt phases ────────────────────────────────────────────────────────
 
-Widget _sifatLearn(BuildContext context) => ConceptLearnScreen(
-      title: context.l10n.tjUnitSifat,
-      cards: [
-        for (final s in sifat)
-          ConceptCard(
-            glyph: s.letters,
-            title: s.name,
-            subtitle: s.arabicName,
-            note: s.note,
-          ),
-      ],
-    );
+Widget _sifatLearn(BuildContext context) => lessonEntryScreen(sifatLessonRoot(context));
 
-const _sifatAxes = [
-  ['hams', 'jahr'],
-  ['shidda', 'tawassut', 'rakhawa'],
-  ['istila', 'istifal'],
-  ['itbaq', 'infitah'],
-  ['idhlaq', 'ismat'],
-];
-
-QuizQuestion _sifatQuestion(BuildContext context) {
-  final axis = _sifatAxes[_rng.nextInt(_sifatAxes.length)];
+QuizQuestion _sifatQuestion(
+    BuildContext context, List<String> axis, Sifah correct, String letter) {
   final values = axis.map(sifahById).toList();
-  final correct = values[_rng.nextInt(values.length)];
-  final letters = correct.letters.split('')..shuffle(_rng);
-  final letter = letters.first;
   final pool = values.map((v) => v.name).toList();
   final o = buildOptions(correct.name, pool, _rng, count: pool.length);
   return QuizQuestion(
@@ -731,7 +713,19 @@ QuizQuestion _sifatQuestion(BuildContext context) {
 }
 
 QuizScreen _sifatQuiz(BuildContext context, {bool graded = true}) {
-  final qs = [for (var i = 0; i < 8; i++) _sifatQuestion(context)];
+  // (axis, sifah-in-that-axis, one of its member letters) — drawing from
+  // every axis-letter combination instead of just the 5 axes gives real
+  // in-session variety even though there are only 5 opposed-pair axes.
+  final instances = <(List<String>, Sifah, String)>[
+    for (final axis in sifatAxes)
+      for (final id in axis)
+        for (final letter in sifahById(id).letters.split(''))
+          (axis, sifahById(id), letter),
+  ];
+  final qs = [
+    for (final (axis, correct, letter) in pickN(instances, 8, _rng))
+      _sifatQuestion(context, axis, correct, letter),
+  ];
   return QuizScreen(
       title: context.l10n.tjUnitSifat,
       progressId: 'tajwid.sifat',
@@ -741,29 +735,16 @@ QuizScreen _sifatQuiz(BuildContext context, {bool graded = true}) {
 
 // ── Special cases phases ────────────────────────────────────────────────
 
-Widget _casesLearn(BuildContext context) => ConceptLearnScreen(
-      title: context.l10n.tjUnitCases,
-      cards: [
-        for (final c in tajwidCases)
-          ConceptCard(
-            glyph: c.highlight,
-            title: c.name,
-            subtitle: c.arabicName,
-            note: c.note,
-            example: c.example,
-            exampleRef: c.ref,
-          ),
-      ],
-    );
+Widget _casesLearn(BuildContext context) => lessonEntryScreen(casesLessonRoot(context));
 
-QuizQuestion _casesQuestion(BuildContext context) {
-  final c = tajwidCases[_rng.nextInt(tajwidCases.length)];
+QuizQuestion _casesQuestion(
+    BuildContext context, TajwidCase c, String text, String hl) {
   final pool = tajwidCases.map((x) => x.name).toSet().toList();
   final o = buildOptions(c.name, pool, _rng);
   return QuizQuestion(
     prompt: context.l10n.qpWhichSpecialCase,
-    arabic: c.example,
-    highlight: c.highlight,
+    arabic: text,
+    highlight: hl,
     reviewId: 'tajwid.case.${c.id}',
     options: o.options,
     correct: o.correct,
@@ -772,7 +753,15 @@ QuizQuestion _casesQuestion(BuildContext context) {
 }
 
 QuizScreen _casesQuiz(BuildContext context, {bool graded = true}) {
-  final qs = [for (var i = 0; i < 8; i++) _casesQuestion(context)];
+  final instances = <(TajwidCase, String, String)>[
+    for (final c in tajwidCases) ...[
+      (c, c.example, c.highlight),
+      for (final (t, _, h) in c.moreExamples) (c, t, h),
+    ],
+  ];
+  final qs = [
+    for (final (c, t, h) in pickN(instances, 8, _rng)) _casesQuestion(context, c, t, h),
+  ];
   return QuizScreen(
       title: context.l10n.tjUnitCases,
       progressId: 'tajwid.cases',

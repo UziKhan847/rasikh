@@ -7,11 +7,11 @@ import '../core/responsive.dart';
 import '../core/theme.dart';
 import '../data/script_diff.dart';
 import '../data/small_letters.dart';
-import '../data/tajwid_cases.dart';
-import '../data/tanwin_allographs.dart';
 import '../data/waqf.dart';
 import '../data/wasl.dart';
 import '../widgets/common.dart';
+import '../widgets/lesson.dart';
+import 'lessons/script_lessons.dart';
 
 final _rng = math.Random();
 
@@ -148,62 +148,9 @@ class ScriptUnitHub extends StatelessWidget {
 
 // ── Unit 1: Script Families ─────────────────────────────────────────────
 
-Widget _familiesLearn(BuildContext context) => Scaffold(
-      appBar: AppBar(title: Text(context.l10n.unitScriptFamilies)),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-          children: [
-            for (var i = 0; i < scriptDifferences.length; i++)
-              FadeSlideIn(delayMs: 40 * i, child: _diffCard(context, scriptDifferences[i])),
-          ],
-        ),
-      ),
-    );
+Widget _familiesLearn(BuildContext context) => lessonEntryScreen(familiesLessonRoot(context));
 
-Widget _diffCard(BuildContext context, ScriptDifference d) => Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: pal(context).surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: pal(context).surfaceHigh),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(d.topic, style: uiStyle(context, size: 15.5, weight: FontWeight.w700)),
-        const SizedBox(height: 12),
-        _scriptRow(context, context.l10n.madaniUthmani, d.madaniWord),
-        const SizedBox(height: 8),
-        _scriptRow(context, context.l10n.indoPak, d.indopakWord),
-        const SizedBox(height: 12),
-        Text(d.note, style: uiStyle(context, size: 13, color: pal(context).textDim)),
-        const SizedBox(height: 8),
-        Text(context.l10n.surahRef(d.ref),
-            style: uiStyle(context, size: 11.5, color: pal(context).textDim)),
-        const SizedBox(height: 4),
-        const MediaRow(),
-      ]),
-    );
-
-Widget _scriptRow(BuildContext context, String label, String word) => Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-            width: 76,
-            child: Text(label,
-                style: uiStyle(context,
-                    size: 12, weight: FontWeight.w700, color: pal(context).accent))),
-        Expanded(
-            child: Text(word,
-                textDirection: TextDirection.rtl,
-                style: quranicStyle(context, size: 21))),
-      ],
-    );
-
-QuizQuestion _familiesQuestion(BuildContext context) {
-  final d = scriptDifferences[_rng.nextInt(scriptDifferences.length)];
-  final isMadani = _rng.nextBool();
+QuizQuestion _familiesQuestion(BuildContext context, ScriptDifference d, bool isMadani) {
   final word = isMadani ? d.madaniWord : d.indopakWord;
   final options = [context.l10n.madaniUthmani, context.l10n.indoPak];
   final correctIdx = isMadani ? 0 : 1;
@@ -218,7 +165,13 @@ QuizQuestion _familiesQuestion(BuildContext context) {
 }
 
 QuizScreen _familiesQuiz(BuildContext context, {bool graded = true}) {
-  final qs = [for (var i = 0; i < 8; i++) _familiesQuestion(context)];
+  final instances = <(ScriptDifference, bool)>[
+    for (final d in scriptDifferences) ...[(d, true), (d, false)],
+  ];
+  final qs = [
+    for (final (d, isMadani) in pickN(instances, 8, _rng))
+      _familiesQuestion(context, d, isMadani),
+  ];
   return QuizScreen(
       title: context.l10n.unitScriptFamilies,
       progressId: 'script.families',
@@ -228,71 +181,29 @@ QuizScreen _familiesQuiz(BuildContext context, {bool graded = true}) {
 
 // ── Unit 2: Marks & Signs ───────────────────────────────────────────────
 
-Widget _marksLearn(BuildContext context) => ConceptLearnScreen(
-      title: context.l10n.unitMarksSigns,
-      cards: [
-        for (final a in tanwinAllographs)
-          ConceptCard(
-            glyph: a.highlight,
-            title: '${a.tanwinId} · ${a.form}',
-            example: a.example,
-            exampleRef: a.ref,
-          ),
-        for (final s in smallLetters)
-          ConceptCard(
-            glyph: s.mark,
-            title: s.name,
-            note: s.note,
-            example: s.example,
-            exampleRef: s.ref,
-          ),
-        for (final w in [...waslOfKind('zero_rect'), ...waslOfKind('zero_round')])
-          ConceptCard(
-            glyph: w.highlight,
-            title: w.kind == 'zero_rect'
-                ? context.l10n.zeroRectTitle
-                : context.l10n.zeroRoundTitle,
-            note: w.kind == 'zero_rect'
-                ? context.l10n.zeroRectNote
-                : context.l10n.zeroRoundNote,
-            example: w.example,
-            exampleRef: w.ref,
-          ),
-        for (final c in tajwidCases.where((c) => c.id.startsWith('sin_over_sad')))
-          ConceptCard(
-            glyph: c.highlight,
-            title: c.name,
-            subtitle: c.arabicName,
-            note: c.note,
-            example: c.example,
-            exampleRef: c.ref,
-          ),
-      ],
-    );
+Widget _marksLearn(BuildContext context) => lessonEntryScreen(marksLessonRoot(context));
 
-QuizQuestion _zeroQuestion(BuildContext context) {
-  final items = [...waslOfKind('zero_rect'), ...waslOfKind('zero_round')]..shuffle(_rng);
-  final w = items.first;
+QuizQuestion _zeroQuestion(BuildContext context, WaslItem w, String text, String hl) {
   final sounded = w.kind == 'zero_rect';
   final options = [context.l10n.optSoundedOnStopOnly, context.l10n.optNeverSounded];
   return QuizQuestion(
     prompt: context.l10n.qpAlifSoundsWhen,
-    arabic: w.example,
-    highlight: w.highlight,
+    arabic: text,
+    highlight: hl,
     reviewId: 'script.zero.${w.id}',
     options: options,
     correct: sounded ? 0 : 1,
   );
 }
 
-QuizQuestion _smallLetterQuestion(BuildContext context) {
-  final s = smallLetters[_rng.nextInt(smallLetters.length)];
+QuizQuestion _smallLetterQuestion(
+    BuildContext context, SmallLetter s, String text, String hl) {
   final pool = smallLetters.map((x) => x.name).toList();
   final o = buildOptions(s.name, pool, _rng, count: pool.length);
   return QuizQuestion(
     prompt: context.l10n.qpWhichSmallMark,
-    arabic: s.example,
-    highlight: s.highlight,
+    arabic: text,
+    highlight: hl,
     reviewId: 'script.small.${s.id}',
     options: o.options,
     correct: o.correct,
@@ -301,9 +212,22 @@ QuizQuestion _smallLetterQuestion(BuildContext context) {
 }
 
 QuizScreen _marksQuiz(BuildContext context, {bool graded = true}) {
+  final zeroInstances = <(WaslItem, String, String)>[
+    for (final w in [...waslOfKind('zero_rect'), ...waslOfKind('zero_round')]) ...[
+      (w, w.example, w.highlight),
+      for (final (t, _, h) in w.moreExamples) (w, t, h),
+    ],
+  ];
+  final smallInstances = <(SmallLetter, String, String)>[
+    for (final s in smallLetters) ...[
+      (s, s.example, s.highlight),
+      for (final (t, _, h) in s.moreExamples) (s, t, h),
+    ],
+  ];
   final qs = <QuizQuestion>[
-    for (var i = 0; i < 4; i++) _zeroQuestion(context),
-    for (var i = 0; i < 4; i++) _smallLetterQuestion(context),
+    for (final (w, t, h) in pickN(zeroInstances, 4, _rng)) _zeroQuestion(context, w, t, h),
+    for (final (s, t, h) in pickN(smallInstances, 4, _rng))
+      _smallLetterQuestion(context, s, t, h),
   ]..shuffle(_rng);
   return QuizScreen(
       title: context.l10n.unitMarksSigns,
@@ -313,42 +237,17 @@ QuizScreen _marksQuiz(BuildContext context, {bool graded = true}) {
 }
 
 // ── Unit 3: Waqf & Stopping ─────────────────────────────────────────────
+// stopMarkIds/pageMarkIds/actionLabel live in lessons/script_lessons.dart —
+// shared between that tree and this file's quiz code.
 
-const _stopMarkIds = ['lazim', 'mamnu', 'jaiz', 'wasl_awla', 'waqf_awla', 'muanaqah'];
+Widget _waqfLearn(BuildContext context) => lessonEntryScreen(waqfLessonRoot(context));
 
-String _actionLabel(BuildContext context, String action) => switch (action) {
-      'must_stop' => context.l10n.optMustStop,
-      'must_not_stop' => context.l10n.optMustNotStop,
-      'either' => context.l10n.optEitherOk,
-      'either_not_both' => context.l10n.optStopAtOneNotBoth,
-      'preferred_continue' => context.l10n.optPreferContinue,
-      'preferred_stop' => context.l10n.optPreferStop,
-      _ => context.l10n.optPageMark,
-    };
-
-Widget _waqfLearn(BuildContext context) => ConceptLearnScreen(
-      title: context.l10n.unitWaqfStopping,
-      cards: [
-        for (final id in _stopMarkIds)
-          ConceptCard(
-            glyph: waqfMarkById(id).arabicName.split(' — ').first,
-            title: waqfMarkById(id).name,
-            subtitle: _actionLabel(context, waqfMarkById(id).action),
-            note: waqfMarkById(id).note,
-            example: waqfMarkById(id).example,
-            exampleRef: waqfMarkById(id).ref,
-          ),
-      ],
-    );
-
-QuizQuestion _waqfQuestion(BuildContext context) {
-  final id = _stopMarkIds[_rng.nextInt(_stopMarkIds.length)];
-  final m = waqfMarkById(id);
-  final pool = _stopMarkIds.map((i) => _actionLabel(context, waqfMarkById(i).action)).toSet().toList();
-  final o = buildOptions(_actionLabel(context, m.action), pool, _rng, count: pool.length);
+QuizQuestion _waqfQuestion(BuildContext context, WaqfMark m, String text) {
+  final pool = stopMarkIds.map((i) => actionLabel(context, waqfMarkById(i).action)).toSet().toList();
+  final o = buildOptions(actionLabel(context, m.action), pool, _rng, count: pool.length);
   return QuizQuestion(
     prompt: context.l10n.qpWhichWaqfMark,
-    arabic: m.example,
+    arabic: text,
     reviewId: 'script.waqf.${m.id}',
     options: o.options,
     correct: o.correct,
@@ -357,7 +256,15 @@ QuizQuestion _waqfQuestion(BuildContext context) {
 }
 
 QuizScreen _waqfQuiz(BuildContext context, {bool graded = true}) {
-  final qs = [for (var i = 0; i < 8; i++) _waqfQuestion(context)];
+  final instances = <(WaqfMark, String)>[
+    for (final id in stopMarkIds) ...[
+      (waqfMarkById(id), waqfMarkById(id).example),
+      for (final (t, _, _) in waqfMarkById(id).moreExamples) (waqfMarkById(id), t),
+    ],
+  ];
+  final qs = [
+    for (final (m, t) in pickN(instances, 8, _rng)) _waqfQuestion(context, m, t),
+  ];
   return QuizScreen(
       title: context.l10n.unitWaqfStopping,
       progressId: 'script.waqf',
@@ -367,30 +274,14 @@ QuizScreen _waqfQuiz(BuildContext context, {bool graded = true}) {
 
 // ── Unit 4: Page Marks ──────────────────────────────────────────────────
 
-const _pageMarkIds = ['sajdah', 'rub'];
+Widget _pageLearn(BuildContext context) => lessonEntryScreen(pageLessonRoot(context));
 
-Widget _pageLearn(BuildContext context) => ConceptLearnScreen(
-      title: context.l10n.unitPageMarks,
-      cards: [
-        for (final id in _pageMarkIds)
-          ConceptCard(
-            glyph: waqfMarkById(id).arabicName.split(' — ').first,
-            title: waqfMarkById(id).name,
-            note: waqfMarkById(id).note,
-            example: waqfMarkById(id).example,
-            exampleRef: waqfMarkById(id).ref,
-          ),
-      ],
-    );
-
-QuizQuestion _pageQuestion(BuildContext context) {
-  final id = _pageMarkIds[_rng.nextInt(_pageMarkIds.length)];
-  final m = waqfMarkById(id);
-  final pool = _pageMarkIds.map((i) => waqfMarkById(i).name).toList();
+QuizQuestion _pageQuestion(BuildContext context, WaqfMark m, String text) {
+  final pool = pageMarkIds.map((i) => waqfMarkById(i).name).toList();
   final o = buildOptions(m.name, pool, _rng, count: pool.length);
   return QuizQuestion(
     prompt: context.l10n.qpWhichPageMark,
-    arabic: m.example,
+    arabic: text,
     reviewId: 'script.page.${m.id}',
     options: o.options,
     correct: o.correct,
@@ -399,7 +290,15 @@ QuizQuestion _pageQuestion(BuildContext context) {
 }
 
 QuizScreen _pageQuiz(BuildContext context, {bool graded = true}) {
-  final qs = [for (var i = 0; i < 6; i++) _pageQuestion(context)];
+  final instances = <(WaqfMark, String)>[
+    for (final id in pageMarkIds) ...[
+      (waqfMarkById(id), waqfMarkById(id).example),
+      for (final (t, _, _) in waqfMarkById(id).moreExamples) (waqfMarkById(id), t),
+    ],
+  ];
+  final qs = [
+    for (final (m, t) in pickN(instances, 6, _rng)) _pageQuestion(context, m, t),
+  ];
   return QuizScreen(
       title: context.l10n.unitPageMarks,
       progressId: 'script.page',

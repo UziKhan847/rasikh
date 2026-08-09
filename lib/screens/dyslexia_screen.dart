@@ -350,6 +350,12 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
   late String target;
   late List<String> grid;
   int? wrongIndex;
+  // Which family each round uses, chosen without replacement (cycling once
+  // exhausted) — 10 families across 12 rounds used to repeat a family by
+  // pigeonhole with every round drawing independently; this guarantees all
+  // 10 appear before any repeats.
+  late final List<int> familyOrder =
+      pickN(List.generate(similarFamilies.length, (i) => i), totalRounds, rng);
 
   @override
   void initState() {
@@ -358,8 +364,7 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
   }
 
   void _nextRound() {
-    final family =
-        similarFamilies.values.elementAt(rng.nextInt(similarFamilies.length));
+    final family = similarFamilies.values.elementAt(familyOrder[round]);
     target = family[rng.nextInt(family.length)];
     grid = [
       target,

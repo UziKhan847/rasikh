@@ -5,6 +5,7 @@ import '../core/responsive.dart';
 import '../core/settings.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
+import 'downloads_screen.dart';
 
 /// ℹ️ About — what Qiraah Arabiyyah is, and who we thank.
 class AboutScreen extends StatelessWidget {
@@ -303,6 +304,19 @@ class AboutScreen extends StatelessWidget {
             ),
           ),
         ]),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+                foregroundColor: pal(context).accent,
+                side: BorderSide(color: pal(context).accent),
+                padding: const EdgeInsets.symmetric(vertical: 12)),
+            onPressed: () => pushAdaptive(context, const DownloadsScreen()),
+            icon: const Icon(Icons.download_for_offline_rounded, size: 18),
+            label: Text(context.l10n.manageDownloads),
+          ),
+        ),
       ]),
     );
   }
