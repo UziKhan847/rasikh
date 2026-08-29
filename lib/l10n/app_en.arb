@@ -1383,5 +1383,235 @@
   "lsnHeightsAndTails": "Heights & Tails",
   "lsnApart": "Apart",
   "lsnJoinedShape": "Joined as One Shape",
-  "lsnTellApart": "Telling Them Apart"
+  "lsnTellApart": "Telling Them Apart",
+  "kidsMode": "Kids Mode",
+  "kidsModeDesc": "A fun, simplified version of the app for children — its own design, progression, and rewards.",
+  "kidsAddProfile": "Add",
+  "kidsAllLettersDone": "You finished the alphabet!",
+  "kidsAppearance": "Appearance",
+  "kidsBadges": "Badges",
+  "kidsBuy": "Get",
+  "kidsDailyGoalSub": "Finish lessons to fill your ring",
+  "kidsDailyGoalTitle": "Today's Goal",
+  "kidsExitToParentApp": "Exit to parent app",
+  "kidsFlashcards": "Flashcards",
+  "kidsGenderBoy": "Boy",
+  "kidsGenderGirl": "Girl",
+  "kidsGenderPrompt": "This helps us cheer you on correctly!",
+  "kidsGenderSkip": "Skip",
+  "kidsGreatJob": "Great job!",
+  "kidsKeepGoing": "Keep going!",
+  "kidsLetterLocked": "Finish the letter before this one first!",
+  "kidsListening": "Listening",
+  "kidsNameHint": "What's your name?",
+  "kidsNewProfileTitle": "New Profile",
+  "kidsNextCard": "Next",
+  "kidsParentGateSub": "Parents: solve this to continue.",
+  "kidsParentGateTitle": "Grown-ups only",
+  "kidsPractice": "Practice",
+  "kidsRankNeedsSiblings": "Add another profile to start a family leaderboard!",
+  "kidsRankSub": "See how your family is doing this week",
+  "kidsReadTheSentence": "Read the sentence",
+  "kidsReviewAnyLetter": "Tap any letter to review it",
+  "kidsShop": "Shop",
+  "kidsStartLearning": "Start Learning",
+  "kidsStatLetters": "Letters",
+  "kidsStatStreak": "Streak",
+  "kidsStatXp": "Total XP",
+  "kidsSwitchProfile": "Switch profile",
+  "kidsTabHome": "Home",
+  "kidsTabLearn": "Learn",
+  "kidsTabMe": "Me",
+  "kidsTabRank": "Rank",
+  "kidsTabRewards": "Rewards",
+  "kidsTapToFlip": "Tap the card to flip it",
+  "kidsWhosLearning": "Who's learning?",
+  "kidsYou": "You",
+  "kidsYourPath": "Your Path",
+  "kidsBadgeFirstLetter": "First Letter",
+  "kidsBadgeFiveLetters": "5 Letters",
+  "kidsBadgeHalfway": "Halfway There",
+  "kidsBadgeAlphabetMaster": "Alphabet Master",
+  "kidsBadgeStreak3": "3-Day Streak",
+  "kidsBadgeStreak7": "7-Day Streak",
+  "kidsShopFalconHat": "Falcon Hat",
+  "kidsShopStarCape": "Star Cape",
+  "kidsShopGoldenFrame": "Golden Frame",
+  "kidsHelloName": "Hello, {name}!",
+  "@kidsHelloName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsLevelLabel": "Level {level}",
+  "@kidsLevelLabel": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsContinueWithLetter": "Continue with {name}",
+  "@kidsContinueWithLetter": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsLettersProgress": "{done} of {total} letters",
+  "@kidsLettersProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsTraceThe": "Trace the letter {name}",
+  "@kidsTraceThe": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsXpEarned": "+{xp} XP",
+  "@kidsXpEarned": {
+    "placeholders": {
+      "xp": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsStepOf": "Step {step} of {total}",
+  "@kidsStepOf": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsMarhaba": "Marhaba 👋",
+  "kidsAlphabet": "Alphabet",
+  "kidsAlphabetArabic": "الأبجدية",
+  "kidsLettersArabic": "الحروف",
+  "kidsGoalComplete": "Goal complete — great work!",
+  "kidsSeeAllLetters": "See all letters",
+  "kidsGoalRemaining": "{count, plural, =1{1 more lesson to go!} other{{count} more lessons to go!}}",
+  "@kidsGoalRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsLetterNamed": "Letter {name}",
+  "@kidsLetterNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsViewAll": "View all",
+  "kidsGemsEarned": "Gems earned",
+  "kidsRankBannerTitle": "Family Leaderboard",
+  "kidsRankYouAreFirst": "You're in the lead!",
+  "kidsCurrentStreak": "current streak",
+  "kidsRankArabic": "لوحة الصدارة",
+  "kidsRewardsArabic": "المكافآت",
+  "kidsPracticeArabic": "تدريب",
+  "kidsAppearanceArabic": "المظهر",
+  "kidsRankYouAre": "You're #{rank}",
+  "@kidsRankYouAre": {
+    "placeholders": {
+      "rank": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsRankToNext": "{xp} XP to reach #{rank}",
+  "@kidsRankToNext": {
+    "placeholders": {
+      "xp": {
+        "type": "int"
+      },
+      "rank": {
+        "type": "int"
+      }
+    }
+  },
+  "qpPickLetterAndForm": "Pick {name} in the right shape",
+  "@qpPickLetterAndForm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qpWhichPosition": "Where does this shape sit in a word?",
+  "qpTapLettersInOrder": "Tap the shapes in order to build “{translit}”",
+  "@qpTapLettersInOrder": {
+    "placeholders": {
+      "translit": {
+        "type": "String"
+      }
+    }
+  },
+  "qpListenThenPick": "Listen, then pick {name}",
+  "@qpListenThenPick": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsBlockLetters": "The Letters",
+  "kidsBlockLettersSub": "See each letter, then trace it",
+  "kidsBlockLettersQuiz": "Letters Quiz",
+  "kidsBlockQuizSub": "Show what you know",
+  "kidsBlockLettersFew": "Letters Again",
+  "kidsBlockLettersFewSub": "The same shapes, in fewer strokes",
+  "kidsBlockForms": "Joining Shapes",
+  "kidsBlockFormsSub": "Start, middle and end — one shape at a time",
+  "kidsBlockFormsQuiz": "Shapes Quiz",
+  "kidsBlockFormsFew": "Shapes Again",
+  "kidsBlockSpecial": "Special Shapes",
+  "kidsBlockSpecialSub": "Lām-alif, the kāf wraps, and letters that stack",
+  "kidsBlockSpecialQuiz": "Special Shapes Quiz",
+  "kidsPathTitle": "Your Path",
+  "kidsBlockLocked": "Finish the stage before this one first!",
+  "kidsPathArabic": "مَسَارُك",
+  "kidsReadAloudThenTap": "Read each line out loud, then tap the arrow.",
+  "kidsReadingUnavailable": "The text couldn't be loaded — try again in a moment.",
+  "kidsBlockTaMarbuta": "Tāʼ Marbūṭah",
+  "kidsBlockTaMarbutaSub": "The ending that changes when you stop",
+  "kidsBlockSolarLunar": "Sun and Moon Letters",
+  "kidsBlockSolarLunarSub": "When the lām of “al-” is heard, and when it hides",
+  "kidsBlockTwoWords": "Two Words",
+  "kidsBlockThreeWords": "Three Words",
+  "kidsBlockWordsSub": "Join them up and read them together",
+  "kidsBlockCapstone": "Read a Sūrah",
+  "kidsBlockCapstoneSub": "Everything you have learned, in one real sūrah",
+  "kidsBlockTajwid": "Beautiful Reading",
+  "lsnTaMarbutaHint": "Tāʼ marbūṭah is a final hāʼ with two dots added above it.",
+  "kidsNextUp": "Next: {name}",
+  "@kidsNextUp": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsStageDone": "Stage complete!",
+  "kidsSeeWholePath": "See the whole path",
+  "kidsItemLocked": "Finish the one before this first!"
 }

@@ -88,6 +88,22 @@ bool isQuranFoundationOrigin(String url) {
       host.endsWith('.quranicaudio.com');
 }
 
+/// Every host this app is allowed to fetch or play Qur'anic audio from. A
+/// verse-timings response can hand back a host-qualified URL (see the
+/// "some reciters return a host-qualified path" comment in `_versesFor`) —
+/// this is the fixed allowlist that URL is checked against before it is
+/// ever fetched or played, so a change in the upstream API's response shape
+/// can't silently redirect playback/downloads to an arbitrary host. This is
+/// broader than [isQuranFoundationOrigin] (which exists only to decide the
+/// weekly-refresh bookkeeping and deliberately excludes EveryAyah).
+@visibleForTesting
+bool isKnownAudioHost(String url) {
+  final host = Uri.tryParse(url)?.host ?? '';
+  return host == 'everyayah.com' ||
+      host == 'audio.qurancdn.com' ||
+      isQuranFoundationOrigin(url);
+}
+
 /// Silently re-fetches any quran.com-sourced cached audio/timings older than
 /// 7 days, per Quran Foundation's offline-caching terms. Safe to call
 /// opportunistically and often — a failed request is retried the next call,
@@ -580,7 +596,7 @@ class AyahAudio {
       if (rid != null) {
         final verses = await _versesFor(rid, s);
         final va = verses?[v];
-        if (va != null) {
+        if (va != null && isKnownAudioHost(va.url)) {
           segments = va.segments;
           url = va.url;
           // Right verse, right reciter — but no word timings to highlight with.
@@ -588,9 +604,13 @@ class AyahAudio {
           debugPrint(
               '[AyahAudio] $reciter $s:$v → ${va.url} (${va.segments?.length ?? 0} word segments)');
         } else {
-          // Timings unavailable: still play the right verse, just no highlight.
+          // Either no timings at all, or the API handed back a URL whose
+          // host isn't on the fixed allowlist — either way, fall through to
+          // urlFor()'s hardcoded template below rather than trust it.
           fellBack = true;
-          debugPrint('[AyahAudio] $reciter $s:$v timings unavailable');
+          debugPrint(va == null
+              ? '[AyahAudio] $reciter $s:$v timings unavailable'
+              : '[AyahAudio] $reciter $s:$v timings URL host not allow-listed: ${va.url}');
         }
       }
       url ??= urlFor(s, v, reciter: reciter);
@@ -639,7 +659,10 @@ class AyahAudio {
       var exists = await f.exists();
       if (!exists) {
         try {
-          final src = verses?[v]?.url ?? urlFor(surah, v, reciter: reciter);
+          final timedUrl = verses?[v]?.url;
+          final src = (timedUrl != null && isKnownAudioHost(timedUrl))
+              ? timedUrl
+              : urlFor(surah, v, reciter: reciter);
           final res = await http
               .get(Uri.parse(src))
               .timeout(const Duration(seconds: 25));

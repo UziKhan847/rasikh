@@ -45,12 +45,23 @@ android {
     }
     buildTypes {
         release {
-            // Falls back to debug signing when key.properties is absent (a
-            // fresh clone, CI) so the module can still configure and build.
-            signingConfig = if (keystorePropertiesFile.exists())
+            // Must be the real release key — Play Console pins the upload
+            // certificate after the first release, so a debug-signed AAB
+            // would only fail late (at upload, or worse, silently produce a
+            // "release" build nobody can actually ship). Failing the build
+            // now, at configuration time, surfaces a missing/misplaced
+            // key.properties immediately instead. Debug builds are
+            // unaffected — they never look at this signingConfig.
+            signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
-            else
-                signingConfigs.getByName("debug")
+            } else {
+                throw GradleException(
+                    "android/key.properties is missing, so a release build " +
+                        "has no real signing key to use. Create it (keyAlias, " +
+                        "keyPassword, storeFile, storePassword) before running " +
+                        "a release build/bundle — see CREDITS.md."
+                )
+            }
         }
     }
 }

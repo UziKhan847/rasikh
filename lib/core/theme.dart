@@ -49,6 +49,7 @@ class Palette {
   final Color accentBright;
   final Color accentDeep;
   final Color accent2; // theme-family secondary (coral / teal)
+  final Color amber; // Kids Mode: goal ring, stars, badges, gems
 
   const Palette({
     required this.brightness,
@@ -64,6 +65,7 @@ class Palette {
     required this.accentBright,
     required this.accentDeep,
     required this.accent2,
+    this.amber = const Color(0xFFF4B23E),
   });
 }
 
@@ -71,6 +73,11 @@ const _mintAccents = (
   Color(0xFF00C9A7), Color(0xFF2EE5A9), Color(0xFF00A98C), Color(0xFFFF6B67));
 const _noorAccents = (
   Color(0xFFE96A4B), Color(0xFFF18A63), Color(0xFFCB4F2E), Color(0xFF21A99C));
+// Kids Mode's own family — coral/teal, close enough to Noor's own accents
+// (design #EC6A4B/#1FA89B vs Noor's #E96A4B/#21A99C) that Kids Mode is a
+// palette variant of the existing brand, not a new one.
+const _kidsAccents = (
+  Color(0xFFEC6A4B), Color(0xFFF2917A), Color(0xFFD1502F), Color(0xFF1FA89B));
 
 Palette _p(
         Brightness b,
@@ -100,20 +107,76 @@ final _palettes = <String, Palette>{
       0xFFF6EDE0, 0xFFB5A48E, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000, _noorAccents),
   'noor.oled': _p(Brightness.dark, 0xFF000000, 0xFF191410, 0xFF251D14,
       0xFFF6EDE0, 0xFFA8997F, 0xFF1B170E, 0xFFEFE6D0, 0x00000000, _noorAccents),
+  // ── Kids family (playful coral / teal / amber, from the Kids Mode design)
+  // — light-only in the design; dark/OLED derived to match the other
+  // families, since Kids Mode's own Me screen offers all three. ──
+  'kids.light': _p(Brightness.light, 0xFFFFF8F0, 0xFFFFFFFF, 0xFFFCEEDF,
+      0xFF3B2E22, 0xFF8C7B67, 0xFFFBF1DD, 0xFF2B2417, 0x1A3B2E22, _kidsAccents),
+  'kids.dark': _p(Brightness.dark, 0xFF231911, 0xFF2E2117, 0xFF3D2B1C,
+      0xFFF6EDE0, 0xFFB5A48E, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000, _kidsAccents),
+  'kids.oled': _p(Brightness.dark, 0xFF000000, 0xFF191009, 0xFF261B10,
+      0xFFF6EDE0, 0xFFA8997F, 0xFF1B170E, 0xFFEFE6D0, 0x00000000, _kidsAccents),
 };
 
 Palette paletteFor(String family, String mode) =>
     _palettes['$family.$mode'] ?? _palettes['mint.light']!;
 
+/// The families the grown-up theme picker cycles through/offers. 'kids' is
+/// deliberately excluded — it's Kids Mode's own palette (see [kidsPal]),
+/// never a user-selectable choice in the adult app.
+const kAdultThemeFamilies = ['mint', 'noor'];
+
 /// The current palette, reactive to theme family + mode settings.
+/// Overrides what [pal] resolves to for everything beneath it.
+///
+/// Kids Mode publishes one holding [kidsPal], because the grown-up screens it
+/// reuses — the Qāʿidah lesson trees, the shared [QuizScreen], every widget
+/// that calls [pal] rather than taking an explicit colour — otherwise paint in
+/// the parent app's `themeFamily`, which has nothing to do with the child's
+/// own Light/Dark/OLED choice. Without this, reusing one lesson inside Kids
+/// Mode means either recolouring it by hand or shipping two copies.
+class PaletteScope extends InheritedWidget {
+  final Palette palette;
+  const PaletteScope(
+      {super.key, required this.palette, required super.child});
+
+  @override
+  bool updateShouldNotify(PaletteScope old) => old.palette != palette;
+}
+
 Palette pal(BuildContext context) {
+  // No dependency is registered when there is no PaletteScope above, so the
+  // grown-up app pays only a map lookup for this.
+  final scoped = context.dependOnInheritedWidgetOfExactType<PaletteScope>();
+  if (scoped != null) return scoped.palette;
   final s = SettingsScope.of(context);
   return paletteFor(s.themeFamily, s.themeMode);
 }
 
-ThemeData buildTheme(AppSettings s) {
-  final p = paletteFor(s.themeFamily, s.themeMode);
-  final (uiFamily, uiFallback) = _uiFont(s.language);
+/// Kids Mode's own palette — independent of the grown-up `themeFamily`
+/// setting on purpose: Kids Mode has its own Light/Dark/OLED appearance
+/// picker (see the Me screen), so switching it never touches the parent
+/// app's theme, and switching the parent app's theme never affects Kids Mode.
+Palette kidsPal(BuildContext context) {
+  final s = SettingsScope.of(context);
+  return paletteFor('kids', s.kidsThemeMode);
+}
+
+ThemeData buildTheme(AppSettings s) =>
+    _themeFrom(paletteFor(s.themeFamily, s.themeMode), s.language);
+
+/// Kids Mode's own `ThemeData` — [kidsPal] instead of the grown-up
+/// [pal]/`themeFamily`, so tooltips, scrollbars, hover ink and text selection
+/// under the kids desktop shell follow the kids palette instead of whatever
+/// the parent app's adult theme happens to be. Mobile Kids Mode never needed
+/// this (every kids widget already passes explicit colours), but the desktop
+/// shell reaches Material widgets — `Tooltip`, `Scrollbar` — that read
+/// `Theme.of(context)` directly.
+ThemeData kidsTheme(BuildContext context) =>
+    _themeFrom(kidsPal(context), SettingsScope.of(context).language);
+
+ThemeData _themeFrom(Palette p, String language) {
+  final (uiFamily, uiFallback) = _uiFont(language);
   final base = ThemeData(
     useMaterial3: true,
     brightness: p.brightness,
@@ -285,4 +348,28 @@ TextStyle uiStyle(
       fontSize: size,
       fontWeight: weight,
       color: color ?? pal(context).text);
+}
+
+/// Kids Mode's UI chrome font — Baloo 2, a rounded display face bundled at
+/// `assets/fonts/Baloo2-*.ttf` (SIL OFL, see CREDITS.md) — never
+/// fetched over the network, same as every other face in this app. Latin
+/// only (it has full French/Spanish diacritic coverage); Arabic UI text in
+/// Kids Mode still goes through [arabicStyle]/[quranicStyle] as usual, with
+/// Outfit as the fallback for any stray Latin punctuation.
+TextStyle kidsStyle(
+  BuildContext context, {
+  double size = 15,
+  Color? color,
+  FontWeight weight = FontWeight.w600,
+}) {
+  return TextStyle(
+      fontFamily: 'Baloo2',
+      // ScheherazadeNew last: neither Baloo2 nor Outfit has Arabic glyphs, and
+      // Kids Mode's later stages show copy from the grown-up path that mixes
+      // scripts ("The echoing bounce of قطب جد"). Real devices would fall back
+      // to a system face, but a bundled one makes it certain.
+      fontFamilyFallback: const ['Outfit', 'ScheherazadeNew'],
+      fontSize: size,
+      fontWeight: weight,
+      color: color ?? kidsPal(context).text);
 }

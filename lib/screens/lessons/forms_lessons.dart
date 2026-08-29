@@ -17,10 +17,10 @@ LessonNode formsLessonRoot(BuildContext context) => LessonNode(
       title: context.l10n.unitJoiningForms,
       children: [
         for (final l in letters) _letterFormNode(context, l),
-        _ligaturesGroupNode(context),
-        _kafWrapGroupNode(context),
-        _stackingGroupNode(context),
-        _heightsGroupNode(context),
+        ligaturesGroupNode(context),
+        kafWrapGroupNode(context),
+        stackingGroupNode(context),
+        heightsGroupNode(context),
       ],
     );
 
@@ -61,7 +61,7 @@ LessonNode _letterFormNode(BuildContext context, ArabicLetter l) {
 // special_shapes.dart) with any [pendingVariantIds] entries that belong to
 // it, shown locked/dimmed until their own shape is drawn.
 
-LessonNode _ligaturesGroupNode(BuildContext context) => LessonNode(
+LessonNode ligaturesGroupNode(BuildContext context) => LessonNode(
       id: 'forms.special.ligatures',
       icon: Icons.link_rounded,
       title: context.l10n.lsnLigatures,
@@ -71,7 +71,7 @@ LessonNode _ligaturesGroupNode(BuildContext context) => LessonNode(
       ],
     );
 
-LessonNode _kafWrapGroupNode(BuildContext context) => LessonNode(
+LessonNode kafWrapGroupNode(BuildContext context) => LessonNode(
       id: 'forms.special.kaf',
       icon: Icons.route_rounded,
       title: context.l10n.lsnKafsWrap,
@@ -81,7 +81,7 @@ LessonNode _kafWrapGroupNode(BuildContext context) => LessonNode(
       ],
     );
 
-LessonNode _stackingGroupNode(BuildContext context) => LessonNode(
+LessonNode stackingGroupNode(BuildContext context) => LessonNode(
       id: 'forms.special.stacking',
       icon: Icons.layers_rounded,
       title: context.l10n.lsnStacking,
@@ -92,7 +92,7 @@ LessonNode _stackingGroupNode(BuildContext context) => LessonNode(
       ],
     );
 
-LessonNode _heightsGroupNode(BuildContext context) => LessonNode(
+LessonNode heightsGroupNode(BuildContext context) => LessonNode(
       id: 'forms.special.heights',
       icon: Icons.height_rounded,
       title: context.l10n.lsnHeightsAndTails,

@@ -21,6 +21,7 @@ import '../data/wasl.dart';
 import '../widgets/common.dart';
 import '../widgets/lesson.dart';
 import 'lessons/forms_lessons.dart';
+import 'lessons/forms_quizzes.dart';
 import 'lessons/qaidah_lessons.dart';
 import 'lessons/tajwid_lessons.dart';
 import 'tashkeel_screen.dart';
@@ -890,7 +891,7 @@ QuizScreen _formsQuiz(BuildContext context, {bool graded = true}) {
   // Non-joiners (ا و د ذ ر ز) have no real initial/medial form — asking about
   // one would show a stray tatweel run, not a shape that exists in the muṣḥaf.
   final sample = letters.where((l) => l.joins).toList()..shuffle(_rng);
-  for (final l in sample.take(10)) {
+  for (final l in sample.take(5)) {
     final formIdx = _rng.nextInt(3);
     final form = [l.initial, l.medial, l.finalForm][formIdx];
     final formName = ['ini', 'med', 'fin'][formIdx];
@@ -903,6 +904,13 @@ QuizScreen _formsQuiz(BuildContext context, {bool graded = true}) {
         correct: o.correct,
         explain: context.l10n.lookPastJoins));
   }
+  // Half the round is now the other three question shapes — naming a shape
+  // ten times over drills recognition only. See forms_quizzes.dart.
+  qs
+    ..addAll(formGridQuestions(context, count: 3))
+    ..addAll(formPositionQuestions(context, count: 2))
+    ..addAll(buildTheWordQuestions(context, count: 2))
+    ..shuffle(_rng);
   return QuizScreen(
       title: context.l10n.formsQuiz,
       progressId: 'qaidah.forms',
@@ -1317,7 +1325,7 @@ QuizQuestion? _stackQuestion(BuildContext context) {
   );
 }
 
-QuizQuestion? _haaVsTaaMarbutaQuestion(BuildContext context) {
+QuizQuestion? haaVsTaaMarbutaQuestion(BuildContext context) {
   final entries = letterVariants
       .where((v) => v.id == 'haa.word_final' || v.id == 'taa_marbuta.word_final')
       .toList();
@@ -1358,7 +1366,7 @@ QuizQuestion? _ligatureQuestion(BuildContext context) {
 
 const _hamzaCarrierChars = ['ء', 'أ', 'إ', 'ؤ', 'ئ'];
 
-QuizQuestion _hamzaCarrierQuestion(BuildContext context) {
+QuizQuestion hamzaCarrierQuestion(BuildContext context) {
   final carriers =
       extraLetters.where((l) => _hamzaCarrierChars.contains(l.char)).toList();
   final l = carriers[_rng.nextInt(carriers.length)];
@@ -1387,13 +1395,18 @@ QuizScreen _formsPracticeQuiz(BuildContext context) {
   }
   for (final q in [
     _stackQuestion(context),
-    _haaVsTaaMarbutaQuestion(context),
-    _hamzaCarrierQuestion(context),
+    haaVsTaaMarbutaQuestion(context),
+    hamzaCarrierQuestion(context),
     _ligatureQuestion(context),
   ]) {
     if (q != null) qs.add(q);
   }
-  qs.shuffle(_rng);
+  // Practice draws on the same extra shapes as Test, including the listening
+  // one — ungraded is exactly where a question that may have no audio belongs.
+  qs
+    ..addAll(formGridQuestions(context, count: 2))
+    ..addAll(listenAndPickQuestions(context, count: 2))
+    ..shuffle(_rng);
   return QuizScreen(
       title: context.l10n.formsQuiz,
       progressId: 'qaidah.forms',

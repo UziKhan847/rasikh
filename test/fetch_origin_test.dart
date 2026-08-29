@@ -46,4 +46,26 @@ void main() {
       expect(isQuranFoundationOrigin(''), isFalse);
     });
   });
+
+  // A verse-timings API response can hand back a host-qualified URL (see
+  // _versesFor's "some reciters return a host-qualified path" comment),
+  // which then gets fetched (downloadSurah) or played (AyahAudio.play)
+  // directly. isKnownAudioHost is the fixed allowlist gating that — see the
+  // Kids Mode plan's "audio host allowlist" hardening note, made more
+  // pointed now that this same playback path is child-facing.
+  group('isKnownAudioHost', () {
+    test('every real reciter host is allowed', () {
+      expect(isKnownAudioHost('https://everyayah.com/data/x.mp3'), isTrue);
+      expect(isKnownAudioHost('https://verses.quran.com/x.mp3'), isTrue);
+      expect(
+          isKnownAudioHost('https://mirrors.quranicaudio.com/x.mp3'), isTrue);
+      expect(isKnownAudioHost('https://audio.qurancdn.com/wbw/x.mp3'), isTrue);
+    });
+
+    test('an arbitrary host is rejected, even if the API returned it', () {
+      expect(isKnownAudioHost('https://evil.example/x.mp3'), isFalse);
+      expect(isKnownAudioHost('not a url'), isFalse);
+      expect(isKnownAudioHost(''), isFalse);
+    });
+  });
 }

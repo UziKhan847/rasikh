@@ -1,7 +1,7 @@
 name: qiraah_arabiyyah
 description: "Qiraah Arabiyyah — a modern Arabic reading & writing journey: Qaidah, tracing with stroke direction, Tashkil counts, Tajwid, dyslexia-friendly practice, and the 10 Qira'at."
 publish_to: 'none'
-version: 2.0.4+44
+version: 2.0.6+46
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
@@ -22,6 +22,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # Test-only: lets test/kids_mode_test.dart fake path_provider's platform
+  # channel (BackupService writes to the app documents dir) without a device.
+  path_provider_platform_interface: ^2.1.2
+  plugin_platform_interface: ^2.1.8
 
 flutter:
   uses-material-design: true
@@ -58,6 +62,18 @@ flutter:
     - family: Outfit
       fonts:
         - asset: assets/fonts/Outfit-Variable.ttf
+    - family: Baloo2
+      fonts:
+        - asset: assets/fonts/Baloo2-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Baloo2-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Baloo2-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Baloo2-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Baloo2-ExtraBold.ttf
+          weight: 800
     - family: NotoNastaliqUrdu
       fonts:
         - asset: assets/fonts/NotoNastaliqUrdu-Variable.ttf

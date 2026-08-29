@@ -864,5 +864,207 @@
   "lsnHeightsAndTails": "اونچائی اور دُم",
   "lsnApart": "الگ الگ",
   "lsnJoinedShape": "ایک شکل میں جڑے ہوئے",
-  "lsnTellApart": "ان میں فرق کیسے کریں"
+  "lsnTellApart": "ان میں فرق کیسے کریں",
+  "kidsMode": "بچوں کا موڈ",
+  "kidsModeDesc": "بچوں کے لیے ایپ کا ایک دلچسپ اور آسان ورژن — اپنے ڈیزائن، پیش رفت اور انعامات کے ساتھ۔",
+  "kidsAddProfile": "شامل کریں",
+  "kidsAllLettersDone": "آپ نے پوری حروف تہجی مکمل کر لی!",
+  "kidsAppearance": "ظاہری شکل",
+  "kidsBadges": "بیجز",
+  "kidsBuy": "حاصل کریں",
+  "kidsDailyGoalSub": "حلقہ بھرنے کے لیے سبق مکمل کریں",
+  "kidsDailyGoalTitle": "آج کا ہدف",
+  "kidsExitToParentApp": "والدین کی ایپ پر واپس جائیں",
+  "kidsFlashcards": "فلیش کارڈز",
+  "kidsGenderBoy": "لڑکا",
+  "kidsGenderGirl": "لڑکی",
+  "kidsGenderPrompt": "اس سے ہمیں آپ کی صحیح حوصلہ افزائی کرنے میں مدد ملتی ہے!",
+  "kidsGenderSkip": "چھوڑ دیں",
+  "kidsGreatJob": "شاباش!",
+  "kidsKeepGoing": "آگے بڑھتے رہیں!",
+  "kidsLetterLocked": "پہلے پچھلا حرف مکمل کریں!",
+  "kidsListening": "سننا",
+  "kidsNameHint": "آپ کا نام کیا ہے؟",
+  "kidsNewProfileTitle": "نئی پروفائل",
+  "kidsNextCard": "اگلا",
+  "kidsParentGateSub": "والدین: جاری رکھنے کے لیے یہ حل کریں۔",
+  "kidsParentGateTitle": "صرف بڑوں کے لیے",
+  "kidsPractice": "مشق",
+  "kidsRankNeedsSiblings": "خاندانی لیڈر بورڈ شروع کرنے کے لیے ایک اور پروفائل شامل کریں!",
+  "kidsRankSub": "دیکھیں اس ہفتے آپ کا خاندان کیسا کر رہا ہے",
+  "kidsReadTheSentence": "جملہ پڑھیں",
+  "kidsReviewAnyLetter": "جائزے کے لیے کوئی بھی حرف دبائیں",
+  "kidsShop": "دکان",
+  "kidsStartLearning": "سیکھنا شروع کریں",
+  "kidsStatLetters": "حروف",
+  "kidsStatStreak": "تسلسل",
+  "kidsStatXp": "کل ایکس پی",
+  "kidsSwitchProfile": "پروفائل بدلیں",
+  "kidsTabHome": "ہوم",
+  "kidsTabLearn": "سیکھیں",
+  "kidsTabMe": "میں",
+  "kidsTabRank": "درجہ",
+  "kidsTabRewards": "انعامات",
+  "kidsTapToFlip": "پلٹنے کے لیے کارڈ دبائیں",
+  "kidsWhosLearning": "کون سیکھ رہا ہے؟",
+  "kidsYou": "آپ",
+  "kidsYourPath": "آپ کا راستہ",
+  "kidsBadgeFirstLetter": "پہلا حرف",
+  "kidsBadgeFiveLetters": "5 حروف",
+  "kidsBadgeHalfway": "آدھا راستہ مکمل",
+  "kidsBadgeAlphabetMaster": "حروف تہجی کا ماہر",
+  "kidsBadgeStreak3": "3 دن کا تسلسل",
+  "kidsBadgeStreak7": "7 دن کا تسلسل",
+  "kidsShopFalconHat": "شاہین ٹوپی",
+  "kidsShopStarCape": "ستارہ کیپ",
+  "kidsShopGoldenFrame": "سنہری فریم",
+  "kidsHelloName": "ہیلو، {name}!",
+  "@kidsHelloName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsLevelLabel": "سطح {level}",
+  "@kidsLevelLabel": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsContinueWithLetter": "{name} کے ساتھ جاری رکھیں",
+  "@kidsContinueWithLetter": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsLettersProgress": "{total} میں سے {done} حروف",
+  "@kidsLettersProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsTraceThe": "حرف {name} کا خاکہ بنائیں",
+  "@kidsTraceThe": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsXpEarned": "+{xp} ایکس پی",
+  "@kidsXpEarned": {
+    "placeholders": {
+      "xp": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsStepOf": "مرحلہ {step} از {total}",
+  "@kidsStepOf": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsMarhaba": "مرحبا 👋",
+  "kidsAlphabet": "حروفِ تہجی",
+  "kidsAlphabetArabic": "الأبجدية",
+  "kidsLettersArabic": "الحروف",
+  "kidsGoalComplete": "ہدف مکمل — شاباش!",
+  "kidsSeeAllLetters": "تمام حروف دیکھیں",
+  "kidsGoalRemaining": "{count, plural, =1{1 اور سبق باقی ہے!} other{{count} اور سبق باقی ہیں!}}",
+  "@kidsGoalRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsLetterNamed": "حرف {name}",
+  "@kidsLetterNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsViewAll": "سب دیکھیں",
+  "kidsGemsEarned": "حاصل شدہ جواہر",
+  "kidsRankBannerTitle": "خاندانی لیڈر بورڈ",
+  "kidsRankYouAreFirst": "آپ سب سے آگے ہیں!",
+  "kidsCurrentStreak": "موجودہ تسلسل",
+  "kidsRankArabic": "لوحة الصدارة",
+  "kidsRewardsArabic": "المكافآت",
+  "kidsPracticeArabic": "تدريب",
+  "kidsAppearanceArabic": "المظهر",
+  "kidsRankYouAre": "آپ #{rank} نمبر پر ہیں",
+  "@kidsRankYouAre": {
+    "placeholders": {
+      "rank": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsRankToNext": "#{rank} تک پہنچنے کے لیے {xp} ایکس پی",
+  "@kidsRankToNext": {
+    "placeholders": {
+      "xp": {
+        "type": "int"
+      },
+      "rank": {
+        "type": "int"
+      }
+    }
+  },
+  "qpPickLetterAndForm": "{name} کو درست شکل میں چنیں",
+  "qpWhichPosition": "یہ شکل لفظ میں کہاں آتی ہے؟",
+  "qpTapLettersInOrder": "«{translit}» بنانے کے لیے شکلوں کو ترتیب سے چھوئیں",
+  "qpListenThenPick": "سنیں، پھر {name} چنیں",
+  "kidsBlockLetters": "حروف",
+  "kidsBlockLettersSub": "ہر حرف دیکھیں، پھر لکھیں",
+  "kidsBlockLettersQuiz": "حروف کا امتحان",
+  "kidsBlockQuizSub": "دکھائیں آپ نے کیا سیکھا",
+  "kidsBlockLettersFew": "حروف دوبارہ",
+  "kidsBlockLettersFewSub": "وہی شکلیں، کم لکیروں میں",
+  "kidsBlockForms": "جوڑنے کی شکلیں",
+  "kidsBlockFormsSub": "شروع، درمیان اور آخر — ایک ایک شکل",
+  "kidsBlockFormsQuiz": "شکلوں کا امتحان",
+  "kidsBlockFormsFew": "شکلیں دوبارہ",
+  "kidsBlockSpecial": "خاص شکلیں",
+  "kidsBlockSpecialSub": "لام الف، کاف کی لپیٹ، اور اوپر تلے حروف",
+  "kidsBlockSpecialQuiz": "خاص شکلوں کا امتحان",
+  "kidsPathTitle": "آپ کا راستہ",
+  "kidsBlockLocked": "پہلے پچھلا مرحلہ مکمل کریں!",
+  "kidsPathArabic": "مَسَارُك",
+  "kidsReadAloudThenTap": "ہر سطر بلند آواز میں پڑھیں، پھر تیر دبائیں۔",
+  "kidsReadingUnavailable": "متن لوڈ نہیں ہو سکا — تھوڑی دیر بعد کوشش کریں۔",
+  "kidsBlockTaMarbuta": "تاء مربوطہ",
+  "kidsBlockTaMarbutaSub": "وہ اختتام جو ٹھہرنے پر بدل جاتا ہے",
+  "kidsBlockSolarLunar": "شمسی اور قمری حروف",
+  "kidsBlockSolarLunarSub": "«ال» کا لام کب پڑھا جاتا ہے اور کب چھپ جاتا ہے",
+  "kidsBlockTwoWords": "دو الفاظ",
+  "kidsBlockThreeWords": "تین الفاظ",
+  "kidsBlockWordsSub": "انہیں ملا کر ایک ساتھ پڑھیں",
+  "kidsBlockCapstone": "ایک سورہ پڑھیں",
+  "kidsBlockCapstoneSub": "جو کچھ سیکھا، ایک مکمل سورہ میں",
+  "kidsBlockTajwid": "تجوید",
+  "lsnTaMarbutaHint": "تاء مربوطہ آخری ہاء ہی ہے جس کے اوپر دو نقطے ہوں۔",
+  "kidsNextUp": "اگلا: {name}",
+  "kidsStageDone": "مرحلہ مکمل!",
+  "kidsSeeWholePath": "پورا راستہ دیکھیں",
+  "kidsItemLocked": "پہلے اس سے پچھلا مکمل کریں!"
 }

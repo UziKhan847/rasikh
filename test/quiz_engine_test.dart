@@ -153,6 +153,80 @@ void main() {
     expect(find.text('0/1'), findsOneWidget);
   });
 
+  testWidgets('a skipped question is neither right nor wrong, and leaves the '
+      'score', (tester) async {
+    final (settings, progress) = await _boot();
+    // Two questions: answer the first correctly, skip the second. Scoring
+    // over the whole round would read 1/2 — one star. Skipped questions come
+    // out of the denominator instead, so it is 1/1: a clean three stars.
+    final questions = [
+      const QuizQuestion(
+          prompt: 'Pick one', options: ['a', 'b'], correct: 0),
+      const QuizQuestion(
+        prompt: 'Listen, then pick',
+        options: ['ب', 'ت'],
+        correct: 0,
+        optionsAreArabic: true,
+        audioRef: '1:1',
+        skippable: true,
+      ),
+    ];
+    await tester.pumpWidget(_harness(
+        settings,
+        progress,
+        QuizScreen(
+            title: 'Skip', progressId: 'test.skip', questions: questions)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('a'));
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
+
+    // The second question offers a way past it — there is no per-letter
+    // audio, so a learner must never be stranded on one of these.
+    expect(find.text('Next'), findsOneWidget);
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1/1'), findsOneWidget,
+        reason: 'the skipped question should be out of the denominator');
+    expect(progress.starsFor('test.skip'), 3);
+  });
+
+  testWidgets('a grid question lays its options out as a grid', (tester) async {
+    final (settings, progress) = await _boot();
+    const question = QuizQuestion(
+      prompt: 'Pick Kāf in the right shape',
+      arabic: 'ٱلۡكِتَٰبُ',
+      blank: 'كِ',
+      options: ['كـ', 'ـكـ', 'ـك', 'ك'],
+      correct: 1,
+      optionsAreArabic: true,
+      optionColumns: 4,
+      optionAspect: 1.0,
+    );
+    await tester.pumpWidget(_harness(
+        settings,
+        progress,
+        QuizScreen(
+            title: 'Grid',
+            progressId: 'test.grid',
+            questions: [question])));
+    await tester.pumpAndSettle();
+
+    final grid = tester.widget<GridView>(find.byType(GridView));
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 4);
+    expect(delegate.childAspectRatio, 1.0);
+
+    // The gap is drawn as a slot, so the letter being asked about must not
+    // still be sitting in the prompt word.
+    final rich = tester.widgetList<RichText>(find.byType(RichText));
+    final shown = rich.map((r) => r.text.toPlainText()).join();
+    expect(shown.contains('ٱلۡكِتَٰبُ'), isFalse);
+  });
+
   testWidgets('practice mode (graded: false) never reports stars',
       (tester) async {
     final (settings, progress) = await _boot();

@@ -10,6 +10,8 @@ import 'core/settings.dart';
 import 'core/theme.dart';
 import 'screens/desktop/desktop_shell.dart';
 import 'screens/home_screen.dart';
+import 'screens/kids/kids_desktop_shell.dart';
+import 'screens/kids/kids_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -132,8 +134,13 @@ class _SystemUiSyncState extends State<_SystemUiSync>
 class RootScreen extends StatelessWidget {
   const RootScreen({super.key});
   @override
-  Widget build(BuildContext context) =>
-      useDesktop(context) ? const DesktopShell() : const HomeScreen();
+  Widget build(BuildContext context) {
+    final desktop = useDesktop(context);
+    if (SettingsScope.of(context).kidsMode) {
+      return desktop ? const KidsDesktopShell() : const KidsShell();
+    }
+    return desktop ? const DesktopShell() : const HomeScreen();
+  }
 }
 
 /// Rasterizes a sample of each bundled Arabic face once at startup, so the

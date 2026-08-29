@@ -9,6 +9,7 @@
 | SurahNames.ttf, Bismillah.ttf | Waqar Ahmed's [Quran Revision Companion](https://github.com/Waqar144/quran_memorization_helper) | MIT License | Ornamental glyphs for the 15-line muṣḥaf headers |
 | Outfit-Variable.ttf | [Outfit](https://github.com/Outfitio/Outfit-Fonts) | SIL Open Font License 1.1 | Latin-language (English/French/Spanish) UI typeface — licence text at `LICENSES/Outfit-OFL.txt` |
 | NotoNastaliqUrdu-Variable.ttf | [Noto Nastaliq Urdu](https://github.com/notofonts/nastaliq) | SIL Open Font License 1.1 | Urdu-language UI typeface — licence text at `LICENSES/NotoNastaliqUrdu-OFL.txt` |
+| Baloo2-Regular/Medium/SemiBold/Bold/ExtraBold.ttf | [Baloo 2](https://github.com/EkType/Baloo2) | SIL Open Font License 1.1 | Kids Mode's display typeface (rounded, playful) — licence text at `LICENSES/Baloo2-OFL.txt`. Bundled, never fetched over the network, same as every face above. Shipped as 5 static weight instances rather than the upstream variable font — a variable (gvar) font is a known trigger for Skia text-shaper hangs on some Android GPU/driver combinations; static instances (via `fonttools varLib.instancer`) sidestep that entirely with an identical visual result |
 
 ### Removed: PDMSSaleem.ttf, IndoPak.ttf
 Both were removed before the Play Store submission (2026-07-28) and are no

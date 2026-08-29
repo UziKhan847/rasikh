@@ -58,6 +58,8 @@ class AboutScreen extends StatelessWidget {
           _languageCard(context),
           SectionHeader(context.l10n.yourData),
           _backupCard(context),
+          SectionHeader(context.l10n.kidsMode),
+          _kidsModeCard(context),
           SectionHeader(context.l10n.sourcesLicences),
           _creditsCard(context),
           SectionHeader(context.l10n.display),
@@ -122,6 +124,47 @@ class AboutScreen extends StatelessWidget {
           ),
         ],
       )),
+    );
+  }
+
+  /// Switches the whole app into Kids Mode (see `screens/kids/kids_shell.dart`)
+  /// — a presentation preference, not a separate app: no accounts, nothing
+  /// networked beyond what the grown-up app already does. Leaving Kids Mode
+  /// again goes through its own arithmetic parent gate inside the Kids
+  /// shell's Me tab, not here.
+  Widget _kidsModeCard(BuildContext context) {
+    final s = SettingsScope.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: pal(context).surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: pal(context).shadow,
+              blurRadius: 12,
+              offset: const Offset(0, 5)),
+        ],
+      ),
+      child: Row(children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(context.l10n.kidsMode,
+                  style: uiStyle(context, size: 15.5, weight: FontWeight.w700)),
+              const SizedBox(height: 3),
+              Text(context.l10n.kidsModeDesc,
+                  style: uiStyle(context, size: 13, color: pal(context).textDim)),
+            ],
+          ),
+        ),
+        Switch(
+          value: s.kidsMode,
+          onChanged: (v) =>
+              v ? s.enableKidsPreset() : s.disableKidsMode(),
+        ),
+      ]),
     );
   }
 
@@ -268,7 +311,8 @@ class AboutScreen extends StatelessWidget {
                   side: BorderSide(color: pal(context).accent),
                   padding: const EdgeInsets.symmetric(vertical: 12)),
               onPressed: () async {
-                final path = await BackupService.export();
+                final path =
+                    await BackupService.export(SettingsScope.of(context));
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context)
                   ..clearSnackBars()

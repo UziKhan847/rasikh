@@ -245,6 +245,32 @@ class QuizQuestion {
   /// as options are tapped, grading once every option has been placed.
   final List<String>? sequence;
 
+  /// A substring of [arabic] drawn as an empty slot rather than as text — the
+  /// gap in "مَلَا__ِكَة", where the learner picks the missing letter *in its
+  /// correct joining form*. Distinct from [highlight], which colors a
+  /// substring that is still shown.
+  final String? blank;
+
+  /// Lay the options out as a grid this many columns wide instead of the
+  /// default 1–2 wide rows. Needed for glyph options: a dozen joining forms
+  /// read as a grid of shapes, not as a stack of wide text buttons.
+  final int? optionColumns;
+
+  /// Tile aspect ratio when [optionColumns] is set. Square (1.0) suits a
+  /// single glyph; the text default is much wider.
+  final double? optionAspect;
+
+  /// `'surah:ayah'` — renders a play button over the shared [AyahAudio]
+  /// recitation, for "listen, then pick" questions.
+  final String? audioRef;
+
+  /// Offers a "Next" control that moves past this question without grading
+  /// it: neither right nor wrong, and excluded from the final score's
+  /// denominator. Set on listening questions, whose only audio source is
+  /// whole-āyah recitation that needs the network — a child must never be
+  /// stuck on a question the device cannot actually ask.
+  final bool skippable;
+
   const QuizQuestion({
     required this.prompt,
     this.arabic,
@@ -256,6 +282,11 @@ class QuizQuestion {
     this.reviewId,
     this.correctSet,
     this.sequence,
+    this.blank,
+    this.optionColumns,
+    this.optionAspect,
+    this.audioRef,
+    this.skippable = false,
   });
 }
 
@@ -271,6 +302,35 @@ List<TextSpan> highlightSpans(
     TextSpan(text: hl, style: hlStyle),
     if (i + hl.length < text.length)
       TextSpan(text: text.substring(i + hl.length), style: base),
+  ];
+}
+
+/// Splits [text] for a fill-the-gap question: [gap]'s first occurrence
+/// becomes an empty slot, the rest stays as [base]. Companion to
+/// [highlightSpans] — that one colors a substring still on screen, this one
+/// takes it away and leaves a hole to fill.
+///
+/// The slot is an underlined run of spaces, not a box or a dash: an inline
+/// widget would break the shaping of the letters on either side of it, and a
+/// dash character is not in UthmanicHafs at all — it rendered as a stray
+/// glyph sitting over the word. Spaces plus an underline decoration are in
+/// every font.
+List<TextSpan> blankSpans(
+    String text, String gap, TextStyle base, Color slotColor) {
+  final i = text.indexOf(gap);
+  if (i < 0 || gap.isEmpty) return [TextSpan(text: text, style: base)];
+  return [
+    if (i > 0) TextSpan(text: text.substring(0, i), style: base),
+    // A tatweel run, not spaces-with-an-underline: an underline decoration is
+    // drawn at the bottom of the span's line box, and `quranicStyle`'s 1.8
+    // line height dropped it a whole line below the word. Tatweel is a real
+    // glyph in UthmanicHafs, sits on the baseline, and reads as exactly what
+    // it is — a stretch of joined line with its letter missing.
+    TextSpan(
+        text: '\u0640\u0640\u0640',
+        style: base.copyWith(color: slotColor)),
+    if (i + gap.length < text.length)
+      TextSpan(text: text.substring(i + gap.length), style: base),
   ];
 }
 
@@ -300,12 +360,19 @@ class QuizScreen extends StatefulWidget with DesktopAware {
 class _QuizScreenState extends State<QuizScreen> {
   int _i = 0;
   int _score = 0;
+  int _skipped = 0; // skippable questions passed over: never right OR wrong
   int? _picked; // single-choice
   final Set<int> _multiPicked = {}; // multi-select
   final List<int> _orderPicked = []; // ordering: option indices, in tap order
   bool _locked = false; // multi-select / ordering: graded, awaiting advance
   bool _wasCorrect = false;
   bool _done = false;
+
+  /// Questions that actually counted. A round of nothing but skips would
+  /// divide by zero, so it floors at 1 — and scores 0, which is honest:
+  /// nothing was answered.
+  int get _graded =>
+      (widget.questions.length - _skipped).clamp(1, widget.questions.length);
 
   QuizQuestion get q => widget.questions[_i];
   bool get _isMulti => q.correctSet != null;
@@ -375,6 +442,15 @@ class _QuizScreenState extends State<QuizScreen> {
     ];
   }
 
+  /// Move past a [QuizQuestion.skippable] question without grading it. No
+  /// review-queue entry either: not knowing an answer you were never really
+  /// asked isn't a miss.
+  void _skip() {
+    if (_isLocked) return;
+    _skipped++;
+    _advance();
+  }
+
   void _finishQuestion(bool correct) async {
     setState(() => _wasCorrect = correct);
     final settings = SettingsScope.of(context);
@@ -395,10 +471,21 @@ class _QuizScreenState extends State<QuizScreen> {
       }
     }
     if (settings.haptics) {
-      correct ? HapticFeedback.lightImpact() : HapticFeedback.heavyImpact();
+      // Kids Mode keeps a wrong answer gentle — a light tap, not the sharp
+      // "you failed" buzz the grown-up quiz uses.
+      correct || settings.kidsMode
+          ? HapticFeedback.lightImpact()
+          : HapticFeedback.heavyImpact();
     }
-    await Future.delayed(Duration(milliseconds: correct ? 650 : 1400));
+    await Future.delayed(
+        Duration(milliseconds: correct ? 650 : (settings.kidsMode ? 900 : 1400)));
     if (!mounted) return;
+    _advance();
+  }
+
+  /// Next question, or grade the round. Shared by [_finishQuestion] and
+  /// [_skip] so the "was that the last one?" logic lives in one place.
+  void _advance() {
     if (_i + 1 < widget.questions.length) {
       setState(() {
         _i++;
@@ -408,15 +495,89 @@ class _QuizScreenState extends State<QuizScreen> {
         _locked = false;
         _wasCorrect = false;
       });
-    } else {
-      if (widget.graded) {
-        final frac = _score / widget.questions.length;
-        final stars = frac >= 0.95 ? 3 : (frac >= 0.7 ? 2 : (frac >= 0.4 ? 1 : 0));
-        ProgressScope.of(context).report(widget.progressId, stars);
-      }
-      setState(() => _done = true);
+      return;
     }
+    if (widget.graded) {
+      final settings = SettingsScope.of(context);
+      final stars = starsForFraction(_score / _graded, kids: settings.kidsMode);
+      ProgressScope.of(context).report(widget.progressId, stars);
+    }
+    setState(() => _done = true);
   }
+
+  /// The options grid. Text options keep the long-standing 1–2 wide columns;
+  /// a question that sets [QuizQuestion.optionColumns] gets that many square
+  /// tiles instead, which is the only way a dozen joining forms read as
+  /// shapes rather than as a stack of wide buttons.
+  Widget _optionsGrid(BuildContext context, {double vpad = 14}) =>
+      LayoutBuilder(builder: (context, c) {
+        final cols = q.optionColumns ?? (c.maxWidth > 520 ? 2 : 1);
+        final aspect =
+            q.optionAspect ?? (cols == 2 ? 3.4 : (cols == 1 ? 5.5 : 1.0));
+        return GridView.count(
+          crossAxisCount: cols,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: aspect,
+          children: List.generate(
+              q.options.length, (i) => _optionTile(context, i, vpad: vpad)),
+        );
+      });
+
+  /// The question's Arabic, with either a colored highlight or a gap to fill.
+  Widget _questionArabic(BuildContext context, double size) => RichText(
+        key: ValueKey(_i),
+        textDirection: TextDirection.rtl,
+        textAlign: TextAlign.center,
+        text: TextSpan(
+          children: q.blank != null
+              ? blankSpans(q.arabic!, q.blank!, quranicStyle(context, size: size),
+                  pal(context).accent)
+              : highlightSpans(
+                  q.arabic!,
+                  q.highlight ?? '',
+                  quranicStyle(context, size: size),
+                  quranicStyle(context, size: size, color: pal(context).accent),
+                ),
+        ),
+      );
+
+  /// "Play it" for a listening question.
+  Widget _audioButton(BuildContext context) {
+    final parts = q.audioRef!.split(':');
+    final s = int.tryParse(parts.first);
+    final a = int.tryParse(parts.length > 1 ? parts[1] : '');
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      child: Center(
+        child: FilledButton.icon(
+          style: FilledButton.styleFrom(
+              backgroundColor: pal(context).accent2,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 22, vertical: 14)),
+          onPressed: (s == null || a == null)
+              ? null
+              : () => AyahAudio.instance.play(s, a),
+          icon: const Icon(Icons.volume_up_rounded, size: 20),
+          label: Text(context.l10n.listen),
+        ),
+      ),
+    );
+  }
+
+  /// The escape hatch on a [QuizQuestion.skippable] question.
+  Widget _skipButton(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Center(
+          child: TextButton.icon(
+            onPressed: _isLocked ? null : _skip,
+            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+            label: Text(context.l10n.kidsNextCard),
+          ),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -424,7 +585,9 @@ class _QuizScreenState extends State<QuizScreen> {
       return _ResultView(
           title: widget.title,
           score: _score,
-          total: widget.questions.length,
+          // Skipped questions are out of the denominator: they were passed
+          // over, not failed.
+          total: _graded,
           graded: widget.graded);
     }
     if (useDesktop(context)) return _desktopBuild(context);
@@ -481,44 +644,24 @@ class _QuizScreenState extends State<QuizScreen> {
                 style: uiStyle(context, size: 17, color: pal(context).textDim)),
             if (q.arabic != null)
               SizedBox(
-                height: 220,
+                // A gap-fill word is set smaller: it has to stay legible as a
+                // whole word for the slot to mean anything, where a single
+                // glyph can fill the box.
+                height: q.blank != null ? 170 : 220,
                 child: Center(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
-                    child: RichText(
-                      key: ValueKey(_i),
-                      textDirection: TextDirection.rtl,
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        children: highlightSpans(
-                          q.arabic!,
-                          q.highlight ?? '',
-                          quranicStyle(context, size: 96),
-                          quranicStyle(context,
-                              size: 96, color: pal(context).accent),
-                        ),
-                      ),
-                    ),
+                    child: _questionArabic(context, q.blank != null ? 64 : 96),
                   ),
                 ),
               )
             else
               const SizedBox(height: 24),
+            if (q.audioRef != null) _audioButton(context),
             if (_isOrder) _orderStrip(context),
-            LayoutBuilder(builder: (context, c) {
-              final cols = c.maxWidth > 520 ? 2 : 1;
-              return GridView.count(
-                crossAxisCount: cols,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: cols == 2 ? 3.4 : 5.5,
-                children: List.generate(
-                    q.options.length, (i) => _optionTile(context, i)),
-              );
-            }),
+            _optionsGrid(context),
             if (_isMulti) _submitButton(context),
+            if (q.skippable) _skipButton(context),
             if (_isLocked && !_wasCorrect && q.explain != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12, bottom: 8),
@@ -643,14 +786,21 @@ class _QuizScreenState extends State<QuizScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: border, width: 1.6),
       ),
-      child: Text(
-        q.options[i],
-        textAlign: TextAlign.center,
-        textDirection:
-            q.optionsAreArabic ? TextDirection.rtl : TextDirection.ltr,
-        style: q.optionsAreArabic
-            ? quranicStyle(context, size: 26)
-            : uiStyle(context, size: 17, weight: FontWeight.w600),
+      // Scale-down guard, not a fixed size: `quranicStyle` multiplies by the
+      // reader's arabicScale, and a grid tile is square rather than a wide
+      // row, so a large setting would otherwise clip the glyph.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          q.options[i],
+          textAlign: TextAlign.center,
+          textDirection:
+              q.optionsAreArabic ? TextDirection.rtl : TextDirection.ltr,
+          style: q.optionsAreArabic
+              ? quranicStyle(context,
+                  size: q.optionColumns != null ? 40 : 26)
+              : uiStyle(context, size: 17, weight: FontWeight.w600),
+        ),
       ),
     );
     return TapScale(
@@ -793,23 +943,11 @@ class _QuizScreenState extends State<QuizScreen> {
                                 AnimatedSwitcher(
                                   duration:
                                       const Duration(milliseconds: 300),
-                                  child: RichText(
-                                    key: ValueKey(_i),
-                                    textDirection: TextDirection.rtl,
-                                    textAlign: TextAlign.center,
-                                    text: TextSpan(
-                                      children: highlightSpans(
-                                        q.arabic!,
-                                        q.highlight ?? '',
-                                        quranicStyle(context, size: 120),
-                                        quranicStyle(context,
-                                            size: 120,
-                                            color: p.accent),
-                                      ),
-                                    ),
-                                  ),
+                                  child: _questionArabic(
+                                      context, q.blank != null ? 78 : 120),
                                 ),
                               ],
+                              if (q.audioRef != null) _audioButton(context),
                               if (_isLocked && !_wasCorrect && q.explain != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 18),
@@ -830,12 +968,18 @@ class _QuizScreenState extends State<QuizScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             if (_isOrder) _orderStrip(context),
-                            for (var i = 0; i < q.options.length; i++) ...[
-                              _optionTile(context, i, vpad: 20),
-                              if (i != q.options.length - 1)
-                                const SizedBox(height: 16),
-                            ],
+                            // A grid question keeps its grid here too — the
+                            // tall-button column is only right for text.
+                            if (q.optionColumns != null)
+                              _optionsGrid(context, vpad: 12)
+                            else
+                              for (var i = 0; i < q.options.length; i++) ...[
+                                _optionTile(context, i, vpad: 20),
+                                if (i != q.options.length - 1)
+                                  const SizedBox(height: 16),
+                              ],
                             if (_isMulti) _submitButton(context),
+                            if (q.skippable) _skipButton(context),
                           ],
                         ),
                       ),
@@ -867,7 +1011,8 @@ class _ResultView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final frac = score / total;
-    final stars = frac >= 0.95 ? 3 : (frac >= 0.7 ? 2 : (frac >= 0.4 ? 1 : 0));
+    final stars = starsForFraction(frac,
+        kids: SettingsScope.of(context).kidsMode);
     final msg = !graded
         ? context.l10n.practiceRoundComplete
         : stars == 3
@@ -905,6 +1050,16 @@ class _ResultView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Star thresholds for a quiz score fraction. Kids Mode uses a gentler curve
+/// than the grown-up app's — a 40%-for-one-star floor reads as punishing for
+/// a 7-year-old (see the Kids Mode plan's Phase 2).
+int starsForFraction(double frac, {required bool kids}) {
+  if (kids) {
+    return frac >= 0.9 ? 3 : (frac >= 0.6 ? 2 : (frac >= 0.25 ? 1 : 0));
+  }
+  return frac >= 0.95 ? 3 : (frac >= 0.7 ? 2 : (frac >= 0.4 ? 1 : 0));
 }
 
 /// Builds shuffled multiple-choice options containing the answer.

@@ -25,6 +25,33 @@ const bool kIndopakMushafAvailable = true;
 ///  * paperMode         — warm low-contrast background (visual stress relief)
 ///  * dotEmphasis       — drills tint/badge the i'jam dots so ب/ت/ث differ
 ///  * focusWindow       — fluency drills show one word at a time
+/// One child's Kids Mode profile — local & on-device only (see "Family
+/// profiles, same UI" in the Kids Mode plan). [gender] is used solely to pick
+/// a grammatically-correct Arabic praise form (أَحْسَنْتَ vs أَحْسَنْتِ); '' renders
+/// the gender-neutral copy.
+class KidsProfile {
+  final String id;
+  String name;
+  String avatar; // one emoji
+  String gender; // 'm' | 'f' | ''
+  KidsProfile({
+    required this.id,
+    required this.name,
+    this.avatar = '🦊',
+    this.gender = '',
+  });
+
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'name': name, 'avatar': avatar, 'gender': gender};
+
+  factory KidsProfile.fromJson(Map<String, dynamic> m) => KidsProfile(
+        id: m['id'] as String,
+        name: (m['name'] ?? '') as String,
+        avatar: (m['avatar'] ?? '🦊') as String,
+        gender: (m['gender'] ?? '') as String,
+      );
+}
+
 class AppSettings extends ChangeNotifier {
   bool dyslexiaMode = false;
   double arabicScale = 1.0; // 0.8 – 1.8
@@ -65,6 +92,20 @@ class AppSettings extends ChangeNotifier {
   String reciteFlow = 'single'; // 'single' | 'auto' (continue) | 'repeat'
   bool playerBarPinned = true; // recitation player bar: fixed vs. floating/draggable
 
+  // ── Kids Mode ──
+  bool kidsMode = false; // presentation preference, like dyslexiaMode — no
+      // separate app, no backend, no accounts (see docs/privacy-policy.html)
+  String kidsThemeMode = 'light'; // 'light' | 'dark' | 'oled' — independent
+      // of the grown-up `themeMode` (see kidsPal() in core/theme.dart)
+  List<KidsProfile> kidsProfiles = [];
+  String? activeKidsProfileId;
+
+  KidsProfile? get activeKidsProfile => activeKidsProfileId == null
+      ? null
+      : kidsProfiles.cast<KidsProfile?>().firstWhere(
+          (p) => p!.id == activeKidsProfileId,
+          orElse: () => null);
+
   static const _key = 'noor.settings.v1';
 
   void cycleTheme() {
@@ -81,6 +122,36 @@ class AppSettings extends ChangeNotifier {
     paperMode = true;
     dotEmphasis = true;
     focusWindow = true;
+    notifyListeners();
+    save();
+  }
+
+  /// Switches into Kids Mode. A brand-new install has no child profile yet —
+  /// the Kids shell's own onboarding creates the first one — so this only
+  /// flips the flag; it never fabricates a profile on the parent's behalf.
+  void enableKidsPreset() {
+    kidsMode = true;
+    notifyListeners();
+    save();
+  }
+
+  /// Leaves Kids Mode, back to the grown-up app. Profiles and their progress
+  /// are left untouched — this is a presentation switch, not a reset.
+  void disableKidsMode() {
+    kidsMode = false;
+    notifyListeners();
+    save();
+  }
+
+  void addKidsProfile(KidsProfile p) {
+    kidsProfiles = [...kidsProfiles, p];
+    activeKidsProfileId = p.id;
+    notifyListeners();
+    save();
+  }
+
+  void setActiveKidsProfile(String id) {
+    activeKidsProfileId = id;
     notifyListeners();
     save();
   }
@@ -167,6 +238,12 @@ class AppSettings extends ChangeNotifier {
     quranFontScale = (m['qfont'] ?? 1.0).toDouble();
     traceTolerance = (m['traceTol'] ?? 1.0).toDouble();
     playerBarPinned = m['playerPinned'] ?? true;
+    kidsMode = m['kidsMode'] ?? false;
+    kidsThemeMode = m['kidsThemeMode'] ?? 'light';
+    kidsProfiles = ((m['kidsProfiles'] as List?) ?? const [])
+        .map((e) => KidsProfile.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    activeKidsProfileId = m['activeKidsProfileId'] as String?;
   }
 
   Future<void> save() async {
@@ -209,6 +286,10 @@ class AppSettings extends ChangeNotifier {
         'readerLayout': readerLayout,
         'reciteFlow': reciteFlow,
         'playerPinned': playerBarPinned,
+        'kidsMode': kidsMode,
+        'kidsThemeMode': kidsThemeMode,
+        'kidsProfiles': [for (final p in kidsProfiles) p.toJson()],
+        'activeKidsProfileId': activeKidsProfileId,
       }),
     );
   }
@@ -292,11 +373,86 @@ class ReviewItem {
 }
 
 class ProgressStore extends ChangeNotifier {
+  /// null → the grown-up app's single global store, at the same storage keys
+  /// this class has always used. A Kids Mode profile id → that child's own
+  /// store, at keys suffixed with the profile id (never prefixed — several
+  /// adult ids, e.g. `letter.ب`, are matched with `startsWith`, so suffixing
+  /// is the only scoping that can't collide with existing id conventions).
+  /// Every profile's data lives only on-device, same as the adult store —
+  /// no accounts, no backend, no sync.
+  final String? profileId;
+  ProgressStore({this.profileId});
+
   final Map<String, int> _stars = {};
-  static const _key = 'noor.progress.v1';
-  static const _streakKey = 'noor.streak.v1';
-  static const _missKey = 'noor.misses.v1'; // legacy — read once to migrate
-  static const _reviewKey = 'noor.review.v1';
+  static const _keyBase = 'noor.progress.v1';
+  static const _streakKeyBase = 'noor.streak.v1';
+  static const _missKey = 'noor.misses.v1'; // legacy — read once to migrate; adult-only
+  static const _reviewKeyBase = 'noor.review.v1';
+  static const _xpKeyBase = 'noor.kidsxp.v1';
+
+  String get _key => _scoped(_keyBase);
+  String get _streakKey => _scoped(_streakKeyBase);
+  String get _reviewKey => _scoped(_reviewKeyBase);
+  String get _xpKey => _scoped(_xpKeyBase);
+  String _scoped(String base) => profileId == null ? base : '$base.$profileId';
+
+  // ── Kids Mode progression: XP, levels, gems, badges. Unused (stays at
+  // defaults) for the adult store — nothing here reads or writes it outside
+  // Kids Mode screens. Gems are earned only: every call site that adds gems
+  // is a lesson/quiz/streak reward, never a purchase — see
+  // test/kids_mode_test.dart's earned-only-gems check. ──
+  int xp = 0;
+  int gems = 0;
+  final Set<String> badges = {};
+  final Set<String> shopOwned = {};
+
+  int get level => 1 + (xp ~/ 100); // 100 XP per level — simple, predictable
+  int get xpIntoLevel => xp % 100;
+
+  void awardXp(int amount) {
+    if (amount <= 0) return;
+    xp += amount;
+    notifyListeners();
+    _saveXp();
+  }
+
+  void awardGems(int amount) {
+    if (amount <= 0) return;
+    gems += amount;
+    notifyListeners();
+    _saveXp();
+  }
+
+  void unlockBadge(String id) {
+    if (badges.add(id)) {
+      notifyListeners();
+      _saveXp();
+    }
+  }
+
+  /// Spends earned gems on a cosmetic shop item; returns false (no-op) if the
+  /// balance is short. There is no path that adds gems except being earned,
+  /// so this can never be a real-money purchase.
+  bool buyShopItem(String id, int cost) {
+    if (shopOwned.contains(id) || gems < cost) return false;
+    gems -= cost;
+    shopOwned.add(id);
+    notifyListeners();
+    _saveXp();
+    return true;
+  }
+
+  Future<void> _saveXp() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(
+        _xpKey,
+        jsonEncode({
+          'xp': xp,
+          'gems': gems,
+          'badges': badges.toList(),
+          'shop': shopOwned.toList(),
+        }));
+  }
 
   // Days until an item in box i comes due again. A correct answer in the last
   // box graduates the item out of the queue entirely.
@@ -416,8 +572,27 @@ class ProgressStore extends ChangeNotifier {
   int _weekStartDay = -1; // epoch-day index of the Monday of the tracked week
   int weekMask = 0; // bit i set => active on weekday i (0=Mon)
 
-  static int _today() =>
-      DateTime.now().toUtc().millisecondsSinceEpoch ~/ 86400000;
+  static int _today() => dayIndexFor(DateTime.now());
+
+  /// The calendar-day index (days since 1970-01-01) that [local] falls on
+  /// in ITS OWN calendar date — i.e. anchored to local midnight, not UTC
+  /// midnight. Built from [local]'s year/month/day fields via
+  /// `DateTime.utc(...)` rather than converting the instant itself to UTC,
+  /// so this can't be thrown off by DST (a local midnight-to-midnight span
+  /// is occasionally 23h or 25h, not 24h — converting instants and
+  /// dividing by a fixed 86400000ms would round some of those wrong).
+  ///
+  /// Previously this used `DateTime.now().toUtc()`, which anchors "today"
+  /// to UTC midnight instead: the day flipped at 10am local in UTC+10 and
+  /// at 4pm local in UTC−8, silently breaking the streak for any user far
+  /// from Greenwich. Existing installs get one harmless one-time ±1 day
+  /// nudge to review-queue due dates from the changeover — a self-healing,
+  /// non-destructive side effect of switching anchors, not a real loss.
+  @visibleForTesting
+  static int dayIndexFor(DateTime local) =>
+      DateTime.utc(local.year, local.month, local.day).millisecondsSinceEpoch ~/
+          86400000;
+
   // weekday of an epoch-day: 1970-01-01 (day 0) was a Thursday (=3, 0=Mon).
   static int _weekdayOf(int day) => (day + 3) % 7;
 
@@ -458,11 +633,34 @@ class ProgressStore extends ChangeNotifier {
   int get weekGoal => 5;
   int get weekDoneCount => weekMask.toRadixString(2).replaceAll('0', '').length;
 
+  // Kids Mode's daily-goal ring needs a same-day activity count, which
+  // nothing above tracks (recordActivity() only flags the FIRST activity of
+  // the day, for the streak). Kept separate from the streak/week fields on
+  // purpose — this is just "how many today", not a new streak mechanism.
+  int todayActivityCount = 0;
+  int _todayCountDay = -1;
+
+  void _bumpTodayCount() {
+    final t = _today();
+    if (_todayCountDay != t) {
+      todayActivityCount = 0;
+      _todayCountDay = t;
+    }
+    todayActivityCount++;
+    _saveStreak();
+  }
+
   int starsFor(String id) => _stars[id] ?? 0;
   int get totalStars => _stars.values.fold(0, (a, b) => a + b);
   int get activitiesDone => _stars.values.where((s) => s > 0).length;
   int get lettersLearned =>
       _stars.keys.where((k) => k.startsWith('letter.')).length;
+
+  /// Letters completed through the Kids Mode letter path (`kids.letter.<char>`
+  /// ids) — separate from the adult reader's [lettersLearned] above, since a
+  /// child profile and the grown-up progress are never the same store.
+  int get kidsLettersLearned =>
+      _stars.keys.where((k) => k.startsWith('kids.letter.')).length;
 
   /// Fraction of ids in [ids] with at least one star.
   double fraction(Iterable<String> ids) {
@@ -472,7 +670,10 @@ class ProgressStore extends ChangeNotifier {
   }
 
   void report(String id, int stars) {
-    if (stars > 0) recordActivity(); // any earned progress counts toward today
+    if (stars > 0) {
+      recordActivity(); // any earned progress counts toward today
+      _bumpTodayCount();
+    }
     if (stars > starsFor(id)) {
       _stars[id] = stars;
       notifyListeners();
@@ -495,7 +696,9 @@ class ProgressStore extends ChangeNotifier {
       (jsonDecode(rraw) as Map<String, dynamic>).forEach((k, v) {
         review[k] = ReviewItem.fromJson(k, Map<String, dynamic>.from(v as Map));
       });
-    } else {
+    } else if (profileId == null) {
+      // Legacy flat-miss-map migration — adult store only; a Kids Mode
+      // profile never had one to migrate from.
       final mraw = p.getString(_missKey);
       if (mraw != null) {
         final t = _today();
@@ -524,8 +727,22 @@ class ProgressStore extends ChangeNotifier {
       _lastDay = (m['last'] ?? -1) as int;
       _weekStartDay = (m['wkStart'] ?? -1) as int;
       weekMask = (m['wkMask'] ?? 0) as int;
+      todayActivityCount = (m['todayCount'] ?? 0) as int;
+      _todayCountDay = (m['todayCountDay'] ?? -1) as int;
     }
     refreshStreak();
+    final xraw = p.getString(_xpKey);
+    if (xraw != null) {
+      final m = jsonDecode(xraw) as Map<String, dynamic>;
+      xp = (m['xp'] ?? 0) as int;
+      gems = (m['gems'] ?? 0) as int;
+      badges
+        ..clear()
+        ..addAll(((m['badges'] as List?) ?? const []).cast<String>());
+      shopOwned
+        ..clear()
+        ..addAll(((m['shop'] as List?) ?? const []).cast<String>());
+    }
   }
 
   Future<void> _save() async {
@@ -542,6 +759,8 @@ class ProgressStore extends ChangeNotifier {
           'last': _lastDay,
           'wkStart': _weekStartDay,
           'wkMask': weekMask,
+          'todayCount': todayActivityCount,
+          'todayCountDay': _todayCountDay,
         }));
   }
 }
@@ -554,20 +773,32 @@ class ProgressScope extends InheritedNotifier<ProgressStore> {
 }
 
 /// One-file backup of everything the learner has earned (settings, stars,
-/// streak, mistake queue). Written to the app documents folder so it survives
-/// reinstalls when the user copies it off-device.
+/// streak, mistake queue) — for the adult app AND every Kids Mode profile.
+/// Written to the app documents folder so it survives reinstalls when the
+/// user copies it off-device.
 class BackupService {
   static const _file = 'noor_qaidah_backup.json';
 
-  static Future<String?> export() async {
+  static Future<String?> export(AppSettings s) async {
     try {
       final p = await SharedPreferences.getInstance();
       final data = {
         'settings': p.getString(AppSettings._key),
-        'progress': p.getString(ProgressStore._key),
-        'streak': p.getString(ProgressStore._streakKey),
+        'progress': p.getString(ProgressStore._keyBase),
+        'streak': p.getString(ProgressStore._streakKeyBase),
         'misses': p.getString(ProgressStore._missKey),
-        'review': p.getString(ProgressStore._reviewKey),
+        'review': p.getString(ProgressStore._reviewKeyBase),
+        'kids': {
+          for (final kp in s.kidsProfiles)
+            kp.id: {
+              'progress': p.getString('${ProgressStore._keyBase}.${kp.id}'),
+              'streak':
+                  p.getString('${ProgressStore._streakKeyBase}.${kp.id}'),
+              'review':
+                  p.getString('${ProgressStore._reviewKeyBase}.${kp.id}'),
+              'xp': p.getString('${ProgressStore._xpKeyBase}.${kp.id}'),
+            },
+        },
       };
       final dir = await getApplicationDocumentsDirectory();
       final f = File('${dir.path}/$_file');
@@ -587,14 +818,29 @@ class BackupService {
       final p = await SharedPreferences.getInstance();
       final keys = {
         AppSettings._key: 'settings',
-        ProgressStore._key: 'progress',
-        ProgressStore._streakKey: 'streak',
+        ProgressStore._keyBase: 'progress',
+        ProgressStore._streakKeyBase: 'streak',
         ProgressStore._missKey: 'misses',
-        ProgressStore._reviewKey: 'review',
+        ProgressStore._reviewKeyBase: 'review',
       };
       for (final e in keys.entries) {
         final v = m[e.value];
         if (v is String) await p.setString(e.key, v);
+      }
+      final kids = m['kids'] as Map<String, dynamic>? ?? const {};
+      for (final entry in kids.entries) {
+        final id = entry.key;
+        final blob = entry.value as Map<String, dynamic>;
+        final kidKeys = {
+          '${ProgressStore._keyBase}.$id': 'progress',
+          '${ProgressStore._streakKeyBase}.$id': 'streak',
+          '${ProgressStore._reviewKeyBase}.$id': 'review',
+          '${ProgressStore._xpKeyBase}.$id': 'xp',
+        };
+        for (final e in kidKeys.entries) {
+          final v = blob[e.value];
+          if (v is String) await p.setString(e.key, v);
+        }
       }
       await s.load();
       await prog.load();

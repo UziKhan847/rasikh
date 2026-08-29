@@ -864,5 +864,207 @@
   "lsnHeightsAndTails": "الارتفاعات والذيول",
   "lsnApart": "منفصلة",
   "lsnJoinedShape": "متصلة في شكل واحد",
-  "lsnTellApart": "كيف تميّز بينها"
+  "lsnTellApart": "كيف تميّز بينها",
+  "kidsMode": "وضع الأطفال",
+  "kidsModeDesc": "نسخة ممتعة ومبسطة من التطبيق للأطفال، بتصميمها وتقدمها ومكافآتها الخاصة.",
+  "kidsAddProfile": "إضافة",
+  "kidsAllLettersDone": "أتممت الأبجدية كاملة!",
+  "kidsAppearance": "المظهر",
+  "kidsBadges": "الأوسمة",
+  "kidsBuy": "احصل عليه",
+  "kidsDailyGoalSub": "أكمل الدروس لملء الحلقة",
+  "kidsDailyGoalTitle": "هدف اليوم",
+  "kidsExitToParentApp": "الخروج إلى تطبيق الوالدين",
+  "kidsFlashcards": "البطاقات التعليمية",
+  "kidsGenderBoy": "ولد",
+  "kidsGenderGirl": "بنت",
+  "kidsGenderPrompt": "هذا يساعدنا على تشجيعك بالشكل الصحيح!",
+  "kidsGenderSkip": "تخطي",
+  "kidsGreatJob": "أحسنت صنعًا!",
+  "kidsKeepGoing": "واصل التقدم!",
+  "kidsLetterLocked": "أكمل الحرف السابق أولًا!",
+  "kidsListening": "الاستماع",
+  "kidsNameHint": "ما اسمك؟",
+  "kidsNewProfileTitle": "ملف جديد",
+  "kidsNextCard": "التالي",
+  "kidsParentGateSub": "للوالدين: حلّوا هذا للمتابعة.",
+  "kidsParentGateTitle": "للكبار فقط",
+  "kidsPractice": "تدريب",
+  "kidsRankNeedsSiblings": "أضف ملفًا آخر لبدء لوحة صدارة العائلة!",
+  "kidsRankSub": "شاهد أداء عائلتك هذا الأسبوع",
+  "kidsReadTheSentence": "اقرأ الجملة",
+  "kidsReviewAnyLetter": "اضغط أي حرف لمراجعته",
+  "kidsShop": "المتجر",
+  "kidsStartLearning": "ابدأ التعلم",
+  "kidsStatLetters": "الحروف",
+  "kidsStatStreak": "التتابع",
+  "kidsStatXp": "مجموع النقاط",
+  "kidsSwitchProfile": "تبديل الملف",
+  "kidsTabHome": "الرئيسية",
+  "kidsTabLearn": "تعلّم",
+  "kidsTabMe": "أنا",
+  "kidsTabRank": "الترتيب",
+  "kidsTabRewards": "المكافآت",
+  "kidsTapToFlip": "اضغط على البطاقة لقلبها",
+  "kidsWhosLearning": "من المتعلم؟",
+  "kidsYou": "أنت",
+  "kidsYourPath": "مسارك",
+  "kidsBadgeFirstLetter": "أول حرف",
+  "kidsBadgeFiveLetters": "٥ أحرف",
+  "kidsBadgeHalfway": "منتصف الطريق",
+  "kidsBadgeAlphabetMaster": "بطل الأبجدية",
+  "kidsBadgeStreak3": "تتابع ٣ أيام",
+  "kidsBadgeStreak7": "تتابع ٧ أيام",
+  "kidsShopFalconHat": "قبعة الصقر",
+  "kidsShopStarCape": "عباءة النجمة",
+  "kidsShopGoldenFrame": "الإطار الذهبي",
+  "kidsHelloName": "مرحبًا يا {name}!",
+  "@kidsHelloName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsLevelLabel": "المستوى {level}",
+  "@kidsLevelLabel": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsContinueWithLetter": "تابع مع {name}",
+  "@kidsContinueWithLetter": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsLettersProgress": "{done} من {total} حرفًا",
+  "@kidsLettersProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsTraceThe": "تتبّع حرف {name}",
+  "@kidsTraceThe": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsXpEarned": "+{xp} نقطة",
+  "@kidsXpEarned": {
+    "placeholders": {
+      "xp": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsStepOf": "الخطوة {step} من {total}",
+  "@kidsStepOf": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsMarhaba": "مرحبًا 👋",
+  "kidsAlphabet": "الأبجدية",
+  "kidsAlphabetArabic": "",
+  "kidsLettersArabic": "",
+  "kidsGoalComplete": "اكتمل هدف اليوم — أحسنت!",
+  "kidsSeeAllLetters": "عرض كل الحروف",
+  "kidsGoalRemaining": "{count, plural, =1{بقي درس واحد!} =2{بقي درسان!} few{بقيت {count} دروس!} many{بقي {count} درسًا!} other{بقي {count} درس!}}",
+  "@kidsGoalRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsLetterNamed": "حرف {name}",
+  "@kidsLetterNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsViewAll": "عرض الكل",
+  "kidsGemsEarned": "الجواهر المكتسبة",
+  "kidsRankBannerTitle": "لوحة صدارة العائلة",
+  "kidsRankYouAreFirst": "أنت في الصدارة!",
+  "kidsCurrentStreak": "التتابع الحالي",
+  "kidsRankArabic": "",
+  "kidsRewardsArabic": "",
+  "kidsPracticeArabic": "",
+  "kidsAppearanceArabic": "",
+  "kidsRankYouAre": "أنت #{rank}",
+  "@kidsRankYouAre": {
+    "placeholders": {
+      "rank": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsRankToNext": "{xp} نقطة للوصول إلى #{rank}",
+  "@kidsRankToNext": {
+    "placeholders": {
+      "xp": {
+        "type": "int"
+      },
+      "rank": {
+        "type": "int"
+      }
+    }
+  },
+  "qpPickLetterAndForm": "اختر {name} بالشكل الصحيح",
+  "qpWhichPosition": "أين يقع هذا الشكل في الكلمة؟",
+  "qpTapLettersInOrder": "اضغط الأشكال بالترتيب لتكوين «{translit}»",
+  "qpListenThenPick": "استمع ثم اختر {name}",
+  "kidsBlockLetters": "الحروف",
+  "kidsBlockLettersSub": "شاهد كل حرف ثم تتبّعه",
+  "kidsBlockLettersQuiz": "اختبار الحروف",
+  "kidsBlockQuizSub": "أظهر ما تعلّمته",
+  "kidsBlockLettersFew": "الحروف مرة أخرى",
+  "kidsBlockLettersFewSub": "الأشكال نفسها بعدد أقل من الحركات",
+  "kidsBlockForms": "أشكال الاتصال",
+  "kidsBlockFormsSub": "البداية والوسط والنهاية، شكلًا بعد شكل",
+  "kidsBlockFormsQuiz": "اختبار الأشكال",
+  "kidsBlockFormsFew": "الأشكال مرة أخرى",
+  "kidsBlockSpecial": "الأشكال الخاصة",
+  "kidsBlockSpecialSub": "لام ألف، والكاف المحيطة، والحروف المركّبة",
+  "kidsBlockSpecialQuiz": "اختبار الأشكال الخاصة",
+  "kidsPathTitle": "مسارك",
+  "kidsBlockLocked": "أكمل المرحلة السابقة أولًا!",
+  "kidsPathArabic": "",
+  "kidsReadAloudThenTap": "اقرأ كل سطر بصوتٍ عالٍ ثم اضغط السهم.",
+  "kidsReadingUnavailable": "تعذّر تحميل النص، حاول بعد قليل.",
+  "kidsBlockTaMarbuta": "التاء المربوطة",
+  "kidsBlockTaMarbutaSub": "النهاية التي تتغيّر عند الوقف",
+  "kidsBlockSolarLunar": "الحروف الشمسية والقمرية",
+  "kidsBlockSolarLunarSub": "متى تُنطق لام «الـ» ومتى تُدغم",
+  "kidsBlockTwoWords": "كلمتان",
+  "kidsBlockThreeWords": "ثلاث كلمات",
+  "kidsBlockWordsSub": "صِلها واقرأها معًا",
+  "kidsBlockCapstone": "اقرأ سورة",
+  "kidsBlockCapstoneSub": "كل ما تعلّمته في سورة كاملة",
+  "kidsBlockTajwid": "التجويد",
+  "lsnTaMarbutaHint": "التاء المربوطة هاءٌ في آخر الكلمة أُضيفت فوقها نقطتان.",
+  "kidsNextUp": "التالي: {name}",
+  "kidsStageDone": "أكملت المرحلة!",
+  "kidsSeeWholePath": "شاهد المسار كله",
+  "kidsItemLocked": "أكمل ما قبله أولًا!"
 }

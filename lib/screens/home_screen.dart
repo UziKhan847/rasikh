@@ -120,8 +120,11 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     GestureDetector(
-                      onLongPress: () => s.update(() => s.themeFamily =
-                          s.themeFamily == 'mint' ? 'noor' : 'mint'),
+                      onLongPress: () => s.update(() {
+                        final i = kAdultThemeFamilies.indexOf(s.themeFamily);
+                        s.themeFamily = kAdultThemeFamilies[
+                            (i + 1) % kAdultThemeFamilies.length];
+                      }),
                       child: TapScale(
                         onTap: s.cycleTheme,
                         child: Container(
