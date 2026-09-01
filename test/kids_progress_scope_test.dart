@@ -65,7 +65,7 @@ void main() {
     // Learn tab → the first stage → the first letter, the only unlocked one.
     await tester.tap(find.byIcon(Icons.menu_book_rounded));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('kids.block.letters.more')));
+    await tester.tap(find.byKey(const ValueKey('kids.block.letters')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('kids.letter.ا')));
     // Not pumpAndSettle: TracingBoard runs a repeating pulse, which never
@@ -92,7 +92,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.menu_book_rounded));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('kids.block.letters.more')));
+    await tester.tap(find.byKey(const ValueKey('kids.block.letters')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('kids.letter.ا')));
     await tester.pump();
@@ -121,7 +121,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.menu_book_rounded));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('kids.block.letters.more')));
+    await tester.tap(find.byKey(const ValueKey('kids.block.letters')));
     await tester.pumpAndSettle();
 
     final learn = tester.element(find.byKey(const ValueKey('kids.letter.ا')));

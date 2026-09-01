@@ -210,7 +210,7 @@ class _YouCard extends StatelessWidget {
       padding: const EdgeInsets.all(Geo.gapLg),
       decoration: kidsPanel(context),
       child: Column(children: [
-        Text(you.profile.avatar, style: const TextStyle(fontSize: 44)),
+        KidsAvatar(profile: you.profile, size: 44),
         const SizedBox(height: 10),
         Text(context.l10n.kidsRankYouAre(youIndex + 1),
             style: kidsStyle(context, size: 16, weight: FontWeight.w800)),
@@ -264,7 +264,7 @@ class _RankRow extends StatelessWidget {
               style: kidsStyle(context, size: 13, weight: FontWeight.w800)),
         ),
         const SizedBox(width: Geo.gapMd),
-        Text(row.profile.avatar, style: const TextStyle(fontSize: 26)),
+        KidsAvatar(profile: row.profile, size: 26),
         const SizedBox(width: Geo.gapSm),
         Expanded(
           child: Column(

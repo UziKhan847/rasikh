@@ -6,8 +6,15 @@ import '../../core/settings.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import 'kids_desktop_nav.dart';
+import 'kids_widgets.dart';
 
-const _avatarChoices = ['🦊', '🐼', '🐯', '🦁', '🐨', '🐸', '🦄', '🐬'];
+/// Real animals only — the unicorn that used to sit here was the same
+/// mistake the shop briefly made with a dragon and a superhero cape: mythical
+/// and fantasy imagery does not belong in a muṣḥaf-learning app. Several of
+/// these are named in the Qurʼān (the horse in al-ʿĀdiyāt, the frog in
+/// al-Aʿrāf 7:133, the lion in al-Muddaththir 74:51), as are the extra
+/// avatars the shop unlocks — see `kidsShopItems` in `data/kids_content.dart`.
+const _avatarChoices = ['🦊', '🐼', '🐯', '🦁', '🐨', '🐸', '🐴', '🐬'];
 
 /// "Who's learning?" — the family-profile picker Kids Mode opens with. With
 /// no profile yet (a brand-new install) it goes straight to the creation
@@ -134,7 +141,7 @@ class _ProfileGrid extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(profile.avatar, style: const TextStyle(fontSize: 34)),
+                  KidsAvatar(profile: profile, size: 34),
                   const SizedBox(height: 6),
                   Text(profile.name,
                       maxLines: 1,
@@ -236,9 +243,12 @@ class _CreateProfileFormState extends State<_CreateProfileForm> {
             ],
           ),
           const SizedBox(height: Geo.gapLg),
+          // Deliberately NOT autofocused. This is the only text field in the
+          // app, so it was also the only thing that could raise a keyboard —
+          // and it did, the instant Kids Mode was switched on for the first
+          // time, over the avatar row that is the form's actual first step.
           TextField(
             controller: _name,
-            autofocus: true,
             style: kidsStyle(context, size: 16),
             decoration: InputDecoration(
               filled: true,

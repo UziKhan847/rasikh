@@ -1,53 +1,94 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
-import '../../core/audio.dart';
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
+import '../../core/letter_audio.dart';
 import '../../core/responsive.dart';
 import '../../core/settings.dart';
 import '../../core/theme.dart';
+import '../../data/glyph_ink.dart';
 import '../../data/glyph_names.dart';
 import '../../data/kids_content.dart';
-import '../../data/kids_sentences.dart';
+import '../../data/kids_sentences.dart' show kidsPraiseArabic;
 import '../../data/letters.dart';
 import '../../data/tracing_levels.dart';
 import '../../widgets/common.dart';
 import '../tracing_screen.dart' show TracingBoard;
 import 'kids_desktop_nav.dart';
+// Mutual import with kids_path.dart, which builds these lessons: the
+// celebration step reads the path back to name what comes next.
+import 'kids_path.dart';
 import 'kids_widgets.dart';
 
-/// The per-letter micro-lesson: trace each shape → read the sentence →
+/// One thing to trace in a lesson: which glyph set, and which joining form.
+class KidsTraceStep {
+  /// `'naskh_more'` (the beginner breakdown) or `'naskh_few'` (the same shape
+  /// in fewer, longer strokes). Both already ship in `tracing_levels.dart`.
+  final String levelId;
+  final String form; // 'iso' | 'ini' | 'med' | 'fin'
+
+  /// How many times in a row this shape is traced. Handwriting is learned by
+  /// repetition, so the fewer-strokes pass — the one nearest to actually
+  /// writing the letter — is done several times before the lesson ends.
+  /// Each pass is its own step, and the shape is graded on the **best** of
+  /// them, so practising cannot lower the mark.
+  final int repeat;
+
+  const KidsTraceStep(this.levelId, this.form, {this.repeat = 1});
+}
+
+/// One pass over one shape: which trace it belongs to, and where in that
+/// trace's repetitions it falls.
+typedef _Pass = ({KidsTraceStep trace, int traceIndex, int pass, int passes});
+
+/// The per-letter micro-lesson: meet the shape → say it out loud → trace it →
 /// Great job! Reuses the existing tracing engine and audio player rather than
 /// rebuilding either.
 ///
-/// One widget covers all four tracing blocks of the Kids path, because they
-/// differ only in which glyphs they hand it:
-///  * *Letters* trace the isolated shape ([forms] = `['iso']`);
-///  * *Joining Forms* trace that letter's real shapes one at a time
-///    (`['ini', 'med', 'fin']`, or just `['fin']` for a non-joiner);
-///  * the "fewer strokes" pass of each is the same again at [levelId]
-///    `'naskh_few'`.
+/// The order is deliberate, and it is a Qāʿidah's: a child sees the letter and
+/// hears it, says it back until it sticks, and only then writes it. It ends
+/// there. It used to end on "Read the sentence" — a full voweled MSA sentence
+/// shown to a child who had just met their first letter and knew no ḥarakāt,
+/// which asked for something they could not possibly do. Reading words is a
+/// stage of its own, much further along the path.
+///
+/// One widget covers both tracing stages of the path, because they differ only
+/// in the glyphs they hand it — each shape traced with the beginner stroke
+/// breakdown once and then written in fewer, longer strokes several times:
+///  * *Letters* take the isolated shape through that pair;
+///  * *Joining Forms* take each shape the letter really has (`ini`, `med`,
+///    `fin`, or just `fin` for a non-joiner) through the same pair in turn.
 class KidsLetterFlow extends StatefulWidget {
   final String letter;
 
-  /// Which tracing level's glyph set to trace — `'naskh_more'` (the beginner
-  /// breakdown, more strokes) or `'naskh_few'` (the same letter in fewer,
-  /// longer strokes). Both already ship in `tracing_levels.dart`.
-  final String levelId;
+  /// The shapes to trace, in order.
+  final List<KidsTraceStep> traces;
 
-  /// The joining forms to trace, in writing order.
-  final List<String> forms;
+  /// Show the "this is the letter" card and the say-it-aloud drill before
+  /// tracing. Both tracing stages of the path set this: the joining-forms
+  /// lesson used to go straight to the shapes on the grounds that the sound
+  /// was already known, but naming the letter before writing it is how a
+  /// Qāʿidah runs, and it costs two steps at the top of the lesson rather
+  /// than two per shape.
+  final bool introduce;
+
+  /// How many times the child says the letter out loud before writing it.
+  /// Zero skips the step.
+  final int sayTimes;
 
   /// Where completion is recorded. Defaults to the original
   /// `kids.letter.<char>` id so progress earned before the path became
-  /// multi-block is not orphaned.
+  /// multi-stage is not orphaned.
   final String? progressId;
 
   const KidsLetterFlow({
     super.key,
     required this.letter,
-    this.levelId = 'naskh_more',
-    this.forms = const ['iso'],
+    this.traces = const [KidsTraceStep('naskh_more', 'iso')],
+    this.introduce = true,
+    this.sayTimes = 5,
     this.progressId,
   });
 
@@ -55,7 +96,7 @@ class KidsLetterFlow extends StatefulWidget {
   State<KidsLetterFlow> createState() => _KidsLetterFlowState();
 }
 
-enum _Step { trace, sentence, result }
+enum _Step { shape, say, trace, result }
 
 /// 'iso' | 'ini' | 'med' | 'fin' → the reader's language. The same four
 /// labels the grown-up Joining Forms lesson uses.
@@ -67,38 +108,66 @@ String _formLabel(BuildContext context, String form) => switch (form) {
     };
 
 class _KidsLetterFlowState extends State<KidsLetterFlow> {
-  _Step _step = _Step.trace;
-  int _formIndex = 0;
-  final List<int> _starsPerForm = [];
+  late _Step _step = widget.introduce ? _Step.shape : _Step.trace;
+
+  /// Every trace this lesson asks for, repetitions flattened out, so a
+  /// repeated shape counts honestly towards "Step N of M" instead of the
+  /// label sticking on the last step while the child traces four more times.
+  late final List<_Pass> _passes = [
+    for (var t = 0; t < widget.traces.length; t++)
+      for (var i = 0; i < widget.traces[t].repeat; i++)
+        (
+          trace: widget.traces[t],
+          traceIndex: t,
+          pass: i + 1,
+          passes: widget.traces[t].repeat,
+        ),
+  ];
+
+  int _passIndex = 0;
+
+  /// Best mark per shape, keyed by index into `widget.traces`. Best, not
+  /// last: repetitions are practice, and a slip on the fifth try should not
+  /// undo four clean ones.
+  final Map<int, int> _bestPerTrace = {};
 
   ArabicLetter get letter => letterFor(widget.letter);
 
-  /// The worst shape carries the grade — a lesson is only as learned as its
+  bool get _hasSay => widget.introduce && widget.sayTimes > 0;
+
+  /// The worst *shape* carries the grade — a lesson is only as learned as its
   /// weakest form.
-  int get _traceStars =>
-      _starsPerForm.isEmpty ? 0 : _starsPerForm.reduce((a, b) => a < b ? a : b);
+  int get _traceStars => _bestPerTrace.isEmpty
+      ? 0
+      : _bestPerTrace.values.reduce((a, b) => a < b ? a : b);
 
-  /// Only the plain isolated-letter lesson ends on its sentence: a joining-
-  /// forms lesson is about the shape, and re-reading the same sentence once
-  /// per form would be three helpings of the same thing.
-  bool get _hasSentence =>
-      widget.forms.length == 1 &&
-      widget.forms.single == 'iso' &&
-      sentenceForLetter(widget.letter) != null;
+  int get _stepCount =>
+      (widget.introduce ? 1 : 0) + (_hasSay ? 1 : 0) + _passes.length;
 
-  KidsSentence? get _sentence => sentenceForLetter(widget.letter);
+  /// 1-based, for "Step N of M".
+  int get _stepNumber {
+    final intro = widget.introduce ? 1 : 0;
+    return switch (_step) {
+      _Step.shape => 1,
+      _Step.say => intro + 1,
+      _ => intro + (_hasSay ? 1 : 0) + _passIndex + 1,
+    };
+  }
 
-  int get _stepCount => widget.forms.length + (_hasSentence ? 1 : 0);
+  void _afterShape() =>
+      setState(() => _step = _hasSay ? _Step.say : _Step.trace);
 
-  /// The trace is graded but no longer auto-advances — the child chooses
+  void _afterSay() => setState(() => _step = _Step.trace);
+
+  /// The trace is graded but does not auto-advance — the child chooses
   /// "Try again" or "Next" from [_TraceStep]'s own panel.
   void _onTraceDone(int stars) {
     if (_step != _Step.trace) return;
-    _starsPerForm.add(stars);
-    if (_formIndex + 1 < widget.forms.length) {
-      setState(() => _formIndex++);
-    } else if (_hasSentence) {
-      setState(() => _step = _Step.sentence);
+    final t = _passes[_passIndex].traceIndex;
+    final best = _bestPerTrace[t];
+    if (best == null || stars > best) _bestPerTrace[t] = stars;
+    if (_passIndex + 1 < _passes.length) {
+      setState(() => _passIndex++);
     } else {
       _finish();
     }
@@ -112,28 +181,28 @@ class _KidsLetterFlowState extends State<KidsLetterFlow> {
     prog.awardXp(kidsXpPerStar * stars);
     prog.awardGems(
         kidsGemsPerLesson + (stars >= 3 ? kidsGemsBonusPerfect : 0));
-    for (final b in kidsBadgeDefs(context)) {
-      if (b.earned(prog)) prog.unlockBadge(b.id);
-    }
+    // Badges are synced centrally from the store this reports into — see
+    // `kidsSyncBadges` and `KidsProfileGate` — so any badge earned here,
+    // there, or by a quiz unlocks the same way.
     setState(() => _step = _Step.result);
   }
 
-  /// 1-based, for "Step N of M".
-  int get _stepNumber =>
-      _step == _Step.trace ? _formIndex + 1 : widget.forms.length + 1;
-
   Widget _content(BuildContext context) => switch (_step) {
+        _Step.shape => _ShapeStep(letter: letter, onNext: _afterShape),
+        _Step.say => _SayStep(
+            letter: letter, times: widget.sayTimes, onDone: _afterSay),
         _Step.trace => _TraceStep(
-            // Keyed by form so moving on to the next shape remounts the board
-            // rather than leaving the previous one's strokes on it.
-            key: ValueKey('${widget.letter}.${widget.forms[_formIndex]}'),
+            // Keyed by pass so moving on to the next one — including the next
+            // repetition of the same shape — remounts the board rather than
+            // leaving the previous strokes on it.
+            key: ValueKey('${widget.letter}.$_passIndex'),
             letter: letter,
-            levelId: widget.levelId,
-            form: widget.forms[_formIndex],
+            levelId: _passes[_passIndex].trace.levelId,
+            form: _passes[_passIndex].trace.form,
+            pass: _passes[_passIndex].pass,
+            passes: _passes[_passIndex].passes,
             onDone: _onTraceDone,
           ),
-        _Step.sentence =>
-          _SentenceStep(sentence: _sentence!, onDone: _finish),
         _Step.result => _ResultStep(letter: letter, stars: _traceStars),
       };
 
@@ -146,8 +215,8 @@ class _KidsLetterFlowState extends State<KidsLetterFlow> {
       // content to the design's per-step max width, plus the step label
       // mobile otherwise shows in its AppBar title.
       final maxWidth = switch (_step) {
+        _Step.shape || _Step.say => 460.0,
         _Step.trace => 520.0,
-        _Step.sentence => 560.0,
         _Step.result => 460.0,
       };
       return Center(
@@ -184,10 +253,297 @@ class _KidsLetterFlowState extends State<KidsLetterFlow> {
   }
 }
 
+/// Step 1: meet the letter. Its shape, big; its name; and a button to hear
+/// it in a real word. Nothing is asked yet.
+class _ShapeStep extends StatelessWidget {
+  final ArabicLetter letter;
+  final VoidCallback onNext;
+  const _ShapeStep({required this.letter, required this.onNext});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = kidsPal(context);
+    return Padding(
+      padding:
+          const EdgeInsets.fromLTRB(Geo.gapLg, 0, Geo.gapLg, Geo.gapLg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(context.l10n.kidsThisIsLetter(letterName(context, letter)),
+              style: kidsStyle(context, size: 17, weight: FontWeight.w800)),
+          const SizedBox(height: Geo.gapMd),
+          Expanded(child: _GlyphHero(letter.char)),
+          const SizedBox(height: Geo.gapMd),
+          Center(child: _HearButton(letter: letter)),
+          const SizedBox(height: Geo.gapLg),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: p.accent,
+                padding: const EdgeInsets.symmetric(vertical: 16)),
+            onPressed: onNext,
+            child: Text(context.l10n.kidsNextCard),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Step 2: say it out loud, [times] times — the child taps once per
+/// repetition. Nothing here can be graded (there is no microphone), so the
+/// counter is the whole mechanic: it paces the repetition instead of leaving
+/// "say it a few times" as a line of text nobody acts on.
+class _SayStep extends StatefulWidget {
+  final ArabicLetter letter;
+  final int times;
+  final VoidCallback onDone;
+  const _SayStep(
+      {required this.letter, required this.times, required this.onDone});
+
+  @override
+  State<_SayStep> createState() => _SayStepState();
+}
+
+class _SayStepState extends State<_SayStep> {
+  int _said = 0;
+
+  void _tap() {
+    // Every repetition answers back with the letter's own sound, so the child
+    // hears the model immediately after saying it rather than practising an
+    // unchecked guess five times over. Fire-and-forget: the counter must not
+    // wait on a media player, and [LetterAudio] swallows its own failures.
+    LetterAudio.play(widget.letter);
+    if (_said + 1 >= widget.times) {
+      widget.onDone();
+      return;
+    }
+    setState(() => _said++);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = kidsPal(context);
+    return Padding(
+      padding:
+          const EdgeInsets.fromLTRB(Geo.gapLg, 0, Geo.gapLg, Geo.gapLg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(context.l10n.kidsSayItAloud,
+              style: kidsStyle(context, size: 17, weight: FontWeight.w800)),
+          const SizedBox(height: Geo.gapMd),
+          Expanded(child: _GlyphHero(widget.letter.char)),
+          const SizedBox(height: Geo.gapMd),
+          // The name is what the child actually says, so it is spelled out
+          // under the shape rather than left for them to remember.
+          Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(letterName(context, widget.letter),
+                  style: kidsStyle(context,
+                      size: 30, weight: FontWeight.w800, color: p.accent)),
+            ),
+          ),
+          const SizedBox(height: Geo.gapMd),
+          // A dot per repetition, so how many are left is visible at a glance
+          // rather than something to read and count.
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 0; i < widget.times; i++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: i < _said ? p.amber : p.surfaceHigh,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: Geo.gapMd),
+          Center(child: _HearButton(letter: widget.letter)),
+          const SizedBox(height: Geo.gapLg),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: p.accent,
+                padding: const EdgeInsets.symmetric(vertical: 16)),
+            onPressed: _tap,
+            child: Text(context.l10n.kidsSaidIt),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The letter, as big as the space allows and its INK centred in the card —
+/// not its line box. `FittedBox` centres a `Text` widget's line box, and for
+/// an isolated Arabic letter the two are very different things: UthmanicHafs'
+/// natural line leaves headroom sized for a full word's tashkīl, and how much
+/// ink sits above vs. below the baseline swings wildly by letter (kāf reaches
+/// +0.68em above it, jīm/ḥā/khā/ʿayn/ghayn/mīm reach −0.44em below it — see
+/// `glyph_ink.dart`). Centring the line box left a wide gap above some
+/// letters and crowded others against the bottom of their card.
+///
+/// Deliberately not `quranicStyle` — that scales with the user's Arabic-size
+/// reading preference, but this card sizes the glyph to fill itself, not to
+/// a reading preference.
+class _GlyphHero extends StatelessWidget {
+  final String glyph;
+  const _GlyphHero(this.glyph);
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = kUthmanicInk[glyph];
+    return LayoutBuilder(builder: (context, c) {
+      final side =
+          math.min(c.maxWidth, c.maxHeight).clamp(120.0, 280.0).toDouble();
+      return Center(
+        child: SizedBox(
+          width: side,
+          height: side,
+          child: Container(
+            decoration: kidsCard(context),
+            padding: const EdgeInsets.all(Geo.gapXl),
+            // The old `Text` widget exposed the glyph to a screen reader for
+            // free; painting it on a canvas does not. Restore that with an
+            // explicit label rather than leaving the card silent — the
+            // heading above already says the letter's name, so this is
+            // ExcludeSemantics'd down to the one label rather than merging
+            // whatever the fallback branch's own `Text` would add.
+            child: Semantics(
+              label: glyph,
+              child: ExcludeSemantics(
+                child: ink == null
+                    // No measured bounds for this glyph (never hit by the 28
+                    // taught letters, all of which are in the table) — fall
+                    // back to line-box centring rather than crash.
+                    ? SizedBox.expand(
+                        child: FittedBox(
+                          fit: BoxFit.contain,
+                          child: Text(glyph,
+                              textDirection: TextDirection.rtl,
+                              style: TextStyle(
+                                  fontFamily: 'UthmanicHafs',
+                                  fontSize: 100,
+                                  color: kidsPal(context).text)),
+                        ),
+                      )
+                    : SizedBox.expand(
+                        child: CustomPaint(
+                          painter: _InkCenteredGlyphPainter(
+                              glyph: glyph,
+                              top: ink.$1,
+                              bottom: ink.$2,
+                              color: kidsPal(context).text),
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+/// Paints [glyph] as large as possible with its measured ink bounds — not its
+/// line box — centred in [size]. See [_GlyphHero].
+class _InkCenteredGlyphPainter extends CustomPainter {
+  final String glyph;
+  final double top; // ink top, em above the baseline
+  final double bottom; // ink bottom, em above the baseline (negative if below)
+  final Color color;
+  const _InkCenteredGlyphPainter(
+      {required this.glyph,
+      required this.top,
+      required this.bottom,
+      required this.color});
+
+  TextPainter _layout(double fontSize) {
+    final tp = TextPainter(
+      text: TextSpan(
+          text: glyph,
+          style: TextStyle(
+              fontFamily: 'UthmanicHafs',
+              fontSize: fontSize,
+              height: 1.0,
+              color: color)),
+      textDirection: TextDirection.rtl,
+      textScaler: TextScaler.noScaling,
+    );
+    tp.layout();
+    return tp;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (top <= bottom || size.height <= 0 || size.width <= 0) return;
+
+    var fontSize = glyphInkFontSize(size.height, top, bottom);
+    var tp = _layout(fontSize);
+    // tp.width is the line's own advance width, a looser bound than the
+    // glyph's actual ink width but a safe one — if it would overflow the
+    // card, scale down to fit it and accept the resulting vertical margin.
+    if (tp.width > size.width) {
+      fontSize *= size.width / tp.width;
+      tp = _layout(fontSize);
+    }
+
+    final offset = glyphInkOffset(
+      size: size,
+      fontSize: fontSize,
+      top: top,
+      bottom: bottom,
+      lineWidth: tp.width,
+      baseline: tp.computeDistanceToActualBaseline(TextBaseline.alphabetic),
+    );
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    tp.paint(canvas, offset);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_InkCenteredGlyphPainter old) =>
+      old.glyph != glyph ||
+      old.top != top ||
+      old.bottom != bottom ||
+      old.color != color;
+}
+
+/// Says the letter out loud — see [LetterAudio] for what "the letter's
+/// audio" actually resolves to.
+class _HearButton extends StatelessWidget {
+  final ArabicLetter letter;
+  const _HearButton({required this.letter});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = kidsPal(context);
+    return TextButton.icon(
+      onPressed: () => LetterAudio.play(letter),
+      icon: Icon(Icons.volume_up_rounded, color: p.accent2),
+      label: Text(context.l10n.listen,
+          style: kidsStyle(context, color: p.accent2)),
+    );
+  }
+}
+
 class _TraceStep extends StatefulWidget {
   final ArabicLetter letter;
   final String levelId;
   final String form; // 'iso' | 'ini' | 'med' | 'fin'
+
+  /// Which repetition of this shape this is, and how many there are. Shown
+  /// only when there is more than one, so the child can see that tracing it
+  /// again is the plan rather than a mistake.
+  final int pass;
+  final int passes;
 
   /// Called when the child taps "Next", NOT the moment the trace completes —
   /// finishing a trace used to advance on a 700ms timer while [TracingBoard]'s
@@ -199,7 +555,9 @@ class _TraceStep extends StatefulWidget {
       required this.letter,
       required this.levelId,
       required this.form,
-      required this.onDone});
+      required this.onDone,
+      this.pass = 1,
+      this.passes = 1});
 
   @override
   State<_TraceStep> createState() => _TraceStepState();
@@ -211,14 +569,6 @@ class _TraceStepState extends State<_TraceStep> {
   /// reset mechanism, so the board itself needs no new API.
   int _attempt = 0;
   int? _stars; // null until this attempt has been graded
-
-  Future<void> _hear() async {
-    final parts = widget.letter.exampleRef.split(':');
-    final s = int.tryParse(parts[0]);
-    final a = int.tryParse(parts.length > 1 ? parts[1] : '');
-    if (s == null || a == null) return;
-    await AyahAudio.instance.play(s, a);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -245,16 +595,25 @@ class _TraceStepState extends State<_TraceStep> {
                       style: kidsStyle(context,
                           size: 17, weight: FontWeight.w800)),
                   // Which of the four shapes this is — only meaningful once
-                  // a lesson teaches more than the isolated letter.
-                  if (widget.form != 'iso')
-                    Text(_formLabel(context, widget.form),
+                  // a lesson teaches more than the isolated letter — and,
+                  // where the shape is practised several times over, which
+                  // go this is.
+                  if (widget.form != 'iso' || widget.passes > 1)
+                    Text(
+                        [
+                          if (widget.form != 'iso')
+                            _formLabel(context, widget.form),
+                          if (widget.passes > 1)
+                            context.l10n
+                                .kidsTracePass(widget.pass, widget.passes),
+                        ].join(' · '),
                         style:
                             kidsStyle(context, size: 12.5, color: p.textDim)),
                 ],
               ),
             ),
             TextButton.icon(
-              onPressed: _hear,
+              onPressed: () => LetterAudio.play(widget.letter),
               icon: Icon(Icons.volume_up_rounded, color: p.accent2),
               label: Text(context.l10n.listen,
                   style: kidsStyle(context, color: p.accent2)),
@@ -272,7 +631,13 @@ class _TraceStepState extends State<_TraceStep> {
               // below instead — the same reason the quizzes suppress it.
               showOverlay: false,
               onStars: (s) {
-                if (_stars == null) setState(() => _stars = s);
+                if (_stars != null) return;
+                // The shape has just been drawn and is still on screen: this
+                // is the moment the sound and the sight of the letter line
+                // up, so the letter says itself. Same reinforcement as the
+                // say-it-aloud step, on the writing half of the lesson.
+                LetterAudio.play(widget.letter);
+                setState(() => _stars = s);
               },
             ),
           ),
@@ -346,79 +711,24 @@ class _TraceResultPanel extends StatelessWidget {
   }
 }
 
-class _SentenceStep extends StatelessWidget {
-  final KidsSentence sentence;
-  final VoidCallback onDone;
-  const _SentenceStep({required this.sentence, required this.onDone});
-
-  @override
-  Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          Geo.gapLg, 0, Geo.gapLg, Geo.gapLg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(context.l10n.kidsReadTheSentence,
-              style: kidsStyle(context, size: 17, weight: FontWeight.w800)),
-          Expanded(
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  RichText(
-                    textDirection: TextDirection.rtl,
-                    textAlign: TextAlign.center,
-                    text: TextSpan(
-                      children: highlightSpans(
-                          sentence.sentence,
-                          sentence.targetWord,
-                          arabicStyle(context, size: 28),
-                          arabicStyle(context, size: 28, color: p.accent)),
-                    ),
-                  ),
-                  const SizedBox(height: Geo.gapLg),
-                  // A transliteration chip, not a play button. These
-                  // sentences are authored MSA, not corpus text, so there is
-                  // no recitation to attach — this used to be a speaker icon
-                  // wired to comingSoon(), which is a dead control in a
-                  // child's lesson.
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                        color: p.surface,
-                        borderRadius:
-                            BorderRadius.circular(Geo.radiusPill)),
-                    child: Text(sentence.translit,
-                        style: kidsStyle(context,
-                            size: 14, weight: FontWeight.w700)),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(sentence.gloss,
-                      style: kidsStyle(context, size: 13, color: p.textDim)),
-                ],
-              ),
-            ),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: p.accent,
-                padding: const EdgeInsets.symmetric(vertical: 16)),
-            onPressed: onDone,
-            child: Text(context.l10n.continueLabel),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ResultStep extends StatelessWidget {
   final ArabicLetter letter;
   final int stars;
   const _ResultStep({required this.letter, required this.stars});
+
+  /// What the child moves on to, or null once the whole path is cleared.
+  ///
+  /// Read *after* [_KidsLetterFlowState._finish] has reported this lesson, so
+  /// it really is the next one — and it crosses into the following stage on
+  /// its own when this lesson was a stage's last. It is here so "Continue" is
+  /// a door with something written on it.
+  KidsItem? _next(BuildContext context, ProgressStore prog) {
+    final path = kidsPath(context);
+    final block = path[kidsCurrentBlockIndex(context, prog)];
+    final items = block.items(context);
+    final i = kidsCurrentItemIndex(prog, items);
+    return i < items.length ? items[i] : null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -427,54 +737,111 @@ class _ResultStep extends StatelessWidget {
     final p = kidsPal(context);
     final gender = s.activeKidsProfile?.gender ?? '';
     final shownStars = stars == 0 ? 1 : stars;
-    return Stack(children: [
-      // Scrollable, not a bare Center: on a short phone — or at a large text
-      // scale — this column is taller than the viewport, and the one control
-      // that matters, "Continue", sits at the bottom of it.
-      SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-              minHeight: MediaQuery.sizeOf(context).height * .6),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: Geo.gapLg),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const KidsMascot(),
-                  const SizedBox(height: Geo.gapMd),
-                  Text(context.l10n.kidsGreatJob,
-                      style: kidsStyle(context,
-                          size: 22, weight: FontWeight.w800)),
-                  const SizedBox(height: 4),
-                  Text(kidsPraiseArabic(gender),
-                      textDirection: TextDirection.rtl,
-                      style: quranicStyle(context, size: 22, color: p.accent)),
-                  const SizedBox(height: Geo.gapMd),
-                  StarRow(shownStars, size: 36),
-                  const SizedBox(height: Geo.gapMd),
-                  Text(context.l10n.kidsXpEarned(kidsXpPerStar * shownStars),
-                      style: kidsStyle(context,
-                          size: 15, weight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text(context.l10n.streakDaysLabel(prog.streakDays),
-                      style: kidsStyle(context, size: 13, color: p.textDim)),
-                  const SizedBox(height: Geo.gapXl),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                        backgroundColor: p.accent,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 16)),
-                    onPressed: () => closeKidsOverlayOrPop(context),
-                    child: Text(context.l10n.continueLabel),
+    final next = _next(context, prog);
+    // Centred on the space it actually has, not on a guess at it: the minimum
+    // height used to be 60% of the window, which parked the whole celebration
+    // in the top half of a tall phone with the bottom half left empty. The
+    // scroll view stays, because on a short screen at a large text scale this
+    // column outgrows the viewport and "Continue" is the last thing in it.
+    return LayoutBuilder(builder: (context, c) {
+      return Stack(children: [
+        SizedBox(
+          height: c.maxHeight,
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: c.maxHeight),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Geo.gapLg, vertical: Geo.gapLg),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const KidsMascot(size: 116),
+                      const SizedBox(height: Geo.gapMd),
+                      Text(context.l10n.kidsGreatJob,
+                          style: kidsStyle(context,
+                              size: 24, weight: FontWeight.w800)),
+                      const SizedBox(height: 4),
+                      Text(kidsPraiseArabic(gender),
+                          textDirection: TextDirection.rtl,
+                          style:
+                              quranicStyle(context, size: 22, color: p.accent)),
+                      const SizedBox(height: Geo.gapMd),
+                      StarRow(shownStars, size: 40),
+                      const SizedBox(height: Geo.gapMd),
+                      Text(
+                          context.l10n
+                              .kidsXpEarned(kidsXpPerStar * shownStars),
+                          style: kidsStyle(context,
+                              size: 15, weight: FontWeight.w700)),
+                      const SizedBox(height: 4),
+                      Text(context.l10n.streakDaysLabel(prog.streakDays),
+                          style:
+                              kidsStyle(context, size: 13, color: p.textDim)),
+                      const SizedBox(height: Geo.gapXl),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                            backgroundColor: p.accent,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 32, vertical: 16)),
+                        onPressed: () => closeKidsOverlayOrPop(context),
+                        child: Text(context.l10n.continueLabel),
+                      ),
+                      if (next != null) ...[
+                        const SizedBox(height: Geo.gapLg),
+                        _NextUpChip(item: next),
+                      ],
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
         ),
+        const Positioned.fill(child: KidsConfetti()),
+      ]);
+    });
+  }
+}
+
+/// "Next: Tāʾ", with the glyph — a signpost, not a second button. The one
+/// thing to tap on this screen stays "Continue"; this only says where it
+/// goes.
+class _NextUpChip extends StatelessWidget {
+  final KidsItem item;
+  const _NextUpChip({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = kidsPal(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: BoxDecoration(
+        color: p.surfaceHigh.withValues(alpha: .55),
+        borderRadius: BorderRadius.circular(Geo.radiusPill),
       ),
-      const Positioned.fill(child: KidsConfetti()),
-    ]);
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (item.glyph.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Text(item.glyph,
+                  textDirection: TextDirection.rtl,
+                  style: quranicStyle(context,
+                      size: 19, height: 1.05, color: p.accent2)),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Icon(item.icon, size: 17, color: p.accent2),
+            ),
+          Text(context.l10n.kidsNextUp(item.label(context)),
+              style: kidsStyle(context,
+                  size: 13, weight: FontWeight.w700, color: p.textDim)),
+        ],
+      ),
+    );
   }
 }

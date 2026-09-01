@@ -1,7 +1,7 @@
 name: qiraah_arabiyyah
 description: "Qiraah Arabiyyah — a modern Arabic reading & writing journey: Qaidah, tracing with stroke direction, Tashkil counts, Tajwid, dyslexia-friendly practice, and the 10 Qira'at."
 publish_to: 'none'
-version: 2.0.6+46
+version: 2.0.8+48
 
 environment:
   sdk: '>=3.10.0 <4.0.0'

@@ -1,6 +1,17 @@
 /// "Read the sentence" content for Kids Mode — ordinary Modern Standard
 /// Arabic sentences authored for early readers, one per taught letter.
 ///
+/// **Nothing renders these right now.** They were the second step of a letter
+/// lesson, which meant a child who had just traced their first letter, and
+/// knew no ḥarakāt, was shown a fully voweled sentence under the heading
+/// "Read the sentence". A letter lesson is meet-the-shape → say it → trace it
+/// now, and reading waits for the stages built for it.
+///
+/// Kept rather than deleted because they are reviewed, tested content that
+/// would suit a later reading stage — the natural home is somewhere after
+/// `qaidah.harakat`, once the marks on these words mean something. The only
+/// thing in this file still in use is [kidsPraiseArabic].
+///
 /// This is deliberately NOT Qur'anic text: it is exempt from the
 /// corpus-verbatim checks the rest of `lib/data/` is held to (see
 /// `test/kids_mode_test.dart`), because there is no muṣḥaf source to check

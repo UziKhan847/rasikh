@@ -57,14 +57,7 @@ class KidsAlphabetScreen extends StatelessWidget {
               final b = i - 1;
               return Padding(
                 padding: const EdgeInsets.only(bottom: Geo.gapSm),
-                child: _BlockRow(
-                  block: path[b],
-                  state: b < current
-                      ? _State.done
-                      : b == current
-                          ? _State.current
-                          : _State.locked,
-                ),
+                child: _BlockRow(block: path[b], index: b, current: current),
               );
             },
           ),
@@ -74,12 +67,23 @@ class KidsAlphabetScreen extends StatelessWidget {
   }
 }
 
-enum _State { done, current, locked }
+/// [open] is a stage or tile that can be entered but has not been cleared —
+/// only ever reached through the testing unlock ([kidsLocked]), and kept
+/// distinct from [done] so an unlocked tile never wears a finished tile's
+/// checkmark.
+enum _State { done, open, current, locked }
 
 class _BlockRow extends StatelessWidget {
   final KidsBlock block;
-  final _State state;
-  const _BlockRow({required this.block, required this.state});
+  final int index;
+
+  /// The block [kidsCurrentBlockIndex] points at — normally the first with
+  /// unfinished items, but the testing pin ([ProgressStore.devStage]) can
+  /// move it anywhere. So "done" below is decided from this row's own items,
+  /// not from `index < current`: that shortcut only held because "current"
+  /// used to mean "the first incomplete stage" by construction.
+  final int current;
+  const _BlockRow({required this.block, required this.index, required this.current});
 
   @override
   Widget build(BuildContext context) {
@@ -90,8 +94,16 @@ class _BlockRow extends StatelessWidget {
     final items = block.items(context);
     final total = items.length;
     final done = kidsItemsDone(prog, items);
-    final locked = state == _State.locked;
-    final current = state == _State.current;
+    final isDone = total > 0 && done == total;
+    final isCurrent = index == current;
+    final locked = !isDone && !isCurrent && kidsLocked(prog, index, current);
+    final state = isDone
+        ? _State.done
+        : isCurrent
+            ? _State.current
+            : locked
+                ? _State.locked
+                : _State.open;
     final title = block.title(context);
 
     return Semantics(
@@ -116,7 +128,7 @@ class _BlockRow extends StatelessWidget {
             color: locked ? kidsLockedFill(p) : p.surface,
             borderRadius: BorderRadius.circular(Geo.radiusLg),
             border: Border.all(
-                color: current ? p.accent : Colors.transparent, width: 2),
+                color: isCurrent ? p.accent : Colors.transparent, width: 2),
             boxShadow: locked
                 ? null
                 : [
@@ -132,7 +144,7 @@ class _BlockRow extends StatelessWidget {
               height: 52,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: current
+                color: isCurrent
                     ? p.accent
                     : locked
                         ? Colors.transparent
@@ -153,7 +165,7 @@ class _BlockRow extends StatelessWidget {
                             style: quranicStyle(context,
                                 size: 19,
                                 height: 1.05,
-                                color: current ? Colors.white : p.text)),
+                                color: isCurrent ? Colors.white : p.text)),
                       ),
                     ),
             ),
@@ -289,7 +301,9 @@ class KidsBlockScreen extends StatelessWidget {
                           ? _State.done
                           : i == done
                               ? _State.current
-                              : _State.locked,
+                              : kidsLocked(prog, i, done)
+                                  ? _State.locked
+                                  : _State.open,
                     ),
                   );
                 },

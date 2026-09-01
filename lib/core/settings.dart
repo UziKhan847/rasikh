@@ -34,21 +34,48 @@ class KidsProfile {
   String name;
   String avatar; // one emoji
   String gender; // 'm' | 'f' | ''
+
+  // What this child currently has EQUIPPED from the shop — not what they
+  // OWN, which lives in that child's own `ProgressStore.shopOwned` instead.
+  // These live here, rather than on the store, so `kidsPal`/`KidsAvatar` can
+  // resolve them from `SettingsScope` alone: `kidsPal` is called from screens
+  // that render before a `ProgressScope` exists yet (the profile picker, the
+  // profile-loading spinner), and reading the wrong data source there would
+  // mean those screens can't follow a purchased theme at all.
+  //
+  // There is deliberately no `hat` slot. One shipped briefly and was removed
+  // — an emoji avatar has no anchor a drawn accessory can attach to, so it
+  // read as a rendering artefact rather than a hat; see `kidsShopItems` in
+  // `data/kids_content.dart`. A saved profile carrying the old `hat` key
+  // loads fine: [fromJson] simply ignores it.
+  String theme; // a kids_* palette family id, 'kids' if nothing equipped
+  String frame; // an owned KidsShopItem id, '' if no frame equipped
+
   KidsProfile({
     required this.id,
     required this.name,
     this.avatar = '🦊',
     this.gender = '',
+    this.theme = 'kids',
+    this.frame = '',
   });
 
-  Map<String, dynamic> toJson() =>
-      {'id': id, 'name': name, 'avatar': avatar, 'gender': gender};
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'avatar': avatar,
+        'gender': gender,
+        'theme': theme,
+        'frame': frame,
+      };
 
   factory KidsProfile.fromJson(Map<String, dynamic> m) => KidsProfile(
         id: m['id'] as String,
         name: (m['name'] ?? '') as String,
         avatar: (m['avatar'] ?? '🦊') as String,
         gender: (m['gender'] ?? '') as String,
+        theme: (m['theme'] ?? 'kids') as String,
+        frame: (m['frame'] ?? '') as String,
       );
 }
 
@@ -85,7 +112,6 @@ class AppSettings extends ChangeNotifier {
   String desktopMode = 'auto'; // 'auto'|'on'|'off'
   bool wordByWord = true; // reader: split verses into tappable words
   bool readerHeaderCollapsed = false; // retract the reader control panel
-  String fontUthmani = 'UthmanicHafs'; // or 'ScheherazadeNew'
   String fontIndopak = 'DigitalKhattIndoPak';
   String reciter = 'tunaiji'; // 'tunaiji' | 'alafasy' | 'husary'
   String readerLayout = 'cards'; // 'cards' | 'mushaf' (continuous flow)
@@ -211,10 +237,7 @@ class AppSettings extends ChangeNotifier {
     desktopMode = m['desktop'] ?? 'auto';
     wordByWord = m['wbw'] ?? true;
     readerHeaderCollapsed = m['hdrCol'] ?? false;
-    fontUthmani = m['fontU'] ?? 'UthmanicHafs';
     fontIndopak = m['fontI'] ?? 'DigitalKhattIndoPak';
-    // legacy options removed from the UI — normalize to the supported pair.
-    if (fontUthmani == 'ScheherazadeNew') fontUthmani = 'UthmanicHafs';
     // Anyone persisted on a removed/placeholder Indo-Pak face (the bundled
     // IndoPak.ttf or PDMS Saleem, both gone; or UthmanicHafs, the fallback
     // used while the reader's Indo-Pak was gated) gets migrated onto the
@@ -272,7 +295,6 @@ class AppSettings extends ChangeNotifier {
         'tajwid': tajwidColors,
         'desktop': desktopMode,
         'wbw': wordByWord,
-        'fontU': fontUthmani,
         'fontI': fontIndopak,
         'script': quranScript,
         'mushafScript': mushafScript,
@@ -406,6 +428,41 @@ class ProgressStore extends ChangeNotifier {
   final Set<String> badges = {};
   final Set<String> shopOwned = {};
 
+  /// Testing switch: every Kids Mode stage and tile is reachable regardless of
+  /// what has actually been finished. It lifts the **locks only** — nothing is
+  /// marked done, no XP, gems or badges are granted, and turning it back off
+  /// leaves real progress exactly as it was. Set from the mascot's ten-tap
+  /// gesture (see `KidsSecretUnlock`), persisted per profile so a rebuild or a
+  /// device restart doesn't drop a tester back at alif.
+  bool unlockAll = false;
+
+  void setUnlockAll(bool value) {
+    if (unlockAll == value) return;
+    unlockAll = value;
+    // A stage pin left over from a previous testing session would otherwise
+    // silently keep steering Home once unlocking is switched back on.
+    if (!value) devStage = null;
+    notifyListeners();
+    _saveXp();
+  }
+
+  /// Testing switch: pins [kidsCurrentBlockIndex] to one [KidsBlock.id]
+  /// rather than the first stage with unfinished items, so Home (and the
+  /// Learn tab's "current" row) can be pointed at any stage to test it —
+  /// without actually playing through everything before it. Only honoured
+  /// while [unlockAll] is on (see `kidsCurrentBlockIndex`), and, like
+  /// [unlockAll], touches nothing about real progress: no stars, XP, gems or
+  /// badges change, so turning it off leaves the child's actual place in the
+  /// path exactly as it was.
+  String? devStage;
+
+  void setDevStage(String? id) {
+    if (devStage == id) return;
+    devStage = id;
+    notifyListeners();
+    _saveXp();
+  }
+
   int get level => 1 + (xp ~/ 100); // 100 XP per level — simple, predictable
   int get xpIntoLevel => xp % 100;
 
@@ -451,6 +508,8 @@ class ProgressStore extends ChangeNotifier {
           'gems': gems,
           'badges': badges.toList(),
           'shop': shopOwned.toList(),
+          'unlockAll': unlockAll,
+          'devStage': devStage,
         }));
   }
 
@@ -572,6 +631,28 @@ class ProgressStore extends ChangeNotifier {
   int _weekStartDay = -1; // epoch-day index of the Monday of the tracked week
   int weekMask = 0; // bit i set => active on weekday i (0=Mon)
 
+  /// Shop-bought consumable: covers exactly one missed day so the streak
+  /// survives it — see [recordActivity] and [refreshStreak], the only two
+  /// places that ever spend one. A count, not a `shopOwned` membership, since
+  /// it is meant to be bought and used repeatedly rather than owned once.
+  int streakFreezes = 0;
+
+  /// Set for one notification after a freeze is spent (see [recordActivity],
+  /// [refreshStreak]) so the Home screen can tell the child what happened.
+  /// Without this a freeze is a fully silent mechanic: the only visible
+  /// effect is the streak NOT resetting, which looks identical to nothing
+  /// having gone wrong in the first place — there is no way to connect that
+  /// to the gems just spent on it. NOT persisted: it only needs to survive
+  /// to the next rebuild, not across app restarts.
+  bool justUsedFreeze = false;
+
+  /// Test seam for setting the last-active day without waiting on the real
+  /// clock — [_lastDay] is otherwise only ever reached through real activity
+  /// or a `load()` round-trip. Mirrors [dayIndexFor]'s own
+  /// `@visibleForTesting` exception, for the same reason.
+  @visibleForTesting
+  set lastActiveDayForTest(int day) => _lastDay = day;
+
   static int _today() => dayIndexFor(DateTime.now());
 
   /// The calendar-day index (days since 1970-01-01) that [local] falls on
@@ -603,7 +684,17 @@ class ProgressStore extends ChangeNotifier {
   void recordActivity() {
     final t = _today();
     if (_lastDay == t) return; // already counted today
-    streakDays = (_lastDay == t - 1) ? streakDays + 1 : 1;
+    if (_lastDay == t - 1) {
+      streakDays++;
+    } else if (_lastDay >= 0 && t - _lastDay == 2 && streakFreezes > 0) {
+      // Exactly one day skipped, and a freeze is in hand: the streak
+      // continues as if that day had happened.
+      streakFreezes--;
+      justUsedFreeze = true;
+      streakDays++;
+    } else {
+      streakDays = 1;
+    }
     _lastDay = t;
     final monday = t - _weekdayOf(t);
     if (_weekStartDay != monday) {
@@ -616,15 +707,46 @@ class ProgressStore extends ChangeNotifier {
   }
 
   /// Keep streak/week display honest if the app is opened days later.
+  ///
+  /// Also where a streak freeze covers a missed day on its own, without
+  /// waiting for the child's next activity: without this, opening the app
+  /// two days after the last one would flash the streak to zero right up
+  /// until the next lesson silently repaired it via [recordActivity]'s own
+  /// freeze check — a worse experience than never showing zero at all.
   void refreshStreak() {
     final t = _today();
-    if (_lastDay >= 0 && t - _lastDay > 1) streakDays = 0;
+    if (_lastDay >= 0 && t - _lastDay == 2 && streakFreezes > 0) {
+      streakFreezes--;
+      justUsedFreeze = true;
+      _lastDay = t - 1; // the frozen day now reads as if it had activity
+      _saveStreak();
+    } else if (_lastDay >= 0 && t - _lastDay > 1) {
+      streakDays = 0;
+    }
     final monday = t - _weekdayOf(t);
     if (_weekStartDay != monday) {
       _weekStartDay = monday;
       weekMask = 0;
     }
     notifyListeners();
+  }
+
+  /// Spends [cost] gems on one streak freeze. Unlike [buyShopItem] there is
+  /// no ownership set to check — freezes are consumed, so buying another one
+  /// is always allowed once the balance covers it.
+  /// Clears [justUsedFreeze] once the Home screen has shown its one-time
+  /// "streak saved" banner. Deliberately does not notify — nothing else
+  /// needs to react to this being acknowledged.
+  void acknowledgeFreezeUsed() => justUsedFreeze = false;
+
+  bool buyStreakFreeze(int cost) {
+    if (gems < cost) return false;
+    gems -= cost;
+    streakFreezes++;
+    notifyListeners();
+    _saveXp(); // persists gems
+    _saveStreak(); // persists streakFreezes
+    return true;
   }
 
   int get todayWeekday => _weekdayOf(_today()); // 0=Mon
@@ -661,6 +783,29 @@ class ProgressStore extends ChangeNotifier {
   /// child profile and the grown-up progress are never the same store.
   int get kidsLettersLearned =>
       _stars.keys.where((k) => k.startsWith('kids.letter.')).length;
+
+  /// Number of starred ids beginning with [prefix] — [kidsLettersLearned]'s
+  /// shape, generalised for badges keyed to a whole stage's worth of ids
+  /// rather than one fixed id.
+  int countStarred(String prefix) => _stars.keys
+      .where((k) => k.startsWith(prefix) && _stars[k]! > 0)
+      .length;
+
+  /// How many activities were cleared with a perfect three-star mark.
+  int get perfectCount => _stars.values.where((s) => s >= 3).length;
+
+  /// True once any Kids Mode quiz has been passed with at least one star.
+  /// Kids Mode has two quiz-id conventions — `kids.quiz.*` for the letters/
+  /// forms/special-shapes stages, `kids.<unit>.test` for stages that reuse a
+  /// grown-up Qāʿidah/Tajwīd unit's own Test phase (see `kids_path.dart`) —
+  /// so this checks both rather than one fixed id.
+  bool get kidsAnyQuizPassed => _stars.entries.any((e) =>
+      e.value > 0 && (e.key.startsWith('kids.quiz.') || e.key.endsWith('.test')));
+
+  /// True once any Kids Mode quiz has been passed with a perfect (3-star)
+  /// mark. See [kidsAnyQuizPassed] for the id conventions this matches.
+  bool get kidsAnyQuizPerfect => _stars.entries.any((e) =>
+      e.value >= 3 && (e.key.startsWith('kids.quiz.') || e.key.endsWith('.test')));
 
   /// Fraction of ids in [ids] with at least one star.
   double fraction(Iterable<String> ids) {
@@ -729,6 +874,8 @@ class ProgressStore extends ChangeNotifier {
       weekMask = (m['wkMask'] ?? 0) as int;
       todayActivityCount = (m['todayCount'] ?? 0) as int;
       _todayCountDay = (m['todayCountDay'] ?? -1) as int;
+      // Read before refreshStreak() below, which may spend one immediately.
+      streakFreezes = (m['freezes'] ?? 0) as int;
     }
     refreshStreak();
     final xraw = p.getString(_xpKey);
@@ -742,6 +889,8 @@ class ProgressStore extends ChangeNotifier {
       shopOwned
         ..clear()
         ..addAll(((m['shop'] as List?) ?? const []).cast<String>());
+      unlockAll = (m['unlockAll'] ?? false) as bool;
+      devStage = m['devStage'] as String?;
     }
   }
 
@@ -761,6 +910,7 @@ class ProgressStore extends ChangeNotifier {
           'wkMask': weekMask,
           'todayCount': todayActivityCount,
           'todayCountDay': _todayCountDay,
+          'freezes': streakFreezes,
         }));
   }
 }

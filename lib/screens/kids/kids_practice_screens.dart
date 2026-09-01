@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../core/audio.dart';
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
+import '../../core/letter_audio.dart';
 import '../../core/responsive.dart';
 import '../../core/settings.dart';
 import '../../core/theme.dart';
@@ -129,23 +129,16 @@ class _KidsFlashcardsScreenState extends State<KidsFlashcardsScreen> {
   }
 }
 
-/// Plays each learned letter's real Qur'anic example word — the same
-/// [AyahAudio] recitation every other "Listen" control in the app uses.
+/// Says each learned letter out loud, one row per letter — the drill this
+/// screen exists for, so it goes through [LetterAudio] rather than reciting
+/// the whole āyah the letter's example word happens to sit in.
 class KidsListeningScreen extends StatelessWidget {
   const KidsListeningScreen({super.key});
-
-  Future<void> _play(String ref) async {
-    final parts = ref.split(':');
-    final s = int.tryParse(parts[0]);
-    final a = int.tryParse(parts.length > 1 ? parts[1] : '');
-    if (s == null || a == null) return;
-    await AyahAudio.instance.play(s, a);
-  }
 
   Widget _row(BuildContext context, ArabicLetter letter) {
     final p = kidsPal(context);
     return TapScale(
-      onTap: () => _play(letter.exampleRef),
+      onTap: () => LetterAudio.play(letter),
       child: Container(
         padding: const EdgeInsets.all(Geo.gapMd),
         decoration: kidsCard(context),

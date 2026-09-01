@@ -85,6 +85,24 @@ class MushafRepo {
   static String fontFamily(String script) =>
       _norm(script) == 'indopak' ? 'DigitalKhattIndoPak' : 'DigitalKhattV2';
 
+  /// True for the two DigitalKhatt faces, whose vertical metrics differ enough
+  /// from UthmanicHafs' that a line built for one clips the other. The card
+  /// reader can now be handed either family for either script, so "which
+  /// height does this text need" is a question about the FONT, not the script.
+  static bool isKhatt(String family) => family.startsWith('DigitalKhatt');
+
+  /// Line height multiplier for the DigitalKhatt faces.
+  ///
+  /// Both declare ascent 1500 + descent 700 on a 1000-unit em (confirmed via
+  /// `ttx -t hhea`), so a line needs 2.2× the font size to contain the tallest
+  /// ḥarakah stacks per the font's own metrics. A handful of combinations ink
+  /// slightly past what the font declares, hence the ~5% margin.
+  ///
+  /// One constant rather than three: the 15-line muṣḥaf derives its line slot
+  /// from this (`_lineHeightRatio`) and the card reader sets it as a `height`,
+  /// and the two must not drift apart.
+  static const khattLineHeight = 2.2 * 1.05;
+
   // Standard juz starts as (surah, ayah) pairs — script-independent.
   static const _juzStarts = <List<int>>[
     [1, 1], [2, 142], [2, 253], [3, 93], [4, 24], [4, 148], [5, 82],

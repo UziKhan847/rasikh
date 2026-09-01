@@ -13,10 +13,17 @@ import 'kids_practice_screens.dart';
 import 'kids_rank_data.dart';
 import 'kids_widgets.dart';
 
-/// How many letters of the path the Home screen shows as a trail — the
-/// design shows a short stretch around where the child is now; the full 28
-/// live one tap away on the Learn tab.
+/// How many nodes the **desktop** trail shows — a single row inside a
+/// bordered card, so it stays a short stretch around where the child is now.
 const _pathWindow = 6;
+
+/// The mobile trail scrolls instead: it holds the whole stage, in a window
+/// this many nodes tall.
+const _trailVisibleRows = 5;
+
+/// Height of one row of the vertical trail. Load-bearing — [_ScrollingTrail]
+/// scrolls in multiples of it to bring the current node into view.
+const _trailRowHeight = 82.0;
 
 /// The Home tab, laid out to the Kids Mode design: greeting + streak pill,
 /// a filled coral daily-goal card, a "keep going" resume card, the letter
@@ -50,7 +57,11 @@ class KidsHomeScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(
             Geo.gapLg, Geo.gapMd, Geo.gapLg, Geo.gapXl),
         children: [
-          _Header(name: profile.name, streakDays: prog.streakDays),
+          _Header(
+              name: profile.name,
+              streakDays: prog.streakDays,
+              streakFreezes: prog.streakFreezes),
+          _FreezeBanner(prog: prog),
           const SizedBox(height: Geo.gapLg),
           _DailyGoalCard(done: prog.todayActivityCount),
           const SizedBox(height: Geo.gapLg),
@@ -68,7 +79,10 @@ class KidsHomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: Geo.gapSm),
           _LetterTrail(
-              items: items, doneCount: doneCount, axis: Axis.vertical),
+              items: items,
+              doneCount: doneCount,
+              axis: Axis.vertical,
+              unlocked: prog.unlockAll),
           Center(
             child: TextButton(
               onPressed: onGoLearn,
@@ -119,6 +133,7 @@ class KidsHomeScreen extends StatelessWidget {
     final left = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _FreezeBanner(prog: prog),
         _DailyGoalCard(
           done: prog.todayActivityCount,
           onContinue: () => openKidsItem(context, currentItem),
@@ -133,7 +148,10 @@ class KidsHomeScreen extends StatelessWidget {
           padding: const EdgeInsets.all(Geo.gapLg),
           decoration: kidsPanel(context, radius: Geo.radiusXl),
           child: _LetterTrail(
-              items: items, doneCount: doneCount, axis: Axis.horizontal),
+              items: items,
+              doneCount: doneCount,
+              axis: Axis.horizontal,
+              unlocked: prog.unlockAll),
         ),
         const SizedBox(height: Geo.gapLg),
         KidsSectionHeader(
@@ -206,7 +224,11 @@ class KidsHomeScreen extends StatelessWidget {
 class _Header extends StatelessWidget {
   final String name;
   final int streakDays;
-  const _Header({required this.name, required this.streakDays});
+  final int streakFreezes;
+  const _Header(
+      {required this.name,
+      required this.streakDays,
+      this.streakFreezes = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -231,28 +253,115 @@ class _Header extends StatelessWidget {
           ),
         ),
         const SizedBox(width: Geo.gapSm),
-        Container(
-          padding: const EdgeInsets.fromLTRB(5, 5, 12, 5),
-          decoration: BoxDecoration(
-            color: p.amber.withValues(alpha: .18),
-            borderRadius: BorderRadius.circular(Geo.radiusPill),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
             Container(
-              width: 21,
-              height: 21,
-              decoration:
-                  BoxDecoration(shape: BoxShape.circle, color: p.amber),
-              child: const Icon(Icons.local_fire_department_rounded,
-                  size: 13, color: Colors.white),
+              padding: const EdgeInsets.fromLTRB(5, 5, 12, 5),
+              decoration: BoxDecoration(
+                color: p.amber.withValues(alpha: .18),
+                borderRadius: BorderRadius.circular(Geo.radiusPill),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  width: 21,
+                  height: 21,
+                  decoration:
+                      BoxDecoration(shape: BoxShape.circle, color: p.amber),
+                  child: const Icon(Icons.local_fire_department_rounded,
+                      size: 13, color: Colors.white),
+                ),
+                const SizedBox(width: 7),
+                Text(context.l10n.streakDaysCount(streakDays),
+                    style: kidsStyle(context,
+                        size: 12.5, weight: FontWeight.w800)),
+              ]),
             ),
-            const SizedBox(width: 7),
-            Text(context.l10n.streakDaysCount(streakDays),
-                style:
-                    kidsStyle(context, size: 12.5, weight: FontWeight.w800)),
-          ]),
+            // A bought streak freeze is otherwise a silent mechanic — this
+            // is the one place a family sees it is there at all, and how
+            // many are left, before it is ever spent.
+            if (streakFreezes > 0) ...[
+              const SizedBox(height: 4),
+              Text(context.l10n.kidsFreezesCount(streakFreezes),
+                  style: kidsStyle(context,
+                      size: 11, weight: FontWeight.w700, color: p.accent2)),
+            ],
+          ],
         ),
       ],
+    );
+  }
+}
+
+/// A "Your streak was saved!" banner for a few seconds right after a streak
+/// freeze is spent (see `ProgressStore.justUsedFreeze`) — otherwise a freeze
+/// is a fully silent mechanic: the only visible effect is the streak NOT
+/// resetting, which looks identical to nothing having gone wrong, giving the
+/// child no way to connect that to the gems they spent on it.
+///
+/// `didUpdateWidget` runs on every rebuild [KidsHomeScreen] gets from its
+/// `ProgressScope` dependency — a fresh `widget` instance each time,
+/// regardless of whether any field actually changed — so checking
+/// `justUsedFreeze` there catches it whenever it becomes true while this
+/// stays mounted; `initState` catches the case where it was already true the
+/// moment Home first builds (opening the app itself is what triggered it).
+class _FreezeBanner extends StatefulWidget {
+  final ProgressStore prog;
+  const _FreezeBanner({required this.prog});
+
+  @override
+  State<_FreezeBanner> createState() => _FreezeBannerState();
+}
+
+class _FreezeBannerState extends State<_FreezeBanner> {
+  bool _show = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.prog.justUsedFreeze) {
+      _show = true;
+      widget.prog.acknowledgeFreezeUsed();
+      _scheduleHide();
+    }
+  }
+
+  @override
+  void didUpdateWidget(_FreezeBanner old) {
+    super.didUpdateWidget(old);
+    if (widget.prog.justUsedFreeze) {
+      widget.prog.acknowledgeFreezeUsed();
+      setState(() => _show = true);
+      _scheduleHide();
+    }
+  }
+
+  void _scheduleHide() {
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _show = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_show) return const SizedBox.shrink();
+    final p = kidsPal(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: Geo.gapSm),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: p.accent2.withValues(alpha: .15),
+          borderRadius: BorderRadius.circular(Geo.radiusPill),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const Text('🧊', style: TextStyle(fontSize: 15)),
+          const SizedBox(width: 6),
+          Text(context.l10n.kidsStreakSaved,
+              style: kidsStyle(context,
+                  size: 12.5, weight: FontWeight.w700, color: p.accent2)),
+        ]),
+      ),
     );
   }
 }
@@ -428,7 +537,9 @@ class _ResumeCard extends StatelessWidget {
   }
 }
 
-enum _LetterState { done, current, locked }
+/// [open] is a node the testing unlock ([kidsLocked]) has made reachable
+/// without it having been cleared — never a padlock, never a checkmark.
+enum _LetterState { done, open, current, locked }
 
 /// The letter trail — nodes threaded along a dashed spine, the design's
 /// centrepiece for the Home screen. Vertical (a zig-zag either side of the
@@ -438,30 +549,36 @@ class _LetterTrail extends StatelessWidget {
   final List<KidsItem> items;
   final int doneCount;
   final Axis axis;
+
+  /// [ProgressStore.unlockAll] — passed down rather than looked up here so
+  /// the two trail layouts and the Learn tab all read the same answer.
+  final bool unlocked;
   const _LetterTrail(
-      {required this.items, required this.doneCount, required this.axis});
+      {required this.items,
+      required this.doneCount,
+      required this.axis,
+      required this.unlocked});
+
+  _LetterState _stateAt(int i) => i < doneCount
+      ? _LetterState.done
+      : i == doneCount
+          ? _LetterState.current
+          : unlocked
+              ? _LetterState.open
+              : _LetterState.locked;
 
   @override
   Widget build(BuildContext context) {
     final p = kidsPal(context);
-    // Start a step behind where the child is, so a cleared letter is always
-    // in view, and never run past the end of the alphabet.
-    final start = (doneCount - 1)
-        .clamp(0, (items.length - _pathWindow).clamp(0, items.length));
-    final end = (start + _pathWindow).clamp(0, items.length);
-    final nodes = [
-      for (var i = start; i < end; i++)
-        _TrailNode(
-          item: items[i],
-          state: i < doneCount
-              ? _LetterState.done
-              : i == doneCount
-                  ? _LetterState.current
-                  : _LetterState.locked,
-        ),
-    ];
 
     if (axis == Axis.horizontal) {
+      // Desktop keeps a fixed window: the trail is one row inside a bordered
+      // card, and the whole stage sits beside it on the Learn tab anyway.
+      // Start a step behind where the child is, so a cleared node stays in
+      // view, and never run past the end of the stage.
+      final start = (doneCount - 1)
+          .clamp(0, (items.length - _pathWindow).clamp(0, items.length));
+      final end = (start + _pathWindow).clamp(0, items.length);
       return SizedBox(
         height: 68,
         child: Stack(
@@ -475,31 +592,197 @@ class _LetterTrail extends StatelessWidget {
                         _DashedSpinePainter(kidsLockedFill(p), Axis.horizontal)),
               ),
             ),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: nodes),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                for (var i = start; i < end; i++)
+                  _TrailNode(item: items[i], state: _stateAt(i)),
+              ],
+            ),
           ],
         ),
       );
     }
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: CustomPaint(
-            painter: _DashedSpinePainter(kidsLockedFill(p), Axis.vertical),
+    // Mobile holds the *whole* stage and scrolls within itself.
+    return _ScrollingTrail(
+      length: items.length,
+      current: doneCount,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _DashedSpinePainter(kidsLockedFill(p), Axis.vertical),
+            ),
+          ),
+          Column(
+            children: [
+              for (var i = 0; i < items.length; i++)
+                _TrailRowAlign(
+                  node: _TrailNode(item: items[i], state: _stateAt(i)),
+                  // Alternate sides so the trail keeps its zig-zag rhythm.
+                  alignment: i.isEven ? -0.55 : 0.55,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The mobile trail's own scroll area: a few nodes tall, opened on the one
+/// the child is up to, and holding the whole stage behind and ahead of it.
+///
+/// It used to be a fixed six-node slice of the stage with no way to move it,
+/// so the moment a letter was two steps behind it left the Home screen for
+/// good — a child who had just finished bāʾ could no longer see the alif they
+/// cleared yesterday. Scrolling inside a fixed height rather than growing the
+/// Home list is deliberate: a stage is 28 letters, which inline would be some
+/// four screens of trail with the practice shortcuts stranded underneath.
+class _ScrollingTrail extends StatefulWidget {
+  final int length;
+
+  /// Index of the current node — the trail opens with this one near the top.
+  final int current;
+  final Widget child;
+  const _ScrollingTrail(
+      {required this.length, required this.current, required this.child});
+
+  @override
+  State<_ScrollingTrail> createState() => _ScrollingTrailState();
+}
+
+class _ScrollingTrailState extends State<_ScrollingTrail> {
+  late final ScrollController _c =
+      ScrollController(initialScrollOffset: _offsetFor(widget.current));
+
+  double get _height =>
+      widget.length.clamp(1, _trailVisibleRows) * _trailRowHeight;
+
+  bool get _scrolls => widget.length > _trailVisibleRows;
+
+  /// Puts node [i] one row down from the top, so the step just cleared is
+  /// still visible above it.
+  double _offsetFor(int i) {
+    final max = (widget.length * _trailRowHeight - _height).clamp(0.0, 1e6);
+    return ((i - 1) * _trailRowHeight).clamp(0.0, max);
+  }
+
+  @override
+  void didUpdateWidget(_ScrollingTrail old) {
+    super.didUpdateWidget(old);
+    // Coming back from a finished lesson advances the current node; follow it
+    // rather than leaving the child looking at where they used to be.
+    if (old.current == widget.current) return;
+
+    // AFTER this frame, never during it. didUpdateWidget runs inside the
+    // parent's build, and driving a scroll position from there notifies its
+    // listeners synchronously — a scroll notification and the position's own
+    // listeners — which can mark other elements dirty mid-build. Finishing a
+    // lesson arrives exactly that way: ProgressStore notifies, Home rebuilds,
+    // and this widget's `current` moves on. Deferring costs a frame and
+    // removes the whole class of hazard.
+    final target = _offsetFor(widget.current);
+    final reduced = kidsReduceMotion(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_c.hasClients) return;
+      if (reduced) {
+        _c.jumpTo(target);
+      } else {
+        _c.animateTo(target,
+            duration: const Duration(milliseconds: 420),
+            curve: Curves.easeOutCubic);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  /// A short wash of the page colour at the cut edges, so the trail reads as
+  /// a window on to something longer instead of a list that stops there.
+  /// Keyed so a test can tell it apart from the true edge of the stage — see
+  /// the caller: it must only appear on a side that actually hides content.
+  Widget _fade(Color bg, {required bool top}) => Positioned(
+        key: ValueKey(top ? 'kids.trail.fadeTop' : 'kids.trail.fadeBottom'),
+        top: top ? 0 : null,
+        bottom: top ? null : 0,
+        left: 0,
+        right: 0,
+        height: 22,
+        child: IgnorePointer(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: top ? Alignment.topCenter : Alignment.bottomCenter,
+                end: top ? Alignment.bottomCenter : Alignment.topCenter,
+                colors: [bg, bg.withValues(alpha: 0)],
+              ),
+            ),
           ),
         ),
-        Column(
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final p = kidsPal(context);
+    return SizedBox(
+      key: const ValueKey('kids.trail'),
+      height: _height,
+      child: NotificationListener<ScrollMetricsNotification>(
+        // ScrollController only notifies its own listeners (what the
+        // AnimatedBuilder below is watching) when the scroll OFFSET changes —
+        // not when its extents are first established with no offset change
+        // of their own, which is exactly the trail's opening frame: it starts
+        // already positioned at `_offsetFor(current)`, so nothing here would
+        // otherwise prompt a rebuild to notice that position now has real
+        // content dimensions to check against. ScrollMetricsNotification
+        // exists precisely for that gap — it fires on first layout too — so
+        // this just asks for one more rebuild when it does.
+        onNotification: (n) {
+          if (mounted) setState(() {});
+          return false;
+        },
+        child: Stack(
           children: [
-            for (var i = 0; i < nodes.length; i++)
-              _TrailRowAlign(
-                node: nodes[i],
-                // Alternate sides off the absolute index, so the trail keeps
-                // its rhythm as the window slides forward.
-                alignment: (start + i).isEven ? -0.55 : 0.55,
+            SingleChildScrollView(
+              controller: _c,
+              physics: const ClampingScrollPhysics(),
+              child: widget.child,
+            ),
+            // Reactive to the actual scroll position, not just "is this stage
+            // long enough to scroll at all": a fade painted at an edge that
+            // has nothing beyond it claims there is more to see when there
+            // isn't — which on a stage's true last node (nothing below it,
+            // and ClampingScrollPhysics gives no bounce to say so either)
+            // reads as the scroll being stuck rather than having reached the
+            // end.
+            if (_scrolls)
+              AnimatedBuilder(
+                animation: _c,
+                builder: (context, _) {
+                  // hasClients alone isn't enough — the position exists
+                  // before its first layout pass, and maxScrollExtent is null
+                  // until hasContentDimensions is true.
+                  final hasDims =
+                      _c.hasClients && _c.position.hasContentDimensions;
+                  final atTop =
+                      !hasDims || _c.offset <= _c.position.minScrollExtent;
+                  final atBottom =
+                      !hasDims || _c.offset >= _c.position.maxScrollExtent;
+                  return Stack(children: [
+                    if (!atTop) _fade(p.bg, top: true),
+                    if (!atBottom) _fade(p.bg, top: false),
+                  ]);
+                },
               ),
           ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -513,7 +796,7 @@ class _TrailRowAlign extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        height: 82,
+        height: _trailRowHeight,
         child: Align(alignment: Alignment(alignment, 0), child: node),
       );
 }
@@ -535,6 +818,9 @@ class _TrailNode extends StatelessWidget {
     final name = item.label(context);
 
     return Semantics(
+      // Keyed by the item's progress id, the same convention the Learn grid
+      // uses, so a node can be addressed however far down the stage it sits.
+      key: ValueKey('kids.trail.${item.id}'),
       label: name,
       button: true,
       child: TapScale(
@@ -561,9 +847,12 @@ class _TrailNode extends StatelessWidget {
             color: switch (state) {
               _LetterState.done => p.amber,
               _LetterState.current => p.accent,
+              _LetterState.open => p.surfaceHigh,
               _LetterState.locked => kidsLockedFill(p),
             },
-            boxShadow: locked
+            // Only a cleared or current node is lifted off the spine; an
+            // unlocked-but-unplayed one sits flat, like a locked one.
+            boxShadow: locked || state == _LetterState.open
                 ? null
                 : [
                     BoxShadow(
@@ -578,16 +867,21 @@ class _TrailNode extends StatelessWidget {
               const Icon(Icons.check_rounded, size: 26, color: Colors.white),
             _LetterState.locked => Icon(Icons.lock_rounded,
                 size: 20, color: p.textDim.withValues(alpha: .75)),
-            _LetterState.current => FittedBox(
+            // Same glyph as the current node, in the muted fill above: it can
+            // be opened, but it is not where the child is.
+            _LetterState.open || _LetterState.current => FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   child: item.glyph.isEmpty
-                      ? Icon(item.icon, size: 28, color: Colors.white)
+                      ? Icon(item.icon,
+                          size: 28, color: current ? Colors.white : p.text)
                       : Text(item.glyph,
                           textDirection: TextDirection.rtl,
                           style: quranicStyle(context,
-                              size: 30, height: 1.05, color: Colors.white)),
+                              size: 30,
+                              height: 1.05,
+                              color: current ? Colors.white : p.text)),
                 ),
               ),
             },
@@ -732,7 +1026,7 @@ class _ProfileRailCard extends StatelessWidget {
       padding: const EdgeInsets.all(Geo.gapLg),
       decoration: kidsPanel(context),
       child: Column(children: [
-        Text(profile.avatar, style: const TextStyle(fontSize: 44)),
+        KidsAvatar(profile: profile, size: 44),
         const SizedBox(height: 8),
         Text(profile.name,
             style: kidsStyle(context, size: 15, weight: FontWeight.w800)),
@@ -845,8 +1139,7 @@ class _RankRailCardState extends State<_RankRailCard> {
                       style: kidsStyle(context,
                           size: 12, weight: FontWeight.w800, color: p.textDim)),
                   const SizedBox(width: 9),
-                  Text(rows[i].profile.avatar,
-                      style: const TextStyle(fontSize: 18)),
+                  KidsAvatar(profile: rows[i].profile, size: 18),
                   const SizedBox(width: 7),
                   Expanded(
                     child: Text(rows[i].profile.name,
@@ -878,7 +1171,7 @@ class _BadgesRailCard extends StatelessWidget {
     final prog = ProgressScope.of(context);
     final p = kidsPal(context);
     final earned =
-        kidsBadgeDefs(context).where((b) => b.earned(prog)).take(3).toList();
+        kidsBadgeDefs().where((b) => b.earned(prog)).take(3).toList();
     return Container(
       padding: const EdgeInsets.all(Geo.gapMd),
       decoration: kidsPanel(context),

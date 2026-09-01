@@ -57,23 +57,39 @@ class QuranRepo {
   }
 
   /// Ayah strings for a surah. [script] is 'uthmani' or 'indopak'.
-  static Future<List<String>> ayahs(int surah, String script) async {
-    final key = '$script:$surah';
+  ///
+  /// [font] is the family the returned text will be *rendered with*, because
+  /// which extra codepoints have to be transcoded is a property of the face,
+  /// not of the script — see [_uthmaniKhattGlyphMap]. It defaults to the face
+  /// every caller except the card reader uses (Kids Mode's reading screen,
+  /// `downloads.dart`), so they need not care. Regardless of [font], the
+  /// Uthmani corpus always gets one correction — see [_fixSilentLetterMark] —
+  /// since that one is a data error, not a font-compatibility question.
+  static Future<List<String>> ayahs(int surah, String script,
+      {String font = 'UthmanicHafs'}) async {
+    final key = '$script:$font:$surah';
     if (_ayahCache.containsKey(key)) return _ayahCache[key]!;
     final dir = script == 'indopak' ? 'i' : 'u';
     final raw = await rootBundle.loadString('assets/quran/$dir/$surah.json');
     // decode off the UI thread — large sūrahs were freezing the first frame
-    final list =
-        await compute(dir == 'i' ? _decodeIndopakList : _decodeStringList, raw);
+    final list = await compute(_decoderFor(dir, font), raw);
     _ayahCache[key] = list;
     return list;
   }
 
+  /// Which load-time transcode this (corpus, face) pair needs. Top-level
+  /// functions, not closures: they are handed to [compute].
+  static List<String> Function(String) _decoderFor(String dir, String font) {
+    if (dir == 'i') return _decodeIndopakList;
+    return font == 'DigitalKhattV2' ? _decodeUthmaniKhattList : _decodeStringList;
+  }
+
   /// Word tokens per ayah, aligned with wbw audio numbering (1-based).
-  static Future<List<List<String>>> words(int surah, String script) async {
-    final key = '$script:$surah';
+  static Future<List<List<String>>> words(int surah, String script,
+      {String font = 'UthmanicHafs'}) async {
+    final key = '$script:$font:$surah';
     if (_wordCache.containsKey(key)) return _wordCache[key]!;
-    final ay = await ayahs(surah, script);
+    final ay = await ayahs(surah, script, font: font);
     // tokenizing a 6000-word sūrah also blocks — run it in a background isolate
     final list = await compute(_tokenizeAll, ay);
     _wordCache[key] = list;
@@ -158,8 +174,33 @@ class QuranRepo {
 
 }
 
-List<String> _decodeStringList(String raw) =>
-    [for (final a in jsonDecode(raw) as List) a as String];
+/// Corrects a data error in the Uthmani corpus (`assets/quran/u/`): the three
+/// weak letters ا و ي, whenever they are written but never pronounced —
+/// the "farqa" alif after a plural وا (وَٱدْعُوا۟), the silent wāw of a word
+/// like أُو۟لَـٰٓئِكَ, the historical extra alif of مِا۟ئَة, the tanwīn-naṣb
+/// alif — carry **U+0652 ARABIC SUKUN** in this corpus. That is the wrong
+/// mark: sukūn means "no vowel on an otherwise pronounced consonant", and
+/// these letters are not pronounced at all. Unicode's own mark for exactly
+/// this — "used in the Qurʼān to indicate a letter that is not pronounced" —
+/// is **U+06DF ARABIC SMALL HIGH ROUNDED ZERO**, which is what the 15-line
+/// muṣḥaf's own corpus (`mushaf_u_text.json`) correctly uses in the same
+/// positions. The two views of the same muṣḥaf were disagreeing about which
+/// mark a silent letter carries — this is not a font/rendering difference,
+/// every bundled Arabic face has real glyphs for both marks.
+///
+/// Safe to apply unconditionally: checked across the whole corpus, U+0652
+/// appears on ا, و or ي and nowhere else — a genuine sukūn on any other
+/// letter is already written with the corpus's own regular-sukūn mark,
+/// U+06E1, entirely disjoint from these 3,988 occurrences. So this can never
+/// misfire on a real jazm sukūn. Pinned by
+/// `test/uthmani_silent_letter_test.dart` against exactly that base-letter
+/// set, over all 6,236 āyāt.
+String _fixSilentLetterMark(String s) => s.replaceAll('ْ', '۟');
+
+List<String> _decodeStringList(String raw) => [
+      for (final a in jsonDecode(raw) as List)
+        _fixSilentLetterMark(a as String)
+    ];
 
 /// The reader's Indo-Pak text (`assets/quran/i/`) and DigitalKhattIndoPak.otf
 /// (built for the 15-line muṣḥaf's own Indo-Pak corpus) disagree on which
@@ -187,6 +228,61 @@ String _transcodeIndopak(String s) {
 
 List<String> _decodeIndopakList(String raw) => [
       for (final a in jsonDecode(raw) as List) _transcodeIndopak(a as String)
+    ];
+
+/// The same problem as [_indopakGlyphMap], one corpus over: the reader's
+/// Uthmani text (`assets/quran/u/`, Tanzil) and DigitalKhattV2.otf (built for
+/// the 15-line muṣḥaf's own Uthmani corpus) encode three marks differently,
+/// so the reader's Madani text needs this before DigitalKhattV2 — its one
+/// typeface — can render it. Applied on top of [_fixSilentLetterMark]'s
+/// correction, not instead of it: that one is a genuine data error and
+/// belongs to every caller, this one is font compatibility and belongs only
+/// to whichever caller renders with this specific face. Keyed off [font] in
+/// [QuranRepo._decoderFor] rather than folded permanently into the default
+/// decode path, since UthmanicHafs — still Kids Mode's and the muṣḥaf-less
+/// callers' face — has no glyph for U+08F0/U+08F1/U+08F2 at all, and
+/// transcoding unconditionally would break rendering there in 6,643 places.
+///
+/// The first three rows are exact re-encodings — the same mark, two Unicode
+/// conventions. Derived by aligning the two corpora mark-cluster by
+/// mark-cluster: every āyah whose cluster streams line up agrees on these
+/// pairings, with no conflicting mapping anywhere, and the grammar confirms
+/// them (`هُدٗى` *hudan* is a fatḥatān; `مَّرَضٞ` *maraḍun* a ḍammatān). The
+/// Unicode *names* on the Tanzil side describe glyph shapes rather than
+/// functions, so they read as mismatched and are not the thing to trust.
+///
+/// The fourth row is **an approximation, not an equivalence**: U+06E4 SMALL
+/// HIGH MADDA has no glyph in DigitalKhattV2 and no counterpart in the muṣḥaf
+/// corpus, which simply omits it. U+0653 is the same maddah sign at full size
+/// rather than the small high variant. It affects 26 characters in 15 āyāt —
+/// the sajdah verses, every one of them: 7:206, 13:15, 16:49, 17:107, 19:58,
+/// 22:18, 22:77, 25:60, 27:25, 32:15, 38:24, 41:37, 53:62, 84:21, 96:19.
+/// Dropping it instead would match the muṣḥaf corpus but is not
+/// length-preserving, and that is not negotiable — see below.
+///
+/// Like [_transcodeIndopak] this is 1:1 and length-preserving: it changes
+/// which codepoint sits at a position, never how many there are or where word
+/// boundaries fall, so tajwīd spans (`assets/quran/t/`, character offsets) and
+/// the word-by-word audio's word numbering stay valid untouched. Pinned by
+/// `test/uthmani_khatt_transcode_test.dart` over all 6,236 āyāt.
+const _uthmaniKhattGlyphMap = {
+  'ٗ': 'ࣰ', // U+0657 INVERTED DAMMA       -> U+08F0 OPEN FATHATAN
+  'ٞ': 'ࣱ', // U+065E FATHA WITH TWO DOTS  -> U+08F1 OPEN DAMMATAN
+  'ٖ': 'ࣲ', // U+0656 SUBSCRIPT ALEF       -> U+08F2 OPEN KASRATAN
+  'ۤ': 'ٓ', // U+06E4 SMALL HIGH MADDA     -> U+0653 MADDAH ABOVE (approx.)
+};
+
+String _transcodeUthmaniKhatt(String s) {
+  var out = s;
+  for (final e in _uthmaniKhattGlyphMap.entries) {
+    out = out.replaceAll(e.key, e.value);
+  }
+  return out;
+}
+
+List<String> _decodeUthmaniKhattList(String raw) => [
+      for (final a in jsonDecode(raw) as List)
+        _transcodeUthmaniKhatt(_fixSilentLetterMark(a as String))
     ];
 
 List<List<String>> _tokenizeAll(List<String> ayahs) =>

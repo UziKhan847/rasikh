@@ -79,19 +79,19 @@ void main() {
       prog.awardGems(200);
       expect(prog.gems, 200);
 
-      final bought = prog.buyShopItem('falcon_hat', 150);
+      final bought = prog.buyShopItem('golden_frame', 150);
       expect(bought, isTrue);
       expect(prog.gems, 50);
-      expect(prog.shopOwned.contains('falcon_hat'), isTrue);
+      expect(prog.shopOwned.contains('golden_frame'), isTrue);
 
       // Insufficient balance: refused, no partial spend, no debt.
-      final tooExpensive = prog.buyShopItem('star_cape', 250);
+      final tooExpensive = prog.buyShopItem('emerald_frame', 250);
       expect(tooExpensive, isFalse);
       expect(prog.gems, 50);
 
       // Already owned: refused even with enough gems.
       prog.awardGems(1000);
-      final again = prog.buyShopItem('falcon_hat', 150);
+      final again = prog.buyShopItem('golden_frame', 150);
       expect(again, isFalse);
     });
 

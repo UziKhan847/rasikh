@@ -15,6 +15,7 @@ import '../qaidah_screen.dart'
     show LetterDetail, letterQuizScreen, qaidahUnits;
 import '../script_screen.dart' show scriptUnits;
 import '../tajweed_screen.dart' show tajwidUnits;
+import 'kids_checkpoint_quiz.dart';
 import 'kids_desktop_nav.dart';
 import 'kids_letter_flow.dart';
 import 'kids_reading_screen.dart';
@@ -94,37 +95,99 @@ List<String> _formsOf(String levelId, ArabicLetter l) {
   return [for (final f in level.formsPresentFor(l.char)) if (f != 'iso') f];
 }
 
-KidsItem _letterItem(String blockId, String levelId, ArabicLetter l) =>
-    KidsItem(
-      // Block 1 keeps the original id; every later block namespaces itself.
-      id: blockId == 'letters.more'
-          ? 'kids.letter.${l.char}'
-          : 'kids.$blockId.${l.char}',
+/// A letter's whole lesson: meet the shape, say it out loud, then trace it —
+/// first with the beginner stroke breakdown, then again with fewer, longer
+/// strokes. Both passes are one lesson rather than two separate stages: the
+/// child has the letter in mind right then, and splitting them meant meeting
+/// all 28 letters, then meeting all 28 again much later.
+KidsItem _letterItem(ArabicLetter l) => KidsItem(
+      // The original id, unchanged: anything already earned under it would
+      // otherwise be orphaned, and `kidsLettersLearned` counts this prefix.
+      id: 'kids.letter.${l.char}',
       glyph: l.char,
       label: (c) => letterName(c, l),
       open: (c) => KidsLetterFlow(
         letter: l.char,
-        levelId: levelId,
-        progressId: blockId == 'letters.more'
-            ? 'kids.letter.${l.char}'
-            : 'kids.$blockId.${l.char}',
+        traces: const [
+          KidsTraceStep('naskh_more', 'iso'),
+          // Several goes at the fewer-strokes shape: that pass is the closest
+          // thing here to actually writing the letter, and writing is learned
+          // by repeating it, not by getting it once.
+          KidsTraceStep('naskh_few', 'iso', repeat: kidsWritingPasses),
+        ],
+        progressId: 'kids.letter.${l.char}',
       ),
     );
 
-KidsItem _formsItem(String blockId, String levelId, ArabicLetter l) {
-  final forms = _formsOf(levelId, l);
+/// A letter's joining-forms lesson, built exactly like [_letterItem]: meet
+/// the letter, say it, then take each shape it really has through the same
+/// two passes — the beginner stroke breakdown once, then the writing pass
+/// five times over.
+///
+/// The two stroke levels used to be two separate STAGES ("Joining Shapes"
+/// and "Shapes Again"), which meant tracing all 28 letters' shapes, clearing
+/// a quiz, and only then meeting the same 28 again in fewer strokes. They are
+/// one lesson now, for the same reason the letters' two passes are: the shape
+/// is in the child's hand right then.
+KidsItem _formsItem(ArabicLetter l) {
+  // naskh_more and naskh_few carry identical form coverage, so either level
+  // answers "which shapes does this letter actually have?".
+  final forms = _formsOf('naskh_more', l);
+  // Historical, and deliberately unchanged: the fewer-strokes stage is gone
+  // but this stage's ids are what any existing progress was recorded under.
+  final id = 'kids.forms.more.${l.char}';
   return KidsItem(
-    id: 'kids.$blockId.${l.char}',
+    id: id,
     glyph: l.joins ? l.medial : l.finalForm,
     label: (c) => letterName(c, l),
     open: (c) => KidsLetterFlow(
       letter: l.char,
-      levelId: levelId,
-      forms: forms.isEmpty ? const ['iso'] : forms,
-      progressId: 'kids.$blockId.${l.char}',
+      traces: [
+        for (final f in forms.isEmpty ? const ['iso'] : forms) ...[
+          KidsTraceStep('naskh_more', f),
+          KidsTraceStep('naskh_few', f, repeat: kidsWritingPasses),
+        ],
+      ],
+      progressId: id,
     ),
   );
 }
+
+/// Interleaves a cumulative check-up after every [kidsCheckpointEvery]
+/// lessons of a stage — after five letters a quiz on those five, after ten a
+/// quiz on all ten, and so on. Only the two long stages (28 letters, 28 sets
+/// of joining forms) are long enough for this to fire; every other stage is
+/// one or two items and passes through untouched.
+///
+/// Nothing is added on the stage's own last lesson: a stage-wide quiz of its
+/// own already follows immediately, and two quizzes back to back is a wall,
+/// not a checkpoint.
+List<KidsItem> _withCheckpoints(
+    List<KidsItem> lessons, KidsItem Function(int upTo) checkpoint) {
+  final out = <KidsItem>[];
+  for (var i = 0; i < lessons.length; i++) {
+    out.add(lessons[i]);
+    final done = i + 1;
+    if (done % kidsCheckpointEvery == 0 && done != lessons.length) {
+      out.add(checkpoint(done));
+    }
+  }
+  return out;
+}
+
+/// A checkpoint tile. Its id sits in its own `kids.check.` namespace on
+/// purpose: the lesson ids are counted by prefix in several places
+/// (`kidsLettersLearned` over `kids.letter.`, the joining-forms badge over
+/// `kids.forms.more.`), and a checkpoint filed under one of those prefixes
+/// would quietly inflate the count it is not part of.
+KidsItem _checkpointItem(String stage, int upTo,
+        QuizScreen Function(BuildContext, String progressId, int upTo) build) =>
+    KidsItem(
+      id: 'kids.check.$stage.$upTo',
+      icon: Icons.fact_check_rounded,
+      label: (c) => c.l10n.kidsCheckpointFirst(upTo),
+      open: (c) => build(c, 'kids.check.$stage.$upTo', upTo),
+    );
 
 KidsItem _quizItem(String id, String Function(BuildContext) label,
         Widget Function(BuildContext) open) =>
@@ -240,13 +303,18 @@ List<KidsItem> _extraLetterItems(String blockId, List<String> chars) => [
 
 List<KidsBlock> kidsPath(BuildContext context) => [
       KidsBlock(
-        id: 'letters.more',
+        id: 'letters',
         title: (c) => c.l10n.kidsBlockLetters,
         subtitle: (c) => c.l10n.kidsBlockLettersSub,
         badge: 'ا ب',
-        items: (c) => [
-          for (final l in letters) _letterItem('letters.more', 'naskh_more', l),
-        ],
+        items: (c) => _withCheckpoints(
+              [for (final l in letters) _letterItem(l)],
+              (upTo) => _checkpointItem(
+                  'letters',
+                  upTo,
+                  (c, id, n) =>
+                      kidsLetterCheckpoint(c, progressId: id, upTo: n)),
+            ),
       ),
       KidsBlock(
         id: 'letters.quiz',
@@ -259,22 +327,20 @@ List<KidsBlock> kidsPath(BuildContext context) => [
         ],
       ),
       KidsBlock(
-        id: 'letters.few',
-        title: (c) => c.l10n.kidsBlockLettersFew,
-        subtitle: (c) => c.l10n.kidsBlockLettersFewSub,
-        badge: 'ا ب',
-        items: (c) => [
-          for (final l in letters) _letterItem('letters.few', 'naskh_few', l),
-        ],
-      ),
-      KidsBlock(
+        // The id is the old "more strokes" stage's, kept so progress recorded
+        // under it survives the two stroke stages being merged into one.
         id: 'forms.more',
         title: (c) => c.l10n.kidsBlockForms,
         subtitle: (c) => c.l10n.kidsBlockFormsSub,
         badge: 'ـبـ',
-        items: (c) => [
-          for (final l in letters) _formsItem('forms.more', 'naskh_more', l),
-        ],
+        items: (c) => _withCheckpoints(
+              [for (final l in letters) _formsItem(l)],
+              (upTo) => _checkpointItem(
+                  'forms',
+                  upTo,
+                  (c, id, n) =>
+                      kidsFormsCheckpoint(c, progressId: id, upTo: n)),
+            ),
       ),
       KidsBlock(
         id: 'forms.quiz',
@@ -288,15 +354,9 @@ List<KidsBlock> kidsPath(BuildContext context) => [
               (c) => formsVarietyQuiz(c, progressId: 'kids.quiz.forms')),
         ],
       ),
-      KidsBlock(
-        id: 'forms.few',
-        title: (c) => c.l10n.kidsBlockFormsFew,
-        subtitle: (c) => c.l10n.kidsBlockLettersFewSub,
-        badge: 'ـبـ',
-        items: (c) => [
-          for (final l in letters) _formsItem('forms.few', 'naskh_few', l),
-        ],
-      ),
+      // No "Shapes Again" stage here: the fewer-strokes pass it used to be
+      // now sits inside each joining-forms lesson above, where the shape is
+      // already in the child's hand.
       KidsBlock(
         id: 'special',
         title: (c) => c.l10n.kidsBlockSpecial,
@@ -529,14 +589,35 @@ int kidsItemsDone(ProgressStore prog, List<KidsItem> items) {
 
 /// The block the child is up to: the first with unfinished items, or the last
 /// one once the whole path is cleared.
+///
+/// Under the testing unlock, [ProgressStore.devStage] can pin this to any
+/// stage instead — so Home, and the Learn tab's "current" row, can be pointed
+/// at a stage under test without actually clearing everything before it. Real
+/// progress is untouched either way; this only changes which stage the app
+/// treats as "where the child is right now".
 int kidsCurrentBlockIndex(BuildContext context, ProgressStore prog) {
   final path = kidsPath(context);
+  if (prog.unlockAll && prog.devStage != null) {
+    final pinned = path.indexWhere((b) => b.id == prog.devStage);
+    if (pinned != -1) return pinned;
+  }
   for (var i = 0; i < path.length; i++) {
     final items = path[i].items(context);
     if (kidsItemsDone(prog, items) < items.length) return i;
   }
   return path.length - 1;
 }
+
+/// Whether the stage row or tile at [index] is still shut, given that
+/// everything up to [reached] is open.
+///
+/// The one place the answer is decided, so the testing unlock
+/// ([ProgressStore.unlockAll]) cannot be honoured on the Learn tab and
+/// forgotten on the Home trail. It lifts locks and nothing else: what counts
+/// as *done* is still only what was actually finished, so a stage opened this
+/// way still shows 0 / 28 and still has to be played to clear.
+bool kidsLocked(ProgressStore prog, int index, int reached) =>
+    index > reached && !prog.unlockAll;
 
 /// The item the child is up to within [items] — the first not cleared.
 int kidsCurrentItemIndex(ProgressStore prog, List<KidsItem> items) {

@@ -36,23 +36,27 @@ const tajwidRuleColors = <Color>[
   AppColors.tjIzhar, // 13 silent
 ];
 
+/// The face the reader renders [script] with — fixed per script, not a user
+/// choice. Both are DigitalKhatt faces: DigitalKhattIndoPak for Indo-Pak,
+/// DigitalKhattV2 for Madani (UthmanicHafs briefly sat alongside it as a
+/// picker; DigitalKhatt simply read better, so the choice was dropped rather
+/// than kept as a worse second option — see `QuranRepo.ayahs`).
+String readerFont(AppSettings s, [String? script]) =>
+    (script ?? s.quranScript) == 'indopak'
+        ? s.fontIndopak
+        : 'DigitalKhattV2';
+
 TextStyle quranStyle(BuildContext context,
     {Color? color, double base = 26, FontWeight weight = FontWeight.w400}) {
   final s = SettingsScope.of(context);
-  final indo = s.quranScript == 'indopak';
+  final family = readerFont(s);
   return TextStyle(
-    fontFamily: indo ? s.fontIndopak : s.fontUthmani,
-    // No size nudge for Indo-Pak: the old `.92` was tuned for UthmanicHafs
-    // rendering Indo-Pak text and doesn't carry over to DigitalKhattIndoPak,
-    // whose glyph-metrics ratio to UthmanicHafs isn't consistent enough
-    // across letterforms to derive a replacement number with any confidence
-    // — needs real-device visual QA, not a guess.
+    fontFamily: family,
     fontSize: base * s.quranFontScale,
-    // DigitalKhattIndoPak declares ascent 1500 + descent 700 on a 1000-unit
-    // em (2.2 em of vertical extent) — same font, same math the 15-line
-    // muṣḥaf uses at mushaf_screen.dart's `_lineHeightRatio`, plus its ~5%
-    // safety margin for stacks that ink past the declared metrics.
-    height: indo ? 2.2 * 1.05 : 1.95,
+    // Both reader faces are DigitalKhatt (see [readerFont]), whose declared
+    // metrics need [MushafRepo.khattLineHeight] — see that constant for
+    // where 2.2 and its margin come from.
+    height: MushafRepo.khattLineHeight,
     fontWeight: weight,
     color: color ?? readingInk(context),
   );
@@ -205,7 +209,10 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
   bool get wbwMode => SettingsScope.of(context).wordByWord;
   set wbwMode(bool v) => SettingsScope.of(context)
       .update(() => SettingsScope.of(context).wordByWord = v);
-  String _loadedScript = '';
+  /// `'<script>/<font>'` — the face is part of it because the two Madani
+  /// faces need differently transcoded text (see [QuranRepo.ayahs]), so
+  /// switching typeface has to reload, not just repaint.
+  String _loadedKey = '';
 
   int playingAyah = -1;
   int playingWord = -1;
@@ -355,15 +362,16 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
     super.dispose();
   }
 
-  Future<void> _ensureLoaded(String script) async {
-    if (_loadedScript == script && words != null) return;
-    final a = await QuranRepo.ayahs(widget.meta.n, script);
-    final w = await QuranRepo.words(widget.meta.n, script);
+  Future<void> _ensureLoaded(String script, String font) async {
+    final key = '$script/$font';
+    if (_loadedKey == key && words != null) return;
+    final a = await QuranRepo.ayahs(widget.meta.n, script, font: font);
+    final w = await QuranRepo.words(widget.meta.n, script, font: font);
     if (!mounted) return;
     setState(() {
       ayahs = a;
       words = w;
-      _loadedScript = script;
+      _loadedKey = key;
     });
     final s = SettingsScope.of(context);
     if (s.tajwidColors && _tajwidScript != script) {
@@ -524,7 +532,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
   @override
   Widget build(BuildContext context) {
     final s = SettingsScope.of(context);
-    _ensureLoaded(s.quranScript);
+    _ensureLoaded(s.quranScript, readerFont(s));
     if (s.tajwidColors &&
         _tajwidScript != s.quranScript &&
         words != null &&
@@ -1047,24 +1055,26 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
       ),
     );
 
-    // One choice: the script picks its typeface. Madani renders with
-    // UthmanicHafs (KFGQPC); Indo-Pak with DigitalKhattIndoPak — the same
-    // face the 15-line muṣḥaf uses (see kIndopakMushafAvailable) — via the
-    // 1:1 codepoint transcode in QuranRepo._transcodeIndopak.
+    // Both scripts pin their own typeface — there is no user choice to make
+    // here. Madani renders with DigitalKhattV2: its GPOS carries 276 lookups
+    // against UthmanicHafs' 21, which is what keeps a dagger alif from
+    // crowding into the fatḥah beside it (the reader briefly offered both as
+    // a picker; DigitalKhatt read better across the board, so KFGQPC was
+    // dropped rather than kept as a second, worse-looking option). Indo-Pak
+    // renders with DigitalKhattIndoPak, the same face the 15-line muṣḥaf uses
+    // (see kIndopakMushafAvailable). Both reach the reader through a 1:1
+    // codepoint transcode — QuranRepo._transcodeUthmaniKhatt,
+    // QuranRepo._transcodeIndopak — since neither corpus was written in the
+    // codepoints its DigitalKhatt face expects.
     final scriptSeg = segmented([
-      (context.l10n.madani, !indo, true, () => s.update(() {
-            s.quranScript = 'uthmani';
-            s.fontUthmani = 'UthmanicHafs';
-          })),
+      (context.l10n.madani, !indo, true,
+          () => s.update(() => s.quranScript = 'uthmani')),
       (
         context.l10n.indopak,
         indo,
         kIndopakReaderAvailable,
         kIndopakReaderAvailable
-            ? () => s.update(() {
-                  s.quranScript = 'indopak';
-                  s.fontIndopak = 'DigitalKhattIndoPak';
-                })
+            ? () => s.update(() => s.quranScript = 'indopak')
             : () => comingSoon(context, context.l10n.indopak),
       ),
     ]);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/settings.dart';
 import '../../core/theme.dart';
+import '../../data/kids_content.dart';
 import 'kids_profile_picker.dart';
 
 /// The three-stage gate every Kids Mode shell (mobile bottom-nav, desktop
@@ -9,6 +10,12 @@ import 'kids_profile_picker.dart';
 /// active but its [ProgressStore] hasn't loaded → a spinner; loaded → a
 /// [ProgressScope] wraps [builder]. Shared so both shells load a profile
 /// exactly once, the same way, rather than keeping two copies in sync.
+///
+/// Also where badges are synced. This is the one place guaranteed to hold
+/// the active child's store for as long as Kids Mode is open, so a listener
+/// here — see [_onProgressChanged] — catches a badge earned by ANY kind of
+/// progress (a quiz, a reused Qāʿidah/Tajwīd unit, a reading), not only the
+/// two places that used to call `unlockBadge` directly.
 class KidsProfileGate extends StatefulWidget {
   final WidgetBuilder builder;
   const KidsProfileGate({super.key, required this.builder});
@@ -20,6 +27,40 @@ class KidsProfileGate extends StatefulWidget {
 class _KidsProfileGateState extends State<KidsProfileGate> {
   ProgressStore? _progress;
   String? _loadedFor;
+
+  // Guards against `kidsSyncBadges` re-entering itself: unlocking a badge or
+  // awarding gems calls `notifyListeners()` on the very store this listens
+  // to. `unlockBadge`/`awardGems` are no-ops on a repeat call (a Set add that
+  // returns false notifies nothing further), so this would settle on its own
+  // after one extra pass regardless — the flag just makes that explicit
+  // rather than relying on it.
+  bool _syncingBadges = false;
+
+  void _onProgressChanged() {
+    if (_syncingBadges || _progress == null) return;
+    _syncingBadges = true;
+    try {
+      kidsSyncBadges(_progress!);
+    } finally {
+      _syncingBadges = false;
+    }
+  }
+
+  void _attach(ProgressStore store) {
+    _progress?.removeListener(_onProgressChanged);
+    _progress = store;
+    _progress!.addListener(_onProgressChanged);
+    // Catches anything already earned before this listener existed — e.g. a
+    // profile restored from a backup, or progress from before this sync
+    // existed at all.
+    _onProgressChanged();
+  }
+
+  @override
+  void dispose() {
+    _progress?.removeListener(_onProgressChanged);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +74,7 @@ class _KidsProfileGateState extends State<KidsProfileGate> {
         key: ValueKey(activeId),
         profileId: activeId,
         onLoaded: (store) => setState(() {
-          _progress = store;
+          _attach(store);
           _loadedFor = activeId;
         }),
       );

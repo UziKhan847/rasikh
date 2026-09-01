@@ -13,6 +13,7 @@ import 'kids_me_screen.dart';
 import 'kids_profile_gate.dart';
 import 'kids_rank_screen.dart';
 import 'kids_rewards_screen.dart';
+import 'kids_widgets.dart';
 
 /// Kids Mode's desktop shell — a 248px sidebar (brand, 5 nav items, streak
 /// card, Light/Dark/OLED buttons) plus a top bar over the content pane.
@@ -479,10 +480,10 @@ class _TopBar extends StatelessWidget {
                         colors: [Color(0xFFF4B23E), Color(0xFFEC8A2D)],
                       ),
                     ),
-                    child: Text(
-                      s.activeKidsProfile?.avatar ?? '🦊',
-                      style: const TextStyle(fontSize: 17),
-                    ),
+                    child: s.activeKidsProfile == null
+                        ? const Text('🦊', style: TextStyle(fontSize: 17))
+                        : KidsAvatar(
+                            profile: s.activeKidsProfile!, size: 17),
                   ),
                 ),
               ],

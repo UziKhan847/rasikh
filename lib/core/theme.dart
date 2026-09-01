@@ -78,6 +78,16 @@ const _noorAccents = (
 // palette variant of the existing brand, not a new one.
 const _kidsAccents = (
   Color(0xFFEC6A4B), Color(0xFFF2917A), Color(0xFFD1502F), Color(0xFF1FA89B));
+// Shop-bought Kids Mode palettes — see `kids_content.dart`'s Colours shelf.
+// Same accent-tuple-plus-neutrals shape as every family above; the point of
+// buying one is that it repaints the WHOLE of Kids Mode, since every kids
+// screen already resolves colour through `kidsPal`/`PaletteScope`.
+const _kidsOceanAccents = (
+  Color(0xFF2196C9), Color(0xFF5BC4E8), Color(0xFF15738F), Color(0xFFF2A65A));
+const _kidsDesertAccents = (
+  Color(0xFFD97B4A), Color(0xFFE9A06D), Color(0xFFB5602E), Color(0xFF3FA79A));
+const _kidsNightAccents = (
+  Color(0xFF4A3F8C), Color(0xFF6C5CE7), Color(0xFF352A6B), Color(0xFFE8C468));
 
 Palette _p(
         Brightness b,
@@ -116,7 +126,41 @@ final _palettes = <String, Palette>{
       0xFFF6EDE0, 0xFFB5A48E, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000, _kidsAccents),
   'kids.oled': _p(Brightness.dark, 0xFF000000, 0xFF191009, 0xFF261B10,
       0xFFF6EDE0, 0xFFA8997F, 0xFF1B170E, 0xFFEFE6D0, 0x00000000, _kidsAccents),
+  // ── Kids Mode shop palettes — same neutrals shape as the family above,
+  // rebuilt around each theme's own accent tuple. ──
+  'kids_ocean.light': _p(Brightness.light, 0xFFEFF7FA, 0xFFFFFFFF, 0xFFE1F0F5,
+      0xFF1E3A44, 0xFF6D8B94, 0xFFFBF1DD, 0xFF2B2417, 0x1A1E3A44,
+      _kidsOceanAccents),
+  'kids_ocean.dark': _p(Brightness.dark, 0xFF11202A, 0xFF172934, 0xFF203847,
+      0xFFE7F2F6, 0xFF8FADB6, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
+      _kidsOceanAccents),
+  'kids_ocean.oled': _p(Brightness.dark, 0xFF000000, 0xFF0D1A22, 0xFF172934,
+      0xFFE7F2F6, 0xFF7E9BA4, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
+      _kidsOceanAccents),
+  'kids_desert.light': _p(Brightness.light, 0xFFF9F0E0, 0xFFFFFFFF,
+      0xFFF2E2C6, 0xFF4A3524, 0xFF9C8368, 0xFFFBF1DD, 0xFF2B2417, 0x1A4A3524,
+      _kidsDesertAccents),
+  'kids_desert.dark': _p(Brightness.dark, 0xFF2A1F14, 0xFF35271A, 0xFF443322,
+      0xFFF5EAD9, 0xFFBBA285, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
+      _kidsDesertAccents),
+  'kids_desert.oled': _p(Brightness.dark, 0xFF000000, 0xFF1E150D, 0xFF35271A,
+      0xFFF5EAD9, 0xFFAB9276, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
+      _kidsDesertAccents),
+  'kids_night.light': _p(Brightness.light, 0xFFF3F0FA, 0xFFFFFFFF, 0xFFE9E3F5,
+      0xFF2E2A4A, 0xFF817BA0, 0xFFFBF1DD, 0xFF2B2417, 0x1A2E2A4A,
+      _kidsNightAccents),
+  'kids_night.dark': _p(Brightness.dark, 0xFF1B1830, 0xFF242040, 0xFF302A54,
+      0xFFEEEBFA, 0xFFA79FCB, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
+      _kidsNightAccents),
+  'kids_night.oled': _p(Brightness.dark, 0xFF000000, 0xFF161228, 0xFF242040,
+      0xFFEEEBFA, 0xFF938AB8, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
+      _kidsNightAccents),
 };
+
+/// Palette family ids the Kids Mode shop can unlock, in the order they
+/// appear on its Colours shelf — see `kidsShopItems` in `kids_content.dart`.
+/// `'kids'` itself is always available and is not a purchase.
+const kKidsShopThemeFamilies = ['kids_ocean', 'kids_desert', 'kids_night'];
 
 Palette paletteFor(String family, String mode) =>
     _palettes['$family.$mode'] ?? _palettes['mint.light']!;
@@ -157,9 +201,18 @@ Palette pal(BuildContext context) {
 /// setting on purpose: Kids Mode has its own Light/Dark/OLED appearance
 /// picker (see the Me screen), so switching it never touches the parent
 /// app's theme, and switching the parent app's theme never affects Kids Mode.
+///
+/// The FAMILY (which accent colours — the default coral/teal, or a
+/// shop-bought one) comes from the active child's own profile, not a global
+/// setting — a sibling's purchase should never repaint another child's app.
+/// Read from `SettingsScope` alone, not `ProgressScope`: this is called from
+/// screens that render before a child's `ProgressStore` exists yet (the
+/// profile picker, the profile-loading spinner), and those still need a
+/// palette.
 Palette kidsPal(BuildContext context) {
   final s = SettingsScope.of(context);
-  return paletteFor('kids', s.kidsThemeMode);
+  final family = s.activeKidsProfile?.theme ?? 'kids';
+  return paletteFor(family, s.kidsThemeMode);
 }
 
 ThemeData buildTheme(AppSettings s) =>

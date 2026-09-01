@@ -5,7 +5,7 @@
 |---|---|---|---|
 | UthmanicHafs.ttf | King Fahd Glorious Quran Printing Complex (KFGQPC) | KFGQPC custom licence — free to use & redistribute, **no modification, no sale** | NOT OSI/FSF-free → F-Droid will treat as a NonFree asset |
 | ScheherazadeNew.ttf | SIL International | SIL Open Font License 1.1 | Qur'an-adjacent Arabic UI/body typeface and Urdu's fallback face. **Gap, pre-existing:** unlike the other OFL-licensed fonts here, its licence text isn't yet bundled under `LICENSES/` — needs adding, same as `Outfit-OFL.txt`/`NotoNastaliqUrdu-OFL.txt` |
-| DigitalKhattV2.otf, DigitalKhattIndoPak.otf | [DigitalKhatt project](https://github.com/DigitalKhatt) (sponsored by Tarteel AI); bundled via Waqar Ahmed's [Quran Revision Companion](https://github.com/Waqar144/quran_memorization_helper) | See DigitalKhatt repo; app bundling it is MIT | Powers the 15-line muṣḥaf page; DigitalKhattIndoPak also renders the card reader's Indo-Pak script |
+| DigitalKhattV2.otf, DigitalKhattIndoPak.otf | [DigitalKhatt project](https://github.com/DigitalKhatt) — Amine Anane, sponsored by Tarteel Inc.; bundled via Waqar Ahmed's [Quran Revision Companion](https://github.com/Waqar144/quran_memorization_helper) | **SIL Open Font License 1.1** — licence text at `LICENSES/DigitalKhatt-OFL.txt`. (The MIT covers Waqar Ahmed's app that redistributed them, not the fonts themselves: both binaries declare OFL 1.1 in their own `name` table, nameID 13, with the copyright at nameID 0.) | Powers the 15-line muṣḥaf page; DigitalKhattIndoPak also renders the card reader's Indo-Pak script, and DigitalKhattV2 is the reader's optional Madani typeface |
 | SurahNames.ttf, Bismillah.ttf | Waqar Ahmed's [Quran Revision Companion](https://github.com/Waqar144/quran_memorization_helper) | MIT License | Ornamental glyphs for the 15-line muṣḥaf headers |
 | Outfit-Variable.ttf | [Outfit](https://github.com/Outfitio/Outfit-Fonts) | SIL Open Font License 1.1 | Latin-language (English/French/Spanish) UI typeface — licence text at `LICENSES/Outfit-OFL.txt` |
 | NotoNastaliqUrdu-Variable.ttf | [Noto Nastaliq Urdu](https://github.com/notofonts/nastaliq) | SIL Open Font License 1.1 | Urdu-language UI typeface — licence text at `LICENSES/NotoNastaliqUrdu-OFL.txt` |
@@ -40,13 +40,43 @@ gratitude) in any fork or re-release.
 ## Qur'an text (bundled in `assets/quran/`)
 Uthmani (Madani) & IndoPak texts, Tanzil / QUL-compatible datasets.
 Tanzil terms: attribution required; the text must not be altered. The app ships
-the text verbatim (tokenized only); tashkīl-stripping is a display option. The
-one exception: the card reader's Indo-Pak text is passed through a 1:1,
-length-preserving substitution of two mark codepoints (U+06E1→U+0652,
-U+06E0→U+06DF) at load time, purely to match the codepoints
-DigitalKhattIndoPak.otf has glyphs for — not a wording, reading, or
-orthography change, and reversible (the shipped asset file itself is
-untouched). See `QuranRepo._transcodeIndopak` in `lib/data/quran.dart`.
+the text verbatim (tokenized only); tashkīl-stripping is a display option.
+
+The exceptions are three load-time codepoint substitutions, all 1:1 and
+length-preserving, and reversible (the shipped asset files themselves are
+untouched):
+
+- **A data-correctness fix, always, on every Uthmani load**: U+0652→U+06DF,
+  wherever U+0652 sits on ا, و or ي. The reader's `assets/quran/u/` marks a
+  written-but-silent letter (the farqa alif after وا, the silent wāw of
+  أُو۟لَـٰٓئِكَ, and the like) with U+0652 ARABIC SUKUN, which means "no vowel
+  on an otherwise pronounced consonant" — wrong for a letter that isn't
+  pronounced at all. The 15-line muṣḥaf's own corpus already uses the correct
+  mark, U+06DF ARABIC SMALL HIGH ROUNDED ZERO (Unicode's own definition: "used
+  in the Qurʼān to indicate a letter that is not pronounced"), so this brings
+  the reader into agreement with it. Confirmed safe by an exhaustive scan of
+  the whole corpus: U+0652 never once falls on any other letter, so this can
+  never touch a real sukūn (which the corpus writes with the separate U+06E1).
+  See `QuranRepo._fixSilentLetterMark`.
+- **Indo-Pak, always**: U+06E1→U+0652, U+06E0→U+06DF, to match
+  DigitalKhattIndoPak.otf. See `QuranRepo._transcodeIndopak`.
+- **Madani/Uthmani, on top of the fix above**: U+0657→U+08F0, U+065E→U+08F1,
+  U+0656→U+08F2 — the same three open-tanwīn marks in the two Unicode
+  conventions, which is exactly how the muṣḥaf's own Uthmani corpus writes
+  them — plus U+06E4→U+0653, which is an **approximation** rather than a
+  re-encoding: the full-size maddah stands in for the small high one, in 26
+  characters across the 15 sajdah verses, because DigitalKhattV2.otf has no
+  glyph for U+06E4 and the muṣḥaf corpus omits it entirely. This one is a
+  font-compatibility transcode, not a correctness fix, and applies only when
+  rendering with DigitalKhattV2 — the reader's one Madani face, but not Kids
+  Mode's reading screen, which still renders Uthmani with UthmanicHafs. See
+  `QuranRepo._transcodeUthmaniKhatt`.
+
+None of these are a wording, reading, or orthography change. All three are
+pinned by tests (`test/uthmani_silent_letter_test.dart`,
+`test/indopak_transcode_test.dart`, `test/uthmani_khatt_transcode_test.dart`)
+that assert character count, word count and word boundaries are unchanged
+across all 6,236 āyāt.
 The 15-line page/line text is a separate dataset — see the section above.
 
 ## Audio (streamed, not bundled)

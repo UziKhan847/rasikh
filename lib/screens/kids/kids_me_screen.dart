@@ -9,7 +9,9 @@ import '../../data/kids_content.dart';
 import '../../widgets/common.dart';
 import 'kids_desktop_nav.dart';
 import 'kids_parent_gate.dart';
+import 'kids_path.dart';
 import 'kids_profile_picker.dart';
+import 'kids_widgets.dart';
 
 /// The Me tab: profile, level, lifetime stats, and Kids Mode's own
 /// Light/Dark/OLED appearance picker — independent of the grown-up app's
@@ -37,7 +39,12 @@ class KidsMeScreen extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 460),
               child: Column(children: [
-                Text(profile.avatar, style: const TextStyle(fontSize: 64)),
+                // The avatar carries the developer unlock gesture as well as
+                // the mascot does, because this screen is reachable from a
+                // fresh install — the mascot only appears once a lesson has
+                // been finished, which is the very thing the unlock is for.
+                KidsSecretUnlock(
+                    child: KidsAvatar(profile: profile, size: 64)),
                 const SizedBox(height: 8),
                 Text(profile.name,
                     style:
@@ -144,11 +151,122 @@ class KidsMeScreen extends StatelessWidget {
                     if (ok) s.disableKidsMode();
                   },
                 ),
+                // The testing unlock says so out loud while it is on. It
+                // changes what the whole Learn tab looks like, so leaving it
+                // silent would make a stage that was never played look like
+                // one that was simply reached.
+                if (prog.unlockAll) ...[
+                  const SizedBox(height: Geo.gapSm),
+                  _ActionRow(
+                    icon: Icons.lock_open_rounded,
+                    label: context.l10n.kidsDevUnlockBanner,
+                    onTap: () => prog.setUnlockAll(false),
+                  ),
+                  const SizedBox(height: Geo.gapSm),
+                  _ActionRow(
+                    icon: Icons.switch_access_shortcut_rounded,
+                    label: prog.devStage == null
+                        ? context.l10n.kidsDevJumpStage
+                        : context.l10n.kidsDevJumpStageActive(
+                            kidsPath(context)
+                                .firstWhere((b) => b.id == prog.devStage)
+                                .title(context)),
+                    onTap: () => pushKidsOverlay(context,
+                        title: context.l10n.kidsDevJumpStage,
+                        builder: (overlayContext) => _DevStagePicker(
+                            onDone: () =>
+                                closeKidsOverlayOrPop(overlayContext))),
+                  ),
+                ],
               ]),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The testing unlock's stage jump: a flat list of every [KidsBlock], so a
+/// tester can point Home and the Learn tab's "current" row at any stage
+/// (`ProgressStore.devStage`) without actually clearing everything before it.
+/// Only reachable while the testing unlock is on — see [KidsMeScreen] — and
+/// touches nothing about real progress, same as the unlock itself.
+class _DevStagePicker extends StatelessWidget {
+  final VoidCallback onDone;
+  const _DevStagePicker({required this.onDone});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = kidsPal(context);
+    final prog = ProgressScope.of(context);
+    final path = kidsPath(context);
+
+    final list = ListView(
+      padding: const EdgeInsets.all(Geo.gapLg),
+      children: [
+        Text(context.l10n.kidsDevJumpStageHint,
+            style: kidsStyle(context, size: 12.5, color: p.textDim)),
+        const SizedBox(height: Geo.gapMd),
+        _ActionRow(
+          icon: Icons.replay_rounded,
+          label: context.l10n.kidsDevJumpStageFollow,
+          onTap: () {
+            prog.setDevStage(null);
+            onDone();
+          },
+        ),
+        const SizedBox(height: Geo.gapSm),
+        for (final block in path)
+          Padding(
+            padding: const EdgeInsets.only(bottom: Geo.gapSm),
+            child: TapScale(
+              key: ValueKey('kids.devstage.${block.id}'),
+              onTap: () {
+                prog.setDevStage(block.id);
+                onDone();
+              },
+              child: Container(
+                padding: const EdgeInsets.all(Geo.gapMd),
+                decoration: BoxDecoration(
+                  color: p.surface,
+                  borderRadius: BorderRadius.circular(Geo.radiusLg),
+                  border: Border.all(
+                      color: prog.devStage == block.id
+                          ? p.accent
+                          : Colors.transparent,
+                      width: 2),
+                ),
+                child: Row(children: [
+                  SizedBox(
+                    width: 36,
+                    child: Text(block.badge,
+                        textDirection: TextDirection.rtl,
+                        style: quranicStyle(context, size: 16, height: 1.05)),
+                  ),
+                  const SizedBox(width: Geo.gapSm),
+                  Expanded(
+                      child: Text(block.title(context),
+                          style: kidsStyle(context,
+                              size: 14.5, weight: FontWeight.w700))),
+                  if (prog.devStage == block.id)
+                    Icon(Icons.check_rounded, color: p.accent, size: 20),
+                ]),
+              ),
+            ),
+          ),
+      ],
+    );
+
+    if (KidsDesktopOverlay.maybeOf(context) != null) return list;
+    return Scaffold(
+      backgroundColor: p.bg,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: Text(context.l10n.kidsDevJumpStage,
+            style: kidsStyle(context, size: 17, weight: FontWeight.w800)),
+      ),
+      body: SafeArea(child: list),
     );
   }
 }

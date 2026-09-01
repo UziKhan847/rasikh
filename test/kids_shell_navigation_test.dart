@@ -56,6 +56,20 @@ void main() {
     expect(settings.activeKidsProfileId, settings.kidsProfiles.single.id);
   });
 
+  testWidgets('switching to Kids Mode does not raise the keyboard',
+      (tester) async {
+    useReducedMotion(tester);
+    final settings = await _boot();
+    await tester.pumpWidget(_harness(settings));
+    await tester.pumpAndSettle();
+
+    // The name field is the only text input in the whole app, and it used to
+    // autofocus — so turning Kids Mode on for the first time threw the
+    // keyboard up over the avatar row, which is the form's actual first step.
+    expect(find.byType(TextField), findsOneWidget);
+    expect(tester.testTextInput.isVisible, isFalse);
+  });
+
   testWidgets('the bottom nav reaches all 5 tabs without throwing',
       (tester) async {
     useReducedMotion(tester);
@@ -83,7 +97,7 @@ void main() {
     await tester.pumpAndSettle();
     // Learn opens on the list of stages now; the letter tiles are one level
     // in, inside the first one.
-    await tester.tap(find.byKey(const ValueKey('kids.block.letters.more')));
+    await tester.tap(find.byKey(const ValueKey('kids.block.letters')));
     await tester.pumpAndSettle();
 
     // Letter index 0 (ا) is "current" on a brand-new profile; index 1 (ب) is

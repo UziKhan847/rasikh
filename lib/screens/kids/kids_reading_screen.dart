@@ -89,9 +89,7 @@ class _KidsReadingScreenState extends State<KidsReadingScreen> {
     prog.report(widget.progressId, 3);
     prog.awardXp(kidsXpPerStar * 3);
     prog.awardGems(kidsGemsPerLesson);
-    for (final b in kidsBadgeDefs(context)) {
-      if (b.earned(prog)) prog.unlockBadge(b.id);
-    }
+    // Badges sync centrally off this store — see `kidsSyncBadges`.
   }
 
   Future<void> _hear(int ayah) => AyahAudio.instance.play(widget.surah, ayah);

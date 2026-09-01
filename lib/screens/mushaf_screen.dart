@@ -162,8 +162,11 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     });
     final st = SettingsScope.of(context);
     // The muṣḥaf keeps its own script preference, independent of the card
-    // reader's quranScript — the reader can't render Indo-Pak (no licensed
-    // face), so the two must not sync onto each other.
+    // reader's quranScript: reading a page of the muṣḥaf in one script is not
+    // a statement about which script you want the reader in, and the two
+    // surfaces are navigated separately. (The reason used to be that the
+    // reader had no licensed Indo-Pak face — that is long since untrue; both
+    // render Indo-Pak with DigitalKhattIndoPak.)
     st.update(() => st.mushafScript = v);
     await MushafRepo.ensure(v);
     final p = await MushafRepo.pageForSurah(v, keepSurah);
@@ -876,19 +879,14 @@ class _MushafPageView extends StatelessWidget {
   // of drag — since neither cache is ever evicted.
   static double _roundPx(double x) => (x / 4).round() * 4.0;
 
-  // DigitalKhattV2/DigitalKhattIndoPak declare ascent 1500 + descent 700 on a
-  // 1000-unit em (confirmed via `ttx -t hhea`) — a line needs 2.2x the font
-  // size to fully contain the tallest ḥarakah stacks (e.g. ayin+sukun) per
-  // the font's own declared metrics. In practice, when this ratio is the
-  // binding constraint on font size (byHeight < byWidth below — typically
-  // whenever something eats into the page's vertical room, e.g. the mushaf
-  // bottom bar expanded), a handful of glyph combinations still render ink
-  // slightly past what the font declares, so this carries a ~5% safety
-  // margin (2.2 * 1.05) beyond the bare metrics rather than matching them
-  // exactly. Nothing in this screen's line slots clips overflow, so
-  // under-allocating this doesn't clip a tall mark — it gets silently
-  // painted over by whichever line is drawn next.
-  static const _lineHeightRatio = 1 / (2.2 * 1.05);
+  // The inverse of the DigitalKhatt faces' line-height multiplier — see
+  // [MushafRepo.khattLineHeight] for where 2.2 and the ~5% margin come from.
+  // This ratio is the binding constraint on font size whenever byHeight <
+  // byWidth below, typically when something eats into the page's vertical
+  // room (e.g. the mushaf bottom bar expanded). Nothing in this screen's line
+  // slots clips overflow, so under-allocating it doesn't clip a tall mark —
+  // it gets silently painted over by whichever line is drawn next.
+  static const _lineHeightRatio = 1 / MushafRepo.khattLineHeight;
 
   Widget _grid(
       BuildContext context, List<MushafLine> lines, double vw, double vh) {

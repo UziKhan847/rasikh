@@ -3,7 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../core/geometry.dart';
+import '../../core/l10n.dart';
+import '../../core/settings.dart';
 import '../../core/theme.dart';
+import '../../data/kids_content.dart';
 
 /// The Home screen's daily-goal ring — Kids Mode's own amber-toned variant
 /// of `widgets/common.dart`'s `ProgressRing` (that one always paints in the
@@ -137,10 +140,122 @@ class KidsSectionHeader extends StatelessWidget {
 bool kidsReduceMotion(BuildContext context) =>
     MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
+/// The code that opens every Kids Mode stage for testing. Deliberately a
+/// fixed string and not a setting: it exists so the developer can walk the
+/// whole path without playing through it, and a child who taps the mascot ten
+/// times gets a box they cannot fill in.
+const kKidsUnlockCode = 'unlock123';
+
+/// How many taps in a row open the code box, and how long a gap resets the
+/// count. Ten deliberate taps is well past anything a child does by accident,
+/// and the window means a tap now and a tap tomorrow never add up.
+const _unlockTaps = 10;
+const _unlockWindow = Duration(seconds: 2);
+
+/// Wraps [child] in the developer gesture: [_unlockTaps] taps in a row, then a
+/// box asking for [kKidsUnlockCode]. Entering it flips
+/// [ProgressStore.unlockAll], which lifts every stage and tile lock without
+/// marking anything done; entering it again turns that back off.
+///
+/// Two things wear this — the mascot (which is what the celebration screen
+/// puts in front of you after any lesson) and the Me tab's avatar (which is
+/// reachable from a fresh install, before any lesson has been finished).
+/// Taps land on whatever the wrapped widget already does as well: neither of
+/// those does anything on tap, so nothing is stolen.
+class KidsSecretUnlock extends StatefulWidget {
+  final Widget child;
+  const KidsSecretUnlock({super.key, required this.child});
+
+  @override
+  State<KidsSecretUnlock> createState() => _KidsSecretUnlockState();
+}
+
+class _KidsSecretUnlockState extends State<KidsSecretUnlock> {
+  int _taps = 0;
+  DateTime _last = DateTime.fromMillisecondsSinceEpoch(0);
+
+  Future<void> _tap() async {
+    final now = DateTime.now();
+    _taps = now.difference(_last) > _unlockWindow ? 1 : _taps + 1;
+    _last = now;
+    if (_taps < _unlockTaps) return;
+    _taps = 0;
+
+    // Everything the dialog's answer needs is captured BEFORE awaiting it:
+    // the mascot lives on the celebration screen, which the "Continue" button
+    // can tear down while the box is still open.
+    final prog = ProgressScope.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+    final entered = await _ask(context);
+    if (entered == null || entered.trim() != kKidsUnlockCode) return;
+    final on = !prog.unlockAll;
+    prog.setUnlockAll(on);
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+          content: Text(on ? l10n.kidsDevUnlockOn : l10n.kidsDevUnlockOff)));
+  }
+
+  static Future<String?> _ask(BuildContext context) => showDialog<String>(
+        context: context,
+        builder: (_) => const _CodeDialog(),
+      );
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _tap,
+        child: widget.child,
+      );
+}
+
+/// The code box. A widget of its own so the controller's life matches the
+/// dialog's: disposing it when `showDialog`'s future completes is too early —
+/// the route is still animating out with this field still built.
+class _CodeDialog extends StatefulWidget {
+  const _CodeDialog();
+
+  @override
+  State<_CodeDialog> createState() => _CodeDialogState();
+}
+
+class _CodeDialogState extends State<_CodeDialog> {
+  final _code = TextEditingController();
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text(context.l10n.kidsDevUnlockTitle),
+        content: TextField(
+          controller: _code,
+          autofocus: true,
+          decoration:
+              InputDecoration(labelText: context.l10n.kidsDevUnlockHint),
+          onSubmitted: (v) => Navigator.of(context).pop(v),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(context.l10n.cancel)),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(_code.text),
+              child: Text(context.l10n.continueLabel)),
+        ],
+      );
+}
+
 /// The Kids Mode mascot — the design's warm round character, drawn rather
 /// than fetched: it stays crisp at any size, tints itself from the palette,
 /// adds no asset to `pubspec.yaml` and needs no CREDITS entry. Floats gently
 /// and breathes, which is what the design's `nfloat` keyframes describe.
+///
+/// Also the host of the developer unlock gesture — see [KidsSecretUnlock].
 class KidsMascot extends StatefulWidget {
   final double size;
   const KidsMascot({super.key, this.size = 96});
@@ -174,9 +289,11 @@ class _KidsMascotState extends State<KidsMascot>
   @override
   Widget build(BuildContext context) {
     final p = kidsPal(context);
-    final face = CustomPaint(
-      size: Size.square(widget.size),
-      painter: _MascotPainter(p.amber),
+    final face = KidsSecretUnlock(
+      child: CustomPaint(
+        size: Size.square(widget.size),
+        painter: _MascotPainter(p.amber),
+      ),
     );
     if (kidsReduceMotion(context)) return face;
     return AnimatedBuilder(
@@ -420,6 +537,41 @@ class _ConfettiPainter extends CustomPainter {
   bool shouldRepaint(_ConfettiPainter old) => old.t != t;
 }
 
+/// A child's avatar emoji, with any equipped shop frame drawn as a ring
+/// around it. Replaces a bare `Text(profile.avatar)` at every call site —
+/// `kids_me_screen.dart`, `kids_home_screen.dart` (×2),
+/// `kids_rank_screen.dart` (×2), `kids_profile_picker.dart`,
+/// `kids_desktop_shell.dart` — which is what makes a frame purchase visible
+/// at all: before this it was a boolean in `ProgressStore.shopOwned` read by
+/// exactly one widget, the shop row's own checkmark.
+///
+/// A ring is deliberately the only decoration here. It surrounds the emoji
+/// rather than trying to sit on it, which is why it survives every size this
+/// renders at — down to 17px in the desktop nav. A drawn-on accessory does
+/// not: a hat shipped briefly and read as a rendering artefact beside a
+/// full-colour emoji at any size. See `kidsShopItems` in
+/// `data/kids_content.dart`.
+class KidsAvatar extends StatelessWidget {
+  final KidsProfile profile;
+  final double size;
+  const KidsAvatar({super.key, required this.profile, this.size = 44});
+
+  @override
+  Widget build(BuildContext context) {
+    final ring = kidsFrameColor(profile.frame);
+    final emoji = Text(profile.avatar, style: TextStyle(fontSize: size));
+    if (ring == null) return emoji;
+    return Container(
+      padding: EdgeInsets.all(size * .12),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: ring, width: math.max(2, size * .06)),
+      ),
+      child: emoji,
+    );
+  }
+}
+
 /// One badge/reward tile — earned in full color, locked dimmed with a hint.
 class KidsBadgeTile extends StatelessWidget {
   final String emoji;
@@ -441,15 +593,31 @@ class KidsBadgeTile extends StatelessWidget {
           border: Border.all(
               color: earned ? p.amber : p.surfaceHigh, width: earned ? 2 : 1),
         ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(emoji, style: const TextStyle(fontSize: 30)),
-          const SizedBox(height: 6),
-          Text(title,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: kidsStyle(context, size: 11.5, weight: FontWeight.w700)),
-        ]),
+        // Scaled down to fit rather than sized to hope. A badge cell is only
+        // ~100px on a 360px-wide phone, which a 30px emoji plus two lines of
+        // label overflows once real fonts are loaded — and badge titles vary
+        // from "Bee" to "Muqaṭṭaʿāt", so there is no one size that always
+        // fits. Same fix the Learn tiles needed for the same reason.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          // Laid out at a nominal width and scaled to whatever the cell
+          // actually is, rather than measured unconstrained — without this
+          // the title is one long unwrapped line ("Knows when to stop"), and
+          // scaleDown shrinks the whole tile to fit that line's width.
+          child: SizedBox(
+            width: 92,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(emoji, style: const TextStyle(fontSize: 30)),
+              const SizedBox(height: 6),
+              Text(title,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      kidsStyle(context, size: 11.5, weight: FontWeight.w700)),
+            ]),
+          ),
+        ),
       ),
     );
   }
