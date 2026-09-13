@@ -64,39 +64,46 @@ class _KidsDesktopShellState extends State<KidsDesktopShell> {
             close: _closeOverlay,
             child: Scaffold(
               backgroundColor: p.bg,
-              body: Row(
-                children: [
-                  _Sidebar(tab: _tab, onGo: _go),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        _TopBar(
-                          overlayTitle: _overlayTitle,
-                          onBack: _closeOverlay,
-                          onAvatarTap: () => _go(4),
-                        ),
-                        Expanded(
-                          child: _overlayBuilder != null
-                              ? Builder(builder: _overlayBuilder!)
-                              : IndexedStack(
-                                  index: _tab,
-                                  children: [
-                                    KidsHomeScreen(
-                                      onGoLearn: () => _go(1),
-                                      onGoRank: () => _go(2),
-                                      onGoRewards: () => _go(3),
-                                    ),
-                                    const KidsAlphabetScreen(),
-                                    const KidsRankScreen(),
-                                    const KidsRewardsScreen(),
-                                    const KidsMeScreen(),
-                                  ],
-                                ),
-                        ),
-                      ],
+              // bottom only: an edge-to-edge Android tablet's gesture pill or
+              // 3-button nav bar draws right over the sidebar's streak card
+              // and over lesson content (e.g. the tracing flow's "Next"
+              // button) that sits flush to the pane's own bottom edge.
+              body: SafeArea(
+                top: false,
+                child: Row(
+                  children: [
+                    _Sidebar(tab: _tab, onGo: _go),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _TopBar(
+                            overlayTitle: _overlayTitle,
+                            onBack: _closeOverlay,
+                            onAvatarTap: () => _go(4),
+                          ),
+                          Expanded(
+                            child: _overlayBuilder != null
+                                ? Builder(builder: _overlayBuilder!)
+                                : IndexedStack(
+                                    index: _tab,
+                                    children: [
+                                      KidsHomeScreen(
+                                        onGoLearn: () => _go(1),
+                                        onGoRank: () => _go(2),
+                                        onGoRewards: () => _go(3),
+                                      ),
+                                      const KidsAlphabetScreen(),
+                                      const KidsRankScreen(),
+                                      const KidsRewardsScreen(),
+                                      const KidsMeScreen(),
+                                    ],
+                                  ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             );

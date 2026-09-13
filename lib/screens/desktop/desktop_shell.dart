@@ -50,20 +50,28 @@ class _DesktopShellState extends State<DesktopShell> {
     final p = pal(context);
     return Scaffold(
       backgroundColor: p.bg,
-      body: Row(children: [
-        _Sidebar(
-            tab: tab,
-            onGo: go,
-            learn: _learn,
-            collapsed: collapsed,
-            onToggle: () => setState(() => collapsed = !collapsed)),
-        Expanded(
-          child: Column(children: [
-            _TopBar(tint: kTint[tab]!, tab: tab, onGo: go),
-            Expanded(child: _content()),
-          ]),
-        ),
-      ]),
+      // bottom only: the top bar/status bar boundary already reads clean on
+      // every device this shipped to, but an edge-to-edge Android tablet's
+      // gesture pill or 3-button nav bar draws right over whatever sits at
+      // the very bottom — the sidebar's streak card and, inside the content
+      // pane, anything a tab renders flush to its own bottom edge.
+      body: SafeArea(
+        top: false,
+        child: Row(children: [
+          _Sidebar(
+              tab: tab,
+              onGo: go,
+              learn: _learn,
+              collapsed: collapsed,
+              onToggle: () => setState(() => collapsed = !collapsed)),
+          Expanded(
+            child: Column(children: [
+              _TopBar(tint: kTint[tab]!, tab: tab, onGo: go),
+              Expanded(child: _content()),
+            ]),
+          ),
+        ]),
+      ),
     );
   }
 
