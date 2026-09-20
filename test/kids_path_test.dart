@@ -5,8 +5,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/letters.dart';
+import 'package:qiraah_arabiyyah/data/tajwid_path.dart' show tajwidTopicById;
+import 'package:qiraah_arabiyyah/screens/kids/kids_extra_letter_lesson.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_letter_flow.dart';
+import 'package:qiraah_arabiyyah/screens/kids/kids_madd_lesson.dart';
+import 'package:qiraah_arabiyyah/screens/kids/kids_muqattaat_lesson.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_path.dart';
+import 'package:qiraah_arabiyyah/screens/kids/kids_review_recap.dart';
+import 'package:qiraah_arabiyyah/screens/kids/kids_solar_lunar_lesson.dart';
+import 'package:qiraah_arabiyyah/screens/kids/kids_special_shapes_lesson.dart';
+import 'package:qiraah_arabiyyah/screens/kids/kids_syllable_drill.dart';
+import 'package:qiraah_arabiyyah/screens/kids/kids_tajwid_rule_lesson.dart';
+import 'package:qiraah_arabiyyah/screens/kids/kids_waqf_lesson.dart';
+import 'package:qiraah_arabiyyah/screens/kids/kids_wasl_lesson.dart';
+import 'package:qiraah_arabiyyah/screens/kids/kids_words_lesson.dart';
+import 'package:qiraah_arabiyyah/widgets/common.dart' show QuizScreen;
 
 /// The Kids Mode curriculum, as data — the stage engine that replaced the
 /// flat 28-letter list.
@@ -29,32 +42,37 @@ void main() {
 
   Future<void> boot(WidgetTester tester) async {
     (settings, prog) = await _boot();
-    await tester.pumpWidget(SettingsScope(
-      settings: settings,
-      child: ProgressScope(
-        progress: prog,
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          locale: const Locale('en'),
-          home: Builder(builder: (c) {
-            ctx = c;
-            return const SizedBox();
-          }),
+    await tester.pumpWidget(
+      SettingsScope(
+        settings: settings,
+        child: ProgressScope(
+          progress: prog,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+            home: Builder(
+              builder: (c) {
+                ctx = c;
+                return const SizedBox();
+              },
+            ),
+          ),
         ),
       ),
-    ));
+    );
   }
 
   /// A stage's tracing lessons, without the check-up quizzes woven between
   /// them — those are `KidsItem`s too, but they open a `QuizScreen`.
   List<KidsItem> lessonsOf(String stage) => [
-        for (final i in kidsPath(ctx).firstWhere((b) => b.id == stage).items(ctx))
-          if (!i.id.startsWith('kids.check.')) i
-      ];
+    for (final i in kidsPath(ctx).firstWhere((b) => b.id == stage).items(ctx))
+      if (!i.id.startsWith('kids.check.')) i,
+  ];
 
-  testWidgets('every stage has items, a title and its own subtitle',
-      (tester) async {
+  testWidgets('every stage has items, a title and its own subtitle', (
+    tester,
+  ) async {
     await boot(tester);
     final path = kidsPath(ctx);
     expect(path.length, greaterThan(8));
@@ -73,7 +91,7 @@ void main() {
     await boot(tester);
     final ids = [
       for (final block in kidsPath(ctx))
-        for (final item in block.items(ctx)) item.id
+        for (final item in block.items(ctx)) item.id,
     ];
     // Two stages sharing an id would mean clearing one silently clears the
     // other — the "fewer strokes" pass in particular must not be satisfied by
@@ -81,48 +99,82 @@ void main() {
     expect(ids.toSet().length, ids.length);
   });
 
-  testWidgets('the letters stage keeps its original progress ids',
-      (tester) async {
+  testWidgets('the letters stage keeps its original progress ids', (
+    tester,
+  ) async {
     await boot(tester);
     final first = kidsPath(ctx).first;
     expect(first.id, 'letters');
     // Deliberately unchanged: anything already earned under these ids would
     // otherwise be orphaned by the path growing around it, and
     // `kidsLettersLearned` counts exactly this prefix.
-    expect(first.items(ctx).map((i) => i.id).take(3),
-        ['kids.letter.ا', 'kids.letter.ب', 'kids.letter.ت']);
+    expect(first.items(ctx).map((i) => i.id).take(3), [
+      'kids.letter.ا',
+      'kids.letter.ب',
+      'kids.letter.ت',
+    ]);
   });
 
-  testWidgets('a letter lesson traces the fewer-strokes shape five times',
-      (tester) async {
+  testWidgets('a letter lesson traces the fewer-strokes shape five times', (
+    tester,
+  ) async {
     await boot(tester);
     final alif = kidsPath(ctx).first.items(ctx).first;
     final flow = alif.open(ctx) as KidsLetterFlow;
 
-    // Meet the shape, say it, trace the beginner breakdown once, then write
-    // it in fewer, longer strokes five times over — practice is repetition.
+    // Meet the shape, say it, then write it in fewer, longer strokes five
+    // times over — practice is repetition. The beginner stroke breakdown
+    // (`naskh_more`) used to run first; it was dropped as an extra, slower
+    // attempt that taught nothing the writing pass didn't.
     expect(flow.introduce, isTrue);
-    expect(flow.traces.map((t) => (t.levelId, t.repeat)),
-        [('naskh_more', 1), ('naskh_few', 5)]);
+    expect(flow.traces.map((t) => (t.levelId, t.repeat)), [('naskh_few', 5)]);
   });
 
-  testWidgets('a joining-forms lesson is built like a letter lesson',
-      (tester) async {
+  testWidgets(
+    'a joining-forms lesson is one shape at a time, not all of them at once',
+    (tester) async {
+      await boot(tester);
+      final items = kidsPath(
+        ctx,
+      ).firstWhere((b) => b.id == 'forms.more').items(ctx);
+      // Bāʼ joins on both sides, so it gets three separate lessons — start,
+      // middle, end — each tracing just that one shape five times over, rather
+      // than one 20-step lesson covering all three (and re-tracing the
+      // isolated shape the Letters stage already taught).
+      final baItems = items.where((i) => i.id.endsWith('.ب')).toList();
+      expect(baItems.map((i) => i.id), [
+        'kids.forms.ini.ب',
+        'kids.forms.med.ب',
+        'kids.forms.fin.ب',
+      ]);
+      for (final (item, form) in [
+        (baItems[0], 'ini'),
+        (baItems[1], 'med'),
+        (baItems[2], 'fin'),
+      ]) {
+        final flow = item.open(ctx) as KidsLetterFlow;
+        expect(flow.introduce, isTrue);
+        expect(flow.traces.map((t) => (t.levelId, t.form, t.repeat)), [
+          ('naskh_few', form, 5),
+        ], reason: item.id);
+      }
+    },
+  );
+
+  testWidgets('a non-connector gets exactly one joining-forms lesson', (
+    tester,
+  ) async {
     await boot(tester);
-    final items =
-        kidsPath(ctx).firstWhere((b) => b.id == 'forms.more').items(ctx);
-    // Bāʼ joins on both sides, so it has all three connected shapes, and each
-    // one gets the letters stage's own two passes: the beginner stroke
-    // breakdown once, then the writing pass five times over.
-    final ba = items.firstWhere((i) => i.id.endsWith('.ب'));
-    final flow = ba.open(ctx) as KidsLetterFlow;
-    expect(flow.introduce, isTrue);
+    final items = kidsPath(
+      ctx,
+    ).firstWhere((b) => b.id == 'forms.more').items(ctx);
+    // Waw's only real joining shape is its end form — the isolated one is
+    // what the Letters stage already taught, and it never has a start or
+    // middle shape to begin with.
+    final waw = items.where((i) => i.id.endsWith('.و')).toList();
+    expect(waw.map((i) => i.id), ['kids.forms.fin.و']);
+    final flow = waw.single.open(ctx) as KidsLetterFlow;
     expect(flow.traces.map((t) => (t.levelId, t.form, t.repeat)), [
-      ('naskh_more', 'ini', 1),
-      ('naskh_few', 'ini', 5),
-      ('naskh_more', 'med', 1),
-      ('naskh_few', 'med', 5),
-      ('naskh_more', 'fin', 1),
       ('naskh_few', 'fin', 5),
     ]);
   });
@@ -135,35 +187,75 @@ void main() {
     expect(kidsPath(ctx).map((b) => b.id), isNot(contains('forms.few')));
     for (final item in lessonsOf('forms.more')) {
       final flow = item.open(ctx) as KidsLetterFlow;
-      expect(flow.traces.any((t) => t.levelId == 'naskh_few'), isTrue,
-          reason: item.id);
+      expect(
+        flow.traces.any((t) => t.levelId == 'naskh_few'),
+        isTrue,
+        reason: item.id,
+      );
+      expect(
+        flow.traces.any((t) => t.levelId == 'naskh_more'),
+        isFalse,
+        reason: item.id,
+      );
     }
   });
 
   testWidgets('a long stage stops to check every five lessons', (tester) async {
     await boot(tester);
-    for (final (stage, prefix) in [
-      ('letters', 'kids.check.letters.'),
-      ('forms.more', 'kids.check.forms.'),
-    ]) {
-      final items = kidsPath(ctx).firstWhere((b) => b.id == stage).items(ctx);
-      // Five lessons, a check-up, five more, another — and the check-up is
-      // cumulative, so the one at 10 covers everything from letter one.
-      expect([
+    final items = kidsPath(ctx).firstWhere((b) => b.id == 'letters').items(ctx);
+    // Five lessons, a check-up, five more, another — and the check-up is
+    // cumulative, so the one at 10 covers everything from letter one.
+    const prefix = 'kids.check.letters.';
+    expect(
+      [
         for (var i = 0; i < items.length; i++)
-          if (items[i].id.startsWith(prefix)) (i, items[i].id)
-      ], [
+          if (items[i].id.startsWith(prefix)) (i, items[i].id),
+      ],
+      [
         (5, '${prefix}5'),
         (11, '${prefix}10'),
         (17, '${prefix}15'),
         (23, '${prefix}20'),
         (29, '${prefix}25'),
-      ], reason: stage);
-      // 28 lessons + 5 check-ups, and nothing tacked onto the end: the
-      // stage's own quiz is the very next stage.
-      expect(items, hasLength(letters.length + 5), reason: stage);
-      expect(items.last.id.startsWith(prefix), isFalse, reason: stage);
-    }
+      ],
+    );
+    // 28 lessons + 5 check-ups, and nothing tacked onto the end: the
+    // stage's own quiz is the very next stage.
+    expect(items, hasLength(letters.length + 5));
+    expect(items.last.id.startsWith(prefix), isFalse);
+  });
+
+  testWidgets('the joining-forms check-up counts by LETTER, not by lesson', (
+    tester,
+  ) async {
+    await boot(tester);
+    // A joiner now contributes three lessons per letter against a
+    // non-joiner's one, so the five-lessons-per-checkpoint rule from the
+    // Letters stage would land on the wrong letter count entirely if it were
+    // applied by lesson position instead of letter position.
+    final items = kidsPath(
+      ctx,
+    ).firstWhere((b) => b.id == 'forms.more').items(ctx);
+    const prefix = 'kids.check.forms.';
+    expect(
+      [
+        for (var i = 0; i < items.length; i++)
+          if (items[i].id.startsWith(prefix)) (i, items[i].id),
+      ],
+      [
+        (13, '${prefix}5'), // ا ب ت ث ج: 1 non-joiner + 4 joiners = 13 lessons
+        (
+          23,
+          '${prefix}10',
+        ), // + a shift of 1 for each checkpoint already placed
+        (37, '${prefix}15'),
+        (53, '${prefix}20'),
+        (69, '${prefix}25'),
+      ],
+    );
+    expect(items.last.id.startsWith(prefix), isFalse);
+    // 72 lessons (kidsFormsLessonCount) + 5 check-ups.
+    expect(items, hasLength(77));
   });
 
   testWidgets('a checkpoint id cannot be counted as a lesson', (tester) async {
@@ -175,32 +267,43 @@ void main() {
       for (final item in block.items(ctx)) {
         if (!item.id.startsWith('kids.check.')) continue;
         expect(item.id.startsWith('kids.letter.'), isFalse, reason: item.id);
-        expect(item.id.startsWith('kids.forms.more.'), isFalse,
-            reason: item.id);
+        expect(item.id.startsWith('kids.forms.'), isFalse, reason: item.id);
       }
     }
     for (var i = 1; i <= 5; i++) {
       prog.report('kids.check.letters.$i', 3);
     }
     expect(prog.kidsLettersLearned, 0);
-    expect(prog.countStarred('kids.forms.more.'), 0);
+    expect(prog.countStarred('kids.forms.'), 0);
   });
 
-  testWidgets('non-joiners are never asked for a shape they do not have',
-      (tester) async {
+  testWidgets('non-joiners are never asked for a shape they do not have', (
+    tester,
+  ) async {
     await boot(tester);
     final forms = lessonsOf('forms.more');
-    expect(forms, hasLength(letters.length));
-    // A dāl has no initial or medial shape, so its lesson must be shorter
-    // than a bāʾ's rather than tracing a form that does not exist.
-    final dal = forms.firstWhere((i) => i.id.endsWith('.د'));
-    final ba = forms.firstWhere((i) => i.id.endsWith('.ب'));
-    expect(dal.glyph, letterFor('د').finalForm);
-    expect(ba.glyph, letterFor('ب').medial);
+    // 3 lessons per joiner (start/middle/end), 1 per non-joiner (end only) —
+    // see kidsFormsLessonCount, which this mirrors.
+    final joiners = letters.where((l) => l.joins).length;
+    expect(forms, hasLength(joiners * 3 + (letters.length - joiners)));
+    // A dāl has no initial or medial shape, so it gets one lesson (its end
+    // form) rather than three, and never a lesson tracing a form that
+    // doesn't exist.
+    final dalItems = forms.where((i) => i.id.endsWith('.د')).toList();
+    expect(dalItems, hasLength(1));
+    expect(dalItems.single.glyph, letterFor('د').finalForm);
+    final baItems = forms.where((i) => i.id.endsWith('.ب')).toList();
+    expect(baItems, hasLength(3));
+    expect(baItems.map((i) => i.glyph), [
+      letterFor('ب').initial,
+      letterFor('ب').medial,
+      letterFor('ب').finalForm,
+    ]);
   });
 
-  testWidgets('stages and tiles unlock in order as progress lands',
-      (tester) async {
+  testWidgets('stages and tiles unlock in order as progress lands', (
+    tester,
+  ) async {
     await boot(tester);
     expect(kidsCurrentBlockIndex(ctx, prog), 0);
 
@@ -216,75 +319,264 @@ void main() {
     for (final item in letters0) {
       prog.report(item.id, 3);
     }
-    expect(kidsCurrentBlockIndex(ctx, prog), 1,
-        reason: 'clearing every letter should open the letters quiz');
+    expect(
+      kidsCurrentBlockIndex(ctx, prog),
+      1,
+      reason: 'clearing every letter should open the letters quiz',
+    );
   });
 
   testWidgets(
-      'devStage pins the current block for testing, without touching progress',
-      (tester) async {
-    await boot(tester);
-    expect(kidsCurrentBlockIndex(ctx, prog), 0);
+    'devStage pins the current block for testing, without touching progress',
+    (tester) async {
+      await boot(tester);
+      expect(kidsCurrentBlockIndex(ctx, prog), 0);
 
-    // Ignored while the testing unlock is off — a corrupted or stale pref
-    // must not silently move a real, non-testing session off alif.
-    prog.setDevStage('forms.more');
-    expect(kidsCurrentBlockIndex(ctx, prog), 0);
+      // Ignored while the testing unlock is off — a corrupted or stale pref
+      // must not silently move a real, non-testing session off alif.
+      prog.setDevStage('forms.more');
+      expect(kidsCurrentBlockIndex(ctx, prog), 0);
 
-    prog.setUnlockAll(true);
-    expect(kidsCurrentBlockIndex(ctx, prog), 2,
-        reason: 'forms.more is the third stage in the path');
-    expect(prog.xp, 0);
-    expect(prog.gems, 0);
-    expect(prog.kidsLettersLearned, 0,
-        reason: 'jumping the display must not fake having cleared letters');
+      prog.setUnlockAll(true);
+      expect(
+        kidsCurrentBlockIndex(ctx, prog),
+        2,
+        reason: 'forms.more is the third stage in the path',
+      );
+      expect(prog.xp, 0);
+      expect(prog.gems, 0);
+      expect(
+        prog.kidsLettersLearned,
+        0,
+        reason: 'jumping the display must not fake having cleared letters',
+      );
 
-    // An id that no longer matches any stage falls back to real progress
-    // rather than throwing or pointing nowhere.
-    prog.setDevStage('not.a.real.stage');
-    expect(kidsCurrentBlockIndex(ctx, prog), 0);
+      // An id that no longer matches any stage falls back to real progress
+      // rather than throwing or pointing nowhere.
+      prog.setDevStage('not.a.real.stage');
+      expect(kidsCurrentBlockIndex(ctx, prog), 0);
 
-    // Turning the unlock back off drops the pin — it should not silently
-    // keep steering a later, non-testing session.
-    prog.setDevStage('forms.more');
-    prog.setUnlockAll(false);
-    expect(prog.devStage, isNull);
-    expect(kidsCurrentBlockIndex(ctx, prog), 0);
-  });
+      // Turning the unlock back off drops the pin — it should not silently
+      // keep steering a later, non-testing session.
+      prog.setDevStage('forms.more');
+      prog.setUnlockAll(false);
+      expect(prog.devStage, isNull);
+      expect(kidsCurrentBlockIndex(ctx, prog), 0);
+    },
+  );
 
-  testWidgets('the reused grown-up units resolve to real screens',
-      (tester) async {
-    await boot(tester);
-    // The "reuse, don't re-author" half of the path: ḥarakāt onwards points at
-    // the Qāʿidah units' own Learn and Test phases. A renamed unit progress id
-    // would throw here rather than silently producing an empty stage.
-    for (final id in [
-      'harakat',
-      'sukun',
-      'shadda',
-      'madd',
-      'tanwin',
-      'muqattaat',
-      'words',
-      'wasl',
-      'solar_lunar', // the Tajwīd lām unit, placed with ٱل
-      'waqf', // the Script & Symbols stopping unit
-      'tajwid.madd',
-      'tajwid.mim',
-      'tajwid.nun',
-      'tajwid.qalqalah',
-      'tajwid.raa',
-      'review',
-    ]) {
-      final block = kidsPath(ctx).firstWhere((b) => b.id == id);
-      final items = block.items(ctx);
-      expect(items, hasLength(2), reason: '$id: expected Learn + Test');
-      expect(items.first.completeOnOpen, isTrue,
-          reason: '$id: a Learn page has nothing to grade');
-      expect(items.last.completeOnOpen, isFalse,
-          reason: '$id: the quiz reports its own stars');
-    }
-  });
+  testWidgets(
+    'madd is a kid-native lesson with the interactive Counts Studio, not '
+    'the reused prose page',
+    (tester) async {
+      await boot(tester);
+      final items = kidsPath(ctx).firstWhere((b) => b.id == 'madd').items(ctx);
+      expect(items.map((i) => i.id), ['kids.madd.learn', 'kids.madd.test']);
+      expect(
+        items.first.completeOnOpen,
+        isTrue,
+        reason: 'no internal check-up — the metronome is practice, not a quiz',
+      );
+      expect(items.first.open(ctx), isA<KidsMaddLesson>());
+      expect(items.last.completeOnOpen, isFalse);
+    },
+  );
+
+  testWidgets(
+    'muqattaat is a real letter-by-letter lesson, not the reused prose page',
+    (tester) async {
+      await boot(tester);
+      final items = kidsPath(
+        ctx,
+      ).firstWhere((b) => b.id == 'muqattaat').items(ctx);
+      expect(items.map((i) => i.id), [
+        'kids.muqattaat.learn',
+        'kids.muqattaat.test',
+      ]);
+      expect(
+        items.first.completeOnOpen,
+        isFalse,
+        reason: 'the lesson grades itself, with its own check-ups',
+      );
+      expect(items.first.open(ctx), isA<KidsMuqattaatLesson>());
+      expect(items.last.completeOnOpen, isFalse);
+    },
+  );
+
+  testWidgets(
+    'words is a real sentence-reading lesson, not the reused word list',
+    (tester) async {
+      await boot(tester);
+      final items = kidsPath(ctx).firstWhere((b) => b.id == 'words').items(ctx);
+      expect(items.map((i) => i.id), ['kids.words.learn', 'kids.words.test']);
+      expect(
+        items.first.completeOnOpen,
+        isFalse,
+        reason: 'the lesson grades itself, with its own check-ups',
+      );
+      expect(items.first.open(ctx), isA<KidsWordsLesson>());
+      expect(items.last.completeOnOpen, isFalse);
+    },
+  );
+
+  testWidgets(
+    'wasl is a real step-by-step lesson, not the reused six-row page',
+    (tester) async {
+      await boot(tester);
+      final items = kidsPath(ctx).firstWhere((b) => b.id == 'wasl').items(ctx);
+      expect(items.map((i) => i.id), ['kids.wasl.learn', 'kids.wasl.test']);
+      expect(
+        items.first.completeOnOpen,
+        isFalse,
+        reason: 'the lesson grades itself, with its own check-ups',
+      );
+      expect(items.first.open(ctx), isA<KidsWaslLesson>());
+      expect(items.last.completeOnOpen, isFalse);
+    },
+  );
+
+  testWidgets(
+    'waqf is a real traffic-light lesson, not the reused six-row page',
+    (tester) async {
+      await boot(tester);
+      final items = kidsPath(ctx).firstWhere((b) => b.id == 'waqf').items(ctx);
+      expect(items.map((i) => i.id), ['kids.waqf.learn', 'kids.waqf.test']);
+      expect(
+        items.first.completeOnOpen,
+        isFalse,
+        reason: 'the lesson grades itself, with its own check-ups',
+      );
+      expect(items.first.open(ctx), isA<KidsWaqfLesson>());
+      expect(items.last.completeOnOpen, isFalse);
+    },
+  );
+
+  testWidgets(
+    'review is a kid-native recap of every stage cleared, not the stale '
+    'grown-up table of contents',
+    (tester) async {
+      await boot(tester);
+      final items = kidsPath(
+        ctx,
+      ).firstWhere((b) => b.id == 'review').items(ctx);
+      expect(items.map((i) => i.id), ['kids.review.learn', 'kids.review.test']);
+      expect(
+        items.first.completeOnOpen,
+        isTrue,
+        reason: 'a recap of what was already learned has nothing to grade',
+      );
+      expect(items.first.open(ctx), isA<KidsReviewRecap>());
+      expect(items.last.completeOnOpen, isFalse);
+    },
+  );
+
+  testWidgets(
+    'ḥarakāt/sukūn/shaddah/tanwīn are real Nūrāniyyah drills, opened as short '
+    'sessions rather than one 32-step sitting',
+    (tester) async {
+      await boot(tester);
+      // Three sessions per mark, closing on the grown-up unit's own Test —
+      // see _drillBlock. Unlike the plain _unitBlock stages, the Learn side
+      // here is NOT `completeOnOpen`: each drill grades itself.
+      for (final (id, markIds) in [
+        ('harakat', ['fatha', 'kasra', 'damma']),
+        ('sukun', ['sukun']),
+        ('shadda', ['shadda']),
+        ('tanwin', ['fathatan', 'kasratan', 'dammatan']),
+      ]) {
+        final items = kidsPath(ctx).firstWhere((b) => b.id == id).items(ctx);
+        final drills = markIds.length * kidsDrillSessions;
+        expect(items, hasLength(drills + 1), reason: id);
+        expect(items.map((i) => i.id), [
+          for (final m in markIds)
+            for (var n = 1; n <= kidsDrillSessions; n++) 'kids.$id.$m.$n',
+          'kids.$id.test',
+        ]);
+        for (final drill in items.take(drills)) {
+          expect(
+            drill.completeOnOpen,
+            isFalse,
+            reason: '$id.${drill.id}: a drill grades itself, like a quiz',
+          );
+          expect(drill.open(ctx), isA<KidsSyllableDrill>(), reason: drill.id);
+        }
+        expect(items.last.completeOnOpen, isFalse, reason: '$id.test');
+      }
+    },
+  );
+
+  testWidgets(
+    'a mark\'s sessions together cover every letter once, and each is short',
+    (tester) async {
+      await boot(tester);
+      final ranges = kidsDrillRanges();
+      expect(ranges, hasLength(kidsDrillSessions));
+      expect(ranges.first.$1, 0);
+      expect(ranges.last.$2, kidsSyllableLetters.length);
+      for (var i = 1; i < ranges.length; i++) {
+        expect(ranges[i].$1, ranges[i - 1].$2, reason: 'no gap, no overlap');
+      }
+      for (final (from, to) in ranges) {
+        // ≤ 9 letters + one check-up ≈ 10 steps: a 3–5 minute session.
+        expect(to - from, lessThanOrEqualTo(10));
+      }
+    },
+  );
+
+  testWidgets(
+    'solar_lunar is a real step-by-step lesson, not the reused Tajwīd rule page',
+    (tester) async {
+      await boot(tester);
+      final items = kidsPath(
+        ctx,
+      ).firstWhere((b) => b.id == 'solar_lunar').items(ctx);
+      expect(items.map((i) => i.id), [
+        'kids.solar_lunar.learn',
+        'kids.solar_lunar.test',
+      ]);
+      expect(
+        items.first.completeOnOpen,
+        isFalse,
+        reason: 'the lesson grades itself, like a quiz — not read-and-done',
+      );
+      expect(items.first.open(ctx), isA<KidsSolarLunarLesson>());
+      expect(items.last.completeOnOpen, isFalse);
+    },
+  );
+
+  testWidgets(
+    'all five Tajwīd rule families are real rule-by-rule lessons, not the '
+    'reused hub page',
+    (tester) async {
+      await boot(tester);
+      for (final (id, topicId) in [
+        ('tajwid.madd', 'madd'),
+        ('tajwid.mim', 'mim'),
+        ('tajwid.nun', 'nun'),
+        ('tajwid.qalqalah', 'qalqalah'),
+        ('tajwid.raa', 'raa'),
+      ]) {
+        final items = kidsPath(ctx).firstWhere((b) => b.id == id).items(ctx);
+        expect(items.map((i) => i.id), [
+          'kids.$id.learn',
+          'kids.$id.test',
+        ], reason: id);
+        expect(
+          items.first.completeOnOpen,
+          isFalse,
+          reason: '$id: the lesson grades itself, like a quiz',
+        );
+        final lesson = items.first.open(ctx);
+        expect(lesson, isA<KidsTajwidRuleLesson>(), reason: id);
+        expect(
+          (lesson as KidsTajwidRuleLesson).ruleIds,
+          tajwidTopicById(topicId).ruleIds,
+          reason: '$id: covers every rule in its own family, no more, no less',
+        );
+        expect(items.last.completeOnOpen, isFalse);
+      }
+    },
+  );
 
   testWidgets('the path follows the agreed Qāʿidah order', (tester) async {
     await boot(tester);
@@ -315,8 +607,9 @@ void main() {
     expect(at('capstone'), ids.length - 1);
   });
 
-  testWidgets('sun and moon letters are taught once, not twice',
-      (tester) async {
+  testWidgets('sun and moon letters are taught once, not twice', (
+    tester,
+  ) async {
     await boot(tester);
     final ids = kidsPath(ctx).map((b) => b.id).toList();
     // `solar_lunar` IS the grown-up Tajwīd lām unit, moved to where a Qāʿidah
@@ -326,14 +619,13 @@ void main() {
     expect(ids.contains('solar_lunar'), isTrue);
   });
 
-  testWidgets('the special shapes stage covers the hamza carriers',
-      (tester) async {
+  testWidgets('the special shapes stage covers the hamza carriers', (
+    tester,
+  ) async {
     await boot(tester);
-    final ids = kidsPath(ctx)
-        .firstWhere((b) => b.id == 'special')
-        .items(ctx)
-        .map((i) => i.id)
-        .toList();
+    final ids = kidsPath(
+      ctx,
+    ).firstWhere((b) => b.id == 'special').items(ctx).map((i) => i.id).toList();
     // The characters the 28-letter alphabet leaves out but the muṣḥaf uses
     // constantly — they were missing from this stage when it first shipped.
     for (final ch in ['ء', 'أ', 'إ', 'ؤ', 'ئ', 'ى']) {
@@ -341,12 +633,83 @@ void main() {
     }
   });
 
-  testWidgets('reading stages ladder from two words to a whole sūrah',
-      (tester) async {
+  testWidgets(
+    'special shapes and every extra letter open kid-native lessons, never '
+    'the grown-up Joining Forms lesson viewer or LetterDetail',
+    (tester) async {
+      await boot(tester);
+      final items = kidsPath(
+        ctx,
+      ).firstWhere((b) => b.id == 'special').items(ctx);
+      for (final id in ['ligatures', 'kaf', 'stacks', 'heights']) {
+        final item = items.firstWhere((i) => i.id == 'kids.special.$id');
+        expect(item.open(ctx), isA<KidsSpecialShapesLesson>(), reason: id);
+      }
+      for (final ch in ['ء', 'أ', 'إ', 'ؤ', 'ئ', 'ى']) {
+        final item = items.firstWhere((i) => i.id == 'kids.special.$ch');
+        expect(item.open(ctx), isA<KidsExtraLetterLesson>(), reason: ch);
+      }
+    },
+  );
+
+  testWidgets('tāʼ marbūṭah opens a kid-native lesson, never LetterDetail', (
+    tester,
+  ) async {
+    await boot(tester);
+    final items = kidsPath(
+      ctx,
+    ).firstWhere((b) => b.id == 'tamarbuta').items(ctx);
+    final item = items.firstWhere((i) => i.id == 'kids.tamarbuta.ة');
+    expect(item.open(ctx), isA<KidsExtraLetterLesson>());
+  });
+
+  testWidgets(
+    'every stage Test is kid-native and reports under its own kids id',
+    (tester) async {
+      await boot(tester);
+      var seen = 0;
+      for (final block in kidsPath(ctx)) {
+        for (final item in block.items(ctx)) {
+          if (!item.id.endsWith('.test')) continue;
+          seen++;
+          final screen = item.open(ctx);
+          // Nothing wraps a grown-up quiz to mirror its stars any more: the
+          // widget itself reports under the kids id the trail looks at.
+          expect(
+            screen.runtimeType.toString(),
+            isNot('_KidsProgressMirror'),
+            reason: item.id,
+          );
+          expect((screen as dynamic).progressId, item.id, reason: item.id);
+          // A lesson's Test is that lesson's own checks (quiz: true); the
+          // rest are the shared quiz shell over kid-worded questions.
+          final quiz = switch (screen) {
+            KidsWaqfLesson(:final quiz) => quiz,
+            KidsWaslLesson(:final quiz) => quiz,
+            KidsWordsLesson(:final quiz) => quiz,
+            KidsMuqattaatLesson(:final quiz) => quiz,
+            KidsSolarLunarLesson(:final quiz) => quiz,
+            KidsTajwidRuleLesson(:final quiz) => quiz,
+            KidsMaddLesson(:final quiz) => quiz,
+            QuizScreen() => true,
+            _ => false,
+          };
+          expect(quiz, isTrue, reason: '${item.id} opens ${screen.runtimeType}');
+        }
+      }
+      // ḥarakāt, sukūn, shaddah, madd, tanwīn, muqaṭṭaʿāt, words, waṣl, sun and
+      // moon, tāʼ marbūṭah, waqf, five tajwīd families, review. (The letters,
+      // forms and special-shapes quizzes are `kids.quiz.*`.)
+      expect(seen, 17);
+    },
+  );
+
+  testWidgets('reading stages ladder from two words to a whole sūrah', (
+    tester,
+  ) async {
     await boot(tester);
     for (final id in ['words.two', 'words.three', 'capstone']) {
-      final items =
-          kidsPath(ctx).firstWhere((b) => b.id == id).items(ctx);
+      final items = kidsPath(ctx).firstWhere((b) => b.id == id).items(ctx);
       expect(items, hasLength(1), reason: id);
       expect(items.single.id, 'kids.$id.read');
       // Reading is graded by doing it, so it must NOT be marked done merely

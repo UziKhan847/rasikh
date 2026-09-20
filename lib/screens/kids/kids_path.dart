@@ -6,19 +6,27 @@ import '../../data/extra_letters.dart';
 import '../../data/glyph_names.dart';
 import '../../data/kids_content.dart';
 import '../../data/letters.dart';
+import '../../data/tajwid_path.dart' show tajwidTopicById;
+import '../../data/tashkeel.dart' show tashkil;
 import '../../data/tracing_levels.dart';
-import '../../widgets/common.dart' show QuizScreen, UnitPhase;
-import '../../widgets/lesson.dart';
-import '../lessons/forms_lessons.dart';
-import '../lessons/forms_quizzes.dart';
-import '../qaidah_screen.dart'
-    show LetterDetail, letterQuizScreen, qaidahUnits;
-import '../script_screen.dart' show scriptUnits;
-import '../tajweed_screen.dart' show tajwidUnits;
+import '../../widgets/common.dart' show QuizScreen;
+import '../lessons/forms_quizzes.dart' show taMarbutaQuestions;
 import 'kids_checkpoint_quiz.dart';
 import 'kids_desktop_nav.dart';
+import 'kids_extra_letter_lesson.dart';
 import 'kids_letter_flow.dart';
+import 'kids_madd_lesson.dart';
+import 'kids_muqattaat_lesson.dart';
 import 'kids_reading_screen.dart';
+import 'kids_special_shapes_lesson.dart';
+import 'kids_review_recap.dart';
+import 'kids_solar_lunar_lesson.dart';
+import 'kids_stage_quizzes.dart';
+import 'kids_syllable_drill.dart';
+import 'kids_tajwid_rule_lesson.dart';
+import 'kids_waqf_lesson.dart';
+import 'kids_wasl_lesson.dart';
+import 'kids_words_lesson.dart';
 
 /// The Kids Mode curriculum, as data.
 ///
@@ -31,9 +39,18 @@ import 'kids_reading_screen.dart';
 /// row on the Learn tab, and its [KidsItem]s are the tiles inside it. Blocks
 /// unlock in order, and items unlock in order within a block.
 ///
-/// **Later blocks reuse the grown-up path's own lessons and quizzes** rather
-/// than duplicating the content — see [_unitBlock]. They render under the
-/// kids palette because both shells publish a `PaletteScope`.
+/// **Nothing on this path opens a grown-up Learn page, and no Test asks a
+/// grown-up question.** A stage's Test is its own kid lesson's check-ups with
+/// the cards taken away (`quiz:` on the lesson), or — for the drills and the
+/// closing review, whose lessons are not check-driven — a short kid-worded
+/// quiz over the same reviewed data (`kids_stage_quizzes.dart`); both report
+/// under `kids.<stage>.test`. Learn content is kid-native throughout: hand-built for the letters and joining shapes
+/// (`kids_letter_flow.dart`), and for every later stage its own dedicated
+/// lesson (`kids_syllable_drill.dart`, `kids_solar_lunar_lesson.dart`,
+/// `kids_madd_lesson.dart`, `kids_muqattaat_lesson.dart`,
+/// `kids_words_lesson.dart`, `kids_wasl_lesson.dart`, `kids_waqf_lesson.dart`,
+/// `kids_tajwid_rule_lesson.dart`, `kids_review_recap.dart`). They render
+/// under the kids palette because both shells publish a `PaletteScope`.
 
 /// One tile in a block: a letter to trace, a quiz to sit, or a lesson to read.
 class KidsItem {
@@ -90,68 +107,78 @@ class KidsBlock {
 /// (ا و د ذ ر ز) has only two, so its lesson is two steps, not four — asking
 /// a child to trace a medial dāl would be teaching a shape that doesn't exist.
 List<String> _formsOf(String levelId, ArabicLetter l) {
-  final level = tracingLevels.firstWhere((t) => t.id == levelId,
-      orElse: () => tracingLevels.firstWhere((t) => !t.words));
-  return [for (final f in level.formsPresentFor(l.char)) if (f != 'iso') f];
+  final level = tracingLevels.firstWhere(
+    (t) => t.id == levelId,
+    orElse: () => tracingLevels.firstWhere((t) => !t.words),
+  );
+  return [
+    for (final f in level.formsPresentFor(l.char))
+      if (f != 'iso') f,
+  ];
 }
 
 /// A letter's whole lesson: meet the shape, say it out loud, then trace it —
-/// first with the beginner stroke breakdown, then again with fewer, longer
-/// strokes. Both passes are one lesson rather than two separate stages: the
-/// child has the letter in mind right then, and splitting them meant meeting
-/// all 28 letters, then meeting all 28 again much later.
+/// several times over, in fewer, longer strokes. One lesson, not two: the
+/// beginner stroke breakdown (`naskh_more`) used to run first, but an extra,
+/// slower attempt before the real one taught nothing the writing pass didn't,
+/// and only made the lesson longer. It stays in `tracing_levels.dart` for the
+/// adult Tracing Studio, which still opens on it.
 KidsItem _letterItem(ArabicLetter l) => KidsItem(
-      // The original id, unchanged: anything already earned under it would
-      // otherwise be orphaned, and `kidsLettersLearned` counts this prefix.
-      id: 'kids.letter.${l.char}',
-      glyph: l.char,
-      label: (c) => letterName(c, l),
-      open: (c) => KidsLetterFlow(
-        letter: l.char,
-        traces: const [
-          KidsTraceStep('naskh_more', 'iso'),
-          // Several goes at the fewer-strokes shape: that pass is the closest
-          // thing here to actually writing the letter, and writing is learned
-          // by repeating it, not by getting it once.
-          KidsTraceStep('naskh_few', 'iso', repeat: kidsWritingPasses),
-        ],
-        progressId: 'kids.letter.${l.char}',
-      ),
-    );
+  // The original id, unchanged: anything already earned under it would
+  // otherwise be orphaned, and `kidsLettersLearned` counts this prefix.
+  id: 'kids.letter.${l.char}',
+  glyph: l.char,
+  label: (c) => letterName(c, l),
+  open: (c) => KidsLetterFlow(
+    letter: l.char,
+    traces: const [
+      KidsTraceStep('naskh_few', 'iso', repeat: kidsWritingPasses),
+    ],
+    progressId: 'kids.letter.${l.char}',
+  ),
+);
 
-/// A letter's joining-forms lesson, built exactly like [_letterItem]: meet
-/// the letter, say it, then take each shape it really has through the same
-/// two passes — the beginner stroke breakdown once, then the writing pass
-/// five times over.
+/// [l]'s joining-forms lessons — **one per shape it actually has**, not one
+/// lesson covering all of them: بَاء gets three (start, middle, end), a
+/// non-joiner (ا و د ذ ر ز) gets one (end — its only real joining shape,
+/// since the isolated one is what [_letterItem] already taught). Each is
+/// built exactly like a letter lesson: meet the shape, say it, then trace it
+/// several times over.
 ///
-/// The two stroke levels used to be two separate STAGES ("Joining Shapes"
-/// and "Shapes Again"), which meant tracing all 28 letters' shapes, clearing
-/// a quiz, and only then meeting the same 28 again in fewer strokes. They are
-/// one lesson now, for the same reason the letters' two passes are: the shape
-/// is in the child's hand right then.
-KidsItem _formsItem(ArabicLetter l) {
-  // naskh_more and naskh_few carry identical form coverage, so either level
-  // answers "which shapes does this letter actually have?".
-  final forms = _formsOf('naskh_more', l);
-  // Historical, and deliberately unchanged: the fewer-strokes stage is gone
-  // but this stage's ids are what any existing progress was recorded under.
-  final id = 'kids.forms.more.${l.char}';
-  return KidsItem(
-    id: id,
-    glyph: l.joins ? l.medial : l.finalForm,
-    label: (c) => letterName(c, l),
-    open: (c) => KidsLetterFlow(
-      letter: l.char,
-      traces: [
-        for (final f in forms.isEmpty ? const ['iso'] : forms) ...[
-          KidsTraceStep('naskh_more', f),
-          KidsTraceStep('naskh_few', f, repeat: kidsWritingPasses),
-        ],
-      ],
-      progressId: id,
-    ),
-  );
+/// This used to be a single 20-step lesson walking all of a joiner's shapes
+/// in one sitting, opening on the isolated glyph the Letters stage had
+/// already taught. Splitting it means each lesson is short, and the intro
+/// step ([KidsLetterFlow._introForm]) shows the actual shape being taught —
+/// or, for a non-joiner, a contrast card against the shape already known.
+List<KidsItem> _formsItems(ArabicLetter l) {
+  final forms = _formsOf('naskh_few', l);
+  return [
+    for (final f in forms.isEmpty ? const ['fin'] : forms)
+      KidsItem(
+        // A clean id per form — the old single-lesson-per-letter id
+        // (`kids.forms.more.<char>`) is migrated onto these in
+        // `ProgressStore.load()` rather than kept, since one lesson's worth
+        // of progress cannot honestly become three.
+        id: 'kids.forms.$f.${l.char}',
+        glyph: _glyphInFormFor(l, f),
+        label: (c) => letterName(c, l),
+        open: (c) => KidsLetterFlow(
+          letter: l.char,
+          traces: [KidsTraceStep('naskh_few', f, repeat: kidsWritingPasses)],
+          progressId: 'kids.forms.$f.${l.char}',
+        ),
+      ),
+  ];
 }
+
+/// The glyph a Joining Shapes tile shows for [l] in position [form] — the
+/// same rendering `ArabicLetter.initial`/`medial`/`finalForm` use.
+String _glyphInFormFor(ArabicLetter l, String form) => switch (form) {
+  'ini' => l.initial,
+  'med' => l.medial,
+  'fin' => l.finalForm,
+  _ => l.char,
+};
 
 /// Interleaves a cumulative check-up after every [kidsCheckpointEvery]
 /// lessons of a stage — after five letters a quiz on those five, after ten a
@@ -163,7 +190,9 @@ KidsItem _formsItem(ArabicLetter l) {
 /// own already follows immediately, and two quizzes back to back is a wall,
 /// not a checkpoint.
 List<KidsItem> _withCheckpoints(
-    List<KidsItem> lessons, KidsItem Function(int upTo) checkpoint) {
+  List<KidsItem> lessons,
+  KidsItem Function(int upTo) checkpoint,
+) {
   final out = <KidsItem>[];
   for (var i = 0; i < lessons.length; i++) {
     out.add(lessons[i]);
@@ -180,66 +209,201 @@ List<KidsItem> _withCheckpoints(
 /// (`kidsLettersLearned` over `kids.letter.`, the joining-forms badge over
 /// `kids.forms.more.`), and a checkpoint filed under one of those prefixes
 /// would quietly inflate the count it is not part of.
-KidsItem _checkpointItem(String stage, int upTo,
-        QuizScreen Function(BuildContext, String progressId, int upTo) build) =>
-    KidsItem(
-      id: 'kids.check.$stage.$upTo',
-      icon: Icons.fact_check_rounded,
-      label: (c) => c.l10n.kidsCheckpointFirst(upTo),
-      open: (c) => build(c, 'kids.check.$stage.$upTo', upTo),
-    );
+KidsItem _checkpointItem(
+  String stage,
+  int upTo,
+  QuizScreen Function(BuildContext, String progressId, int upTo) build,
+) => KidsItem(
+  id: 'kids.check.$stage.$upTo',
+  icon: Icons.fact_check_rounded,
+  label: (c) => c.l10n.kidsCheckpointFirst(upTo),
+  open: (c) => build(c, 'kids.check.$stage.$upTo', upTo),
+);
 
-KidsItem _quizItem(String id, String Function(BuildContext) label,
-        Widget Function(BuildContext) open) =>
-    KidsItem(
-        id: id, icon: Icons.quiz_rounded, label: label, open: open);
+/// [_withCheckpoints]'s shape, for the Joining Shapes stage specifically:
+/// [kidsFormsCheckpoint]'s `upTo` counts LETTERS, but a joiner now
+/// contributes three lessons per letter against a non-joiner's one, so
+/// counting by lesson position (as [_withCheckpoints] does) would misname a
+/// check-up and quiz over more or fewer letters than it claims. This groups
+/// each letter's own lessons together and counts letters, not lessons.
+List<KidsItem> _formsWithCheckpoints(List<ArabicLetter> letters) {
+  final out = <KidsItem>[];
+  for (var i = 0; i < letters.length; i++) {
+    out.addAll(_formsItems(letters[i]));
+    final done = i + 1;
+    if (done % kidsCheckpointEvery == 0 && done != letters.length) {
+      out.add(
+        _checkpointItem(
+          'forms',
+          done,
+          (c, id, n) => kidsFormsCheckpoint(c, progressId: id, upTo: n),
+        ),
+      );
+    }
+  }
+  return out;
+}
 
-KidsItem _lessonItem(String id, String Function(BuildContext) label,
-        Widget Function(BuildContext) open) =>
-    KidsItem(
-      id: id,
-      icon: Icons.menu_book_rounded,
-      label: label,
-      open: open,
-      completeOnOpen: true,
-    );
+KidsItem _quizItem(
+  String id,
+  String Function(BuildContext) label,
+  Widget Function(BuildContext) open,
+) => KidsItem(id: id, icon: Icons.quiz_rounded, label: label, open: open);
 
-/// A block built from one of the grown-up units: its Learn page, then its
-/// Test. This is the whole of the "reuse, don't re-author" decision — the
-/// Qāʿidah units (ḥarakāt through waṣl), the Script & Symbols units (waqf),
-/// and the Tajwīd units all already have real lessons and real quizzes, and a
-/// second kid-only copy of each would be a second thing to keep correct.
-///
-/// [phases] is a function rather than a progress id because the three unit
-/// types are separate classes that happen to share a shape: `QaidahUnit`,
-/// `ScriptUnit` and `TajwidUnit` all carry a `List<UnitPhase>`, but nothing
-/// in the app declares that as a common interface.
-KidsBlock _unitBlock({
+KidsItem _lessonItem(
+  String id,
+  String Function(BuildContext) label,
+  Widget Function(BuildContext) open,
+) => KidsItem(
+  id: id,
+  icon: Icons.menu_book_rounded,
+  label: label,
+  open: open,
+  completeOnOpen: true,
+);
+
+/// A stage built from real Qāʿidah Nūrāniyyah drills — [kidsDrillSessions]
+/// [KidsSyllableDrill] sessions per mark in [markIds], together walking every
+/// letter of the alphabet with that mark rather than a single prose page
+/// about it. Closes on a Test built by [test] over the same marks.
+KidsBlock _drillBlock({
   required String id,
   required String badge,
-  required List<UnitPhase> Function(BuildContext) phases,
+  required List<String> markIds,
+  required QuizScreen Function(BuildContext, String testId) test,
   required String Function(BuildContext) title,
   required String Function(BuildContext) subtitle,
-}) =>
-    KidsBlock(
-      id: id,
-      title: title,
-      subtitle: subtitle,
-      badge: badge,
-      items: (c) {
-        final ps = phases(c);
-        final learn = ps.isNotEmpty ? ps[0].builder : null;
-        final test = ps.length > 1 ? ps[1].builder : null;
-        return [
-          // The lesson item carries the STAGE's name, not the generic
-          // "Learn" — Home's resume card shows the item's label, and
-          // "Next: Learn" tells a child nothing about what is next.
-          if (learn != null) _lessonItem('kids.$id.learn', title, learn),
-          if (test != null)
-            _quizItem('kids.$id.test', (c) => c.l10n.phaseTest, test),
-        ];
-      },
-    );
+}) => KidsBlock(
+  id: id,
+  title: title,
+  subtitle: subtitle,
+  badge: badge,
+  items: (c) {
+    final kidsTestId = 'kids.$id.test';
+    return [
+      // One tile per SESSION, not per mark: the whole alphabet with one mark
+      // is ~32 steps, past what a young child sustains, so each mark opens
+      // as [kidsDrillSessions] shorter runs (see [KidsSyllableDrill]).
+      for (final markId in markIds)
+        for (final (n, (from, to)) in kidsDrillRanges().indexed)
+          () {
+            final mark = tashkil.firstWhere((t) => t.id == markId);
+            final drillId = 'kids.$id.$markId.${n + 1}';
+            return KidsItem(
+              id: drillId,
+              // The first syllable of THIS session, so the three tiles of
+              // one mark read بَ, سَ, غَ… instead of three identical glyphs.
+              glyph:
+                  '${kidsSyllableLetters[from].char}${mark.mark.substring(1)}',
+              label: (c) => '${tashkilName(c, mark)} · ${n + 1}',
+              icon: Icons.record_voice_over_rounded,
+              open: (c) => KidsSyllableDrill(
+                mark: mark,
+                progressId: drillId,
+                start: from,
+                end: to,
+              ),
+            );
+          }(),
+      _quizItem(kidsTestId, (c) => c.l10n.phaseTest, (c) => test(c, kidsTestId)),
+    ];
+  },
+);
+
+/// A Tajwīd rule-family stage taught rule by rule (`KidsTajwidRuleLesson`) —
+/// works for a family of any size, from qalqalah's one rule to nūn sākinah's
+/// five — closing on the same rule checks as a Test (`quiz: true`), drawn
+/// from every rule in the family. [ruleIds] comes from the same
+/// `tajwidTopics` grouping the grown-up hub itself reads
+/// (`lib/data/tajwid_path.dart`), so a rule added to a family there reaches
+/// this lesson with no edit here.
+KidsBlock _tajwidRuleBlock({
+  required String id,
+  required String badge,
+  required String topicId,
+  required IconData icon,
+  required String Function(BuildContext) title,
+  required String Function(BuildContext) subtitle,
+}) => _gradedLessonBlock(
+  id: id,
+  badge: badge,
+  learnBuilder: (c, learnId) => KidsTajwidRuleLesson(
+    ruleIds: tajwidTopicById(topicId).ruleIds,
+    progressId: learnId,
+    icon: icon,
+    title: title,
+    subtitle: subtitle,
+  ),
+  testBuilder: (c, testId) => KidsTajwidRuleLesson(
+    ruleIds: tajwidTopicById(topicId).ruleIds,
+    progressId: testId,
+    icon: icon,
+    title: title,
+    subtitle: subtitle,
+    quiz: true,
+  ),
+  icon: icon,
+  title: title,
+  subtitle: subtitle,
+);
+
+/// A stage whose Learn side is a bespoke kid-native page — [learnBuilder] —
+/// that is read rather than graded, and whose Test is [testBuilder]. Complete
+/// on open: nothing on the page is gradeable in the way a quiz or a drill's
+/// check-up is, so there is nothing to hold XP back for.
+KidsBlock _kidLearnBlock({
+  required String id,
+  required String badge,
+  required Widget Function(BuildContext) learnBuilder,
+  required Widget Function(BuildContext, String testId) testBuilder,
+  required String Function(BuildContext) title,
+  required String Function(BuildContext) subtitle,
+}) => KidsBlock(
+  id: id,
+  title: title,
+  subtitle: subtitle,
+  badge: badge,
+  items: (c) {
+    final kidsTestId = 'kids.$id.test';
+    return [
+      _lessonItem('kids.$id.learn', title, learnBuilder),
+      _quizItem(kidsTestId, (c) => c.l10n.phaseTest, (c) => testBuilder(c, kidsTestId)),
+    ];
+  },
+);
+
+/// A stage whose Learn side is a bespoke kid-native lesson that grades
+/// ITSELF (a `KidsSolarLunarLesson`, a `KidsMuqattaatLesson`, and so on —
+/// anything with its own internal check-ups), rather than being
+/// complete-on-open like [_kidLearnBlock]'s. The Test side is [testBuilder]:
+/// the same lesson's checks with the cards taken away.
+KidsBlock _gradedLessonBlock({
+  required String id,
+  required String badge,
+  required Widget Function(BuildContext, String progressId) learnBuilder,
+  required Widget Function(BuildContext, String testId) testBuilder,
+  required IconData icon,
+  required String Function(BuildContext) title,
+  required String Function(BuildContext) subtitle,
+}) => KidsBlock(
+  id: id,
+  title: title,
+  subtitle: subtitle,
+  badge: badge,
+  items: (c) {
+    final learnId = 'kids.$id.learn';
+    final testId = 'kids.$id.test';
+    return [
+      KidsItem(
+        id: learnId,
+        icon: icon,
+        label: title,
+        open: (c) => learnBuilder(c, learnId),
+      ),
+      _quizItem(testId, (c) => c.l10n.phaseTest, (c) => testBuilder(c, testId)),
+    ];
+  },
+);
 
 /// A "read it aloud, then tap" stage over real text from the bundled corpus.
 /// One item, because the reading itself is the whole stage.
@@ -251,308 +415,396 @@ KidsBlock _readingBlock({
   required String Function(BuildContext) title,
   String Function(BuildContext)? subtitle,
   bool wholeAyahs = false,
-}) =>
-    KidsBlock(
-      id: id,
-      title: title,
-      subtitle: subtitle ?? (c) => c.l10n.kidsBlockWordsSub,
-      badge: badge,
-      items: (c) => [
-        KidsItem(
-          id: 'kids.$id.read',
-          icon: Icons.auto_stories_rounded,
-          label: title,
-          open: (c) => KidsReadingScreen(
-            surah: surah,
-            wordsPerChunk: wordsPerChunk,
-            wholeAyahs: wholeAyahs,
-            progressId: 'kids.$id.read',
-          ),
-        ),
-      ],
-    );
-
-List<UnitPhase> _qaidah(BuildContext c, String progressId) =>
-    qaidahUnits(c).firstWhere((u) => u.progressId == progressId).phases;
-
-List<UnitPhase> _tajwid(BuildContext c, String progressId) =>
-    tajwidUnits(c).firstWhere((u) => u.progressId == progressId).phases;
-
-List<UnitPhase> _script(BuildContext c, String progressId) =>
-    scriptUnits(c).firstWhere((u) => u.progressId == progressId).phases;
+}) => KidsBlock(
+  id: id,
+  title: title,
+  subtitle: subtitle ?? (c) => c.l10n.kidsBlockWordsSub,
+  badge: badge,
+  items: (c) => [
+    KidsItem(
+      id: 'kids.$id.read',
+      icon: Icons.auto_stories_rounded,
+      label: title,
+      open: (c) => KidsReadingScreen(
+        surah: surah,
+        wordsPerChunk: wordsPerChunk,
+        wholeAyahs: wholeAyahs,
+        progressId: 'kids.$id.read',
+      ),
+    ),
+  ],
+);
 
 /// A block of "meet this character" pages, drawn from [extraLetters] — the
 /// hamza carriers, tāʼ marbūṭah and alif maqṣūrah that the 28-letter alphabet
 /// does not cover but the muṣḥaf uses constantly.
 List<KidsItem> _extraLetterItems(String blockId, List<String> chars) => [
-      for (final ch in chars)
-        if (extraLetters.any((l) => l.char == ch))
-          () {
-            final l = extraLetters.firstWhere((x) => x.char == ch);
-            return KidsItem(
-              id: 'kids.$blockId.$ch',
-              glyph: ch,
-              label: (c) => letterName(c, l),
-              open: (c) => LetterDetail(letter: l),
-              completeOnOpen: true,
-            );
-          }()
-    ];
+  for (final ch in chars)
+    if (extraLetters.any((l) => l.char == ch))
+      () {
+        final l = extraLetters.firstWhere((x) => x.char == ch);
+        return KidsItem(
+          id: 'kids.$blockId.$ch',
+          glyph: ch,
+          label: (c) => letterName(c, l),
+          open: (c) => KidsExtraLetterLesson(char: ch),
+          completeOnOpen: true,
+        );
+      }(),
+];
 
 // ── the path ──────────────────────────────────────────────────────────────
 
 List<KidsBlock> kidsPath(BuildContext context) => [
-      KidsBlock(
-        id: 'letters',
-        title: (c) => c.l10n.kidsBlockLetters,
-        subtitle: (c) => c.l10n.kidsBlockLettersSub,
-        badge: 'ا ب',
-        items: (c) => _withCheckpoints(
-              [for (final l in letters) _letterItem(l)],
-              (upTo) => _checkpointItem(
-                  'letters',
-                  upTo,
-                  (c, id, n) =>
-                      kidsLetterCheckpoint(c, progressId: id, upTo: n)),
+  KidsBlock(
+    id: 'letters',
+    title: (c) => c.l10n.kidsBlockLetters,
+    subtitle: (c) => c.l10n.kidsBlockLettersSub,
+    badge: 'ا ب',
+    items: (c) => _withCheckpoints(
+      [for (final l in letters) _letterItem(l)],
+      (upTo) => _checkpointItem(
+        'letters',
+        upTo,
+        (c, id, n) => kidsLetterCheckpoint(c, progressId: id, upTo: n),
+      ),
+    ),
+  ),
+  KidsBlock(
+    id: 'letters.quiz',
+    title: (c) => c.l10n.kidsBlockLettersQuiz,
+    subtitle: (c) => c.l10n.kidsBlockQuizSub,
+    badge: '؟',
+    items: (c) => [
+      _quizItem(
+        'kids.quiz.letters',
+        (c) => c.l10n.letterQuiz,
+        // A cumulative check-up over the whole alphabet — shape→name AND
+        // name→shape, with each letter's look-alikes as its distractors —
+        // rather than the grown-up name-only quiz this used to reuse.
+        (c) => kidsLetterCheckpoint(
+          c,
+          progressId: 'kids.quiz.letters',
+          upTo: kidsLetterPath.length,
+        ),
+      ),
+    ],
+  ),
+  KidsBlock(
+    // The id is the old "more strokes" stage's, kept so progress recorded
+    // under it survives the two stroke stages being merged into one.
+    id: 'forms.more',
+    title: (c) => c.l10n.kidsBlockForms,
+    subtitle: (c) => c.l10n.kidsBlockFormsSub,
+    badge: 'ـبـ',
+    items: (c) => _formsWithCheckpoints(letters),
+  ),
+  KidsBlock(
+    id: 'forms.quiz',
+    title: (c) => c.l10n.kidsBlockFormsQuiz,
+    subtitle: (c) => c.l10n.kidsBlockQuizSub,
+    badge: '؟',
+    items: (c) => [
+      _quizItem(
+        'kids.quiz.forms',
+        (c) => c.l10n.formsQuiz,
+        // A cumulative check-up over every joining shape — a shape → its
+        // letter and a letter + position → its shape, with each letter's
+        // look-alikes as distractors — like the Letters quiz, rather than the
+        // grown-up "pick the letter AND its form from a grid of twelve".
+        (c) => kidsFormsCheckpoint(
+          c,
+          progressId: 'kids.quiz.forms',
+          upTo: kidsLetterPath.length,
+        ),
+      ),
+    ],
+  ),
+  // No "Shapes Again" stage here: the fewer-strokes pass it used to be
+  // now sits inside each joining-forms lesson above, where the shape is
+  // already in the child's hand.
+  KidsBlock(
+    id: 'special',
+    title: (c) => c.l10n.kidsBlockSpecial,
+    subtitle: (c) => c.l10n.kidsBlockSpecialSub,
+    badge: 'لا',
+    items: (c) => [
+      for (final (id, group, icon, title)
+          in <(String, String, IconData, String Function(BuildContext))>[
+            (
+              'ligatures',
+              'ligature',
+              Icons.link_rounded,
+              (c) => c.l10n.lsnLigatures,
             ),
-      ),
-      KidsBlock(
-        id: 'letters.quiz',
-        title: (c) => c.l10n.kidsBlockLettersQuiz,
-        subtitle: (c) => c.l10n.kidsBlockQuizSub,
-        badge: '؟',
-        items: (c) => [
-          _quizItem('kids.quiz.letters', (c) => c.l10n.letterQuiz,
-              (c) => letterQuizScreen(c)),
-        ],
-      ),
-      KidsBlock(
-        // The id is the old "more strokes" stage's, kept so progress recorded
-        // under it survives the two stroke stages being merged into one.
-        id: 'forms.more',
-        title: (c) => c.l10n.kidsBlockForms,
-        subtitle: (c) => c.l10n.kidsBlockFormsSub,
-        badge: 'ـبـ',
-        items: (c) => _withCheckpoints(
-              [for (final l in letters) _formsItem(l)],
-              (upTo) => _checkpointItem(
-                  'forms',
-                  upTo,
-                  (c, id, n) =>
-                      kidsFormsCheckpoint(c, progressId: id, upTo: n)),
+            ('kaf', 'kaf', Icons.route_rounded, (c) => c.l10n.lsnKafsWrap),
+            (
+              'stacks',
+              'stacking',
+              Icons.layers_rounded,
+              (c) => c.l10n.lsnStacking,
             ),
-      ),
-      KidsBlock(
-        id: 'forms.quiz',
-        title: (c) => c.l10n.kidsBlockFormsQuiz,
-        subtitle: (c) => c.l10n.kidsBlockQuizSub,
-        badge: '؟',
-        items: (c) => [
-          _quizItem(
-              'kids.quiz.forms',
-              (c) => c.l10n.formsQuiz,
-              (c) => formsVarietyQuiz(c, progressId: 'kids.quiz.forms')),
-        ],
-      ),
-      // No "Shapes Again" stage here: the fewer-strokes pass it used to be
-      // now sits inside each joining-forms lesson above, where the shape is
-      // already in the child's hand.
-      KidsBlock(
-        id: 'special',
-        title: (c) => c.l10n.kidsBlockSpecial,
-        subtitle: (c) => c.l10n.kidsBlockSpecialSub,
-        badge: 'لا',
-        items: (c) => [
-          for (final (id, node) in [
-            ('ligatures', ligaturesGroupNode),
-            ('kaf', kafWrapGroupNode),
-            ('stacks', stackingGroupNode),
-            ('heights', heightsGroupNode),
+            (
+              'heights',
+              'tails',
+              Icons.height_rounded,
+              (c) => c.l10n.lsnHeightsAndTails,
+            ),
           ])
-            _lessonItem('kids.special.$id', (c) => node(c).title,
-                (c) => lessonEntryScreen(node(c))),
-          // The characters the 28-letter alphabet leaves out but the muṣḥaf
-          // uses on every page. Tāʼ marbūṭah gets its own stage later, with
-          // the stopping rule that makes it worth teaching separately.
-          ..._extraLetterItems('special', const ['ء', 'أ', 'إ', 'ؤ', 'ئ', 'ى']),
-        ],
+        KidsItem(
+          id: 'kids.special.$id',
+          icon: icon,
+          label: title,
+          open: (c) => KidsSpecialShapesLesson(
+            group: group,
+            progressId: 'kids.special.$id',
+          ),
+        ),
+      // The characters the 28-letter alphabet leaves out but the muṣḥaf
+      // uses on every page. Tāʼ marbūṭah gets its own stage later, with
+      // the stopping rule that makes it worth teaching separately.
+      ..._extraLetterItems('special', const ['ء', 'أ', 'إ', 'ؤ', 'ئ', 'ى']),
+    ],
+  ),
+  KidsBlock(
+    id: 'special.quiz',
+    title: (c) => c.l10n.kidsBlockSpecialQuiz,
+    subtitle: (c) => c.l10n.kidsBlockQuizSub,
+    badge: '؟',
+    items: (c) => [
+      _quizItem(
+        'kids.quiz.special',
+        (c) => c.l10n.formsQuiz,
+        (c) => kidsSpecialShapesQuiz(c, progressId: 'kids.quiz.special'),
       ),
-      KidsBlock(
-        id: 'special.quiz',
-        title: (c) => c.l10n.kidsBlockSpecialQuiz,
-        subtitle: (c) => c.l10n.kidsBlockQuizSub,
-        badge: '؟',
-        items: (c) => [
-          // The grown-up Joining Forms unit's Practice round is exactly this
-          // material — lām-alif, the kāf wraps, the stacks, the hamza
-          // carriers — so it is reused rather than re-authored.
-          _quizItem('kids.quiz.special', (c) => c.l10n.formsQuiz,
-              (c) => qaidahUnits(c)
-                  .firstWhere((u) => u.progressId == 'qaidah.forms')
-                  .phases[2]
-                  .builder!(c)),
-        ],
+    ],
+  ),
+  // ── from here on, the grown-up path's own units, in the Qāʿidah order
+  // the child is ready for them. Ḥurūf Muqaṭṭaʿah sits AFTER madd and
+  // tanwīn, not before: reading مٓ needs the six counts, so a child who
+  // met it earlier could only imitate the sound.
+  // Real Qāʿidah Nūrāniyyah drills — بَ تَ ثَ … one mark at a time, letter
+  // by letter, rather than a single prose page about the mark in the
+  // abstract. See [_drillBlock] and [KidsSyllableDrill].
+  _drillBlock(
+    id: 'harakat',
+    badge: 'بَ',
+    test: (c, id) => kidsSyllableQuiz(
+      c,
+      title: c.l10n.unitHarakat,
+      progressId: id,
+      markIds: const ['fatha', 'kasra', 'damma'],
+    ),
+    markIds: const ['fatha', 'kasra', 'damma'],
+    title: (c) => c.l10n.unitHarakat,
+    subtitle: (c) => c.l10n.unitHarakatSub,
+  ),
+  _drillBlock(
+    id: 'sukun',
+    badge: 'بۡ',
+    test: (c, id) => kidsMarkSpotQuiz(
+      c,
+      title: c.l10n.mkSukun,
+      progressId: id,
+      markId: 'sukun',
+    ),
+    markIds: const ['sukun'],
+    // The grown-up unit titles itself from the tashkīl data
+    // (`tashkilName`); `mkSukun` is that same name as a plain string.
+    title: (c) => c.l10n.mkSukun,
+    subtitle: (c) => c.l10n.unitSukunSub,
+  ),
+  // Shaddah directly after sukūn: it IS sukūn plus a moving letter, and
+  // the grown-up lesson literally builds it as بۡ + بَ = بَّ.
+  _drillBlock(
+    id: 'shadda',
+    badge: 'بّ',
+    test: (c, id) => kidsMarkSpotQuiz(
+      c,
+      title: c.l10n.shaddah,
+      progressId: id,
+      markId: 'shadda',
+    ),
+    markIds: const ['shadda'],
+    title: (c) => c.l10n.shaddah,
+    subtitle: (c) => c.l10n.unitShaddahSub,
+  ),
+  _kidLearnBlock(
+    id: 'madd',
+    badge: 'بَا',
+    testBuilder: (c, id) => KidsMaddLesson(quiz: true, progressId: id),
+    learnBuilder: (c) => const KidsMaddLesson(),
+    title: (c) => c.l10n.unitMaddLin,
+    subtitle: (c) => c.l10n.unitMaddLinSub,
+  ),
+  _drillBlock(
+    id: 'tanwin',
+    badge: 'بً',
+    test: (c, id) => kidsSyllableQuiz(
+      c,
+      title: c.l10n.unitTanwin,
+      progressId: id,
+      markIds: const ['fathatan', 'kasratan', 'dammatan'],
+    ),
+    markIds: const ['fathatan', 'kasratan', 'dammatan'],
+    title: (c) => c.l10n.unitTanwin,
+    subtitle: (c) => c.l10n.unitTanwinSub,
+  ),
+  _gradedLessonBlock(
+    id: 'muqattaat',
+    badge: 'الٓمٓ',
+    testBuilder: (c, id) => KidsMuqattaatLesson(progressId: id, quiz: true),
+    learnBuilder: (c, id) => KidsMuqattaatLesson(progressId: id),
+    icon: Icons.spellcheck_rounded,
+    title: (c) => c.l10n.unitMuqattaat,
+    subtitle: (c) => c.l10n.unitMuqattaatSub,
+  ),
+
+  // ── words ──
+  _gradedLessonBlock(
+    id: 'words',
+    badge: 'قُلۡ',
+    testBuilder: (c, id) => KidsWordsLesson(progressId: id, quiz: true),
+    learnBuilder: (c, id) => KidsWordsLesson(progressId: id),
+    icon: Icons.auto_stories_rounded,
+    title: (c) => c.l10n.readingWords,
+    subtitle: (c) => c.l10n.unitReadingWordsSub,
+  ),
+  _gradedLessonBlock(
+    id: 'wasl',
+    badge: 'ٱ',
+    testBuilder: (c, id) => KidsWaslLesson(progressId: id, quiz: true),
+    learnBuilder: (c, id) => KidsWaslLesson(progressId: id),
+    icon: Icons.link_rounded,
+    title: (c) => c.l10n.unitWasl,
+    subtitle: (c) => c.l10n.unitWaslSub,
+  ),
+  // Sun and moon letters ARE lām shamsiyyah/qamariyyah, so this is the
+  // grown-up Tajwīd lām unit placed where a Qāʿidah actually teaches it —
+  // with ٱل, right after waṣl — rather than repeated in the tajwīd block
+  // at the end. Lām al-jalālah rides along in the same unit.
+  _gradedLessonBlock(
+    id: 'solar_lunar',
+    badge: 'ال',
+    testBuilder: (c, id) => KidsSolarLunarLesson(progressId: id, quiz: true),
+    learnBuilder: (c, id) => KidsSolarLunarLesson(progressId: id),
+    icon: Icons.wb_sunny_rounded,
+    title: (c) => c.l10n.kidsBlockSolarLunar,
+    subtitle: (c) => c.l10n.kidsBlockSolarLunarSub,
+  ),
+  KidsBlock(
+    id: 'tamarbuta',
+    title: (c) => c.l10n.kidsBlockTaMarbuta,
+    subtitle: (c) => c.l10n.kidsBlockTaMarbutaSub,
+    badge: 'ة',
+    items: (c) => [
+      ..._extraLetterItems('tamarbuta', const ['ة']),
+      _quizItem(
+        'kids.tamarbuta.test',
+        (c) => c.l10n.phaseTest,
+        (c) => QuizScreen(
+          title: c.l10n.kidsBlockTaMarbuta,
+          progressId: 'kids.tamarbuta.test',
+          questions: taMarbutaQuestions(c),
+        ),
       ),
-      // ── from here on, the grown-up path's own units, in the Qāʿidah order
-      // the child is ready for them. Ḥurūf Muqaṭṭaʿah sits AFTER madd and
-      // tanwīn, not before: reading مٓ needs the six counts, so a child who
-      // met it earlier could only imitate the sound.
-      _unitBlock(
-          id: 'harakat',
-          badge: 'بَ',
-          phases: (c) => _qaidah(c, 'qaidah.harakat'),
-          title: (c) => c.l10n.unitHarakat,
-          subtitle: (c) => c.l10n.unitHarakatSub),
-      _unitBlock(
-          id: 'sukun',
-          badge: 'بۡ',
-          phases: (c) => _qaidah(c, 'qaidah.sukun'),
-          // The grown-up unit titles itself from the tashkīl data
-          // (`tashkilName`); `mkSukun` is that same name as a plain string.
-          title: (c) => c.l10n.mkSukun,
-          subtitle: (c) => c.l10n.unitSukunSub),
-      // Shaddah directly after sukūn: it IS sukūn plus a moving letter, and
-      // the grown-up lesson literally builds it as بۡ + بَ = بَّ.
-      _unitBlock(
-          id: 'shadda',
-          badge: 'بّ',
-          phases: (c) => _qaidah(c, 'qaidah.shadda'),
-          title: (c) => c.l10n.shaddah,
-          subtitle: (c) => c.l10n.unitShaddahSub),
-      _unitBlock(
-          id: 'madd',
-          badge: 'بَا',
-          phases: (c) => _qaidah(c, 'qaidah.madd'),
-          title: (c) => c.l10n.unitMaddLin,
-          subtitle: (c) => c.l10n.unitMaddLinSub),
-      _unitBlock(
-          id: 'tanwin',
-          badge: 'بً',
-          phases: (c) => _qaidah(c, 'qaidah.tanwin'),
-          title: (c) => c.l10n.unitTanwin,
-          subtitle: (c) => c.l10n.unitTanwinSub),
-      _unitBlock(
-          id: 'muqattaat',
-          badge: 'الٓمٓ',
-          phases: (c) => _qaidah(c, 'qaidah.muqattaat'),
-          title: (c) => c.l10n.unitMuqattaat,
-          subtitle: (c) => c.l10n.unitMuqattaatSub),
+    ],
+  ),
+  // How to stop — the rule that gives tāʼ marbūṭah its point, plus the
+  // waqf signs themselves.
+  _gradedLessonBlock(
+    id: 'waqf',
+    badge: 'صلى',
+    testBuilder: (c, id) => KidsWaqfLesson(progressId: id, quiz: true),
+    learnBuilder: (c, id) => KidsWaqfLesson(progressId: id),
+    icon: Icons.traffic_rounded,
+    title: (c) => c.l10n.unitWaqfStopping,
+    subtitle: (c) => c.l10n.unitWaqfStoppingSub,
+  ),
+  // Two words, then three: joining words up and reading them together,
+  // over real text from the bundled corpus (see KidsReadingScreen).
+  _readingBlock(
+    id: 'words.two',
+    badge: '٢',
+    surah: 112, // al-Ikhlāṣ
+    wordsPerChunk: 2,
+    title: (c) => c.l10n.kidsBlockTwoWords,
+  ),
+  _readingBlock(
+    id: 'words.three',
+    badge: '٣',
+    surah: 108, // al-Kawthar
+    wordsPerChunk: 3,
+    title: (c) => c.l10n.kidsBlockThreeWords,
+  ),
 
-      // ── words ──
-      _unitBlock(
-          id: 'words',
-          badge: 'قُلۡ',
-          phases: (c) => _qaidah(c, 'qaidah.words'),
-          title: (c) => c.l10n.readingWords,
-          subtitle: (c) => c.l10n.unitReadingWordsSub),
-      _unitBlock(
-          id: 'wasl',
-          badge: 'ٱ',
-          phases: (c) => _qaidah(c, 'qaidah.wasl'),
-          title: (c) => c.l10n.unitWasl,
-          subtitle: (c) => c.l10n.unitWaslSub),
-      // Sun and moon letters ARE lām shamsiyyah/qamariyyah, so this is the
-      // grown-up Tajwīd lām unit placed where a Qāʿidah actually teaches it —
-      // with ٱل, right after waṣl — rather than repeated in the tajwīd block
-      // at the end. Lām al-jalālah rides along in the same unit.
-      _unitBlock(
-          id: 'solar_lunar',
-          badge: 'ال',
-          phases: (c) => _tajwid(c, 'tajwid.lam'),
-          title: (c) => c.l10n.kidsBlockSolarLunar,
-          subtitle: (c) => c.l10n.kidsBlockSolarLunarSub),
-      KidsBlock(
-        id: 'tamarbuta',
-        title: (c) => c.l10n.kidsBlockTaMarbuta,
-        subtitle: (c) => c.l10n.kidsBlockTaMarbutaSub,
-        badge: 'ة',
-        items: (c) => [
-          ..._extraLetterItems('tamarbuta', const ['ة']),
-          _quizItem(
-              'kids.tamarbuta.test',
-              (c) => c.l10n.phaseTest,
-              (c) => QuizScreen(
-                  title: c.l10n.kidsBlockTaMarbuta,
-                  progressId: 'kids.tamarbuta.test',
-                  questions: taMarbutaQuestions(c))),
-        ],
-      ),
-      // How to stop — the rule that gives tāʼ marbūṭah its point, plus the
-      // waqf signs themselves.
-      _unitBlock(
-          id: 'waqf',
-          badge: 'صلى',
-          phases: (c) => _script(c, 'script.waqf'),
-          title: (c) => c.l10n.unitWaqfStopping,
-          subtitle: (c) => c.l10n.unitWaqfStoppingSub),
-      // Two words, then three: joining words up and reading them together,
-      // over real text from the bundled corpus (see KidsReadingScreen).
-      _readingBlock(
-          id: 'words.two',
-          badge: '٢',
-          surah: 112, // al-Ikhlāṣ
-          wordsPerChunk: 2,
-          title: (c) => c.l10n.kidsBlockTwoWords),
-      _readingBlock(
-          id: 'words.three',
-          badge: '٣',
-          surah: 108, // al-Kawthar
-          wordsPerChunk: 3,
-          title: (c) => c.l10n.kidsBlockThreeWords),
+  // ── tajwīd ──
+  // Sun/moon letters (the lām unit) were taught with ٱl above, so they
+  // are not repeated here.
+  // Titles come straight from l10n rather than by looking the unit up
+  // again: `_tajwid` already rebuilds the whole unit list once per row,
+  // and resolving the title and subtitle that way would make it three.
+  _tajwidRuleBlock(
+    id: 'tajwid.madd',
+    badge: 'بَا',
+    topicId: 'madd',
+    icon: Icons.timelapse_rounded,
+    title: (c) => c.l10n.tjUnitMadd,
+    subtitle: (c) => c.l10n.tjUnitMaddSub,
+  ),
+  _tajwidRuleBlock(
+    id: 'tajwid.mim',
+    badge: 'مْ',
+    topicId: 'mim',
+    icon: Icons.record_voice_over_rounded,
+    title: (c) => c.l10n.tjUnitMim,
+    subtitle: (c) => c.l10n.tjUnitMimSub,
+  ),
+  _tajwidRuleBlock(
+    id: 'tajwid.nun',
+    badge: 'نْ',
+    topicId: 'nun',
+    icon: Icons.record_voice_over_rounded,
+    title: (c) => c.l10n.tjUnitNun,
+    subtitle: (c) => c.l10n.tjUnitNunSub,
+  ),
+  _tajwidRuleBlock(
+    id: 'tajwid.qalqalah',
+    badge: 'قْ',
+    topicId: 'qalqalah',
+    icon: Icons.bolt_rounded,
+    title: (c) => c.l10n.tjUnitQalqalah,
+    subtitle: (c) => c.l10n.tjUnitQalqalahSub,
+  ),
+  _tajwidRuleBlock(
+    id: 'tajwid.raa',
+    badge: 'ر',
+    topicId: 'raa',
+    icon: Icons.graphic_eq_rounded,
+    title: (c) => c.l10n.tjUnitRaa,
+    subtitle: (c) => c.l10n.tjUnitRaaSub,
+  ),
 
-      // ── tajwīd ──
-      // Sun/moon letters (the lām unit) were taught with ٱl above, so they
-      // are not repeated here.
-      // Titles come straight from l10n rather than by looking the unit up
-      // again: `_tajwid` already rebuilds the whole unit list once per row,
-      // and resolving the title and subtitle that way would make it three.
-      _unitBlock(
-          id: 'tajwid.madd',
-          badge: 'بَا',
-          phases: (c) => _tajwid(c, 'tajwid.madd'),
-          title: (c) => c.l10n.tjUnitMadd,
-          subtitle: (c) => c.l10n.tjUnitMaddSub),
-      _unitBlock(
-          id: 'tajwid.mim',
-          badge: 'مْ',
-          phases: (c) => _tajwid(c, 'tajwid.mim'),
-          title: (c) => c.l10n.tjUnitMim,
-          subtitle: (c) => c.l10n.tjUnitMimSub),
-      _unitBlock(
-          id: 'tajwid.nun',
-          badge: 'نْ',
-          phases: (c) => _tajwid(c, 'tajwid.nun'),
-          title: (c) => c.l10n.tjUnitNun,
-          subtitle: (c) => c.l10n.tjUnitNunSub),
-      _unitBlock(
-          id: 'tajwid.qalqalah',
-          badge: 'قْ',
-          phases: (c) => _tajwid(c, 'tajwid.qalqalah'),
-          title: (c) => c.l10n.tjUnitQalqalah,
-          subtitle: (c) => c.l10n.tjUnitQalqalahSub),
-      _unitBlock(
-          id: 'tajwid.raa',
-          badge: 'ر',
-          phases: (c) => _tajwid(c, 'tajwid.raa'),
-          title: (c) => c.l10n.tjUnitRaa,
-          subtitle: (c) => c.l10n.tjUnitRaaSub),
-
-      _unitBlock(
-          id: 'review',
-          badge: '۝',
-          phases: (c) => _qaidah(c, 'qaidah.review'),
-          title: (c) => c.l10n.qaidahReview,
-          subtitle: (c) => c.l10n.unitReviewSub),
-      // The capstone: everything, in one real sūrah, read āyah by āyah.
-      _readingBlock(
-          id: 'capstone',
-          badge: '١١٢',
-          surah: 112,
-          wordsPerChunk: 0,
-          wholeAyahs: true,
-          title: (c) => c.l10n.kidsBlockCapstone,
-          subtitle: (c) => c.l10n.kidsBlockCapstoneSub),
-    ];
+  _kidLearnBlock(
+    id: 'review',
+    badge: '۝',
+    testBuilder: (c, id) =>
+        kidsReviewQuiz(c, title: c.l10n.qaidahReview, progressId: id),
+    learnBuilder: (c) => const KidsReviewRecap(),
+    title: (c) => c.l10n.qaidahReview,
+    subtitle: (c) => c.l10n.unitReviewSub,
+  ),
+  // The capstone: everything, in one real sūrah, read āyah by āyah.
+  _readingBlock(
+    id: 'capstone',
+    badge: '١١٢',
+    surah: 112,
+    wordsPerChunk: 0,
+    wholeAyahs: true,
+    title: (c) => c.l10n.kidsBlockCapstone,
+    subtitle: (c) => c.l10n.kidsBlockCapstoneSub,
+  ),
+];
 
 // ── opening and progress ──────────────────────────────────────────────────
 

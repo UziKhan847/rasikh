@@ -700,22 +700,37 @@ class TracingBoard extends StatefulWidget {
   /// 'guided'  — letterform shown, comet leads, the ideal stroke inks itself in
   /// 'outline' — letterform shown, no comet, YOU form every stroke
   /// 'memory'  — blank board, no shape, no comet
+  ///
+  /// Ignored when [watch] is true — see there.
   final String mode;
-  final void Function(int stars) onStars;
+
+  /// Null when [watch] is true: a watched demo is never graded, there is
+  /// nothing for the caller to receive.
+  final void Function(int stars)? onStars;
   final bool showOverlay; // false in quiz mode (parent shows its own feedback)
+
+  /// True for a non-interactive "watch it being written" demo: every stroke
+  /// inks itself in, in order, comet leading, with no gesture handling and no
+  /// grading — a Replay control restarts it. Built from the SAME stroke data
+  /// and painter the guided mode's own progressive inking already uses
+  /// (`_BoardPainter`'s `!free` branch is a pure function of `strokeIndex` +
+  /// `progress` + `samples`), just driven by an [AnimationController]
+  /// instead of a finger. See [_buildWatch].
+  final bool watch;
   const TracingBoard(
       {super.key,
       required this.glyph,
       required this.mode,
-      required this.onStars,
-      this.showOverlay = true});
+      this.onStars,
+      this.showOverlay = true,
+      this.watch = false});
 
   @override
   State<TracingBoard> createState() => _TracingBoardState();
 }
 
 class _TracingBoardState extends State<TracingBoard>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   // ── guided engine ──
   // Base radii at the default 1.0 tolerance; scaled by [_tol] (from
   // Settings → Tracing Studio strictness slider, 0.6 strict – 1.8 lenient).
@@ -766,6 +781,10 @@ class _TracingBoardState extends State<TracingBoard>
       vsync: this, duration: const Duration(milliseconds: 900))
     ..repeat(reverse: true);
 
+  // ── watch mode: drives strokeIndex/progress by itself instead of a
+  // finger. Only created when [TracingBoard.watch] is true. ──
+  AnimationController? _watchCtrl;
+
   bool get strokesDone => strokeIndex >= widget.glyph.strokes.length;
   bool get allDone =>
       strokesDone && dotsHit.length >= widget.glyph.dots.length;
@@ -774,6 +793,11 @@ class _TracingBoardState extends State<TracingBoard>
   void initState() {
     super.initState();
     _rebuildSamples();
+    if (widget.watch) {
+      _watchCtrl = AnimationController(vsync: this)
+        ..addStatusListener(_onWatchStrokeDone);
+      _playWatchStroke();
+    }
   }
 
   @override
@@ -789,7 +813,36 @@ class _TracingBoardState extends State<TracingBoard>
   @override
   void dispose() {
     _pulse.dispose();
+    _watchCtrl?.dispose();
     super.dispose();
+  }
+
+  /// Animates the CURRENT stroke's `progress` from 0 to 1. Duration scales
+  /// lightly with the stroke's own sample count so a short stroke (a dot's
+  /// tittle) doesn't take as long as a long, sweeping one.
+  void _playWatchStroke() {
+    final ctrl = _watchCtrl!;
+    ctrl.duration =
+        Duration(milliseconds: (500 + _samples.length * 6).clamp(600, 2200));
+    ctrl.forward(from: 0);
+  }
+
+  void _onWatchStrokeDone(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    setState(() {
+      strokeIndex++;
+      _rebuildSamples();
+    });
+    if (!strokesDone) _playWatchStroke();
+  }
+
+  /// Restarts the whole demo from the first stroke — the Replay control.
+  void _replayWatch() {
+    setState(() {
+      strokeIndex = 0;
+      _rebuildSamples();
+    });
+    _playWatchStroke();
   }
 
   void _rebuildSamples() {
@@ -908,7 +961,7 @@ class _TracingBoardState extends State<TracingBoard>
 
   void _completeGuided() {
     final stars = faults == 0 ? 3 : (faults <= 2 ? 2 : 1);
-    widget.onStars(stars);
+    widget.onStars?.call(stars);
     setState(() => result = _MemoryResult.simple(stars));
   }
 
@@ -940,7 +993,7 @@ class _TracingBoardState extends State<TracingBoard>
 
   void _check() {
     final r = _evaluate(widget.glyph, drawn, userDots, tol: _tol);
-    widget.onStars(r.stars);
+    widget.onStars?.call(r.stars);
     setState(() => result = r);
   }
 
@@ -962,6 +1015,7 @@ class _TracingBoardState extends State<TracingBoard>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.watch) return _buildWatch(context);
     final g = widget.glyph;
     final aspect = g.aspect.clamp(0.6, 3.4);
     final p = pal(context);
@@ -1118,6 +1172,60 @@ class _TracingBoardState extends State<TracingBoard>
             ),
           ),
       ]),
+    ]);
+  }
+
+  /// The whole board when [TracingBoard.watch] is true: no gestures, no
+  /// zoom/pan, no grading — just the SAME `_BoardPainter` guided-mode ink
+  /// (`free: false, showShape: true`), driven by [_watchCtrl] instead of a
+  /// finger, plus a Replay control once/while it plays.
+  Widget _buildWatch(BuildContext context) {
+    final g = widget.glyph;
+    final aspect = g.aspect.clamp(0.6, 3.4);
+    final p = pal(context);
+    return Column(children: [
+      Expanded(
+        child: Center(
+          child: AspectRatio(
+            aspectRatio: aspect.toDouble(),
+            child: LayoutBuilder(builder: (context, c) {
+              final u = c.maxHeight;
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: AnimatedBuilder(
+                  animation: Listenable.merge([_pulse, _watchCtrl]),
+                  builder: (context, _) => CustomPaint(
+                    painter: _BoardPainter(
+                      glyph: g,
+                      free: false,
+                      showShape: true,
+                      strokeIndex: strokeIndex,
+                      progress: strokesDone ? 1 : _watchCtrl!.value,
+                      samples: _samples,
+                      finger: null,
+                      tracking: false,
+                      dotsHit: dotsHit,
+                      drawn: drawn,
+                      current: current,
+                      userDots: userDots,
+                      result: null,
+                      pulse: _pulse.value,
+                      p: p,
+                      u: u,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
+      const SizedBox(height: 8),
+      OutlinedButton.icon(
+        onPressed: _replayWatch,
+        icon: const Icon(Icons.replay_rounded, size: 18),
+        label: Text(context.l10n.watch),
+      ),
     ]);
   }
 }

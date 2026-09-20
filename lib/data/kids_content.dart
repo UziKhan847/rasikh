@@ -11,6 +11,15 @@ import 'letters.dart';
 /// the same letter order, not two competing curricula.
 List<ArabicLetter> get kidsLetterPath => letters;
 
+/// Total Joining Shapes lessons across the whole path: three per letter that
+/// joins both ways (start, middle, end), one for a non-joiner (ا و د ذ ر ز —
+/// its only real joining shape is the end form; the isolated one is what the
+/// Letters stage already taught). Used by the `forms_few_cleared` badge,
+/// which used to just check `kidsLetterPath.length` back when this stage was
+/// one lesson per letter rather than one per shape.
+int get kidsFormsLessonCount => kidsLetterPath
+    .fold(0, (n, l) => n + (l.joins ? 3 : 1));
+
 // ── XP & gems — gems are earned only; there is no purchase path anywhere in
 // Kids Mode, only these award sites. See test/kids_mode_test.dart. ──
 const kidsXpPerStar = 10; // per star (0-3) earned on a lesson step
@@ -78,12 +87,15 @@ List<KidsBadge> kidsBadgeDefs() => [
       KidsBadge(
           // For writing every joining shape of every letter — the lessons
           // themselves, counted directly. Earned just before [forms_cleared]
-          // below, which is for passing the quiz that follows them.
+          // below, which is for passing the quiz that follows them. One
+          // lesson per shape now (`kids.forms.<ini|med|fin>.<char>`) rather
+          // than one per letter, so the threshold is shapes, not letters —
+          // see [kidsFormsLessonCount].
           id: 'forms_few_cleared', // stale id, kept: badges persist by id
           emoji: '✍️',
           title: (c) => c.l10n.kidsBadgeFormsFewCleared,
           earned: (p) =>
-              p.countStarred('kids.forms.more.') >= kidsLetterPath.length),
+              p.countStarred('kids.forms.') >= kidsFormsLessonCount),
       KidsBadge(
           // The forms.quiz block only unlocks once every letter's joining-
           // forms lesson is done (blocks unlock in order), so passing its
@@ -105,6 +117,11 @@ List<KidsBadge> kidsBadgeDefs() => [
           title: (c) => c.l10n.kidsBadgeHarakatCleared,
           earned: (p) => p.starsFor('kids.harakat.test') > 0),
       KidsBadge(
+          id: 'sukun_cleared',
+          emoji: '⏹️',
+          title: (c) => c.l10n.kidsBadgeSukunCleared,
+          earned: (p) => p.starsFor('kids.sukun.test') > 0),
+      KidsBadge(
           id: 'shadda_cleared',
           emoji: '🧩',
           title: (c) => c.l10n.kidsBadgeShaddaCleared,
@@ -124,6 +141,16 @@ List<KidsBadge> kidsBadgeDefs() => [
           emoji: '🔠',
           title: (c) => c.l10n.kidsBadgeMuqattaatRead,
           earned: (p) => p.starsFor('kids.muqattaat.test') > 0),
+      KidsBadge(
+          id: 'words_cleared',
+          emoji: '🧵',
+          title: (c) => c.l10n.kidsBadgeWordsCleared,
+          earned: (p) => p.starsFor('kids.words.test') > 0),
+      KidsBadge(
+          id: 'wasl_cleared',
+          emoji: '🌉',
+          title: (c) => c.l10n.kidsBadgeWaslCleared,
+          earned: (p) => p.starsFor('kids.wasl.test') > 0),
       KidsBadge(
           id: 'solar_lunar',
           emoji: '☀️',
@@ -156,6 +183,26 @@ List<KidsBadge> kidsBadgeDefs() => [
           emoji: '📜',
           title: (c) => c.l10n.kidsBadgeReachedTajwid,
           earned: (p) => p.starsFor('kids.tajwid.madd.learn') > 0),
+      KidsBadge(
+          id: 'tajwid_mim_cleared',
+          emoji: '👄',
+          title: (c) => c.l10n.kidsBadgeTajwidMimCleared,
+          earned: (p) => p.starsFor('kids.tajwid.mim.test') > 0),
+      KidsBadge(
+          id: 'tajwid_nun_cleared',
+          emoji: '🔔',
+          title: (c) => c.l10n.kidsBadgeTajwidNunCleared,
+          earned: (p) => p.starsFor('kids.tajwid.nun.test') > 0),
+      KidsBadge(
+          id: 'tajwid_qalqalah_cleared',
+          emoji: '⚡',
+          title: (c) => c.l10n.kidsBadgeTajwidQalqalahCleared,
+          earned: (p) => p.starsFor('kids.tajwid.qalqalah.test') > 0),
+      KidsBadge(
+          id: 'tajwid_raa_cleared',
+          emoji: '🌊',
+          title: (c) => c.l10n.kidsBadgeTajwidRaaCleared,
+          earned: (p) => p.starsFor('kids.tajwid.raa.test') > 0),
       KidsBadge(
           // The comprehensive review, one stage before the capstone sūrah —
           // distinct from [read_a_surah] below, which is the capstone itself.
@@ -319,6 +366,36 @@ List<KidsShopItem> kidsShopItems(BuildContext context) => [
           cost: 80,
           shelf: KidsShopShelf.looks,
           title: (c) => c.l10n.kidsShopElephantAvatar),
+      KidsShopItem(
+          id: 'ant_avatar', // an-Naml, sūrah 27
+          emoji: '🐜',
+          cost: 60,
+          shelf: KidsShopShelf.looks,
+          title: (c) => c.l10n.kidsShopAntAvatar),
+      KidsShopItem(
+          id: 'spider_avatar', // al-ʿAnkabūt, sūrah 29
+          emoji: '🕷️',
+          cost: 70,
+          shelf: KidsShopShelf.looks,
+          title: (c) => c.l10n.kidsShopSpiderAvatar),
+      KidsShopItem(
+          id: 'horse_avatar', // al-ʿĀdiyāt, sūrah 100
+          emoji: '🐎',
+          cost: 90,
+          shelf: KidsShopShelf.looks,
+          title: (c) => c.l10n.kidsShopHorseAvatar),
+      KidsShopItem(
+          id: 'cow_avatar', // al-Baqarah, sūrah 2
+          emoji: '🐄',
+          cost: 90,
+          shelf: KidsShopShelf.looks,
+          title: (c) => c.l10n.kidsShopCowAvatar),
+      KidsShopItem(
+          id: 'whale_avatar', // aṣ-Ṣāffāt 37:142, Yūnus and "Ṣāḥib al-Ḥūt"
+          emoji: '🐋',
+          cost: 110,
+          shelf: KidsShopShelf.looks,
+          title: (c) => c.l10n.kidsShopWhaleAvatar),
       // ── looks: frames ──
       KidsShopItem(
           id: 'silver_frame',
@@ -380,6 +457,11 @@ String? kidsAvatarUnlock(String itemId) => switch (itemId) {
       'camel_avatar' => '🐪',
       'bee_avatar' => '🐝',
       'elephant_avatar' => '🐘',
+      'ant_avatar' => '🐜',
+      'spider_avatar' => '🕷️',
+      'horse_avatar' => '🐎',
+      'cow_avatar' => '🐄',
+      'whale_avatar' => '🐋',
       _ => null,
     };
 

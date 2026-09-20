@@ -13,6 +13,7 @@ import '../../data/glyph_names.dart';
 import '../../data/kids_content.dart';
 import '../../data/kids_sentences.dart' show kidsPraiseArabic;
 import '../../data/letters.dart';
+import '../../data/strokes.dart' show TracedGlyph;
 import '../../data/tracing_levels.dart';
 import '../../widgets/common.dart';
 import '../tracing_screen.dart' show TracingBoard;
@@ -24,8 +25,11 @@ import 'kids_widgets.dart';
 
 /// One thing to trace in a lesson: which glyph set, and which joining form.
 class KidsTraceStep {
-  /// `'naskh_more'` (the beginner breakdown) or `'naskh_few'` (the same shape
-  /// in fewer, longer strokes). Both already ship in `tracing_levels.dart`.
+  /// Always `'naskh_few'` from Kids Mode now — the beginner stroke breakdown,
+  /// `'naskh_more'`, is the adult Tracing Studio's own first level and stays
+  /// in `tracing_levels.dart` for it, but Kids Mode dropped it: an extra,
+  /// slower attempt before the real one taught nothing a fewer-strokes pass
+  /// didn't, and just made every lesson longer.
   final String levelId;
   final String form; // 'iso' | 'ini' | 'med' | 'fin'
 
@@ -86,7 +90,7 @@ class KidsLetterFlow extends StatefulWidget {
   const KidsLetterFlow({
     super.key,
     required this.letter,
-    this.traces = const [KidsTraceStep('naskh_more', 'iso')],
+    this.traces = const [KidsTraceStep('naskh_few', 'iso', repeat: kidsWritingPasses)],
     this.introduce = true,
     this.sayTimes = 5,
     this.progressId,
@@ -132,6 +136,13 @@ class _KidsLetterFlowState extends State<KidsLetterFlow> {
   final Map<int, int> _bestPerTrace = {};
 
   ArabicLetter get letter => letterFor(widget.letter);
+
+  /// The form the intro (meet-the-shape, say-it-aloud) steps show — the form
+  /// the FIRST trace actually teaches, so a Joining Shapes lesson introduces
+  /// بـ / ـبـ / ـب rather than always opening on the isolated ب the Letters
+  /// stage already taught.
+  String get _introForm =>
+      widget.traces.isNotEmpty ? widget.traces.first.form : 'iso';
 
   bool get _hasSay => widget.introduce && widget.sayTimes > 0;
 
@@ -188,9 +199,13 @@ class _KidsLetterFlowState extends State<KidsLetterFlow> {
   }
 
   Widget _content(BuildContext context) => switch (_step) {
-        _Step.shape => _ShapeStep(letter: letter, onNext: _afterShape),
+        _Step.shape =>
+          _ShapeStep(letter: letter, form: _introForm, onNext: _afterShape),
         _Step.say => _SayStep(
-            letter: letter, times: widget.sayTimes, onDone: _afterSay),
+            letter: letter,
+            form: _introForm,
+            times: widget.sayTimes,
+            onDone: _afterSay),
         _Step.trace => _TraceStep(
             // Keyed by pass so moving on to the next one — including the next
             // repetition of the same shape — remounts the board rather than
@@ -253,26 +268,63 @@ class _KidsLetterFlowState extends State<KidsLetterFlow> {
   }
 }
 
+/// The letter drawn in [form] — the same rendering `ArabicLetter.initial`/
+/// `medial`/`finalForm` already use for the isolated forms lessons.
+String _glyphInForm(ArabicLetter letter, String form) => switch (form) {
+      'ini' => letter.initial,
+      'med' => letter.medial,
+      'fin' => letter.finalForm,
+      _ => letter.char,
+    };
+
 /// Step 1: meet the letter. Its shape, big; its name; and a button to hear
 /// it in a real word. Nothing is asked yet.
+///
+/// [form] is the shape this lesson actually teaches: the isolated letter for
+/// the Letters stage, or one specific joining form for a Joining Shapes
+/// lesson — that stage no longer re-introduces the isolated shape the
+/// Letters stage already taught. A non-connector's one joining lesson only
+/// ever has an end form, so it gets a contrast card instead: its already-met
+/// isolated shape next to the new one, with a note that it never connects
+/// forward — without that, "here is ـو" looks like an arbitrary new glyph.
 class _ShapeStep extends StatelessWidget {
   final ArabicLetter letter;
+  final String form;
   final VoidCallback onNext;
-  const _ShapeStep({required this.letter, required this.onNext});
+  const _ShapeStep(
+      {required this.letter, required this.form, required this.onNext});
 
   @override
   Widget build(BuildContext context) {
     final p = kidsPal(context);
+    final contrast = form != 'iso' && !letter.joins;
     return Padding(
       padding:
           const EdgeInsets.fromLTRB(Geo.gapLg, 0, Geo.gapLg, Geo.gapLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(context.l10n.kidsThisIsLetter(letterName(context, letter)),
+          Text(
+              contrast
+                  ? context.l10n
+                      .kidsNeverJoinsForward(letterName(context, letter))
+                  : context.l10n.kidsThisIsLetter(letterName(context, letter)),
               style: kidsStyle(context, size: 17, weight: FontWeight.w800)),
+          if (!contrast && form != 'iso') ...[
+            const SizedBox(height: 2),
+            Text(_formLabel(context, form),
+                style: kidsStyle(context, size: 12.5, color: p.textDim)),
+          ],
           const SizedBox(height: Geo.gapMd),
-          Expanded(child: _GlyphHero(letter.char)),
+          Expanded(
+            child: contrast
+                ? Row(children: [
+                    Expanded(child: _GlyphHero(letter.char)),
+                    Icon(Icons.arrow_forward_rounded, color: p.textDim),
+                    Expanded(child: _GlyphHero(_glyphInForm(letter, form))),
+                  ])
+                : _GlyphHero(_glyphInForm(letter, form)),
+          ),
           const SizedBox(height: Geo.gapMd),
           Center(child: _HearButton(letter: letter)),
           const SizedBox(height: Geo.gapLg),
@@ -295,10 +347,14 @@ class _ShapeStep extends StatelessWidget {
 /// "say it a few times" as a line of text nobody acts on.
 class _SayStep extends StatefulWidget {
   final ArabicLetter letter;
+  final String form;
   final int times;
   final VoidCallback onDone;
   const _SayStep(
-      {required this.letter, required this.times, required this.onDone});
+      {required this.letter,
+      required this.form,
+      required this.times,
+      required this.onDone});
 
   @override
   State<_SayStep> createState() => _SayStepState();
@@ -332,7 +388,8 @@ class _SayStepState extends State<_SayStep> {
           Text(context.l10n.kidsSayItAloud,
               style: kidsStyle(context, size: 17, weight: FontWeight.w800)),
           const SizedBox(height: Geo.gapMd),
-          Expanded(child: _GlyphHero(widget.letter.char)),
+          Expanded(
+              child: _GlyphHero(_glyphInForm(widget.letter, widget.form))),
           const SizedBox(height: Geo.gapMd),
           // The name is what the child actually says, so it is spelled out
           // under the shape rather than left for them to remember.
@@ -526,7 +583,7 @@ class _HearButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = kidsPal(context);
     return TextButton.icon(
-      onPressed: () => LetterAudio.play(letter),
+      onPressed: () => LetterAudio.playOrComingSoon(context, letter),
       icon: Icon(Icons.volume_up_rounded, color: p.accent2),
       label: Text(context.l10n.listen,
           style: kidsStyle(context, color: p.accent2)),
@@ -583,39 +640,35 @@ class _TraceStepState extends State<_TraceStep> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Text(context.l10n.kidsTraceThe(letterName(context, widget.letter)),
+              style: kidsStyle(context, size: 17, weight: FontWeight.w800)),
+          // Which of the four shapes this is — only meaningful once a lesson
+          // teaches more than the isolated letter — and, where the shape is
+          // practised several times over, which go this is.
+          if (widget.form != 'iso' || widget.passes > 1)
+            Text(
+                [
+                  if (widget.form != 'iso') _formLabel(context, widget.form),
+                  if (widget.passes > 1)
+                    context.l10n.kidsTracePass(widget.pass, widget.passes),
+                ].join(' · '),
+                style: kidsStyle(context, size: 12.5, color: p.textDim)),
           Row(children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                      context.l10n
-                          .kidsTraceThe(letterName(context, widget.letter)),
-                      style: kidsStyle(context,
-                          size: 17, weight: FontWeight.w800)),
-                  // Which of the four shapes this is — only meaningful once
-                  // a lesson teaches more than the isolated letter — and,
-                  // where the shape is practised several times over, which
-                  // go this is.
-                  if (widget.form != 'iso' || widget.passes > 1)
-                    Text(
-                        [
-                          if (widget.form != 'iso')
-                            _formLabel(context, widget.form),
-                          if (widget.passes > 1)
-                            context.l10n
-                                .kidsTracePass(widget.pass, widget.passes),
-                        ].join(' · '),
-                        style:
-                            kidsStyle(context, size: 12.5, color: p.textDim)),
-                ],
-              ),
-            ),
             TextButton.icon(
-              onPressed: () => LetterAudio.play(widget.letter),
+              onPressed: () =>
+                  LetterAudio.playOrComingSoon(context, widget.letter),
               icon: Icon(Icons.volume_up_rounded, color: p.accent2),
               label: Text(context.l10n.listen,
+                  style: kidsStyle(context, color: p.accent2)),
+            ),
+            // Optional — never a forced step. Recovers, on request, the
+            // "watch how it's built" value that dropping the beginner
+            // more-strokes pass gave up: a child who wants to see the shape
+            // drawn before trying it can, without it being the default.
+            TextButton.icon(
+              onPressed: () => _showKidsWatch(context, widget.letter, glyph),
+              icon: Icon(Icons.visibility_rounded, color: p.accent2),
+              label: Text(context.l10n.kidsShowMe,
                   style: kidsStyle(context, color: p.accent2)),
             ),
           ]),
@@ -656,6 +709,34 @@ class _TraceStepState extends State<_TraceStep> {
       ),
     );
   }
+}
+
+/// The kids "Show me" sheet: the same non-interactive stroke-by-stroke
+/// replay [TracingBoard.watch] gives the adult Letters page, in a bottom
+/// sheet sized for the trace board rather than a full-screen page.
+void _showKidsWatch(BuildContext context, ArabicLetter letter, TracedGlyph glyph) {
+  final p = kidsPal(context);
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: p.bg,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(Geo.gapLg),
+        child: SizedBox(
+          height: 340,
+          child: TracingBoard(
+            key: ValueKey('kids.watch.${letter.char}.${glyph.id}'),
+            glyph: glyph,
+            mode: 'guided',
+            watch: true,
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 /// The kids-styled "you finished this trace" panel: how it went, then the

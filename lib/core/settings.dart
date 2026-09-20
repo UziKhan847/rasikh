@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/letters.dart';
+
 /// The card reader's Indo-Pak script renders with DigitalKhattIndoPak.otf —
 /// the same face the 15-line muṣḥaf uses (see CREDITS.md) — via a 1:1
 /// codepoint transcode in `QuranRepo._transcodeIndopak` that aligns the
@@ -393,6 +395,10 @@ class ReviewItem {
         lastSeen: (m['s'] ?? 0) as int,
       );
 }
+
+/// How many sessions each ḥarakah drill is split into — mirrors
+/// `kidsDrillSessions` in `screens/kids/kids_syllable_drill.dart`.
+const _drillSessions = 3;
 
 class ProgressStore extends ChangeNotifier {
   /// null → the grown-up app's single global store, at the same storage keys
@@ -833,6 +839,59 @@ class ProgressStore extends ChangeNotifier {
       (jsonDecode(raw) as Map<String, dynamic>)
           .forEach((k, v) => _stars[k] = (v as num).toInt());
     }
+    // Legacy Joining Shapes migration — that stage used to be one lesson per
+    // LETTER (`kids.forms.more.<char>`, all its shapes traced together); it
+    // is one lesson per SHAPE now (`kids.forms.<ini|med|fin>.<char>`), so a
+    // single old star cannot become three honestly earned ones. It is copied
+    // onto every new shape id for that letter instead of dropped, since the
+    // work it represents really was done — a child who finished a letter's
+    // joining shapes before this changed should not be sent back to redo it.
+    // Read once: harmless (and a no-op) on the adult store or a profile that
+    // never had these ids, and never saved back under the old prefix, so this
+    // block simply stops matching anything once every profile has migrated.
+    var migratedForms = false;
+    for (final l in letters) {
+      final old = _stars['kids.forms.more.${l.char}'];
+      if (old == null) continue;
+      for (final f in l.joins ? const ['ini', 'med', 'fin'] : const ['fin']) {
+        final id = 'kids.forms.$f.${l.char}';
+        if (!_stars.containsKey(id)) {
+          _stars[id] = old;
+          migratedForms = true;
+        }
+      }
+    }
+    // Each ḥarakah drill used to be ONE tile per mark (`kids.harakat.fatha`)
+    // and is now [_drillSessions] short sessions (`kids.harakat.fatha.1..3`).
+    // A finished old drill covered all of them, so its stars carry onto each
+    // new session — same shape as the forms migration above, and for the same
+    // reason: nothing a child already earned may be orphaned by the path
+    // being split into shorter pieces. The old id is left in place, unread.
+    // (Literal ids on purpose: this is `core/`, and the path lives in
+    // `screens/kids`; test/kids_drill_migration_test.dart pins the two
+    // together.)
+    var migratedDrills = false;
+    for (final old in const [
+      'kids.harakat.fatha',
+      'kids.harakat.kasra',
+      'kids.harakat.damma',
+      'kids.sukun.sukun',
+      'kids.shadda.shadda',
+      'kids.tanwin.fathatan',
+      'kids.tanwin.kasratan',
+      'kids.tanwin.dammatan',
+    ]) {
+      final stars = _stars[old];
+      if (stars == null) continue;
+      for (var n = 1; n <= _drillSessions; n++) {
+        final id = '$old.$n';
+        if (!_stars.containsKey(id)) {
+          _stars[id] = stars;
+          migratedDrills = true;
+        }
+      }
+    }
+    if (migratedForms || migratedDrills) await _save();
     // Review queue — with a one-time migration from the old flat miss map so
     // existing learners keep everything they'd missed.
     review.clear();

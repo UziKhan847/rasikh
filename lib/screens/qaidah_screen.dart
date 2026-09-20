@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../core/l10n.dart';
+import '../core/letter_audio.dart';
 import '../core/responsive.dart';
 import '../core/settings.dart';
 import '../core/theme.dart';
@@ -13,6 +14,7 @@ import '../data/makharij.dart';
 import '../data/muqattaat.dart';
 import '../data/quran.dart' show stripTashkil;
 import '../data/small_letters.dart';
+import '../data/strokes.dart' show glyphFor;
 import '../data/tajweed.dart';
 import '../data/tanwin_allographs.dart';
 import '../data/tashkeel.dart';
@@ -25,6 +27,7 @@ import 'lessons/forms_quizzes.dart';
 import 'lessons/qaidah_lessons.dart';
 import 'lessons/tajwid_lessons.dart';
 import 'tashkeel_screen.dart';
+import 'tracing_screen.dart' show TracingBoard;
 
 /// 📖 The Qaidah Path — the full beginner journey, in the order a
 /// classical Qaidah teaches it. Every unit opens onto a Learn → Test →
@@ -577,6 +580,66 @@ Widget _makhrajRow(BuildContext context, String char) {
   );
 }
 
+/// Listen + Watch for one letter — unlike the shared [MediaRow]
+/// (`widgets/common.dart`), Listen here is the letter's own sound via
+/// [LetterAudio] rather than a verse, and Watch is a real stroke-by-stroke
+/// replay built from the same data [TracingBoard]'s guided mode already uses
+/// to ink a learner's own strokes, not [MediaRow]'s permanent "coming soon"
+/// stub. Watch only appears for the 28 traced letters — the extra letters
+/// [LetterDetail] also renders (hamza carriers, tāʼ marbūṭah…) have no
+/// stroke data to animate.
+class _LetterMediaRow extends StatelessWidget {
+  final ArabicLetter letter;
+  const _LetterMediaRow({required this.letter});
+
+  @override
+  Widget build(BuildContext context) {
+    final canWatch = letters.contains(letter);
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      TextButton.icon(
+        onPressed: () => LetterAudio.playOrComingSoon(context, letter,
+            variant: LetterAudio.adult),
+        icon: const Icon(Icons.play_arrow_rounded, size: 18),
+        label: Text(context.l10n.listen),
+        style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8)),
+      ),
+      if (canWatch)
+        TextButton.icon(
+          onPressed: () => _showWatchLetter(context, letter),
+          icon: const Icon(Icons.play_circle_outline_rounded, size: 18),
+          label: Text(context.l10n.watch),
+          style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8)),
+        ),
+    ]);
+  }
+}
+
+void _showWatchLetter(BuildContext context, ArabicLetter letter) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: pal(context).bg,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: SizedBox(
+          height: 340,
+          child: TracingBoard(
+            key: ValueKey('watch.${letter.char}'),
+            glyph: glyphFor(letter.char, 'iso'),
+            mode: 'guided',
+            watch: true,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class LetterDetail extends StatelessWidget with DesktopAware {
   final ArabicLetter letter;
   final String mode; // 'letters' | 'joining'
@@ -670,6 +733,8 @@ class LetterDetail extends StatelessWidget with DesktopAware {
                               style: uiStyle(context,
                                   size: 15, color: pal(context).textDim)),
                         ]),
+                        const SizedBox(height: 12),
+                        _LetterMediaRow(letter: letter),
                       ],
                     ),
                   ),
@@ -817,6 +882,7 @@ class LetterDetail extends StatelessWidget with DesktopAware {
             child: Text('“${letter.translit}” · $dotInfo',
                 style: uiStyle(context, size: 15, color: pal(context).textDim)),
           ),
+          Center(child: _LetterMediaRow(letter: letter)),
           if (letter.similarGroup != null) ...[
              SectionHeader(context.l10n.easilyConfusedWith,
                 subtitle: context.l10n.sameSkeletonDotsDecide),
@@ -863,9 +929,12 @@ class LetterDetail extends StatelessWidget with DesktopAware {
 
 final _rng = math.Random();
 
-QuizScreen letterQuizScreen(BuildContext context) => _letterQuiz(context);
+QuizScreen letterQuizScreen(BuildContext context,
+        {String progressId = 'qaidah.letters'}) =>
+    _letterQuiz(context, progressId: progressId);
 
-QuizScreen _letterQuiz(BuildContext context, {bool graded = true}) {
+QuizScreen _letterQuiz(BuildContext context,
+    {bool graded = true, String progressId = 'qaidah.letters'}) {
   final qs = <QuizQuestion>[];
   final pool = letters.map((l) => letterName(context, l)).toList();
   final sample = [...letters]..shuffle(_rng);
@@ -880,7 +949,7 @@ QuizScreen _letterQuiz(BuildContext context, {bool graded = true}) {
   }
   return QuizScreen(
       title: context.l10n.letterQuiz,
-      progressId: 'qaidah.letters',
+      progressId: progressId,
       questions: qs,
       graded: graded);
 }
@@ -1366,18 +1435,25 @@ QuizQuestion? _ligatureQuestion(BuildContext context) {
 
 const _hamzaCarrierChars = ['ء', 'أ', 'إ', 'ؤ', 'ئ'];
 
+/// Which of the five hamza carriers is this? Shows the bare glyph and asks
+/// for its NAME, rather than the reverse: naming one carrier ("Wāw with
+/// Hamzah") and asking which glyph matches. The reverse used to break down
+/// for the seatless ء — "Which is Hamzah?" over five options that are all,
+/// in a real sense, "a hamzah" has no answer a child could deduce without
+/// already knowing this app's own naming convention. Asking "which letter is
+/// this?" of one glyph shown alone has exactly one right answer regardless of
+/// which of the five gets picked.
 QuizQuestion hamzaCarrierQuestion(BuildContext context) {
   final carriers =
       extraLetters.where((l) => _hamzaCarrierChars.contains(l.char)).toList();
   final l = carriers[_rng.nextInt(carriers.length)];
-  final o = buildOptions(l.char, carriers.map((c) => c.char).toList(), _rng);
+  final names = carriers.map((c) => letterName(context, c)).toList();
+  final o = buildOptions(letterName(context, l), names, _rng);
   return QuizQuestion(
-    prompt: context.l10n.qpWhichHamzaForm(letterName(context, l)),
-    arabic: l.exampleWord,
-    highlight: l.char,
+    prompt: context.l10n.qpWhichLetterIsThis,
+    arabic: l.char,
     reviewId: 'extra.${l.char}',
     options: o.options,
-    optionsAreArabic: true,
     correct: o.correct,
   );
 }

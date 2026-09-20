@@ -1179,8 +1179,20 @@ class UnitPhase {
   final String label;
   final String sub;
   final WidgetBuilder? builder;
+
+  /// True for the one phase that grades the unit — every unit's Qaidah/
+  /// Script three-phase shape has this at index 1, but a Tajwīd rule family's
+  /// five-phase shape has a read-only "Letters" browse at index 1 and the
+  /// real Test at index 2. Kids Mode reuses these units and needs the actual
+  /// Test regardless of unit shape, so it looks for this flag rather than
+  /// assuming a fixed index (`kids_path.dart`'s `_unitBlock`).
+  final bool isTest;
   const UnitPhase(
-      {required this.icon, required this.label, required this.sub, this.builder});
+      {required this.icon,
+      required this.label,
+      required this.sub,
+      this.builder,
+      this.isTest = false});
 }
 
 /// The three standard phases (Learn → Test → Practice) shared by every
@@ -1199,7 +1211,8 @@ List<UnitPhase> standardPhases(BuildContext context,
           icon: Icons.quiz_rounded,
           label: context.l10n.phaseTest,
           sub: context.l10n.phaseTestSub,
-          builder: test),
+          builder: test,
+          isTest: true),
       UnitPhase(
           icon: Icons.refresh_rounded,
           label: context.l10n.phasePractice,

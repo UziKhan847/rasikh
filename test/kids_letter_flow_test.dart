@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_letter_flow.dart';
+import 'package:qiraah_arabiyyah/screens/tracing_screen.dart' show TracingBoard;
 
 import 'kids_test_support.dart';
 
@@ -127,6 +128,33 @@ void main() {
     expect(find.text('Step 1 of 3'), findsOneWidget);
     // The trace step names which of the four shapes this is.
     expect(find.text('Start'), findsOneWidget);
+  });
+
+  testWidgets(
+      '"Show me" opens a watch-only replay of the trace, never graded',
+      (tester) async {
+    useReducedMotion(tester);
+    final (settings, prog) = await _boot();
+    await tester.pumpWidget(_harness(
+        settings,
+        prog,
+        const KidsLetterFlow(
+          letter: 'ب',
+          introduce: false,
+          traces: [KidsTraceStep('naskh_few', 'iso')],
+        )));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('Show me'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Two boards now exist: the interactive one underneath, and the
+    // watch-only replay in the sheet on top.
+    expect(find.byType(TracingBoard), findsNWidgets(2));
+    expect(prog.starsFor('kids.letter.ب'), 0,
+        reason: 'watching the demo must not count as tracing it');
   });
 
   testWidgets('a repeated shape is one step per repetition, and says so',

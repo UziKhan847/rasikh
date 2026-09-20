@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:qiraah_arabiyyah/core/audio.dart' show PlaybackHandle;
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/quran.dart';
@@ -148,6 +149,217 @@ void main() {
     await tester.tap(arrows.at(1));
     await tester.pumpAndSettle();
     expect(find.text('0 / 4'), findsOneWidget);
+  });
+
+  group('read along', () {
+    // A stand-in for the per-word recordings: it records what was asked for
+    // and lets the test say which word is "playing".
+    late List<(int, int, int, int)> asked;
+    late void Function(int) onWord;
+    late PlaybackHandle handle;
+    late List<(int, int, int)> single;
+
+    PlaybackHandle fakeWords(int s, int a, int first, int last,
+        void Function(int) cb) {
+      asked.add((s, a, first, last));
+      onWord = cb;
+      return handle = PlaybackHandle();
+    }
+
+    Future<void> fakeWord(int s, int a, int w) async => single.add((s, a, w));
+
+    setUp(() {
+      asked = [];
+      single = [];
+    });
+
+    Future<void> open(WidgetTester tester, {int perChunk = 2}) async {
+      useReducedMotion(tester);
+      final (settings, prog) = await _boot();
+      await _warm(tester, 112);
+      await tester.pumpWidget(_harness(
+        settings,
+        prog,
+        KidsReadingScreen(
+            surah: 112,
+            wordsPerChunk: perChunk,
+            progressId: 'test.read',
+            playWords: fakeWords,
+            playWord: fakeWord),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    /// The accent colour of every word in the first card that is lit.
+    int lit(WidgetTester tester) => tester
+        .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+        .where((c) =>
+            c.decoration is BoxDecoration &&
+            (c.decoration! as BoxDecoration).color != Colors.transparent)
+        .length;
+
+    testWidgets('a line is heard word by word, asking for exactly its words',
+        (tester) async {
+      await open(tester);
+      // The first card is āyah 1, words 1-2 (قُلۡ هُوَ).
+      await tester.tap(find.byIcon(Icons.record_voice_over_rounded).first);
+      await tester.pump();
+      expect(asked, [(112, 1, 1, 2)]);
+      expect(lit(tester), 0, reason: 'nothing lit until a word is said');
+
+      onWord(0);
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(lit(tester), 1);
+      onWord(1);
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(lit(tester), 1, reason: 'one word at a time');
+      onWord(-1);
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(lit(tester), 0, reason: 'and none when it is over');
+    });
+
+    testWidgets('a later line asks for ITS words, numbered by their place in '
+        'the āyah', (tester) async {
+      await open(tester);
+      // The second card: words 3-4 of āyah 1 (ٱللَّهُ أَحَدٌ).
+      await tester.tap(find.byIcon(Icons.record_voice_over_rounded).at(1));
+      await tester.pump();
+      expect(asked, [(112, 1, 3, 4)]);
+      onWord(2); // word 3 of the āyah is the first of this line
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(lit(tester), 1);
+    });
+
+    testWidgets('tapping the speaker again while it plays stops it',
+        (tester) async {
+      await open(tester);
+      final speaker = find.byIcon(Icons.record_voice_over_rounded).first;
+      await tester.tap(speaker);
+      await tester.pump();
+      onWord(0);
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(lit(tester), 1);
+
+      // (Stopping the real player is skipped when the audio is injected.)
+      await tester.tap(speaker);
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(handle.cancelled, isTrue);
+      expect(lit(tester), 0);
+    });
+
+    testWidgets('starting another line cancels the first', (tester) async {
+      await open(tester);
+      await tester.tap(find.byIcon(Icons.record_voice_over_rounded).first);
+      await tester.pump();
+      final first = handle;
+      await tester.tap(find.byIcon(Icons.record_voice_over_rounded).at(1));
+      await tester.pump();
+      expect(first.cancelled, isTrue);
+      expect(asked, hasLength(2));
+    });
+
+    testWidgets('tapping a word says that word, and lights it for a moment',
+        (tester) async {
+      await open(tester);
+      // The first word of the first card: a real word of the corpus.
+      final words = await QuranRepo.words(112, 'uthmani');
+      await tester.tap(find.text(words[0][1]).first);
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(single, [(112, 1, 2)]);
+      expect(lit(tester), 1);
+      await tester.pump(const Duration(milliseconds: 1300));
+      expect(lit(tester), 0);
+    });
+
+    testWidgets('audio that never arrives changes nothing about reading',
+        (tester) async {
+      useReducedMotion(tester);
+      final (settings, prog) = await _boot();
+      await _warm(tester, 112);
+      await tester.pumpWidget(_harness(
+        settings,
+        prog,
+        KidsReadingScreen(
+            surah: 112,
+            wordsPerChunk: 2,
+            progressId: 'test.silent',
+            playWords: fakeWords,
+            playWord: (s, a, w) async => throw Exception('offline')),
+      ));
+      await tester.pumpAndSettle();
+      final words = await QuranRepo.words(112, 'uthmani');
+      await tester.tap(find.text(words[0][0]).first);
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(milliseconds: 1300)); // the light fades
+      // Reading in order still works.
+      await tester.tap(find.byIcon(Icons.arrow_forward_rounded).first);
+      await tester.pump();
+      expect(find.textContaining('1 /'), findsOneWidget);
+    });
+
+    testWidgets('the capstone keeps the flowing āyah button as well',
+        (tester) async {
+      useReducedMotion(tester);
+      final (settings, prog) = await _boot();
+      await _warm(tester, 112);
+      await tester.pumpWidget(_harness(
+        settings,
+        prog,
+        KidsReadingScreen(
+            surah: 112,
+            wordsPerChunk: 0,
+            wholeAyahs: true,
+            progressId: 'test.cap',
+            playWords: fakeWords,
+            playWord: fakeWord),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.volume_up_rounded), findsWidgets);
+      expect(find.byIcon(Icons.record_voice_over_rounded), findsWidgets);
+      // Word by word over a whole āyah asks for every word of it.
+      await tester.tap(find.byIcon(Icons.record_voice_over_rounded).first);
+      await tester.pump();
+      expect(asked, [(112, 1, 1, 4)]);
+    });
+
+    testWidgets('the two-word stage has no flowing button — it would say the '
+        'whole āyah over a two-word card', (tester) async {
+      await open(tester);
+      expect(find.byIcon(Icons.volume_up_rounded), findsNothing);
+    });
+
+    testWidgets('a line still fits a 320×568 phone at the largest Arabic size',
+        (tester) async {
+      tester.view.physicalSize = const Size(640, 1136);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      useReducedMotion(tester);
+      final (settings, prog) = await _boot();
+      settings.arabicScale = 1.35;
+      await _warm(tester, 112);
+      await tester.pumpWidget(_harness(
+        settings,
+        prog,
+        KidsReadingScreen(
+            surah: 112,
+            wordsPerChunk: 0,
+            wholeAyahs: true,
+            progressId: 'test.small',
+            playWords: fakeWords,
+            playWord: fakeWord),
+      ));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      // The five-word last āyah, mid-recitation.
+      await tester.drag(find.byType(ListView), const Offset(0, -600));
+      await tester.pump();
+      await tester.tap(find.byIcon(Icons.record_voice_over_rounded).last);
+      await tester.pump();
+      onWord(2);
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('tāʼ marbūṭah drill', () {

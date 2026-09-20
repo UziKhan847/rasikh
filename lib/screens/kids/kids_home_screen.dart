@@ -7,7 +7,15 @@ import '../../core/settings.dart';
 import '../../core/theme.dart';
 import '../../data/kids_content.dart';
 import '../../widgets/common.dart';
+import 'kids_checkpoint_quiz.dart' show kidsWarmUpQuiz;
 import 'kids_desktop_nav.dart';
+import 'kids_build_word.dart';
+import 'kids_find_in_ayah.dart';
+import 'kids_listen_and_pick.dart';
+import 'kids_memorise.dart';
+import 'kids_mouth_map.dart';
+import 'kids_lookalike_quiz.dart';
+import 'kids_write_from_memory.dart';
 import 'kids_path.dart';
 import 'kids_practice_screens.dart';
 import 'kids_rank_data.dart';
@@ -94,27 +102,8 @@ class KidsHomeScreen extends StatelessWidget {
           const SizedBox(height: Geo.gapSm),
           KidsSectionHeader(title: context.l10n.kidsPractice),
           const SizedBox(height: Geo.gapSm),
-          Row(children: [
-            Expanded(
-              child: _PracticeCard(
-                icon: Icons.style_rounded,
-                label: context.l10n.kidsFlashcards,
-                onTap: () => pushKidsOverlay(context,
-                    title: context.l10n.kidsFlashcards,
-                    builder: (_) => const KidsFlashcardsScreen()),
-              ),
-            ),
-            const SizedBox(width: Geo.gapMd),
-            Expanded(
-              child: _PracticeCard(
-                icon: Icons.headphones_rounded,
-                label: context.l10n.kidsListening,
-                onTap: () => pushKidsOverlay(context,
-                    title: context.l10n.kidsListening,
-                    builder: (_) => const KidsListeningScreen()),
-              ),
-            ),
-          ]),
+          _WarmUpBanner(prog: prog),
+          _PracticeRows(cards: _practiceCards(context, prog)),
         ],
       ),
     );
@@ -159,27 +148,8 @@ class KidsHomeScreen extends StatelessWidget {
           arabic: context.l10n.kidsPracticeArabic,
         ),
         const SizedBox(height: Geo.gapSm),
-        Row(children: [
-          Expanded(
-            child: _PracticeCard(
-              icon: Icons.style_rounded,
-              label: context.l10n.kidsFlashcards,
-              onTap: () => pushKidsOverlay(context,
-                  title: context.l10n.kidsFlashcards,
-                  builder: (_) => const KidsFlashcardsScreen()),
-            ),
-          ),
-          const SizedBox(width: Geo.gapMd),
-          Expanded(
-            child: _PracticeCard(
-              icon: Icons.headphones_rounded,
-              label: context.l10n.kidsListening,
-              onTap: () => pushKidsOverlay(context,
-                  title: context.l10n.kidsListening,
-                  builder: (_) => const KidsListeningScreen()),
-            ),
-          ),
-        ]),
+        _WarmUpBanner(prog: prog),
+        _PracticeRows(cards: _practiceCards(context, prog)),
       ],
     );
 
@@ -984,6 +954,190 @@ class _DashedSpinePainter extends CustomPainter {
   @override
   bool shouldRepaint(_DashedSpinePainter old) =>
       old.color != color || old.axis != axis;
+}
+
+/// The Warm-up entry: a full-width banner above the practice shortcuts,
+/// present ONLY while something is due for review — never a dead end, and
+/// never a path stage (a stage nobody can finish would pin Home on it
+/// forever; see `kidsCurrentBlockIndex`).
+class _WarmUpBanner extends StatelessWidget {
+  final ProgressStore prog;
+  const _WarmUpBanner({required this.prog});
+
+  @override
+  Widget build(BuildContext context) {
+    final due = prog.dueCount;
+    if (due == 0) return const SizedBox.shrink();
+    final p = kidsPal(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Geo.gapMd),
+      child: TapScale(
+        onTap: () => pushKidsOverlay(context,
+            title: context.l10n.kidsWarmUp,
+            builder: (c) => kidsWarmUpQuiz(c, ProgressScope.of(c))),
+        child: Container(
+          padding: const EdgeInsets.all(Geo.gapMd),
+          decoration: kidsCard(context),
+          child: Row(children: [
+            Icon(Icons.wb_twilight_rounded, color: p.amber, size: 30),
+            const SizedBox(width: Geo.gapMd),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(context.l10n.kidsWarmUp,
+                      style: kidsStyle(context,
+                          size: 15, weight: FontWeight.w800)),
+                  Text(context.l10n.kidsWarmUpSub(due),
+                      style: kidsStyle(context, size: 12, color: p.textDim)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: p.textDim),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// The practice shortcuts under the trail. Flashcards and Listening are
+/// always there; Look-alikes joins them once the child has met at least one
+/// pair of letters that can be confused (a drill with nothing to contrast
+/// would be an empty round), and Write it / Find it once they know a letter.
+/// Never a path stage — practice must not gate progress.
+List<Widget> _practiceCards(BuildContext context, ProgressStore prog) {
+  final known = kidsLearnedLetters(prog);
+  final cards = <Widget>[
+    _PracticeCard(
+      icon: Icons.style_rounded,
+      label: context.l10n.kidsFlashcards,
+      onTap: () => pushKidsOverlay(context,
+          title: context.l10n.kidsFlashcards,
+          builder: (_) => const KidsFlashcardsScreen()),
+    ),
+    _PracticeCard(
+      icon: Icons.headphones_rounded,
+      label: context.l10n.kidsListening,
+      onTap: () => pushKidsOverlay(context,
+          title: context.l10n.kidsListening,
+          builder: (_) => const KidsListeningScreen()),
+    ),
+    if (kidsLookalikeAvailable(known))
+      _PracticeCard(
+        icon: Icons.compare_rounded,
+        label: context.l10n.kidsLookalikes,
+        onTap: () => pushKidsOverlay(context,
+            title: context.l10n.kidsLookalikes,
+            builder: (c) => kidsLookalikeQuiz(c,
+                known: kidsLearnedLetters(ProgressScope.of(c)),
+                progressId: 'kids.practice.lookalikes')),
+      ),
+    if (known.isNotEmpty)
+      _PracticeCard(
+        icon: Icons.draw_rounded,
+        label: context.l10n.kidsWriteIt,
+        onTap: () => pushKidsOverlay(context,
+            title: context.l10n.kidsWriteIt,
+            builder: (c) => KidsWriteFromMemory.forKnown(
+                kidsLearnedLetters(ProgressScope.of(c)),
+                progressId: 'kids.practice.write')),
+      ),
+    if (known.isNotEmpty)
+      _PracticeCard(
+        icon: Icons.search_rounded,
+        label: context.l10n.kidsFindIt,
+        onTap: () => pushKidsOverlay(context,
+            title: context.l10n.kidsFindIt,
+            builder: (c) => KidsFindInAyah(
+                known: kidsLearnedLetters(ProgressScope.of(c)),
+                progressId: 'kids.practice.find')),
+      ),
+    // Words are only buildable from letters already met, and the short sūrahs
+    // hold few words made of a small alphabet — so this waits for most of it.
+    if (known.length >= 20)
+      _PracticeCard(
+        icon: Icons.extension_rounded,
+        label: context.l10n.kidsBuildWord,
+        onTap: () => pushKidsOverlay(context,
+            title: context.l10n.kidsBuildWord,
+            builder: (c) => KidsBuildWord(
+                known: kidsLearnedLetters(ProgressScope.of(c)),
+                progressId: 'kids.practice.build')),
+      ),
+    // A sūrah to learn by heart, in three short sittings — the next one not
+    // yet done, then the revision. It works by ear and by eye, so it does not
+    // wait on the letters.
+    if (known.isNotEmpty)
+      _PracticeCard(
+        icon: Icons.psychology_alt_rounded,
+        label: context.l10n.kidsMemorise,
+        onTap: () {
+          final n = kidsMemoriseNextSession(ProgressScope.of(context));
+          pushKidsOverlay(context,
+              title: context.l10n.kidsMemorise,
+              builder: (c) => KidsMemoriseLesson(
+                  session: n, progressId: 'kids.memorise.$n'));
+        },
+      ),
+    // Where each sound is made needs no recording, but is only worth asking
+    // about letters a child has met.
+    if (known.length >= 6)
+      _PracticeCard(
+        icon: Icons.face_retouching_natural_rounded,
+        label: context.l10n.kidsMouthMap,
+        onTap: () => pushKidsOverlay(context,
+            title: context.l10n.kidsMouthMap,
+            builder: (c) => KidsMouthMapLesson(
+                known: {
+                  for (final l in kidsLearnedLetters(ProgressScope.of(c)))
+                    l.char
+                },
+                progressId: 'kids.practice.mouth')),
+      ),
+    // Words are picked out by hearing them, which is only fair once a child
+    // has met enough letters to read a few of the choices.
+    if (known.length >= 10)
+      _PracticeCard(
+        icon: Icons.hearing_rounded,
+        label: context.l10n.kidsListenPick,
+        onTap: () => pushKidsOverlay(context,
+            title: context.l10n.kidsListenPick,
+            builder: (c) => KidsListenAndPick(
+                known: {
+                  for (final l in kidsLearnedLetters(ProgressScope.of(c)))
+                    l.char
+                },
+                progressId: 'kids.practice.listen')),
+      ),
+  ];
+  return cards;
+}
+
+/// [cards] in rows of three — four across is too narrow for a phone — with
+/// the last row padded so every card keeps the same width.
+class _PracticeRows extends StatelessWidget {
+  final List<Widget> cards;
+  const _PracticeRows({required this.cards});
+
+  @override
+  Widget build(BuildContext context) {
+    const perRow = 3;
+    final rows = <Widget>[];
+    for (var i = 0; i < cards.length; i += perRow) {
+      final chunk = cards.skip(i).take(perRow).toList();
+      rows.add(Padding(
+        padding: EdgeInsets.only(top: i == 0 ? 0 : Geo.gapMd),
+        child: Row(children: [
+          for (var j = 0; j < perRow; j++) ...[
+            if (j > 0) const SizedBox(width: Geo.gapMd),
+            Expanded(child: j < chunk.length ? chunk[j] : const SizedBox()),
+          ],
+        ]),
+      ));
+    }
+    return Column(children: rows);
+  }
 }
 
 class _PracticeCard extends StatelessWidget {

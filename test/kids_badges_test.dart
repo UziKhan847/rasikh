@@ -83,21 +83,31 @@ void main() {
       'forms_cleared': (p) => p.report('kids.quiz.forms', 3),
       'forms_few_cleared': (p) {
         for (final l in kidsLetterPath) {
-          p.report('kids.forms.more.${l.char}', 3);
+          for (final f in l.joins ? const ['ini', 'med', 'fin'] : const ['fin']) {
+            p.report('kids.forms.$f.${l.char}', 3);
+          }
         }
       },
       'special_shapes': (p) => p.report('kids.quiz.special', 3),
       'harakat_cleared': (p) => p.report('kids.harakat.test', 1),
+      'sukun_cleared': (p) => p.report('kids.sukun.test', 1),
       'shadda_cleared': (p) => p.report('kids.shadda.test', 1),
       'madd_cleared': (p) => p.report('kids.madd.test', 1),
       'tanwin_cleared': (p) => p.report('kids.tanwin.test', 1),
       'muqattaat_read': (p) => p.report('kids.muqattaat.test', 1),
+      'words_cleared': (p) => p.report('kids.words.test', 1),
+      'wasl_cleared': (p) => p.report('kids.wasl.test', 1),
       'solar_lunar': (p) => p.report('kids.solar_lunar.test', 1),
       'tamarbuta_cleared': (p) => p.report('kids.tamarbuta.test', 1),
       'waqf_cleared': (p) => p.report('kids.waqf.test', 1),
       'two_words': (p) => p.report('kids.words.two.read', 1),
       'three_words': (p) => p.report('kids.words.three.read', 1),
       'reached_tajwid': (p) => p.report('kids.tajwid.madd.learn', 1),
+      'tajwid_mim_cleared': (p) => p.report('kids.tajwid.mim.test', 1),
+      'tajwid_nun_cleared': (p) => p.report('kids.tajwid.nun.test', 1),
+      'tajwid_qalqalah_cleared': (p) =>
+          p.report('kids.tajwid.qalqalah.test', 1),
+      'tajwid_raa_cleared': (p) => p.report('kids.tajwid.raa.test', 1),
       'path_finished': (p) => p.report('kids.review.test', 1),
       'read_a_surah': (p) => p.report('kids.capstone.read', 1),
       // ── habit ──

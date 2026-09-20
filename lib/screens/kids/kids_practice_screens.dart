@@ -138,7 +138,7 @@ class KidsListeningScreen extends StatelessWidget {
   Widget _row(BuildContext context, ArabicLetter letter) {
     final p = kidsPal(context);
     return TapScale(
-      onTap: () => LetterAudio.play(letter),
+      onTap: () => LetterAudio.playOrComingSoon(context, letter),
       child: Container(
         padding: const EdgeInsets.all(Geo.gapMd),
         decoration: kidsCard(context),

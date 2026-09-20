@@ -70,7 +70,7 @@ void main() {
         prog,
         const KidsLetterFlow(
           letter: 'ب',
-          traces: [KidsTraceStep('naskh_more', 'iso')],
+          traces: [KidsTraceStep('naskh_few', 'iso')],
         )));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Next'));
@@ -103,7 +103,7 @@ void main() {
     // Grading is [TracingBoard]'s own job and is driven by real finger
     // gestures; what is under test is what the lesson does with the result,
     // so the board's callback is invoked directly.
-    tester.widget<TracingBoard>(find.byType(TracingBoard)).onStars(3);
+    tester.widget<TracingBoard>(find.byType(TracingBoard)).onStars!(3);
     await tester.pump();
     expect(played, ['ج']);
 
@@ -112,7 +112,7 @@ void main() {
     await tester.tap(find.text('Next'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    tester.widget<TracingBoard>(find.byType(TracingBoard)).onStars(1);
+    tester.widget<TracingBoard>(find.byType(TracingBoard)).onStars!(1);
     await tester.pump();
     expect(played, ['ج', 'ج']);
   });
@@ -126,12 +126,43 @@ void main() {
         prog,
         const KidsLetterFlow(
           letter: 'ت',
-          traces: [KidsTraceStep('naskh_more', 'iso')],
+          traces: [KidsTraceStep('naskh_few', 'iso')],
         )));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.volume_up_rounded));
     await tester.pump();
     expect(played, ['ت']);
+  });
+
+  test('play never falls back to a verse when no clip is bundled', () async {
+    // Exercise the real path, not the [LetterAudio.log] test seam — this is
+    // exactly the removed behaviour: it used to reach for the letter's
+    // example verse here instead of reporting nothing to play.
+    LetterAudio.log = null;
+    addTearDown(() => LetterAudio.log = played);
+    final ok = await LetterAudio.play(letterFor('ب'));
+    expect(ok, isFalse,
+        reason: 'no clip ships yet, and there must be no verse fallback');
+  });
+
+  testWidgets('an explicit Listen tap says so when no clip exists yet',
+      (tester) async {
+    LetterAudio.log = null;
+    addTearDown(() => LetterAudio.log = played);
+    useReducedMotion(tester);
+    final (settings, prog) = await _boot();
+    await tester.pumpWidget(_harness(
+        settings,
+        prog,
+        const KidsLetterFlow(
+          letter: 'ث',
+          traces: [KidsTraceStep('naskh_few', 'iso')],
+        )));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.volume_up_rounded));
+    await tester.pump();
+    expect(find.textContaining('coming soon'), findsOneWidget);
   });
 }

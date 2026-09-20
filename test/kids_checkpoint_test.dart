@@ -6,7 +6,9 @@ import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/glyph_names.dart';
 import 'package:qiraah_arabiyyah/data/kids_content.dart';
+import 'package:qiraah_arabiyyah/data/letters.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_checkpoint_quiz.dart';
+import 'package:qiraah_arabiyyah/screens/lessons/forms_quizzes.dart' show contextualForms;
 
 /// The check-up a long stage stops for every five lessons.
 ///
@@ -107,10 +109,80 @@ void main() {
     }
   });
 
+  testWidgets('a forms check-up also asks for the shape that fills a gap in a '
+      'real word, and the shape asked for really is the one that fits',
+      (tester) async {
+    await boot(tester);
+    var gaps = 0;
+    for (var run = 0; run < 40; run++) {
+      final quiz = kidsFormsCheckpoint(ctx,
+          progressId: 'kids.check.forms.28', upTo: 28);
+      for (final q in quiz.questions.where((q) => q.blank != null)) {
+        gaps++;
+        final parts = q.reviewId!.split('.'); // letter.form.<char>.<form>
+        final l = letterFor(parts[2]);
+        final form = parts[3];
+        // The gap is part of the word shown, and holds the letter asked for.
+        expect(q.arabic!.contains(q.blank!), isTrue, reason: q.arabic);
+        expect(q.blank!.startsWith(l.char), isTrue, reason: q.blank);
+        // The right option is that letter's shape for that place...
+        final shape = {
+          'ini': l.initial,
+          'med': l.medial,
+          'fin': l.finalForm,
+        }[form]!;
+        expect(q.options[q.correct], shape, reason: q.reviewId);
+        // ...among the letter's own other shapes, so what is being tested is
+        // the position, not which letter it is.
+        expect(q.options.toSet(), {
+          l.initial,
+          l.medial,
+          l.finalForm,
+          l.char,
+        });
+        expect(q.optionsAreArabic, isTrue);
+        // And that place really does take that shape in this word.
+        final forms = contextualForms(q.arabic!);
+        expect(
+            forms.any((f) => f.char == l.char && f.form == form), isTrue,
+            reason: '${q.arabic}: ${l.char} as $form');
+      }
+    }
+    expect(gaps, greaterThan(40), reason: 'about three a check-up');
+  });
+
   testWidgets('a check-up fires every five lessons', (tester) async {
     await boot(tester);
     // The number the path builder counts with — pinned here so changing it
     // has to be deliberate.
     expect(kidsCheckpointEvery, 5);
+  });
+
+  group('kidsSpecialShapesQuiz', () {
+    // Replaces reusing the grown-up Joining Forms unit's Practice round,
+    // whose hamza-carrier question is unanswerable for the seatless ء (see
+    // qaidah_screen.dart's hamzaCarrierQuestion doc comment) and whose other
+    // questions (ligatures, kāf wraps, letter-name ordering) are adult
+    // material the kids Special Shapes stage never taught.
+    testWidgets('draws only on the six extra letters the stage taught',
+        (tester) async {
+      await boot(tester);
+      const chars = ['ء', 'أ', 'إ', 'ؤ', 'ئ', 'ى'];
+      final quiz = kidsSpecialShapesQuiz(ctx, progressId: 'kids.quiz.special');
+      expect(quiz.progressId, 'kids.quiz.special');
+      expect(quiz.questions, isNotEmpty);
+      for (final q in quiz.questions) {
+        final id = q.reviewId!; // 'extra.<char>'
+        final char = id.split('.')[1];
+        expect(chars, contains(char), reason: id);
+      }
+    });
+
+    testWidgets('asks both shape → name and name → shape', (tester) async {
+      await boot(tester);
+      final quiz = kidsSpecialShapesQuiz(ctx, progressId: 'kids.quiz.special');
+      expect(quiz.questions.where((q) => q.optionsAreArabic), isNotEmpty);
+      expect(quiz.questions.where((q) => !q.optionsAreArabic), isNotEmpty);
+    });
   });
 }

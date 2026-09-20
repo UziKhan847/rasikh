@@ -9,6 +9,7 @@ import '../../data/kids_content.dart';
 import '../../widgets/common.dart';
 import 'kids_desktop_nav.dart';
 import 'kids_parent_gate.dart';
+import 'kids_parent_report.dart';
 import 'kids_path.dart';
 import 'kids_profile_picker.dart';
 import 'kids_widgets.dart';
@@ -141,6 +142,20 @@ class KidsMeScreen extends StatelessWidget {
                           canCancel: true,
                           onDone: () =>
                               closeKidsOverlayOrPop(overlayContext))),
+                ),
+                const SizedBox(height: Geo.gapSm),
+                _ActionRow(
+                  icon: Icons.insights_rounded,
+                  label: context.l10n.kidsParentReport,
+                  onTap: () async {
+                    // The report is for the grown-up, so it sits behind the
+                    // same gate as leaving Kids Mode.
+                    final ok = await showKidsParentGate(context);
+                    if (!ok || !context.mounted) return;
+                    pushKidsOverlay(context,
+                        title: context.l10n.kidsParentReport,
+                        builder: (_) => const KidsParentReport());
+                  },
                 ),
                 const SizedBox(height: Geo.gapSm),
                 _ActionRow(

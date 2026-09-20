@@ -1046,7 +1046,7 @@ Widget _doneDialog(BuildContext context, int stars, String message) =>
 /// due (or soonest, if none are due yet), re-asked with their original
 /// distractors. A correct answer here promotes the card; a miss resets it.
 QuizScreen mistakeReviewQuiz(BuildContext context, ProgressStore prog,
-    {String? title, String? prompt}) {
+    {String? title, String? prompt, String progressId = 'coach.review'}) {
   final rng = math.Random();
   final session = prog.reviewSession(max: 12);
   final qs = <QuizQuestion>[];
@@ -1077,6 +1077,6 @@ QuizScreen mistakeReviewQuiz(BuildContext context, ProgressStore prog,
   }
   return QuizScreen(
       title: title ?? context.l10n.mistakeReview,
-      progressId: 'coach.review',
+      progressId: progressId,
       questions: qs);
 }

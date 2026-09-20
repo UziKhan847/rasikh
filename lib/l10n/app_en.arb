@@ -1154,14 +1154,6 @@
   },
   "qpWhichLetterEndsWord": "Which letter ends this word?",
   "qpWhichLettersFormThis": "Which two letters make this shape?",
-  "qpWhichHamzaForm": "Which is {name}?",
-  "@qpWhichHamzaForm": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "qpSpellForward": "Spell this word — tap its letters in order",
   "qpSpellBackward": "Spell this word backward — tap its letters in reverse order",
   "qpWhichRuleThisShape": "This tanwīn shape signals which rule?",
@@ -1437,6 +1429,13 @@
   "kidsBadgeFormsCleared": "Joining Forms",
   "kidsBadgeSpecialShapes": "Special Shapes",
   "kidsBadgeHarakatCleared": "Vowel Marks",
+  "kidsBadgeSukunCleared": "Sukūn",
+  "kidsBadgeWordsCleared": "Reading Words",
+  "kidsBadgeWaslCleared": "Waṣl",
+  "kidsBadgeTajwidMimCleared": "Mīm Rules",
+  "kidsBadgeTajwidNunCleared": "Nūn Rules",
+  "kidsBadgeTajwidQalqalahCleared": "Qalqalah",
+  "kidsBadgeTajwidRaaCleared": "Rā’ Rules",
   "kidsBadgeReachedTajwid": "Tajwīd Started",
   "kidsBadgePathFinished": "Path Finished",
   "kidsBadgeReadASurah": "Read a Sūrah",
@@ -1485,6 +1484,11 @@
   "kidsShopCamelAvatar": "Camel",
   "kidsShopBeeAvatar": "Bee",
   "kidsShopElephantAvatar": "Elephant",
+  "kidsShopAntAvatar": "Ant",
+  "kidsShopSpiderAvatar": "Spider",
+  "kidsShopHorseAvatar": "Horse",
+  "kidsShopCowAvatar": "Cow",
+  "kidsShopWhaleAvatar": "Whale",
   "kidsShopSilverFrame": "Silver Frame",
   "kidsShopEmeraldFrame": "Emerald Frame",
   "kidsHelloName": "Hello, {name}!",
@@ -1670,6 +1674,220 @@
       }
     }
   },
+  "kidsNeverJoinsForward": "{name} never joins to the letter after it",
+  "@kidsNeverJoinsForward": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsWhichDidYouSay": "Which one did you just say?",
+  "kidsSolarHidesLam": "The lām hides — the letter doubles instead",
+  "kidsLunarKeepsLam": "The lām is heard clearly",
+  "kidsSunLetterIs": "{name} is a Sun Letter",
+  "@kidsSunLetterIs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsMoonLetterIs": "{name} is a Moon Letter",
+  "@kidsMoonLetterIs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsTapEverySunLetter": "Tap every Sun Letter",
+  "kidsWhichRuleIsThis": "Which rule is this?",
+  "kidsMuqattaatIntro": "Some sūrahs open with just letters — said one by one, like spelling your name: Alif. Lām. Mīm.",
+  "kidsMuqattaatCounts": "{counts} counts",
+  "@kidsMuqattaatCounts": {
+    "placeholders": {
+      "counts": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsMuqattaatNoStretch": "No stretch — it's just Alif",
+  "kidsMuqattaatOpensSurah": "Opens Sūrah {list}",
+  "@kidsMuqattaatOpensSurah": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsHowManyCounts": "How many counts?",
+  "kidsMaddLongest": "Which word is stretched the LONGEST?",
+  "kidsMaddShortest": "Which word is stretched the SHORTEST?",
+  "kidsWordsIntro": "Time to read whole sentences! Find the highlighted word and sound it out.",
+  "kidsWhichWordMeans": "Which word means \"{gloss}\"?",
+  "kidsWaqfIntro": "These little marks above the words are like traffic lights — telling you whether to stop, keep going, or either!",
+  "kidsReviewIntro": "Look how far you've come! Here's everything you've learned so far.",
+  "kidsWhatDoesMarkMean": "What does this mark mean?",
+  "kidsWaslZeroCheckPrompt": "Does this mark ever make a sound?",
+  "kidsWaslZeroYesOnStop": "Yes — when you stop here",
+  "kidsWaslZeroNeverSounds": "No — never",
+  "@kidsWhichWordMeans": {
+    "placeholders": {
+      "gloss": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsWhichShapeIsThis": "Which one is {title}?",
+  "@kidsWhichShapeIsThis": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+      "kidsLookalikes": "Look-alikes",
+  "kidsOddOneOut": "Which one is different?",
+  "kidsDotHunterPrompt": "Tap every letter with {dots}",
+  "@kidsDotHunterPrompt": {
+    "placeholders": {
+      "dots": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsParentReport": "Progress report",
+  "kidsReportCurrentStage": "Learning now: {stage}",
+  "@kidsReportCurrentStage": {
+    "placeholders": {
+      "stage": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsReportOverall": "{done} of {total} lessons done",
+  "@kidsReportOverall": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsReportStreakDays": "{n} days in a row",
+  "@kidsReportStreakDays": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsReportPractise": "Worth practising together",
+  "kidsReportNothing": "Nothing to revisit yet — that is a good sign.",
+  "kidsReportDue": "{n} waiting in the Warm-up",
+  "@kidsReportDue": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsReportTalk": "Try this together",
+  "kidsReportTalkShapes": "Ask them to point to the letter, say its name, and trace it in the air. Then ask: what makes it different from its look-alikes?",
+  "kidsReportTalkSounds": "Ask them to say each sound out loud and repeat it back to them. Swap the vowel and see if they can hear the change.",
+  "kidsReportTalkRules": "Ask them to explain the rule to you in their own words, as if you were the student. Teaching it is the best way to remember it.",
+  "kidsReportTalkReading": "Let them read one line to you slowly, pointing at each word. Praise the effort, then read it back together.",
+  "kidsReportTalkGeneral": "Ask them to show you today’s lesson and teach you one thing they learned.",
+  "kidsMascotSlip": "Oops — I think this is “{wrong}”. Can you fix my mistake?",
+  "@kidsMascotSlip": {
+    "placeholders": {
+      "wrong": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsWriteIt": "Write it",
+  "kidsWriteFromMemory": "Write {name} from memory",
+  "@kidsWriteFromMemory": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsFindIt": "Find it",
+  "kidsFindEvery": "Tap every word with {name}",
+  "@kidsFindEvery": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsWhichWordHas": "Which word has {name}?",
+  "@kidsWhichWordHas": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsListenPick": "Listen & pick",
+  "kidsWhichWordHeard": "Which word did you hear?",
+  "kidsListenOffline": "We couldn't play the sound — check your connection and try again.",
+  "kidsMouthMap": "Mouth map",
+  "kidsMouthMapIntro": "Every letter is made in a special place. Tap each place to see which letters live there!",
+  "kidsWhereMade": "Where is this letter made?",
+  "kidsWhichHumsNose": "Which letter can hum through your nose?",
+  "kidsZoneJawf": "Open mouth",
+  "kidsZoneKhayshum": "The Nose",
+  "kidsZoneJawfTip": "No touching! Open wide and let the sound ring out long.",
+  "kidsZoneHalqTip": "Touch your throat and say it — feel it deep inside.",
+  "kidsZoneLisanTip": "Your tongue does the work — from the very back to the very tip!",
+  "kidsZoneShafatanTip": "Your lips do the work — press them together for ب and م.",
+  "kidsZoneKhayshumTip": "Hold your nose gently and hum — that hum is the ghunnah.",
+  "kidsMemorise": "Memorise",
+  "kidsMemListen": "Listen to the āyah and follow the words.",
+  "kidsMemSay": "Say it out loud — three times!",
+  "kidsMemFade": "Say it again while the words fade away.",
+  "kidsMemHideMore": "Hide more",
+  "kidsMemPeek": "Peek",
+  "kidsMemOrderWords": "Tap the words in order.",
+  "kidsMemOrderAyahs": "Tap the āyāt in order.",
+  "kidsMemNext": "What comes next?",
+  "kidsWordByWord": "Word by word",
+  "kidsBuildWord": "Build the word",
+  "kidsBuildThis": "Build this word, letter by letter.",
+  "kidsCheckYes": "Yes!",
+  "kidsCheckNotQuite": "Not quite — it's this one:",
+  "kidsCheckTryAgain": "Have another look and try again!",
+  "kidsHintWaqf": "Look at the small sign above the word.",
+  "kidsHintTajwid": "Think back to the rule cards — which one matches these letters?",
+  "kidsHintWords": "Sound it out, letter by letter.",
+  "kidsHintMuqattaat": "Say the letter's name slowly — how long do you hold it?",
+  "kidsHintMadd": "Clap along — one clap for each count.",
+  "kidsHintMouth": "Touch your face and say it — where do you feel it?",
+  "kidsHintSyllable": "Press Listen again, then pick the one you heard.",
+  "kidsHintNext": "Say the āyah in your head — what comes right after?",
+  "kidsWaqfWhyMustStop": "Stop here — carrying on would change the meaning.",
+  "kidsWaqfWhyMustNotStop": "Don't stop here — the sentence isn't finished yet.",
+  "kidsWaqfWhyEither": "You can stop or keep going — both are fine.",
+  "kidsWaqfWhyPair": "Two of these signs go together — stop at one of them, never both.",
+  "kidsWaqfWhyPreferStop": "Stopping is better here, but you may keep going.",
+  "kidsWaqfWhyPreferGo": "Keeping going is better here, but you may stop.",
+"kidsWarmUp": "Warm-up",
+  "kidsWarmUpSub": "{n} to practise again",
+  "@kidsWarmUpSub": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+"kidsShowMe": "Show me",
   "kidsSayItAloud": "Say it out loud!",
   "kidsSaidIt": "I said it!",
   "kidsTracePass": "Practice {index} of {total}",
