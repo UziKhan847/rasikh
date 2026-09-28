@@ -2,14 +2,15 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../core/geometry.dart';
 import '../../core/l10n.dart';
 import '../../core/settings.dart' show ProgressScope;
-import '../../core/theme.dart';
 import '../../data/glyph_names.dart' show letterName;
 import '../../data/letters.dart';
 import '../../data/quran.dart';
 import '../../widgets/common.dart' show starsForFraction;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_find_in_ayah.dart' show kidsBaseLetters, kidsFindSurahs;
 import 'kids_lookalike_quiz.dart' show kidsConfusablesIn;
 import 'kids_order_card.dart';
@@ -148,22 +149,13 @@ class _KidsBuildWordState extends State<KidsBuildWord> {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final words = _words;
     if (words == null) {
-      return Center(child: CircularProgressIndicator(color: p.accent));
+      return const KidsLoadingScreen();
     }
     if (words.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(Geo.gapXl),
-        child: Center(
-          child: Text(
-            context.l10n.kidsReadingUnavailable,
-            textAlign: TextAlign.center,
-            style: kidsStyle(context, size: 15, color: p.textDim),
-          ),
-        ),
-      );
+      return KidsMessageScreen(context.l10n.kidsReadingUnavailable);
     }
     if (_done && !_reported) {
       _reported = true;
@@ -186,14 +178,12 @@ class _KidsBuildWordState extends State<KidsBuildWord> {
               return KidsOrderCard(
                 key: ValueKey('build.$_index.${w.word}'),
                 prompt: context.l10n.kidsBuildThis,
-                header: Container(
-                  padding: const EdgeInsets.all(Geo.gapMd),
-                  decoration: kidsCard(context),
-                  alignment: Alignment.center,
+                header: KidsLessonCard(
+                  padding: const EdgeInsets.all(16),
                   child: Text(
                     w.word,
                     textDirection: TextDirection.rtl,
-                    style: quranicStyle(context, size: 44, color: p.accent),
+                    style: kbText(44, kbC(ui.linkInk), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
                   ),
                 ),
                 items: w.letters,

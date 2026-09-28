@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../core/geometry.dart';
 import '../../core/l10n.dart';
 import '../../core/responsive.dart';
 import '../../core/settings.dart';
-import '../../core/theme.dart';
-import '../../widgets/common.dart';
+import '../../core/theme.dart' show KidsTextScale;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
+import '../../kids_backdrops/kb_widgets.dart';
 import 'kids_desktop_nav.dart';
 import 'kids_path.dart';
 import 'kids_widgets.dart';
@@ -25,42 +27,42 @@ class KidsAlphabetScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final prog = ProgressScope.of(context);
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final path = kidsPath(context);
     final current = kidsCurrentBlockIndex(context, prog);
+    final safeTop = MediaQuery.paddingOf(context).top;
 
-    return SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 900),
-          // .builder, not a children list: building a stage's items is not
-          // free — the reused grown-up stages construct a whole unit list to
-          // find their phases — and there are enough stages now that doing
-          // every one of them per frame is wasted work on a phone.
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(
-                Geo.gapLg, Geo.gapMd, Geo.gapLg, Geo.gapXl),
-            itemCount: path.length + 1,
-            itemBuilder: (context, i) {
-              if (i == 0) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: Geo.gapMd),
-                  child: KidsSectionHeader(
-                    title: context.l10n.kidsPathTitle,
-                    arabic: context.l10n.kidsPathArabic,
-                    size: 20,
-                    arabicSize: 17,
-                    arabicColor: p.accent,
-                  ),
-                );
-              }
-              final b = i - 1;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: Geo.gapSm),
-                child: _BlockRow(block: path[b], index: b, current: current),
+    // The design's Learn screen (kb_screens.dart `KbLearnScreen`): the title
+    // and its Arabic name on the sky, then one card per stage, 16 apart.
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900),
+        // .builder, not a children list: building a stage's items is not
+        // free — the reused grown-up stages construct a whole unit list to
+        // find their phases — and there are enough stages now that doing
+        // every one of them per frame is wasted work on a phone.
+        child: ListView.builder(
+          padding: EdgeInsets.fromLTRB(
+              20, safeTop + 8 > 58 ? safeTop + 8 : 58, 20, 130),
+          itemCount: path.length + 1,
+          itemBuilder: (context, i) {
+            if (i == 0) {
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                      child: KbHeading(context.l10n.kidsPathTitle,
+                          ui: ui, fontSize: 30)),
+                  KbArabicTitle(context.l10n.kidsPathArabic, ui: ui),
+                ],
               );
-            },
-          ),
+            }
+            final b = i - 1;
+            return Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: _BlockRow(block: path[b], index: b, current: current),
+            );
+          },
         ),
       ),
     );
@@ -87,7 +89,6 @@ class _BlockRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
     final prog = ProgressScope.of(context);
     // Built once: a reused grown-up stage constructs the whole Qāʿidah unit
     // list to find its phases, so this is not a cheap getter.
@@ -97,20 +98,22 @@ class _BlockRow extends StatelessWidget {
     final isDone = total > 0 && done == total;
     final isCurrent = index == current;
     final locked = !isDone && !isCurrent && kidsLocked(prog, index, current);
-    final state = isDone
-        ? _State.done
-        : isCurrent
-            ? _State.current
-            : locked
-                ? _State.locked
-                : _State.open;
     final title = block.title(context);
 
     return Semantics(
+      key: ValueKey('kids.block.${block.id}'),
       label: title,
       button: true,
-      child: TapScale(
-        key: ValueKey('kids.block.${block.id}'),
+      child: KbLearnCard(
+        ui: kbUi(context),
+        glyph: block.badge,
+        title: title,
+        desc: block.subtitle(context),
+        current: isCurrent,
+        done: isDone,
+        locked: locked,
+        count: done,
+        total: total == 0 ? 1 : total,
         onTap: () {
           if (locked) {
             ScaffoldMessenger.of(context)
@@ -122,110 +125,6 @@ class _BlockRow extends StatelessWidget {
           pushKidsOverlay(context,
               title: title, builder: (_) => KidsBlockScreen(block: block));
         },
-        child: Container(
-          padding: const EdgeInsets.all(Geo.gapMd),
-          decoration: BoxDecoration(
-            color: locked ? kidsLockedFill(p) : p.surface,
-            borderRadius: BorderRadius.circular(Geo.radiusLg),
-            border: Border.all(
-                color: isCurrent ? p.accent : Colors.transparent, width: 2),
-            boxShadow: locked
-                ? null
-                : [
-                    BoxShadow(
-                        color: p.shadow,
-                        blurRadius: 12,
-                        offset: const Offset(0, 5)),
-                  ],
-          ),
-          child: Row(children: [
-            Container(
-              width: 52,
-              height: 52,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: isCurrent
-                    ? p.accent
-                    : locked
-                        ? Colors.transparent
-                        : p.amber.withValues(alpha: .16),
-                borderRadius: BorderRadius.circular(Geo.radiusMd),
-              ),
-              child: locked
-                  ? Icon(Icons.lock_rounded,
-                      size: 20, color: p.textDim.withValues(alpha: .75))
-                  // Scale-down guard: the badge glyph grows with the reader's
-                  // arabicScale, and 'الٓمٓ' is already four letters wide.
-                  : FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
-                        child: Text(block.badge,
-                            textDirection: TextDirection.rtl,
-                            style: quranicStyle(context,
-                                size: 19,
-                                height: 1.05,
-                                color: isCurrent ? Colors.white : p.text)),
-                      ),
-                    ),
-            ),
-            const SizedBox(width: Geo.gapMd),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: kidsStyle(context,
-                          size: 15, weight: FontWeight.w800)),
-                  const SizedBox(height: 2),
-                  Text(block.subtitle(context),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style:
-                          kidsStyle(context, size: 12, color: p.textDim)),
-                  if (!locked) ...[
-                    const SizedBox(height: 8),
-                    Row(children: [
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(Geo.radiusPill),
-                          child: LinearProgressIndicator(
-                            value: total == 0 ? 0 : done / total,
-                            minHeight: 6,
-                            backgroundColor: p.surfaceHigh,
-                            valueColor: AlwaysStoppedAnimation(p.accent2),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text('$done / $total',
-                          style: kidsStyle(context,
-                              size: 11.5,
-                              weight: FontWeight.w800,
-                              color: p.accent2)),
-                    ]),
-                  ],
-                ],
-              ),
-            ),
-            if (state == _State.done)
-              Padding(
-                padding: const EdgeInsetsDirectional.only(start: Geo.gapSm),
-                child: Container(
-                  width: 22,
-                  height: 22,
-                  decoration:
-                      BoxDecoration(shape: BoxShape.circle, color: p.amber),
-                  child: const Icon(Icons.check_rounded,
-                      size: 15, color: Colors.white),
-                ),
-              ),
-          ]),
-        ),
       ),
     );
   }
@@ -240,94 +139,104 @@ class KidsBlockScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final prog = ProgressScope.of(context);
-    final p = kidsPal(context);
     final items = block.items(context);
     final done = kidsCurrentItemIndex(prog, items);
+    final desktop = useDesktop(context);
 
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  Geo.gapLg, Geo.gapMd, Geo.gapLg, Geo.gapSm),
-              child: Row(children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(Geo.radiusPill),
-                    child: LinearProgressIndicator(
-                      value: items.isEmpty ? 0 : done / items.length,
-                      minHeight: 8,
-                      backgroundColor: p.surfaceHigh,
-                      valueColor: AlwaysStoppedAnimation(p.accent2),
-                    ),
+    Widget body(BuildContext context) {
+      final ui = kbUi(context);
+      final safeTop = MediaQuery.paddingOf(context).top;
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          // Measured INSIDE the 900px cap, not the pane's full width —
+          // otherwise a wide desktop window computes columns for its own
+          // width, then the cap squeezes that many into 900px anyway.
+          child: LayoutBuilder(builder: (context, c) {
+            final cols = ((c.maxWidth - 40) / 110).floor().clamp(3, 8);
+            return CustomScrollView(slivers: [
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                    20, desktop ? 20 : (safeTop + 8 > 52 ? safeTop + 8 : 52), 20, 0),
+                sliver: SliverList.list(children: [
+                  // On desktop the shell's top bar already carries the title
+                  // and the way back.
+                  if (!desktop) ...[
+                    Row(children: [
+                      KbRoundButton(
+                          Directionality.of(context) == TextDirection.rtl
+                              ? 'arrow_forward'
+                              : 'arrow_back',
+                          ui: ui,
+                          tooltip:
+                              MaterialLocalizations.of(context).backButtonTooltip,
+                          onTap: () => Navigator.maybePop(context)),
+                      const SizedBox(width: 16),
+                      Flexible(
+                          child: KbHeading(block.title(context),
+                              ui: ui, fontSize: 30)),
+                    ]),
+                    const SizedBox(height: 20),
+                  ],
+                  KbSurface(
+                    color: ui.surface,
+                    edge: ui.edge,
+                    elev: KbElev.card,
+                    radius: 22,
+                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+                    child: Row(children: [
+                      Expanded(
+                        child: KbProgress(
+                            value: items.isEmpty ? 0 : done / items.length,
+                            ui: ui),
+                      ),
+                      const SizedBox(width: 12),
+                      Text('$done / ${items.length}',
+                          style: kbText(17, kbC(ui.linkInk))),
+                    ]),
+                  ),
+                  const SizedBox(height: 22),
+                ]),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                sliver: SliverGrid.builder(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: cols,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: .95,
+                  ),
+                  itemCount: items.length,
+                  itemBuilder: (context, i) => _ItemTile(
+                    item: items[i],
+                    state: i < done
+                        ? _State.done
+                        : i == done
+                            ? _State.current
+                            : kidsLocked(prog, i, done)
+                                ? _State.locked
+                                : _State.open,
                   ),
                 ),
-                const SizedBox(width: Geo.gapSm),
-                Text('$done / ${items.length}',
-                    style: kidsStyle(context,
-                        size: 12.5,
-                        weight: FontWeight.w800,
-                        color: p.accent2)),
-              ]),
-            ),
-          ),
-        ),
-        Expanded(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
-              // Measured INSIDE the 900px cap, not the pane's full width —
-              // otherwise a wide desktop window computes columns for its own
-              // width, then the cap squeezes that many into 900px anyway.
-              child: LayoutBuilder(
-                builder: (context, c) {
-                  final cols = (c.maxWidth / 150).floor().clamp(3, 8);
-                  return GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(
-                        Geo.gapLg, Geo.gapMd, Geo.gapLg, Geo.gapXl),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: cols,
-                      mainAxisSpacing: Geo.gapMd,
-                      crossAxisSpacing: Geo.gapMd,
-                      childAspectRatio: 1.06,
-                    ),
-                    itemCount: items.length,
-                    itemBuilder: (context, i) => _ItemTile(
-                      item: items[i],
-                      state: i < done
-                          ? _State.done
-                          : i == done
-                              ? _State.current
-                              : kidsLocked(prog, i, done)
-                                  ? _State.locked
-                                  : _State.open,
-                    ),
-                  );
-                },
               ),
-            ),
-          ),
+            ]);
+          }),
         ),
-      ],
-    );
+      );
+    }
 
     // On desktop the shell hosts this in its content pane, under a top bar
     // that already carries the title and the way back. On mobile it is a
     // pushed route, so it needs its own Scaffold — without one there is no
     // ScaffoldMessenger for the "finish the one before it" snackbar to land
-    // in, and no background behind the grid.
-    if (useDesktop(context)) return body;
-    return Scaffold(
-      backgroundColor: p.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        title: Text(block.title(context),
-            style: kidsStyle(context, size: 17, weight: FontWeight.w800)),
+    // in — and its own backdrop, the scene behind every Kids screen.
+    if (desktop) return Builder(builder: body);
+    return KidsTextScale(
+      child: Scaffold(
+        backgroundColor: kbPageBg(kbUi(context)),
+        body: KidsBackdrop(child: Builder(builder: body)),
       ),
-      body: SafeArea(child: body),
     );
   }
 }
@@ -339,132 +248,109 @@ class _ItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final locked = state == _State.locked;
     final current = state == _State.current;
     final label = item.label(context);
 
+    // A tile (UI_SPEC §1): solid face and hard edge; the current one wears the
+    // selection ring and accent edge; a cleared one gets the reward check.
     return Semantics(
       label: label,
       button: true,
-      child: TapScale(
-        // Keyed by the item's own progress id — already unique across the
-        // path — so the widget tests can address a specific tile. Locked
-        // tiles deliberately render no text to find them by (see below).
-        key: ValueKey(item.id),
-        onTap: () {
-          if (locked) {
-            ScaffoldMessenger.of(context)
-              ..clearSnackBars()
-              ..showSnackBar(
-                  SnackBar(content: Text(context.l10n.kidsItemLocked)));
-            return;
-          }
-          openKidsItem(context, item);
-        },
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: current
-                      ? p.accent
-                      : locked
-                          ? kidsLockedFill(p)
-                          : p.surface,
-                  borderRadius: BorderRadius.circular(Geo.radiusLg),
-                  boxShadow: locked
-                      ? null
-                      : [
-                          BoxShadow(
-                            color: current
-                                ? p.accent.withValues(alpha: .28)
-                                : p.shadow,
-                            blurRadius: 12,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                ),
-                // A tile still ahead is a plain lock in the design — no
-                // glyph, no name — so the stage reads as a sequence to
-                // unlock rather than a wall of equal cards.
-                child: locked
-                    ? Center(
-                        child: Icon(Icons.lock_rounded,
-                            size: 22,
-                            color: p.textDim.withValues(alpha: .75)),
-                      )
-                    // Scale-down guard around the WHOLE tile, not just the
-                    // glyph: `quranicStyle` multiplies by the reader's
-                    // arabicScale and the label rides the UI text scale, so
-                    // either one can outgrow the cell. Scaling them together
-                    // keeps the glyph and its name in proportion, where
-                    // shrinking only the glyph would not.
-                    : Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 4),
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                height: 42,
-                                child: Center(
-                                  child: item.glyph.isEmpty
-                                      ? Icon(item.icon,
-                                          size: 30,
-                                          color: current
-                                              ? Colors.white
-                                              : p.accent2)
-                                      : Text(
-                                          item.glyph,
-                                          textDirection: TextDirection.rtl,
-                                          style: quranicStyle(
-                                            context,
-                                            size: 30,
-                                            height: 1.05,
-                                            color: current
-                                                ? Colors.white
-                                                : p.text,
-                                          ),
-                                        ),
-                                ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: KbSurface(
+              // Keyed by the item's own progress id — already unique across
+              // the path — so the widget tests can address a specific tile.
+              // Locked tiles deliberately render no text to find them by (see
+              // below).
+              key: ValueKey(item.id),
+              color: current ? ui.tile : ui.surface,
+              edge: current ? ui.accentEdge : ui.edge,
+              outline: current ? ui.accent : null,
+              outlineWidth: 3,
+              elev: KbElev.tile,
+              radius: 20,
+              onTap: () {
+                if (locked) {
+                  ScaffoldMessenger.of(context)
+                    ..clearSnackBars()
+                    ..showSnackBar(
+                        SnackBar(content: Text(context.l10n.kidsItemLocked)));
+                  return;
+                }
+                openKidsItem(context, item);
+              },
+              // A tile still ahead is a plain lock in the design — no glyph,
+              // no name — so the stage reads as a sequence to unlock rather
+              // than a wall of equal cards.
+              child: locked
+                  ? Center(
+                      child: KbIcon('lock', size: 26, color: kbC(ui.inkSoft)))
+                  // Scale-down guard around the WHOLE tile, not just the
+                  // glyph: the glyph and its name both ride the reader's text
+                  // size and either can outgrow the cell. Scaling them
+                  // together keeps them in proportion.
+                  : Padding(
+                      padding: const EdgeInsets.fromLTRB(6, 8, 6, 6),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              height: 48,
+                              child: Center(
+                                child: item.glyph.isEmpty
+                                    ? KbIcon(kbIconName(item.icon),
+                                        size: 32,
+                                        color: kbC(current
+                                            ? ui.tileInk
+                                            : ui.linkInk))
+                                    : Text(
+                                        item.glyph,
+                                        textDirection: TextDirection.rtl,
+                                        style: kbText(
+                                            32,
+                                            kbC(current
+                                                ? ui.tileInk
+                                                : ui.ink),
+                                            family: kbFontArabic,
+                                            weight: FontWeight.w600,
+                                            height: 1.3),
+                                      ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: kidsStyle(
-                                  context,
-                                  size: 11,
-                                  weight: FontWeight.w700,
-                                  color:
-                                      current ? Colors.white : p.textDim,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: kbText(
+                                  14,
+                                  kbC(current ? ui.tileInk : ui.inkSoft),
+                                  weight: FontWeight.w700),
+                            ),
+                          ],
                         ),
                       ),
+                    ),
+            ),
+          ),
+          if (state == _State.done)
+            PositionedDirectional(
+              top: -4,
+              end: -4,
+              child: IgnorePointer(
+                child: KbDot('check',
+                    bg: ui.reward, ink: ui.rewardInk, size: 24, iconSize: 15,
+                    ring: ui.surface),
               ),
             ),
-            if (state == _State.done)
-              PositionedDirectional(
-                top: 7,
-                end: 7,
-                child: Container(
-                  width: 19,
-                  height: 19,
-                  decoration:
-                      BoxDecoration(shape: BoxShape.circle, color: p.amber),
-                  child: const Icon(Icons.check_rounded,
-                      size: 13, color: Colors.white),
-                ),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }

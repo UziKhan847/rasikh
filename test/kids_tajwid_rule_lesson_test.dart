@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_tajwid_rule_lesson.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -48,7 +47,7 @@ Future<void> _finishLesson(WidgetTester tester) async {
       await tester.tap(next.first);
       continue;
     }
-    final options = find.byType(TapScale);
+    final options = kidsTappables();
     if (options.evaluate().isNotEmpty) {
       await tester.tap(options.first);
       await tester.pump(const Duration(milliseconds: 1000));
@@ -158,7 +157,7 @@ void main() {
       }
       // Now on a check card: the question and four glyph-free option tiles.
       expect(find.text('Which rule is this?'), findsOneWidget);
-      expect(find.byType(TapScale), findsNWidgets(4));
+      expect(kidsTappables(), findsNWidgets(4));
     },
   );
 }

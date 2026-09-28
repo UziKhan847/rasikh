@@ -48,6 +48,9 @@ void main() {
     expect(find.text('New Profile'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Yusuf');
     await tester.pumpAndSettle();
+    // The form scrolls; its button sits below an 800×600 test window.
+    await tester.ensureVisible(find.text('Start Learning'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Start Learning'));
     await tester.pumpAndSettle();
 

@@ -11,7 +11,6 @@ import 'package:qiraah_arabiyyah/data/quran.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_find_in_ayah.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_home_screen.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_listen_and_pick.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -164,7 +163,7 @@ void main() {
       await tester.pumpWidget(build(settings, prog));
       await tester.pump();
       await tester.pump();
-      await tester.tap(find.byIcon(Icons.volume_up_rounded));
+      await tester.tap(kidsListenIcon());
       await tester.pump();
       expect(played, hasLength(2));
       expect(played.first, played.last);
@@ -198,7 +197,7 @@ void main() {
       for (var i = 0; i < kidsListenRound; i++) {
         final right = heardWord();
         final wrong = find
-            .descendant(of: find.byType(TapScale), matching: find.byType(Text))
+            .descendant(of: kidsTappables(), matching: find.byType(Text))
             .evaluate()
             .map((e) => (e.widget as Text).data!)
             .firstWhere((t) => t != right && t != 'Next');
@@ -257,7 +256,7 @@ void main() {
       tester.view.devicePixelRatio = 2;
       addTearDown(tester.view.reset);
       final (settings, prog) = await _boot();
-      settings.arabicScale = 1.35;
+      settings.kidsTextScale = 1.35;
       await tester.pumpWidget(build(settings, prog));
       await tester.pump();
       await tester.pump();

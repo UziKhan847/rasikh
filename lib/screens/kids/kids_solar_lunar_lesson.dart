@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
-import '../../core/theme.dart';
 import '../../data/extra_letters.dart' show letterForAny;
 import '../../data/glyph_names.dart' show letterName;
 import '../../data/wasl.dart';
-import '../../widgets/common.dart' show MediaRow, TapScale, starsForFraction;
+import '../../widgets/common.dart' show MediaRow, starsForFraction;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_checkpoint_quiz.dart' show kidsCheckpointEvery;
+import 'kids_sort_bins.dart';
 import 'kids_widgets.dart';
 
 final _rng = math.Random();
@@ -169,14 +172,10 @@ class _IntroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          context.l10n.kidsBlockSolarLunar,
-          style: kidsStyle(context, size: 19, weight: FontWeight.w800),
-        ),
+        KidsLessonTitle(context.l10n.kidsBlockSolarLunar),
         const SizedBox(height: Geo.gapMd),
         Expanded(
           // Side by side when there is room, but a 320px phone gives each
@@ -218,14 +217,7 @@ class _IntroCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Geo.gapLg),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: p.accent,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: onNext,
-          child: Text(context.l10n.kidsNextCard),
-        ),
+        KidsNextButton(context.l10n.kidsNextCard, onTap: onNext),
       ],
     );
   }
@@ -243,10 +235,9 @@ class _MnemonicTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    return Container(
-      padding: const EdgeInsets.all(Geo.gapMd),
-      decoration: kidsCard(context),
+    final ui = kbUi(context);
+    return KidsLessonCard(
+      padding: const EdgeInsets.all(16),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -255,13 +246,13 @@ class _MnemonicTile extends StatelessWidget {
           Text(
             word,
             textDirection: TextDirection.rtl,
-            style: quranicStyle(context, size: 30),
+            style: kbText(30, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
           ),
           const SizedBox(height: Geo.gapSm),
           Text(
             caption,
             textAlign: TextAlign.center,
-            style: kidsStyle(context, size: 12.5, color: p.textDim),
+            style: kbText(16, kbC(ui.inkSoft), weight: FontWeight.w600, height: 1.35),
           ),
         ],
       ),
@@ -279,24 +270,19 @@ class _LetterCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final isSolar = item.kind == 'solar';
     final name = letterName(context, letterForAny(item.letter)!);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          isSolar
+        KidsLessonTitle(isSolar
               ? context.l10n.kidsSunLetterIs(name)
-              : context.l10n.kidsMoonLetterIs(name),
-          style: kidsStyle(context, size: 17, weight: FontWeight.w800),
-        ),
+              : context.l10n.kidsMoonLetterIs(name), fontSize: 26),
         const SizedBox(height: Geo.gapMd),
         Expanded(
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.all(Geo.gapLg),
-              decoration: kidsCard(context),
+          child: KidsCentered(
+            child: KidsLessonCard(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -308,7 +294,7 @@ class _LetterCard extends StatelessWidget {
                   Text(
                     item.example,
                     textDirection: TextDirection.rtl,
-                    style: quranicStyle(context, size: 32),
+                    style: kbText(32, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
                   ),
                   const SizedBox(height: Geo.gapSm),
                   Text(
@@ -316,7 +302,7 @@ class _LetterCard extends StatelessWidget {
                         ? context.l10n.kidsSolarHidesLam
                         : context.l10n.kidsLunarKeepsLam,
                     textAlign: TextAlign.center,
-                    style: kidsStyle(context, size: 13, color: p.textDim),
+                    style: kbText(16, kbC(ui.inkSoft), weight: FontWeight.w600, height: 1.35),
                   ),
                 ],
               ),
@@ -326,125 +312,38 @@ class _LetterCard extends StatelessWidget {
         const SizedBox(height: Geo.gapSm),
         Center(child: MediaRow(ref: item.ref)),
         const SizedBox(height: Geo.gapLg),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: p.accent,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: onNext,
-          child: Text(context.l10n.kidsNextCard),
-        ),
+        KidsNextButton(context.l10n.kidsNextCard, onTap: onNext),
       ],
     );
   }
 }
 
-/// The check-up: tap every SUN letter in [pool] — always a mix of both
-/// kinds, since the walk interleaves them. Submits once at least one tile is
-/// picked, rather than after every tap, so the child can change their mind.
-class _SortCard extends StatefulWidget {
+/// The check-up: sort [pool] — always a mix of both kinds, since the walk
+/// interleaves them — into the sun and the moon.
+class _SortCard extends StatelessWidget {
   final List<WaslItem> pool;
   final void Function(bool correct) onDone;
   const _SortCard({super.key, required this.pool, required this.onDone});
 
   @override
-  State<_SortCard> createState() => _SortCardState();
-}
-
-class _SortCardState extends State<_SortCard> {
-  final Set<String> _picked = {};
-  bool _checked = false;
-
-  @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    final sunIds = {
-      for (final i in widget.pool)
-        if (i.kind == 'solar') i.id,
-    };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          context.l10n.kidsTapEverySunLetter,
-          style: kidsStyle(context, size: 17, weight: FontWeight.w800),
-        ),
-        const SizedBox(height: Geo.gapMd),
-        Expanded(
-          child: GridView.count(
-            crossAxisCount: 3,
-            mainAxisSpacing: Geo.gapMd,
-            crossAxisSpacing: Geo.gapMd,
-            childAspectRatio: 1.1,
-            children: [
-              for (final item in widget.pool)
-                () {
-                  final on = _picked.contains(item.id);
-                  final rightAfterCheck =
-                      _checked && (on == sunIds.contains(item.id));
-                  return TapScale(
-                    onTap: _checked
-                        ? () {}
-                        : () => setState(() {
-                            if (on) {
-                              _picked.remove(item.id);
-                            } else {
-                              _picked.add(item.id);
-                            }
-                          }),
-                    child: Container(
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: _checked
-                            ? (rightAfterCheck
-                                  ? AppColors.ok.withValues(alpha: .18)
-                                  : p.surface)
-                            : (on
-                                  ? p.accent.withValues(alpha: .16)
-                                  : p.surface),
-                        borderRadius: BorderRadius.circular(Geo.radiusLg),
-                        border: Border.all(
-                          color: on && !_checked
-                              ? p.accent
-                              : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                      child: Text(
-                        item.kind == 'solar'
-                            ? 'ٱل${item.letter}ّ'
-                            : 'ٱلۡ${item.letter}',
-                        textDirection: TextDirection.rtl,
-                        style: quranicStyle(context, size: 26),
-                      ),
-                    ),
-                  );
-                }(),
-            ],
-          ),
-        ),
-        const SizedBox(height: Geo.gapMd),
-        if (!_checked)
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: p.accent,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            onPressed: _picked.isEmpty
-                ? null
-                : () {
-                    setState(() => _checked = true);
-                    final correct =
-                        _picked.length == sunIds.length &&
-                        _picked.every(sunIds.contains);
-                    Future.delayed(
-                      const Duration(milliseconds: 900),
-                      () => widget.onDone(correct),
-                    );
-                  },
-            child: Text(context.l10n.check),
+    return KidsSortBins(
+      prompt: context.l10n.kidsSortSunMoon,
+      items: [
+        for (final item in pool)
+          KidsSortItem(
+            id: item.id,
+            label: item.kind == 'solar'
+                ? 'ٱل${item.letter}ّ'
+                : 'ٱلۡ${item.letter}',
+            bin: item.kind == 'solar' ? 0 : 1,
           ),
       ],
+      bins: [
+        KidsSortBin(emoji: '☀️', title: context.l10n.kidsSunLetters),
+        KidsSortBin(emoji: '🌙', title: context.l10n.kidsMoonLetters),
+      ],
+      onDone: onDone,
     );
   }
 }

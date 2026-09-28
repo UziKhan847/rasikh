@@ -11,7 +11,8 @@ import '../../data/letters.dart';
 import '../../widgets/common.dart';
 import '../dyslexia_screen.dart' show mistakeReviewQuiz;
 import '../lessons/forms_quizzes.dart' show contextualForms;
-import 'kids_lookalike_quiz.dart' show kidsConfusableOptions;
+import 'kids_lookalike_quiz.dart'
+    show kidsConfusableOptions, kidsConfusablesIn;
 
 /// How many lessons a stage runs before it stops and checks.
 const kidsCheckpointEvery = 5;
@@ -21,19 +22,52 @@ const kidsCheckpointEvery = 5;
 /// five letters — one in each direction.
 const _questions = 10;
 
+/// How many of a joining-shapes round are "drag the shape into the word".
+const _gapQuestions = 2;
+
 final _rng = math.Random();
+
+/// Draws up to [n] questions from [makers] — each one distinct way of asking
+/// one distinct thing — WITHOUT replacement, skipping any that cannot be built
+/// (a maker returns null). This is what keeps a round from asking the same
+/// question twice: a round used to be `pickN(letters, 10)` with the direction
+/// pinned to the question's position, so a five-letter checkpoint asked ten
+/// questions of five letters and could put one letter in the same direction
+/// twice.
+List<QuizQuestion> _draw(List<QuizQuestion? Function()> makers, int n) {
+  final order = [...makers]..shuffle(_rng);
+  final out = <QuizQuestion>[];
+  for (final make in order) {
+    if (out.length >= n) break;
+    final q = make();
+    if (q != null) out.add(q);
+  }
+  return out;
+}
+
+/// The dots a letter is shown with — null for a dotless letter, and for ي,
+/// which the muṣḥaf font draws dotless when it stands alone (see
+/// `dotsDescForLetter`), so asking for it by its dots would contradict the
+/// glyph on screen.
+String? _dotSignature(ArabicLetter l) =>
+    l.dotCount == 0 || l.char == 'ي' ? null : '${l.dotCount}.${l.dotPos}';
 
 /// A **cumulative** check-up over the first [upTo] letters of the path: not
 /// the five just learned, but everything met in this stage so far. That is
 /// the point of it — letter five is fresh, letter one is three days old, and
 /// only a cumulative round notices when the old one has faded.
 ///
-/// Two directions, alternating, because recognising a shape and recalling one
-/// are different skills and a round of nothing but "which letter is this?"
-/// only ever drills the first:
+/// Several ways of asking, because recognising a shape, recalling one and
+/// knowing what is on it are different skills, and a round of nothing but
+/// "which letter is this?" only ever drills the first:
 ///
 ///  * shape → name (the glyph is shown, the names are the options);
-///  * name → shape (the name is asked for, the glyphs are the options).
+///  * name → shape (the name is asked for, the glyphs are the options);
+///  * dots → shape ("which letter has 2 dots below?");
+///  * the alphabet's own order (tap three letters in order).
+///
+/// Every question a round asks is a different one (see [_draw]), so a round is
+/// never a letter twice in the same way, and a retake is a different set.
 ///
 /// Distractors are drawn from the same first [upTo] letters, never the whole
 /// alphabet: an option the child has not met yet is not a distractor, it is
@@ -46,47 +80,102 @@ QuizScreen kidsLetterCheckpoint(
   required int upTo,
 }) {
   final pool = kidsLetterPath.take(upTo).toList();
-  final qs = <QuizQuestion>[];
 
-  for (final (i, l) in pickN(pool, _questions, _rng).indexed) {
-    final name = letterName(context, l);
-    if (i.isEven) {
-      final o = kidsConfusableOptions(
-        answer: l,
-        pool: pool,
-        show: (x) => letterName(context, x),
-        rng: _rng,
-      );
-      qs.add(
-        QuizQuestion(
-          prompt: context.l10n.qpWhichLetterIsThis,
-          arabic: l.char,
-          reviewId: 'letter.${l.char}',
-          options: o.options,
-          correct: o.correct,
-        ),
-      );
-    } else {
-      final o = kidsConfusableOptions(
-        answer: l,
-        pool: pool,
-        show: (x) => x.char,
-        rng: _rng,
-      );
-      qs.add(
-        QuizQuestion(
-          prompt: context.l10n.qpWhichOneIs(name),
-          reviewId: 'letter.${l.char}',
-          options: o.options,
-          correct: o.correct,
-          optionsAreArabic: true,
-          optionColumns: 4,
-          optionAspect: 1.0,
-        ),
-      );
-    }
+  QuizQuestion shapeToName(ArabicLetter l) {
+    final o = kidsConfusableOptions(
+      answer: l,
+      pool: pool,
+      show: (x) => letterName(context, x),
+      rng: _rng,
+    );
+    return QuizQuestion(
+      prompt: context.l10n.qpWhichLetterIsThis,
+      arabic: l.char,
+      reviewId: 'letter.${l.char}',
+      options: o.options,
+      correct: o.correct,
+    );
   }
-  qs.shuffle(_rng);
+
+  QuizQuestion nameToShape(ArabicLetter l) {
+    final o = kidsConfusableOptions(
+      answer: l,
+      pool: pool,
+      show: (x) => x.char,
+      rng: _rng,
+    );
+    return QuizQuestion(
+      prompt: context.l10n.qpWhichOneIs(letterName(context, l)),
+      reviewId: 'letter.${l.char}',
+      options: o.options,
+      correct: o.correct,
+      optionsAreArabic: true,
+      optionColumns: 4,
+      optionAspect: 1.0,
+    );
+  }
+
+  QuizQuestion? dotsToShape(ArabicLetter l) {
+    final sig = _dotSignature(l);
+    if (sig == null) return null;
+    // Every option but the answer has a DIFFERENT dot signature — else two of
+    // them would be right — and the answer's look-alikes come first, since
+    // they differ from it by little but the dots.
+    final others = [
+      for (final x in pool)
+        if (x.char != 'ي' && _dotSignature(x) != sig) x,
+    ];
+    if (others.length < 3) return null;
+    final near = kidsConfusablesIn(l, others)..shuffle(_rng);
+    final far = [
+      for (final x in others)
+        if (!near.contains(x)) x,
+    ]..shuffle(_rng);
+    final options = [l, ...[...near, ...far].take(3)].map((x) => x.char).toList()
+      ..shuffle(_rng);
+    return QuizQuestion(
+      prompt: context.l10n.kidsWhichHasDots(
+        dotsDesc(context, l.dotCount, l.dotPos),
+      ),
+      reviewId: 'letter.${l.char}',
+      options: options,
+      correct: options.indexOf(l.char),
+      optionsAreArabic: true,
+      optionColumns: 4,
+      optionAspect: 1.0,
+    );
+  }
+
+  QuizQuestion? alphabetOrder() {
+    if (pool.length < 3) return null;
+    final three = ([...pool]..shuffle(_rng)).take(3).toList()
+      ..sort((a, b) => pool.indexOf(a).compareTo(pool.indexOf(b)));
+    final sequence = [for (final l in three) l.char];
+    final options = [...sequence];
+    // Never offered already in order — that would be a question with nothing
+    // to do.
+    do {
+      options.shuffle(_rng);
+    } while (options.join() == sequence.join());
+    return QuizQuestion(
+      prompt: context.l10n.kidsPutInAlphabetOrder,
+      options: options,
+      sequence: sequence,
+      optionsAreArabic: true,
+      optionColumns: 3,
+      optionAspect: 1.0,
+    );
+  }
+
+  final qs = _draw([
+    for (final l in pool) ...[
+      () => shapeToName(l),
+      () => nameToShape(l),
+      () => dotsToShape(l),
+    ],
+    alphabetOrder,
+  ], _questions)
+    ..shuffle(_rng);
   return QuizScreen(
     title: context.l10n.kidsCheckpoint,
     progressId: progressId,
@@ -104,8 +193,11 @@ QuizScreen kidsLetterCheckpoint(
 /// Ligatures, kāf wraps, stacks and heights are hand-drawn shapes with no
 /// text form a quiz option can show, so they stay lesson-only.
 ///
-/// Same two directions as [kidsLetterCheckpoint]: shape → name, and
-/// name → shape — recognising and recalling are different skills.
+/// Three ways of asking, like [kidsLetterCheckpoint]: shape → name, name →
+/// shape, and the character picked out in colour inside a real word. Six
+/// characters in three ways is eighteen different questions, of which a round
+/// asks [_specialQuestions] — it used to ask the same six, in the same
+/// directions, every time.
 QuizScreen kidsSpecialShapesQuiz(
   BuildContext context, {
   required String progressId,
@@ -114,43 +206,62 @@ QuizScreen kidsSpecialShapesQuiz(
   final pool = [for (final ch in chars) letterForAny(ch)!];
   final names = [for (final l in pool) letterName(context, l)];
   final glyphs = [for (final l in pool) l.char];
-  final qs = <QuizQuestion>[];
 
-  for (final (i, l) in pool.indexed) {
-    final name = letterName(context, l);
-    if (i.isEven) {
-      final o = buildOptions(name, names, _rng);
-      qs.add(
-        QuizQuestion(
-          prompt: context.l10n.qpWhichLetterIsThis,
-          arabic: l.char,
-          reviewId: 'extra.${l.char}',
-          options: o.options,
-          correct: o.correct,
-        ),
-      );
-    } else {
-      final o = buildOptions(l.char, glyphs, _rng);
-      qs.add(
-        QuizQuestion(
-          prompt: context.l10n.qpWhichOneIs(name),
-          reviewId: 'extra.${l.char}',
-          options: o.options,
-          correct: o.correct,
-          optionsAreArabic: true,
-          optionColumns: 4,
-          optionAspect: 1.0,
-        ),
-      );
-    }
+  QuizQuestion shapeToName(ArabicLetter l) {
+    final o = buildOptions(letterName(context, l), names, _rng);
+    return QuizQuestion(
+      prompt: context.l10n.qpWhichLetterIsThis,
+      arabic: l.char,
+      reviewId: 'extra.${l.char}',
+      options: o.options,
+      correct: o.correct,
+    );
   }
-  qs.shuffle(_rng);
+
+  QuizQuestion nameToShape(ArabicLetter l) {
+    final o = buildOptions(l.char, glyphs, _rng);
+    return QuizQuestion(
+      prompt: context.l10n.qpWhichOneIs(letterName(context, l)),
+      reviewId: 'extra.${l.char}',
+      options: o.options,
+      correct: o.correct,
+      optionsAreArabic: true,
+      optionColumns: 4,
+      optionAspect: 1.0,
+    );
+  }
+
+  // The character in its real word, picked out in colour — the word is the
+  // letter's own example from the muṣḥaf, so nothing here is authored.
+  QuizQuestion inAWord(ArabicLetter l) {
+    final o = buildOptions(letterName(context, l), names, _rng);
+    return QuizQuestion(
+      prompt: context.l10n.kidsWhichIsColoured,
+      arabic: l.exampleWord,
+      highlight: l.char,
+      reviewId: 'extra.${l.char}',
+      options: o.options,
+      correct: o.correct,
+    );
+  }
+
+  final qs = _draw([
+    for (final l in pool) ...[
+      () => shapeToName(l),
+      () => nameToShape(l),
+      () => inAWord(l),
+    ],
+  ], _specialQuestions)
+    ..shuffle(_rng);
   return QuizScreen(
     title: context.l10n.formsQuiz,
     progressId: progressId,
     questions: qs,
   );
 }
+
+/// Questions in one Special Shapes round: eight of eighteen.
+const _specialQuestions = 8;
 
 /// Diacritics, dagger alif and the small high signs of the muṣḥaf, plus the
 /// tatweel joiner — everything that rides on a letter rather than being one.
@@ -195,7 +306,11 @@ final _riders = RegExp('[\u064B-\u065F\u0670\u06D6-\u06ED\u08F0-\u08FF\u0640]');
 ///
 /// The last is the one that matters for reading: the shapes are met one at a
 /// time in the lessons, but a word is read with all of them at once, and only
-/// here does a child pick the right one FOR a place in a real word.
+/// here does a child pick the right one FOR a place in a real word — and it is
+/// asked by DRAGGING the shape onto the word (or tapping it).
+///
+/// Every (letter, direction, position) is its own question, and a round draws
+/// them without replacement ([_draw]), so no round repeats itself.
 ///
 /// Initial and medial questions are asked only about letters that join on
 /// both sides: a dāl has no start or middle shape, and showing a tatweel run
@@ -211,7 +326,6 @@ QuizScreen kidsFormsCheckpoint(
     for (final l in pool)
       if (l.joins) l,
   ];
-  final qs = <QuizQuestion>[];
 
   String formOf(ArabicLetter l, int idx) =>
       [l.initial, l.medial, l.finalForm][idx];
@@ -222,82 +336,84 @@ QuizScreen kidsFormsCheckpoint(
     context.l10n.formEnd,
   ][idx];
 
-  for (final (i, l) in pickN(pool, _questions, _rng).indexed) {
-    // Position 2 (final) is the only one a non-joiner really has.
-    final idx = l.joins ? _rng.nextInt(3) : 2;
-    final name = letterName(context, l);
-
-    // Every third question is a gap in a real word — when this letter has an
-    // example in which it takes a joined shape, else it falls through to the
-    // "which shape" question below.
-    if (i % 3 == 2 && l.joins) {
-      final gaps = [
-        for (final ex in letterExamples[l.char] ?? const <LetterExample>[])
-          if (_wordGap(ex.word, l.char) case final g?) (ex.word, g),
-      ];
-      if (gaps.isNotEmpty) {
-        final (word, g) = gaps[_rng.nextInt(gaps.length)];
-        final shapes = {
-          'ini': l.initial,
-          'med': l.medial,
-          'fin': l.finalForm,
-          'iso': l.char,
-        };
-        final o = buildOptions(shapes[g.form]!, shapes.values.toList(), _rng);
-        qs.add(
-          QuizQuestion(
-            prompt: context.l10n.qpPickLetterAndForm(name),
-            arabic: word,
-            blank: g.gap,
-            reviewId: 'letter.form.${l.char}.${g.form}',
-            options: o.options,
-            correct: o.correct,
-            optionsAreArabic: true,
-            optionColumns: 4,
-            optionAspect: 1.0,
-            explain: context.l10n.lookPastJoins,
-          ),
-        );
-        continue;
-      }
-    }
-
-    if (i.isEven) {
-      final o = buildOptions(name, names, _rng);
-      qs.add(
-        QuizQuestion(
-          prompt: context.l10n.qpShapeBelongsTo,
-          arabic: formOf(l, idx),
-          reviewId: 'letter.form.${l.char}.${formName(idx)}',
-          options: o.options,
-          correct: o.correct,
-          explain: context.l10n.lookPastJoins,
-        ),
-      );
-    } else {
-      // The distractors are the SAME position of other letters, so the answer
-      // turns on the letter's own skeleton rather than on which option happens
-      // to have a tail on the correct side.
-      final others = (idx == 2 ? pool : joiners).where((x) => x != l).toList();
-      if (others.length < 3) continue;
-      final o = buildOptions(formOf(l, idx), [
-        formOf(l, idx),
-        for (final x in others) formOf(x, idx),
-      ], _rng);
-      qs.add(
-        QuizQuestion(
-          prompt: context.l10n.qpFormOfAt(name, posLabel(idx)),
-          reviewId: 'letter.form.${l.char}.${formName(idx)}',
-          options: o.options,
-          correct: o.correct,
-          optionsAreArabic: true,
-          optionColumns: 4,
-          optionAspect: 1.0,
-        ),
-      );
-    }
+  QuizQuestion shapeToLetter(ArabicLetter l, int idx) {
+    final o = buildOptions(letterName(context, l), names, _rng);
+    return QuizQuestion(
+      prompt: context.l10n.qpShapeBelongsTo,
+      arabic: formOf(l, idx),
+      reviewId: 'letter.form.${l.char}.${formName(idx)}',
+      options: o.options,
+      correct: o.correct,
+      explain: context.l10n.lookPastJoins,
+    );
   }
-  qs.shuffle(_rng);
+
+  QuizQuestion? positionToShape(ArabicLetter l, int idx) {
+    // The distractors are the SAME position of other letters, so the answer
+    // turns on the letter's own skeleton rather than on which option happens
+    // to have a tail on the correct side.
+    final others = (idx == 2 ? pool : joiners).where((x) => x != l).toList();
+    if (others.length < 3) return null;
+    final o = buildOptions(formOf(l, idx), [
+      formOf(l, idx),
+      for (final x in others) formOf(x, idx),
+    ], _rng);
+    return QuizQuestion(
+      prompt: context.l10n.qpFormOfAt(letterName(context, l), posLabel(idx)),
+      reviewId: 'letter.form.${l.char}.${formName(idx)}',
+      options: o.options,
+      correct: o.correct,
+      optionsAreArabic: true,
+      optionColumns: 4,
+      optionAspect: 1.0,
+    );
+  }
+
+  QuizQuestion? gapInAWord(ArabicLetter l) {
+    if (!l.joins) return null;
+    final gaps = [
+      for (final ex in letterExamples[l.char] ?? const <LetterExample>[])
+        if (_wordGap(ex.word, l.char) case final g?) (ex.word, g),
+    ];
+    if (gaps.isEmpty) return null;
+    final (word, g) = gaps[_rng.nextInt(gaps.length)];
+    final shapes = {
+      'ini': l.initial,
+      'med': l.medial,
+      'fin': l.finalForm,
+      'iso': l.char,
+    };
+    final o = buildOptions(shapes[g.form]!, shapes.values.toList(), _rng);
+    return QuizQuestion(
+      prompt: context.l10n.kidsDragShapeOntoWord(letterName(context, l)),
+      arabic: word,
+      blank: g.gap,
+      dragToGap: true,
+      reviewId: 'letter.form.${l.char}.${g.form}',
+      options: o.options,
+      correct: o.correct,
+      optionsAreArabic: true,
+      optionColumns: 4,
+      optionAspect: 1.0,
+      explain: context.l10n.lookPastJoins,
+    );
+  }
+
+  // Two of a round's questions are the drag-onto-the-word kind — the one that
+  // asks for a shape FOR a place in a real word — whatever else the draw
+  // brings; the rest come from every other way of asking.
+  final gaps = _draw([for (final l in pool) () => gapInAWord(l)], _gapQuestions);
+  final qs = [
+    ...gaps,
+    ..._draw([
+      for (final l in pool)
+        // A non-joiner has only its end shape (position 2).
+        for (final idx in l.joins ? const [0, 1, 2] : const [2]) ...[
+          () => shapeToLetter(l, idx),
+          () => positionToShape(l, idx),
+        ],
+    ], _questions - gaps.length),
+  ]..shuffle(_rng);
   return QuizScreen(
     title: context.l10n.kidsCheckpoint,
     progressId: progressId,

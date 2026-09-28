@@ -10,8 +10,52 @@ import '../../core/settings.dart';
 import '../../core/theme.dart';
 import '../../data/kids_content.dart';
 import '../../data/kids_sentences.dart' show kidsPraiseArabic;
-import '../../widgets/common.dart' show StarRow;
+import '../../widgets/common.dart' show highlightSpans;
+import 'kids_avatar_face.dart';
 import 'kids_desktop_nav.dart' show closeKidsOverlayOrPop;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_ui.dart' show KbUi;
+import '../../kids_backdrops/kb_scene.dart' show KbStyle, kBlack, kWhite, kbC;
+import '../../kids_backdrops/kb_widgets.dart'
+    show KbArabicTitle, KbBackdrop, KbHeading;
+
+/// The painted scene behind a whole Kids Mode screen — the design handoff's
+/// `KbBackdrop` (`lib/kids_backdrops/`), fed the app's own theme, appearance and
+/// Detail level. Mounted once around [KidsShell]'s tab stack and again in
+/// [KidsScreenScaffold]'s mobile branch, so every screen gets it.
+///
+/// The **Detail** dial (Me tab): plain is a no-op — [child] alone, the flat look
+/// every screen had before, and the escape hatch for a slow phone. Medium is the
+/// design's soft `original` scene, standing still; high is the `vivid` scene with
+/// drifting motes. The motes are the only per-frame cost, so they run only on high
+/// and never under the platform's reduce-motion flag — a stopped controller, not a
+/// hidden one, so nothing ticks.
+///
+/// [calm] keeps a screen on the soft scene even at high detail.
+class KidsBackdrop extends StatelessWidget {
+  final Widget child;
+  final bool calm;
+  const KidsBackdrop({super.key, required this.child, this.calm = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = SettingsScope.of(context);
+    if (s.kidsDetail == KidsDetail.plain) return child;
+    final vivid = s.kidsDetail == KidsDetail.high && !calm;
+    final style = vivid ? KbStyle.vivid : KbStyle.original;
+    return KbSceneScope(
+      style: style,
+      child: KbBackdrop(
+        theme: kbThemeFor(s.activeKidsProfile?.theme),
+        mode: kbModeFor(s.kidsThemeMode),
+        style: style,
+        motion: vivid && !kidsReduceMotion(context),
+        child: child,
+      ),
+    );
+  }
+}
 
 /// The Home screen's daily-goal ring — Kids Mode's own amber-toned variant
 /// of `widgets/common.dart`'s `ProgressRing` (that one always paints in the
@@ -41,7 +85,7 @@ class KidsGoalRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: fraction.clamp(0, 1)),
       duration: const Duration(milliseconds: 900),
@@ -50,8 +94,8 @@ class KidsGoalRing extends StatelessWidget {
         size: Size.square(size),
         painter: _RingPainter(
           v,
-          trackColor ?? p.surfaceHigh,
-          color ?? p.amber,
+          trackColor ?? kbC(ui.track),
+          color ?? kbC(ui.accent),
           strokeWidth,
         ),
         child: SizedBox.square(
@@ -100,58 +144,6 @@ class _RingPainter extends CustomPainter {
       old.track != track ||
       old.color != color ||
       old.stroke != stroke;
-}
-
-/// A section heading with its Arabic companion set opposite it — the pairing
-/// the Kids Mode design uses for "Alphabet / الأبجدية" and "Letters / الحروف".
-///
-/// [arabic] comes from the .arb files and is **empty in the Arabic locale**
-/// on purpose (the heading there is already Arabic), so an empty string means
-/// "no companion", not "missing translation".
-class KidsSectionHeader extends StatelessWidget {
-  final String title;
-  final String arabic;
-  final double size;
-  final double arabicSize;
-  final Color? arabicColor;
-  const KidsSectionHeader({
-    super.key,
-    required this.title,
-    this.arabic = '',
-    this.size = 15,
-    this.arabicSize = 14,
-    this.arabicColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Flexible(
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: kidsStyle(context, size: size, weight: FontWeight.w800),
-          ),
-        ),
-        if (arabic.isNotEmpty)
-          Text(
-            arabic,
-            textDirection: TextDirection.rtl,
-            style: arabicStyle(
-              context,
-              size: arabicSize,
-              height: 1.2,
-              color: arabicColor ?? p.textDim,
-            ),
-          ),
-      ],
-    );
-  }
 }
 
 /// True when the viewer has asked the OS to reduce motion. Every repeating
@@ -253,25 +245,58 @@ class _CodeDialogState extends State<_CodeDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(context.l10n.kidsDevUnlockTitle),
-    content: TextField(
-      controller: _code,
-      autofocus: true,
-      decoration: InputDecoration(labelText: context.l10n.kidsDevUnlockHint),
-      onSubmitted: (v) => Navigator.of(context).pop(v),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: Text(context.l10n.cancel),
+  Widget build(BuildContext context) {
+    final ui = kbUi(context);
+    // A hero card: the title, the design's name field, Cancel and Continue.
+    return Dialog(
+      backgroundColor: kbC(kBlack, 0),
+      elevation: 0,
+      insetPadding: const EdgeInsets.all(24),
+      child: KbSurface(
+        color: ui.surface,
+        edge: ui.edge,
+        elev: KbElev.hero,
+        radius: 32,
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(context.l10n.kidsDevUnlockTitle,
+                style: kbText(22, kbC(ui.ink), height: 1.15)),
+            const SizedBox(height: 16),
+            KbTextField(
+              ui: ui,
+              controller: _code,
+              autofocus: true,
+              hint: context.l10n.kidsDevUnlockHint,
+              onSubmitted: (v) => Navigator.of(context).pop(v),
+            ),
+            const SizedBox(height: 20),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                KbPill(context.l10n.cancel,
+                    ui: ui,
+                    kind: KbPillKind.outlined,
+                    fontSize: 16,
+                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 6),
+                    onTap: () => Navigator.of(context).pop()),
+                KbPill(context.l10n.continueLabel,
+                    ui: ui,
+                    kind: KbPillKind.deep,
+                    fontSize: 16,
+                    padding: const EdgeInsets.fromLTRB(20, 9, 20, 7),
+                    onTap: () => Navigator.of(context).pop(_code.text)),
+              ],
+            ),
+          ],
+        ),
       ),
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(_code.text),
-        child: Text(context.l10n.continueLabel),
-      ),
-    ],
-  );
+    );
+  }
 }
 
 /// The Kids Mode mascot — the design's warm round character, drawn rather
@@ -282,7 +307,13 @@ class _CodeDialogState extends State<_CodeDialog> {
 /// Also the host of the developer unlock gesture — see [KidsSecretUnlock].
 class KidsMascot extends StatefulWidget {
   final double size;
-  const KidsMascot({super.key, this.size = 96});
+
+  /// The one expression variant this mascot has beyond its default friendly
+  /// face — closed happy eyes, a wider smile. [KidsLessonResult] is the only
+  /// caller that sets it; everywhere else (the Home greeting, the profile
+  /// picker, …) the mascot keeps its everyday face.
+  final bool celebrating;
+  const KidsMascot({super.key, this.size = 96, this.celebrating = false});
 
   @override
   State<KidsMascot> createState() => _KidsMascotState();
@@ -318,7 +349,7 @@ class _KidsMascotState extends State<KidsMascot>
     final face = KidsSecretUnlock(
       child: CustomPaint(
         size: Size.square(widget.size),
-        painter: _MascotPainter(p.amber),
+        painter: _MascotPainter(p.amber, celebrating: widget.celebrating),
       ),
     );
     if (kidsReduceMotion(context)) return face;
@@ -338,7 +369,8 @@ class _KidsMascotState extends State<KidsMascot>
 
 class _MascotPainter extends CustomPainter {
   final Color base;
-  _MascotPainter(this.base);
+  final bool celebrating;
+  _MascotPainter(this.base, {this.celebrating = false});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -348,8 +380,8 @@ class _MascotPainter extends CustomPainter {
 
     // Body: a sphere lit from the upper left, so it reads as round rather
     // than as a flat disc.
-    final lighter = Color.alphaBlend(Colors.white.withValues(alpha: .34), base);
-    final deeper = Color.alphaBlend(Colors.black.withValues(alpha: .16), base);
+    final lighter = Color.alphaBlend(kbC(kWhite, .34), base);
+    final deeper = Color.alphaBlend(kbC(kBlack, .16), base);
     canvas.drawCircle(
       c,
       r,
@@ -366,36 +398,66 @@ class _MascotPainter extends CustomPainter {
     canvas.drawCircle(
       c + Offset(-r * .38, -r * .42),
       r * .17,
-      Paint()..color = Colors.white.withValues(alpha: .40),
+      Paint()..color = kbC(kWhite, .40),
     );
 
     final ink = Paint()..color = const Color(0xFF4A3527);
 
-    // Eyes — rounded ovals, set slightly high and wide, which is what makes
-    // a plain circle read as friendly rather than blank.
-    for (final dx in [-1.0, 1.0]) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: c + Offset(dx * r * .30, -r * .13),
-            width: r * .17,
-            height: r * .27,
+    if (celebrating) {
+      // Closed, happy eyes — a small upward arc each, the classic
+      // ^‿^ — rather than the everyday open ovals.
+      for (final dx in [-1.0, 1.0]) {
+        final eye = c + Offset(dx * r * .30, -r * .13);
+        final path = Path()
+          ..moveTo(eye.dx - r * .10, eye.dy + r * .05)
+          ..quadraticBezierTo(
+              eye.dx, eye.dy - r * .13, eye.dx + r * .10, eye.dy + r * .05);
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = r * .06
+            ..strokeCap = StrokeCap.round
+            ..color = ink.color,
+        );
+      }
+      // A rosy cheek under each eye — the one flourish this expression gets.
+      final blush = Paint()..color = base.withValues(alpha: .0);
+      for (final dx in [-1.0, 1.0]) {
+        canvas.drawCircle(
+          c + Offset(dx * r * .44, r * .08),
+          r * .11,
+          blush..color = const Color(0xFFE8798A).withValues(alpha: .45),
+        );
+      }
+    } else {
+      // Eyes — rounded ovals, set slightly high and wide, which is what
+      // makes a plain circle read as friendly rather than blank.
+      for (final dx in [-1.0, 1.0]) {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: c + Offset(dx * r * .30, -r * .13),
+              width: r * .17,
+              height: r * .27,
+            ),
+            Radius.circular(r * .09),
           ),
-          Radius.circular(r * .09),
-        ),
-        ink,
-      );
+          ink,
+        );
+      }
     }
 
-    // Smile.
+    // Smile — wider and more open once celebrating, the same way a grin
+    // reads bigger than a plain smile.
     canvas.drawArc(
       Rect.fromCenter(
-        center: c + Offset(0, r * .12),
-        width: r * .62,
-        height: r * .50,
+        center: c + Offset(0, r * (celebrating ? .08 : .12)),
+        width: r * (celebrating ? .76 : .62),
+        height: r * (celebrating ? .64 : .50),
       ),
-      0.15 * 3.14159,
-      0.70 * 3.14159,
+      (celebrating ? 0.08 : 0.15) * 3.14159,
+      (celebrating ? 0.84 : 0.70) * 3.14159,
       false,
       Paint()
         ..style = PaintingStyle.stroke
@@ -406,7 +468,8 @@ class _MascotPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_MascotPainter old) => old.base != base;
+  bool shouldRepaint(_MascotPainter old) =>
+      old.base != base || old.celebrating != celebrating;
 }
 
 /// The celebration screen's falling shapes — Kids Mode's take on the design's
@@ -429,7 +492,12 @@ enum _PieceShape { square, circle, diamond, sparkle }
 
 class _ConfettiPiece {
   final double x, size, phase, sway, rotSpeed, fallSpeed;
-  final Color color;
+
+  /// Which of the theme's four colours this piece is (an index into the list
+  /// [_ConfettiPainter] is given) — not a colour itself, so the celebration
+  /// is drawn in whatever theme the child has equipped instead of always in
+  /// the default coral and teal.
+  final int tone;
   final _PieceShape shape;
   _ConfettiPiece(
     this.x,
@@ -438,7 +506,7 @@ class _ConfettiPiece {
     this.sway,
     this.rotSpeed,
     this.fallSpeed,
-    this.color,
+    this.tone,
     this.shape,
   );
 }
@@ -455,12 +523,6 @@ class _KidsConfettiState extends State<KidsConfetti>
   void initState() {
     super.initState();
     final rng = math.Random();
-    const colors = [
-      Color(0xFFF4B23E),
-      Color(0xFFEC6A4B),
-      Color(0xFF1FA89B),
-      Color(0xFF8B85F0),
-    ];
     _pieces = List.generate(
       widget.count,
       (_) => _ConfettiPiece(
@@ -470,7 +532,7 @@ class _KidsConfettiState extends State<KidsConfetti>
         rng.nextDouble() * 44 - 22,
         rng.nextDouble() * 6 - 3,
         .75 + rng.nextDouble() * .5,
-        colors[rng.nextInt(colors.length)],
+        rng.nextInt(4),
         _PieceShape.values[rng.nextInt(_PieceShape.values.length)],
       ),
     );
@@ -495,11 +557,13 @@ class _KidsConfettiState extends State<KidsConfetti>
 
   @override
   Widget build(BuildContext context) {
+    final p = kidsPal(context);
+    final tones = [p.amber, p.accent, p.accent2, p.accentBright];
     return IgnorePointer(
       child: AnimatedBuilder(
         animation: _c,
         builder: (context, _) => CustomPaint(
-          painter: _ConfettiPainter(_pieces, _c.value),
+          painter: _ConfettiPainter(_pieces, _c.value, tones),
           size: Size.infinite,
         ),
       ),
@@ -510,7 +574,8 @@ class _KidsConfettiState extends State<KidsConfetti>
 class _ConfettiPainter extends CustomPainter {
   final List<_ConfettiPiece> pieces;
   final double t;
-  _ConfettiPainter(this.pieces, this.t);
+  final List<Color> tones;
+  _ConfettiPainter(this.pieces, this.t, this.tones);
 
   void _drawShape(Canvas canvas, _PieceShape shape, double s, Paint paint) {
     switch (shape) {
@@ -566,7 +631,7 @@ class _ConfettiPainter extends CustomPainter {
           ? (1 - local) / .20
           : 1.0;
       final paint = Paint()
-        ..color = piece.color.withValues(alpha: opacity.clamp(0, 1));
+        ..color = tones[piece.tone].withValues(alpha: opacity.clamp(0, 1));
       canvas.save();
       canvas.translate(x, y);
       canvas.rotate(local * piece.rotSpeed * math.pi);
@@ -576,11 +641,12 @@ class _ConfettiPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ConfettiPainter old) => old.t != t;
+  bool shouldRepaint(_ConfettiPainter old) =>
+      old.t != t || old.tones[0] != tones[0] || old.tones[1] != tones[1];
 }
 
-/// A child's avatar emoji, with any equipped shop frame drawn as a ring
-/// around it. Replaces a bare `Text(profile.avatar)` at every call site —
+/// A child's avatar — a drawn animal, or the emoji when it has no art (see
+/// `KidsAvatarFace`) — with any equipped shop frame drawn as a ring around it. Replaces a bare `Text(profile.avatar)` at every call site —
 /// `kids_me_screen.dart`, `kids_home_screen.dart` (×2),
 /// `kids_rank_screen.dart` (×2), `kids_profile_picker.dart`,
 /// `kids_desktop_shell.dart` — which is what makes a frame purchase visible
@@ -600,119 +666,375 @@ class KidsAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ring = kidsFrameColor(profile.frame);
-    final emoji = Text(profile.avatar, style: TextStyle(fontSize: size));
-    if (ring == null) return emoji;
-    return Container(
-      padding: EdgeInsets.all(size * .12),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: ring, width: math.max(2, size * .06)),
-      ),
-      child: emoji,
+    final kind = kidsFrameKind(profile.frame);
+    final emoji = KidsAvatarFace(profile.avatar, size: size);
+    if (kind == null) return emoji;
+    return CustomPaint(
+      painter: _FramePainter(kind, kidsPal(context), size),
+      child: Padding(padding: EdgeInsets.all(size * .16), child: emoji),
     );
   }
 }
 
-/// One badge/reward tile — earned in full color, locked dimmed with a hint.
-class KidsBadgeTile extends StatelessWidget {
-  final String emoji;
-  final String title;
-  final bool earned;
-  const KidsBadgeTile({
-    super.key,
-    required this.emoji,
-    required this.title,
-    required this.earned,
-  });
+/// Draws a shop frame around an avatar. The four kinds differ by shape — a
+/// ring, beads, a halo, a sweep — and the last three take their colours from
+/// the equipped theme's [Palette], so a frame always suits the screen it is on
+/// (a golden ring on an Ocean screen was one of the things that looked wrong).
+class _FramePainter extends CustomPainter {
+  final KidsFrameKind kind;
+  final Palette p;
+  final double avatarSize;
+  _FramePainter(this.kind, this.p, this.avatarSize);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final w = math.max(2.0, avatarSize * .06);
+    // Inset by the stroke and the halo, so nothing is clipped at the edge.
+    final r = size.shortestSide / 2 - w - (kind == KidsFrameKind.glow ? avatarSize * .06 : 0);
+    switch (kind) {
+      case KidsFrameKind.ring:
+        canvas.drawCircle(
+          c,
+          r,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = w
+            ..color = const Color(0xFFB9C2CC),
+        );
+      case KidsFrameKind.beads:
+        // Beads, not a dashed line: at 17px they stay separate dots.
+        const n = 14;
+        final bead = math.max(1.4, avatarSize * .055);
+        for (var i = 0; i < n; i++) {
+          final a = i * 2 * math.pi / n;
+          canvas.drawCircle(
+            c + Offset(math.cos(a), math.sin(a)) * r,
+            i.isEven ? bead : bead * .7,
+            Paint()..color = i.isEven ? p.amber : p.accentBright,
+          );
+        }
+      case KidsFrameKind.glow:
+        canvas.drawCircle(
+          c,
+          r,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = w * 2.4
+            ..color = p.accentBright.withValues(alpha: .55)
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, avatarSize * .09),
+        );
+        canvas.drawCircle(
+          c,
+          r,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = math.max(1.5, w * .8)
+            ..color = p.accent,
+        );
+      case KidsFrameKind.sweep:
+        canvas.drawCircle(
+          c,
+          r,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = w * 1.4
+            ..shader = SweepGradient(
+              colors: [p.accent, p.accent2, p.amber, p.accent],
+            ).createShader(Rect.fromCircle(center: c, radius: r)),
+        );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_FramePainter old) =>
+      old.kind != kind || old.p != p || old.avatarSize != avatarSize;
+}
+
+/// The type ladder for Kids Mode's Latin text, in logical pixels at the MEDIUM
+/// text size (Me ▸ Appearance ▸ Text size scales all of it — see [kidsStyle]).
+///
+/// There used to be twenty-two sizes between 9 and 48, chosen one call site at a
+/// time, and the smallest were not decoration: 10px carried a lesson's own
+/// teaching line, 11px the bottom-navigation labels, 13px the retry hint and
+/// the labels on the answer buttons. Five steps, and nothing a child has to read
+/// below [kidsCaption]:
+///
+///  * [kidsCaption] — captions under a tile, tab labels, form labels
+///  * [kidsBody]    — explanations, notes, hints, ordinary sentences
+///  * [kidsLabel]   — answer tiles and buttons
+///  * [kidsPrompt]  — the question at the top of a check
+///  * [kidsTitle]   — a card's heading
+///
+/// Sizes of 22 and up (glyphs, the beat numeral, the mascot's greeting) are
+/// already large and stay as they are.
+const kidsCaption = 13.0;
+const kidsBody = 15.0;
+const kidsLabel = 16.0;
+const kidsPrompt = 19.0;
+const kidsTitle = 21.0;
+
+/// The three sizes Kids Mode text can be drawn at, and what each multiplies.
+/// Medium is the default; the ladder above ([kidsBody] and friends) is written
+/// at Medium.
+const kidsTextSizes = <double>[0.9, 1.0, 1.2];
+
+/// Small · Medium · Large — Kids Mode's own text size dial (Me ▸ Appearance).
+/// It scales everything a child reads: the chrome, the lessons, the shared quiz
+/// screen and the Arabic. Each tile shows an "A" at its own size, so it can be
+/// chosen without reading the word beneath it.
+class KidsTextSizePicker extends StatelessWidget {
+  /// A compact strip (the desktop sidebar's) instead of the Me tab's tiles.
+  final bool compact;
+  const KidsTextSizePicker({super.key, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    return Opacity(
-      opacity: earned ? 1 : .45,
-      child: Container(
-        padding: const EdgeInsets.all(Geo.gapSm),
-        decoration: BoxDecoration(
-          color: p.surface,
-          borderRadius: BorderRadius.circular(Geo.radiusMd),
-          border: Border.all(
-            color: earned ? p.amber : p.surfaceHigh,
-            width: earned ? 2 : 1,
+    final s = SettingsScope.of(context);
+    final ui = kbUi(context);
+    // The design's Text size tiles (kb_screens.dart `KbMeScreen`).
+    final options = [
+      (context.l10n.kidsTextSmall, kidsTextSizes[0], compact ? 12.0 : 20.0),
+      (context.l10n.kidsTextMedium, kidsTextSizes[1], compact ? 15.0 : 28.0),
+      (context.l10n.kidsTextLarge, kidsTextSizes[2], compact ? 19.0 : 38.0),
+    ];
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (final (i, (label, value, glyph)) in options.indexed) ...[
+          if (i > 0) SizedBox(width: compact ? 6 : 12),
+          Expanded(
+            child: Semantics(
+              selected: s.kidsTextScale == value,
+              label: '${context.l10n.kidsTextSize}: $label',
+              child: Builder(builder: (context) {
+                final selected = s.kidsTextScale == value;
+                // Never scaled: the "A" must stay its own size whichever
+                // option is selected — it is the preview.
+                final a = Text('A',
+                    textScaler: TextScaler.noScaling,
+                    style: kbText(glyph, KbOptionTile.inkOf(ui, selected),
+                        height: compact ? 1.1 : 1));
+                void pick() => s.update(() => s.kidsTextScale = value);
+                if (compact) {
+                  return KbSurface(
+                    color: selected ? ui.tile : ui.surface,
+                    edge: selected ? ui.accentEdge : ui.edge,
+                    outline: selected ? ui.accent : null,
+                    outlineWidth: 3,
+                    elev: KbElev.edge3,
+                    radius: 12,
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    alignment: Alignment.center,
+                    onTap: pick,
+                    child: a,
+                  );
+                }
+                return KbOptionTile(
+                  ui: ui,
+                  selected: selected,
+                  label: label,
+                  minHeight: 92,
+                  padding: const EdgeInsets.fromLTRB(6, 10, 6, 8),
+                  onTap: pick,
+                  top: a,
+                );
+              }),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// The Me tab's **Detail** dial: plain / medium / high, as three tiles — the
+/// same option tiles as [KidsTextSizePicker], so the two read as one family of
+/// controls.
+///
+/// It replaced a single on/off switch. The middle stop is the point: a phone
+/// that cannot afford the drifting motes should still get a scene.
+class KidsDetailPicker extends StatelessWidget {
+  const KidsDetailPicker({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = SettingsScope.of(context);
+    final ui = kbUi(context);
+    final options = [
+      (KidsDetail.plain, context.l10n.kidsDetailPlain, 'crop_square'),
+      (KidsDetail.medium, context.l10n.kidsDetailMedium, 'landscape'),
+      (KidsDetail.high, context.l10n.kidsDetailHigh, 'auto_awesome'),
+    ];
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (final (i, (level, label, icon)) in options.indexed) ...[
+          if (i > 0) const SizedBox(width: 12),
+          Expanded(
+            child: Semantics(
+              selected: s.kidsDetail == level,
+              label: '${context.l10n.kidsDetailLevel}: $label',
+              child: KbOptionTile(
+                key: ValueKey('kidsDetail.${level.name}'),
+                ui: ui,
+                selected: s.kidsDetail == level,
+                label: label,
+                onTap: () => s.update(() => s.kidsDetail = level),
+                top: KbIcon(icon,
+                    size: 28,
+                    color: KbOptionTile.inkOf(ui, s.kidsDetail == level)),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Centres [child] vertically in the space it is given — and scrolls when the
+/// child is taller than that space.
+///
+/// A lesson card is handed the whole height of the screen, and a bare `Column`
+/// (or a `GridView` sized by an aspect ratio, or a scroll view around a card)
+/// packs its content to the TOP of it, leaving a dead band underneath: on a
+/// tall phone half the screen sat empty. This is the idiom the result screen
+/// already used to fix exactly that (`KidsLessonResult`, and
+/// `kids_letter_flow.dart`'s own result step, whose comment describes the same
+/// bug) — a scroll view whose content is at least as tall as the viewport,
+/// centred — pulled out so every card can use it.
+///
+/// [child] gets the full width (a card stretches; a `Column(stretch)` needs a
+/// tight width to stretch to), but only as much height as it needs, so it must
+/// not contain an `Expanded`.
+class KidsCentered extends StatelessWidget {
+  final Widget child;
+  const KidsCentered({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, box) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: box.maxHeight),
+          child: Center(
+            child: SizedBox(width: double.infinity, child: child),
           ),
         ),
-        // Scaled down to fit rather than sized to hope. A badge cell is only
-        // ~100px on a 360px-wide phone, which a 30px emoji plus two lines of
-        // label overflows once real fonts are loaded — and badge titles vary
-        // from "Bee" to "Muqaṭṭaʿāt", so there is no one size that always
-        // fits. Same fix the Learn tiles needed for the same reason.
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          // Laid out at a nominal width and scaled to whatever the cell
-          // actually is, rather than measured unconstrained — without this
-          // the title is one long unwrapped line ("Knows when to stop"), and
-          // scaleDown shrinks the whole tile to fit that line's width.
-          child: SizedBox(
-            width: 92,
+      ),
+    );
+  }
+}
+
+/// The `Material`/backdrop/width-cap shell EVERY pushed kids destination
+/// needs — lessons reach it through [KidsLessonScaffold]; screens with no
+/// "Step X of Y" to count (the three board games) use it directly.
+///
+/// On mobile this is the ONLY thing standing between the screen and
+/// [pushKidsOverlay]'s bare `MaterialPageRoute` — without a `Material`
+/// ancestor here, every `Text` falls back to `MaterialApp`'s debug "no
+/// Material" style (`_errorTextStyle` in the framework: a double yellow
+/// underline) on a black background, which is exactly what every lesson built
+/// after `KidsLetterFlow` was silently doing, and what the board games did
+/// again. `KidsLetterFlow` supplies its own `Scaffold` and so never showed the
+/// bug; nothing else did. On desktop the shell's own `Scaffold`
+/// (`KidsDesktopShell`) already provides a `Material` ancestor, so a second
+/// one here would just nest uselessly — [useDesktop] mirrors the branch
+/// `KidsLetterFlow` already uses for the same reason.
+///
+/// The guard against a third round of this is one line in the screen's own
+/// test — `expect(find.byType(Material), findsWidgets)` under a harness whose
+/// `home:` is the bare screen. Every kids screen test carries it.
+class KidsScreenScaffold extends StatelessWidget {
+  final Widget child;
+
+  /// A one-line caption beside the back button — "Step 2 of 7" in a lesson.
+  final String? caption;
+
+  /// A heading beside the back button instead ("Warm-up"), and a subtitle
+  /// opposite it ("Question 1 of 7") — the design's quiz header.
+  final String? title;
+  final String? trailing;
+  const KidsScreenScaffold(
+      {super.key, required this.child, this.caption, this.title, this.trailing});
+
+  @override
+  Widget build(BuildContext context) {
+    final desktop = useDesktop(context);
+    // The design's lesson page (kb_screens.dart `KbLessonScreen`): the round
+    // back button with the step beside it, 22 above the content, all over the
+    // scene. Centred and width-capped, like the letter lessons' own desktop
+    // layout (`kids_letter_flow.dart`): on a tablet or a desktop pane the
+    // screen would otherwise stretch edge to edge, and every grid with an
+    // aspect ratio gets wider, shorter and emptier as it does.
+    Widget content(BuildContext context) {
+      final ui = kbUi(context);
+      final pad = MediaQuery.paddingOf(context);
+      final rtl = Directionality.of(context) == TextDirection.rtl;
+      return Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              desktop ? 16 : (pad.top + 8 > 50 ? pad.top + 8 : 50),
+              20,
+              pad.bottom + 8 > 30 ? pad.bottom + 8 : 30,
+            ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(emoji, style: const TextStyle(fontSize: 30)),
-                const SizedBox(height: 6),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: kidsStyle(
-                    context,
-                    size: 11.5,
-                    weight: FontWeight.w700,
-                  ),
-                ),
+                // On desktop the shell's own top bar has the way back.
+                if (!desktop ||
+                    caption != null ||
+                    title != null ||
+                    trailing != null) ...[
+                  Row(children: [
+                    if (!desktop) ...[
+                      KbRoundButton(
+                        rtl ? 'arrow_forward' : 'arrow_back',
+                        ui: ui,
+                        tooltip:
+                            MaterialLocalizations.of(context).backButtonTooltip,
+                        onTap: () => Navigator.maybePop(context),
+                      ),
+                      SizedBox(width: title != null ? 14 : 16),
+                    ],
+                    if (title != null)
+                      Expanded(
+                          child: KbHeading(title!,
+                              ui: ui, fontSize: 24, height: 1.1))
+                    else if (caption != null)
+                      Flexible(child: KbSubtitle(caption!, ui: ui))
+                    else
+                      const Spacer(),
+                    if (trailing != null) ...[
+                      const SizedBox(width: 10),
+                      // Shares the row with the title on a narrow phone
+                      // (wrapping), rather than pushing it off the edge.
+                      Flexible(
+                        child: KbSubtitle(trailing!,
+                            ui: ui, fontSize: 17, align: TextAlign.end),
+                      ),
+                    ],
+                  ]),
+                  SizedBox(height: title != null ? 20 : 22),
+                ],
+                Expanded(child: child),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-}
+      );
+    }
 
-/// A pill-shaped gem/XP counter chip, used in the top bar of several screens.
-class KidsStatChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  const KidsStatChip({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: p.surface,
-        borderRadius: BorderRadius.circular(Geo.radiusPill),
-        boxShadow: [
-          BoxShadow(color: p.shadow, blurRadius: 8, offset: const Offset(0, 3)),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: kidsStyle(context, size: 13, weight: FontWeight.w800),
-          ),
-        ],
+    if (desktop) return Builder(builder: content);
+    return KidsTextScale(
+      child: Scaffold(
+        backgroundColor: kbPageBg(kbUi(context)),
+        body: KidsBackdrop(child: Builder(builder: content)),
       ),
     );
   }
@@ -720,20 +1042,9 @@ class KidsStatChip extends StatelessWidget {
 
 /// The common shape of a step-driven kids lesson (`KidsSyllableDrill`,
 /// `KidsSolarLunarLesson`, and the ones built on the same pattern since): a
-/// "Step X of Y" caption above whatever the current step shows, replaced by
-/// [child] outright once the lesson is done (the caption means nothing once
-/// there's no "next" left to count toward).
-///
-/// On mobile this is the ONLY thing standing between the lesson and
-/// [pushKidsOverlay]'s bare `MaterialPageRoute` — without a `Material`
-/// ancestor here, every `Text` in the lesson fell back to `MaterialApp`'s
-/// debug "no Material" style (`_errorTextStyle` in the framework: a double
-/// yellow underline), which is exactly what every lesson built after
-/// `KidsLetterFlow` was silently doing. `KidsLetterFlow` supplied its own
-/// `Scaffold` and so never showed the bug; nothing else did. On desktop the
-/// shell's own `Scaffold` (`KidsDesktopShell`) already provides a `Material`
-/// ancestor, so a second one here would just nest uselessly — [useDesktop]
-/// mirrors the branch `KidsLetterFlow` already uses for the same reason.
+/// "Step X of Y" caption beside the back button, above whatever the current
+/// step shows — gone once the lesson is done (the caption means nothing once
+/// there's no "next" left to count toward) — inside [KidsScreenScaffold].
 class KidsLessonScaffold extends StatelessWidget {
   final int index;
   final int total;
@@ -748,30 +1059,180 @@ class KidsLessonScaffold extends StatelessWidget {
   });
 
   @override
+  Widget build(BuildContext context) => KidsScreenScaffold(
+        caption: done ? null : context.l10n.kidsStepOf(index + 1, total),
+        child: child,
+      );
+}
+
+/// A lesson's instruction or a card's title, on the sky — the design's lesson
+/// heading ("Wāw never joins to the letter after it": 29/800, line-height
+/// 1.25, white with the outline over the vivid scene). Lesson prompts are the
+/// one kind of sentence the design lets sit on the scene; anything longer
+/// goes on a [KidsLessonCard].
+///
+/// Reads the design tokens from ITS OWN context — under the scene the
+/// scaffold paints — never from a screen's build above the scaffold, where no
+/// scene is known and the heading would come out in plain ink.
+class KidsLessonTitle extends StatelessWidget {
+  final String text;
+  final TextAlign? align;
+  final double fontSize;
+  final double height;
+  const KidsLessonTitle(this.text,
+      {super.key, this.align, this.fontSize = 29, this.height = 1.25});
+
+  @override
+  Widget build(BuildContext context) => KbHeading(text,
+      ui: kbUi(context), fontSize: fontSize, height: height, align: align);
+}
+
+/// A one-line subtitle on the sky (the design's `KbSubtitle`) that, like
+/// [KidsLessonTitle], reads the tokens from its own context.
+class KidsLessonSubtitle extends StatelessWidget {
+  final String text;
+  final TextAlign? align;
+  final double fontSize;
+  final double? height;
+  const KidsLessonSubtitle(this.text,
+      {super.key, this.align, this.fontSize = 19, this.height});
+
+  @override
+  Widget build(BuildContext context) => KbSubtitle(text,
+      ui: kbUi(context), fontSize: fontSize, height: height, align: align);
+}
+
+/// The raised card a lesson's content sits on — the design's lesson letter
+/// card (`KbElev.big`, radius 28).
+class KidsLessonCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final VoidCallback? onTap;
+  const KidsLessonCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(20),
+    this.onTap,
+  });
+
+  @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    final content = Padding(
-      padding: const EdgeInsets.fromLTRB(Geo.gapLg, 0, Geo.gapLg, Geo.gapLg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (!done) ...[
-            Text(
-              context.l10n.kidsStepOf(index + 1, total),
-              style: kidsStyle(context, size: 13, color: p.textDim),
-            ),
-            const SizedBox(height: Geo.gapSm),
-          ],
-          Expanded(child: child),
-        ],
-      ),
-    );
-    if (useDesktop(context)) return content;
-    return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(child: content),
+    final ui = kbUi(context);
+    return KbSurface(
+      color: ui.surface,
+      edge: ui.edge,
+      elev: KbElev.big,
+      radius: 28,
+      padding: padding,
+      onTap: onTap,
+      child: child,
     );
   }
+}
+
+/// A Qurʼānic word or phrase as the design sets one: Amiri Quran, line height
+/// 1.9, in card ink — with [highlight] (the part being taught) in link ink —
+/// on the design's word block (`wordBg`, radius 22) unless [block] is false.
+class KidsQuranWord extends StatelessWidget {
+  final String word;
+  final String? highlight;
+  final double size;
+  final bool block;
+  const KidsQuranWord(this.word,
+      {super.key, this.highlight, this.size = 34, this.block = true});
+
+  @override
+  Widget build(BuildContext context) {
+    final ui = kbUi(context);
+    final base = kbText(size, kbC(ui.ink),
+        family: kbFontQuran, weight: FontWeight.w400, height: 1.9);
+    final text = RichText(
+      textDirection: TextDirection.rtl,
+      textAlign: TextAlign.center,
+      textScaler: MediaQuery.textScalerOf(context),
+      text: TextSpan(
+        children: highlight == null || highlight!.isEmpty
+            ? [TextSpan(text: word, style: base)]
+            : highlightSpans(
+                word, highlight!, base, base.copyWith(color: kbC(ui.linkInk))),
+      ),
+    );
+    if (!block) return text;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 2, 10, 6),
+      decoration: BoxDecoration(
+          color: kbC(ui.wordBg), borderRadius: BorderRadius.circular(22)),
+      child: Center(child: text),
+    );
+  }
+}
+
+/// "Listen" — the design's Listen pill (kb_screens.dart `KbLessonScreen`):
+/// surface face, link ink, speaker icon.
+class KidsListenButton extends StatelessWidget {
+  final VoidCallback onTap;
+  final String? label;
+  const KidsListenButton({super.key, required this.onTap, this.label});
+
+  @override
+  Widget build(BuildContext context) => KbPill(label ?? context.l10n.listen,
+      ui: kbUi(context),
+      icon: 'volume_up',
+      fontSize: 20,
+      iconSize: 24,
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 8),
+      onTap: onTap);
+}
+
+/// A lesson still fetching what it teaches (a sūrah's words, a reading's
+/// verses): the lesson's own page — scene, back button — with the progress
+/// ring on it. A bare spinner would be a route with no Material and no scene.
+class KidsLoadingScreen extends StatelessWidget {
+  const KidsLoadingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => KidsScreenScaffold(
+        child: Center(
+          child: CircularProgressIndicator(color: kbC(kbUi(context).accent)),
+        ),
+      );
+}
+
+/// A lesson that has nothing to show (its words could not be loaded): the
+/// sentence on a card, on the lesson's own page, with the way back.
+class KidsMessageScreen extends StatelessWidget {
+  final String message;
+  const KidsMessageScreen(this.message, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final ui = kbUi(context);
+    return KidsScreenScaffold(
+      child: Center(
+        child: KidsLessonCard(
+          child: Text(message,
+              textAlign: TextAlign.center,
+              style: kbText(18, kbC(ui.inkSoft),
+                  weight: FontWeight.w600, height: 1.35)),
+        ),
+      ),
+    );
+  }
+}
+
+/// A lesson's primary action — the design's big Next button.
+class KidsNextButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+  const KidsNextButton(this.label, {super.key, this.onTap});
+
+  @override
+  Widget build(BuildContext context) => KbBigButton(label,
+      ui: kbUi(context),
+      highlight: true,
+      fontSize: 22,
+      enabled: onTap != null,
+      onTap: onTap);
 }
 
 /// How many questions a stage's Test asks. A lesson's own check-ups are
@@ -856,83 +1317,261 @@ void kidsRecordCheck(
 /// checkpoints at all is shown as if it scored 3, but one that WAS graded and
 /// scored zero is still shown as 1 — see the call sites' own `_stars`
 /// getters) so this always shows at least one star regardless.
-class KidsLessonResult extends StatelessWidget {
+///
+/// [footer] is an optional extra slot below the XP line — `_ResultStep`
+/// (`kids_letter_flow.dart`) uses it for the streak count and a "next up"
+/// chip, which this file cannot build itself ([KidsItem] lives in
+/// `kids_path.dart`, which already imports this one).
+///
+/// The stars land one at a time rather than appearing all at once: a bloom
+/// behind the mascot, the mascot popping in, each EARNED star scaling in with
+/// a bounce and a light haptic tap (an unearned star is a plain outline from
+/// the start — nothing pops in for a star that wasn't won), the XP rolling up
+/// from zero, then the praise line and Continue fading in. Confetti keeps
+/// falling regardless of the score, so a one-star finish is never staged as a
+/// letdown. `kidsReduceMotion` skips straight to the fully-revealed final
+/// frame — the same thing this screen has always shown, unanimated.
+class KidsLessonResult extends StatefulWidget {
   final int stars;
-  const KidsLessonResult({super.key, required this.stars});
+  final Widget? footer;
+  const KidsLessonResult({super.key, required this.stars, this.footer});
+
+  @override
+  State<KidsLessonResult> createState() => _KidsLessonResultState();
+}
+
+/// Fraction of the timeline each phase starts at — mirrors the plan's own
+/// table (bloom+mascot, star 1/2/3, XP roll, praise+Continue).
+const _kidsCelebrationMascotStart = 0.0;
+const _kidsCelebrationMascotSpan = 0.18;
+const _kidsCelebrationStarSpan = 0.16;
+const _kidsCelebrationXpStart = 0.62;
+const _kidsCelebrationXpEnd = 0.80;
+const _kidsCelebrationTailStart = 0.78;
+
+double _kidsCelebrationStarStart(int i) => 0.20 + i * 0.14;
+
+class _KidsLessonResultState extends State<KidsLessonResult>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  );
+  final List<bool> _hapticFired = [false, false, false];
+
+  int get _shown => widget.stars == 0 ? 1 : widget.stars;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (kidsReduceMotion(context)) {
+      _c.stop();
+      _c.value = 1;
+    } else if (!_c.isAnimating && _c.value < 1) {
+      _c.addListener(_onTick);
+      _c.forward();
+    }
+  }
+
+  void _onTick() {
+    if (!SettingsScope.of(context).haptics) return;
+    for (var i = 0; i < _shown; i++) {
+      if (_hapticFired[i]) continue;
+      if (_c.value >= _kidsCelebrationStarStart(i)) {
+        _hapticFired[i] = true;
+        HapticFeedback.lightImpact();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  Widget _starSlot(BuildContext context, KbUi ui, int i) {
+    final outline = KbIcon('star_outline', size: 44, color: kbC(ui.inkSoft));
+    if (i >= _shown) return outline; // never earned: no animation at all
+    final anim = CurvedAnimation(
+      parent: _c,
+      curve: Interval(
+        _kidsCelebrationStarStart(i),
+        (_kidsCelebrationStarStart(i) + _kidsCelebrationStarSpan).clamp(
+          0.0,
+          1.0,
+        ),
+        curve: Curves.elasticOut,
+      ),
+    );
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        outline,
+        FadeTransition(
+          opacity: AlwaysStoppedAnimation(anim.value > 0 ? 1.0 : 0.0),
+          child: ScaleTransition(
+            key: ValueKey('kidsCelebrationStar.$i'),
+            scale: anim,
+            child: KbIcon('star', size: 44, color: kbC(ui.reward)),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = SettingsScope.of(context);
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final gender = s.activeKidsProfile?.gender ?? '';
-    final shown = stars == 0 ? 1 : stars;
-    return LayoutBuilder(
-      builder: (context, c) {
-        return Stack(
-          children: [
-            SizedBox(
-              height: c.maxHeight,
-              child: SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: c.maxHeight),
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: Geo.gapLg),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const KidsMascot(size: 116),
-                          const SizedBox(height: Geo.gapMd),
-                          Text(
-                            context.l10n.kidsGreatJob,
-                            style: kidsStyle(
-                              context,
-                              size: 24,
-                              weight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            kidsPraiseArabic(gender),
-                            textDirection: TextDirection.rtl,
-                            style: quranicStyle(
-                              context,
-                              size: 22,
-                              color: p.accent,
-                            ),
-                          ),
-                          const SizedBox(height: Geo.gapMd),
-                          StarRow(shown, size: 40),
-                          const SizedBox(height: Geo.gapMd),
-                          Text(
-                            context.l10n.kidsXpEarned(kidsXpPerStar * shown),
-                            style: kidsStyle(
-                              context,
-                              size: 15,
-                              weight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: Geo.gapXl),
-                          FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: p.accent,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 32,
-                                vertical: 16,
-                              ),
-                            ),
-                            onPressed: () => closeKidsOverlayOrPop(context),
-                            child: Text(context.l10n.continueLabel),
-                          ),
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        final t = _c.value;
+        final mascotT = Interval(
+          _kidsCelebrationMascotStart,
+          _kidsCelebrationMascotSpan,
+          curve: Curves.elasticOut,
+        ).transform(t);
+        final bloomT = Interval(
+          _kidsCelebrationMascotStart,
+          _kidsCelebrationMascotSpan,
+          curve: Curves.easeOut,
+        ).transform(t);
+        final tailT = Interval(
+          _kidsCelebrationTailStart,
+          1.0,
+          curve: Curves.easeOut,
+        ).transform(t);
+        final xpT = Interval(
+          _kidsCelebrationXpStart,
+          _kidsCelebrationXpEnd,
+          curve: Curves.easeOut,
+        ).transform(t);
+        final xpShown = (kidsXpPerStar * _shown * xpT).round();
+        return LayoutBuilder(
+          builder: (context, c) {
+            return Stack(
+              children: [
+                // A soft glow in the reward colour behind everything once the
+                // mascot pops in — the "bloom" that opens the celebration.
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        colors: [
+                          kbC(ui.reward, .22 * bloomT),
+                          kbC(ui.reward, 0),
                         ],
                       ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            const Positioned.fill(child: KidsConfetti()),
-          ],
+                SizedBox(
+                  height: c.maxHeight,
+                  child: SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: c.maxHeight),
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          // The design's hero card (the Hamzah card: radius 32,
+                          // `KbElev.hero`) holds the score; the heading and
+                          // the praise sit on the sky above it.
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Center(
+                                child: Transform.scale(
+                                  scale: mascotT,
+                                  child: const KidsMascot(
+                                    size: 116,
+                                    celebrating: true,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Opacity(
+                                opacity: tailT,
+                                child: KbHeading(context.l10n.kidsGreatJob,
+                                    ui: ui,
+                                    fontSize: 32,
+                                    align: TextAlign.center),
+                              ),
+                              Opacity(
+                                opacity: tailT,
+                                child: Center(
+                                  child: KbArabicTitle(
+                                      kidsPraiseArabic(gender), ui: ui),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              KbSurface(
+                                color: ui.surface,
+                                edge: ui.edge,
+                                elev: KbElev.hero,
+                                radius: 32,
+                                padding:
+                                    const EdgeInsets.fromLTRB(22, 22, 22, 22),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        for (var i = 0; i < 3; i++) ...[
+                                          if (i > 0) const SizedBox(width: 6),
+                                          _starSlot(context, ui, i),
+                                        ],
+                                      ],
+                                    ),
+                                    if (_shown == 3) ...[
+                                      const SizedBox(height: 6),
+                                      Opacity(
+                                        opacity: tailT,
+                                        child: Text(
+                                          context.l10n.kidsPerfect,
+                                          style: kbText(20, kbC(ui.linkInk)),
+                                        ),
+                                      ),
+                                    ],
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      context.l10n.kidsXpEarned(xpShown),
+                                      style: kbText(18, kbC(ui.ink),
+                                          weight: FontWeight.w700),
+                                    ),
+                                    if (widget.footer != null) ...[
+                                      const SizedBox(height: 6),
+                                      Opacity(
+                                          opacity: tailT, child: widget.footer),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+                              Opacity(
+                                opacity: tailT,
+                                child: KbBigButton(
+                                  context.l10n.continueLabel,
+                                  ui: ui,
+                                  highlight: true,
+                                  fontSize: 22,
+                                  onTap: () => closeKidsOverlayOrPop(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const Positioned.fill(child: KidsConfetti()),
+              ],
+            );
+          },
         );
       },
     );
@@ -1028,9 +1667,9 @@ class _KidsBeatRingState extends State<KidsBeatRing>
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     if (kidsReduceMotion(context)) {
-      return _StillBeats(counts: widget.counts, color: p.accent);
+      return _StillBeats(counts: widget.counts, color: kbC(ui.accent));
     }
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1048,21 +1687,16 @@ class _KidsBeatRingState extends State<KidsBeatRing>
                 progress: _running ? t : 0,
                 counts: widget.counts,
                 beat: beat,
-                track: p.surfaceHigh,
-                pip: p.textDim,
-                arc: p.accent,
+                track: kbC(ui.track),
+                pip: kbC(ui.inkSoft),
+                arc: kbC(ui.accent),
               ),
               child: SizedBox.square(
                 dimension: 160,
                 child: Center(
                   child: Text(
                     _running ? '$beat' : '${widget.counts}',
-                    style: kidsStyle(
-                      context,
-                      size: 48,
-                      weight: FontWeight.w800,
-                      color: p.accent,
-                    ),
+                    style: kbText(48, kbC(ui.linkInk), height: 1),
                   ),
                 ),
               ),
@@ -1070,10 +1704,18 @@ class _KidsBeatRingState extends State<KidsBeatRing>
           },
         ),
         const SizedBox(height: Geo.gapSm),
-        TextButton.icon(
-          onPressed: _running ? null : _start,
-          icon: const Icon(Icons.play_arrow_rounded),
-          label: Text(context.l10n.startReciteAlong),
+        // The design's deep pill; faded (never hidden) while the beats run.
+        Opacity(
+          opacity: _running ? .5 : 1,
+          child: KbPill(context.l10n.startReciteAlong,
+              ui: ui,
+              kind: KbPillKind.deep,
+              icon: 'play_arrow',
+              fontSize: 17,
+              iconSize: 22,
+              elev: KbElev.edge4,
+              padding: const EdgeInsets.fromLTRB(14, 8, 18, 6),
+              onTap: _running ? null : _start),
         ),
       ],
     );

@@ -63,7 +63,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Learn tab → the first stage → the first letter, the only unlocked one.
-    await tester.tap(find.byIcon(Icons.menu_book_rounded));
+    await tester.tap(kidsTab('Learn'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('kids.block.letters')));
     await tester.pumpAndSettle();
@@ -90,7 +90,7 @@ void main() {
 
     await tester.pumpWidget(_harness(settings, adult));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.menu_book_rounded));
+    await tester.tap(kidsTab('Learn'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('kids.block.letters')));
     await tester.pumpAndSettle();
@@ -119,7 +119,7 @@ void main() {
 
     await tester.pumpWidget(_harness(settings, adult));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.menu_book_rounded));
+    await tester.tap(kidsTab('Learn'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('kids.block.letters')));
     await tester.pumpAndSettle();

@@ -10,6 +10,9 @@ import '../data/glyph_names.dart';
 import '../data/strokes.dart';
 import '../data/tracing_levels.dart';
 import '../widgets/common.dart';
+import '../kids_backdrops/kb_app.dart' show kbUi;
+import '../kids_backdrops/kb_components.dart';
+import '../kids_backdrops/kb_scene.dart' show kbC;
 
 /// ✍️ Tracing Studio — authentic Uthman-Taha letterforms in every position
 /// (alone · start · middle · end), whole-word tracing, and two modes:
@@ -1022,12 +1025,13 @@ class _TracingBoardState extends State<TracingBoard>
     // Two independent axes: who forms the stroke, and whether the shape shows.
     final free = widget.mode != 'guided';
     final showShape = widget.mode != 'memory';
+    final kids = SettingsScope.of(context).kidsMode;
     return Column(children: [
       Expanded(
         child: Center(
           child: AspectRatio(
             aspectRatio: aspect.toDouble(),
-            child: LayoutBuilder(builder: (context, c) {
+            child: _kidsBoardCard(context, kids, LayoutBuilder(builder: (context, c) {
           final u = c.maxHeight;
           final w = c.maxWidth;
           Offset norm(Offset local) => local / u;
@@ -1132,26 +1136,35 @@ class _TracingBoardState extends State<TracingBoard>
             if (result != null && widget.showOverlay)
               _ResultOverlay(result: result!, onRetry: _reset),
           ]);
-            }),
+            })),
           ),
         ),
       ),
       const SizedBox(height: 8),
-      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+      // A Wrap, not a Row: Clear + Check + the stroke counter are wider than a
+      // phone (a Row overflowed the write-from-memory lesson by ~80px at 480
+      // wide), and the counter is the part that can drop to a second line.
+      if (kids)
+        _kidsControls(context, free)
+      else
+      Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 10,
+        runSpacing: 4,
+        children: [
         OutlinedButton.icon(
           onPressed: _reset,
           icon: const Icon(Icons.refresh_rounded, size: 18),
           label:  Text(context.l10n.clear),
         ),
         if (free) ...[
-          const SizedBox(width: 10),
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: p.accent),
             onPressed: drawn.isNotEmpty && result == null ? _check : null,
             icon: const Icon(Icons.check_rounded, size: 18),
             label:  Text(context.l10n.check),
           ),
-          const SizedBox(width: 10),
           Text(
             context.l10n.strokesAndDots(drawn.length,
                 widget.glyph.strokes.length, userDots.length,
@@ -1159,19 +1172,88 @@ class _TracingBoardState extends State<TracingBoard>
             style: uiStyle(context, size: 12, color: p.textDim),
           ),
         ] else
-          Padding(
-            padding: const EdgeInsets.only(left: 10),
-            child: Text(
-              strokesDone
-                  ? (widget.glyph.dots.isEmpty
-                      ? context.l10n.doneExclaim
-                      : context.l10n.tapTheDots(widget.glyph.dots.length))
-                  : context.l10n.strokeXofY(
-                      strokeIndex + 1, widget.glyph.strokes.length),
-              style: uiStyle(context, size: 12, color: p.textDim),
-            ),
+          Text(
+            strokesDone
+                ? (widget.glyph.dots.isEmpty
+                    ? context.l10n.doneExclaim
+                    : context.l10n.tapTheDots(widget.glyph.dots.length))
+                : context.l10n.strokeXofY(
+                    strokeIndex + 1, widget.glyph.strokes.length),
+            style: uiStyle(context, size: 12, color: p.textDim),
           ),
       ]),
+    ]);
+  }
+
+  /// Kids Mode: the board on the design's writing-board card (kb_screens.dart
+  /// `KbWriteScreen`: `KbElev.board`, radius 30).
+  Widget _kidsBoardCard(BuildContext context, bool kids, Widget board) {
+    if (!kids) return board;
+    final ui = kbUi(context);
+    return KbSurface(
+      color: ui.surface,
+      edge: ui.edge,
+      elev: KbElev.board,
+      radius: 30,
+      padding: const EdgeInsets.all(14),
+      child: board,
+    );
+  }
+
+  /// Kids Mode: the design's Clear / Check pills, and the counter on a small
+  /// surface capsule — it sits on the scene, not on a card.
+  Widget _kidsControls(BuildContext context, bool free) {
+    final ui = kbUi(context);
+    const pad = EdgeInsets.fromLTRB(26, 11, 26, 9);
+    final canCheck = drawn.isNotEmpty && result == null;
+    final status = free
+        ? context.l10n.strokesAndDots(drawn.length, widget.glyph.strokes.length,
+            userDots.length, widget.glyph.dots.length)
+        : strokesDone
+            ? (widget.glyph.dots.isEmpty
+                ? context.l10n.doneExclaim
+                : context.l10n.tapTheDots(widget.glyph.dots.length))
+            : context.l10n.strokeXofY(
+                strokeIndex + 1, widget.glyph.strokes.length);
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      const SizedBox(height: 10),
+      Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 14,
+        runSpacing: 10,
+        children: [
+          KbPill(context.l10n.clear,
+              ui: ui,
+              icon: 'refresh',
+              fontSize: 20,
+              iconSize: 22,
+              elev: KbElev.edge5,
+              padding: pad,
+              onTap: _reset),
+          if (free)
+            Opacity(
+              opacity: canCheck ? 1 : .5,
+              child: KbPill(context.l10n.check,
+                  ui: ui,
+                  kind: KbPillKind.deep,
+                  icon: 'check',
+                  fontSize: 20,
+                  iconSize: 22,
+                  elev: KbElev.edge5,
+                  padding: pad,
+                  onTap: canCheck ? _check : null),
+            ),
+        ],
+      ),
+      const SizedBox(height: 14),
+      Container(
+        padding: const EdgeInsets.fromLTRB(14, 3, 14, 1),
+        decoration: BoxDecoration(
+            color: kbC(ui.surface), borderRadius: BorderRadius.circular(999)),
+        child: Text(status,
+            textAlign: TextAlign.center,
+            style: kbText(16, kbC(ui.inkSoft), weight: FontWeight.w700)),
+      ),
     ]);
   }
 
@@ -1183,12 +1265,13 @@ class _TracingBoardState extends State<TracingBoard>
     final g = widget.glyph;
     final aspect = g.aspect.clamp(0.6, 3.4);
     final p = pal(context);
+    final kids = SettingsScope.of(context).kidsMode;
     return Column(children: [
       Expanded(
         child: Center(
           child: AspectRatio(
             aspectRatio: aspect.toDouble(),
-            child: LayoutBuilder(builder: (context, c) {
+            child: _kidsBoardCard(context, kids, LayoutBuilder(builder: (context, c) {
               final u = c.maxHeight;
               return ClipRRect(
                 borderRadius: BorderRadius.circular(22),
@@ -1216,16 +1299,22 @@ class _TracingBoardState extends State<TracingBoard>
                   ),
                 ),
               );
-            }),
+            })),
           ),
         ),
       ),
       const SizedBox(height: 8),
-      OutlinedButton.icon(
-        onPressed: _replayWatch,
-        icon: const Icon(Icons.replay_rounded, size: 18),
-        label: Text(context.l10n.watch),
-      ),
+      if (kids)
+        KbPill(context.l10n.watch,
+            ui: kbUi(context),
+            icon: 'replay',
+            onTap: _replayWatch)
+      else
+        OutlinedButton.icon(
+          onPressed: _replayWatch,
+          icon: const Icon(Icons.replay_rounded, size: 18),
+          label: Text(context.l10n.watch),
+        ),
     ]);
   }
 }

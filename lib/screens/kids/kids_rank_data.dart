@@ -21,6 +21,11 @@ Future<List<KidsRankRow>> loadKidsRanking(BuildContext context) async {
   final s = SettingsScope.of(context);
   final rows = <KidsRankRow>[];
   for (final profile in s.kidsProfiles) {
+    // A sibling's `store.load()` below is a real await: Kids Mode can be
+    // left (unmounting this whole subtree) while it's in flight. Bail
+    // before touching `context` again — otherwise the next iteration's
+    // `ProgressScope.of(context)` looks up a deactivated widget's ancestor.
+    if (!context.mounted) break;
     // The active profile's own store is already live in ProgressScope —
     // reuse it instead of opening a second instance over the same prefs.
     if (profile.id == s.activeKidsProfileId) {

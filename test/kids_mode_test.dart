@@ -79,19 +79,19 @@ void main() {
       prog.awardGems(200);
       expect(prog.gems, 200);
 
-      final bought = prog.buyShopItem('golden_frame', 150);
+      final bought = prog.buyShopItem('starlight_frame', 150);
       expect(bought, isTrue);
       expect(prog.gems, 50);
-      expect(prog.shopOwned.contains('golden_frame'), isTrue);
+      expect(prog.shopOwned.contains('starlight_frame'), isTrue);
 
       // Insufficient balance: refused, no partial spend, no debt.
-      final tooExpensive = prog.buyShopItem('emerald_frame', 250);
+      final tooExpensive = prog.buyShopItem('aurora_frame', 250);
       expect(tooExpensive, isFalse);
       expect(prog.gems, 50);
 
       // Already owned: refused even with enough gems.
       prog.awardGems(1000);
-      final again = prog.buyShopItem('golden_frame', 150);
+      final again = prog.buyShopItem('starlight_frame', 150);
       expect(again, isFalse);
     });
 
@@ -250,7 +250,10 @@ void main() {
     });
 
     test('an unknown combination still falls back instead of throwing', () {
-      expect(paletteFor('kids', 'nonsense'), paletteFor('mint', 'light'));
+      // To the family's own light palette — a kids family must never fall
+      // through to the grown-up app's mint green (`kids_palette_test.dart`).
+      expect(paletteFor('kids', 'nonsense'), paletteFor('kids', 'light'));
+      expect(paletteFor('mint', 'nonsense'), paletteFor('mint', 'light'));
     });
   });
 }

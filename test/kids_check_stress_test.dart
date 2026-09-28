@@ -10,7 +10,6 @@ import 'package:qiraah_arabiyyah/screens/kids/kids_tajwid_rule_lesson.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_waqf_lesson.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_wasl_lesson.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_words_lesson.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -47,8 +46,12 @@ Future<void> _walk(WidgetTester tester) async {
       await tester.tap(next.first, warnIfMissed: false);
       continue;
     }
+    if (sortCardShowing()) {
+      await finishSortByTap(tester);
+      continue;
+    }
     final check = find.text('Check');
-    final tiles = find.byType(TapScale);
+    final tiles = kidsTappables();
     if (check.evaluate().isNotEmpty) {
       if (tiles.evaluate().isNotEmpty) {
         await tester.tap(tiles.first, warnIfMissed: false);

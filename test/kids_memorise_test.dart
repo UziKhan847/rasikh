@@ -10,7 +10,6 @@ import 'package:qiraah_arabiyyah/data/letters.dart';
 import 'package:qiraah_arabiyyah/data/quran.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_home_screen.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_memorise.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -42,7 +41,7 @@ Widget _harness(AppSettings s, ProgressStore p, Widget child) => SettingsScope(
 );
 
 Finder _tile(String text) =>
-    find.descendant(of: find.byType(TapScale), matching: find.text(text));
+    find.descendant(of: kidsTappables(), matching: find.text(text));
 
 /// A tap that first scrolls its target into view — on a small phone the
 /// options of a long question sit below the fold, as they should.
@@ -66,7 +65,7 @@ Future<void> _solve(
     await tester.pump(const Duration(milliseconds: 50));
     expect(tester.takeException(), isNull, reason: 'step $i');
     if (find.text('Continue').evaluate().isNotEmpty) return;
-    if (find.text('Tap the words in order.').evaluate().isNotEmpty) {
+    if (find.text('Put the words in order.').evaluate().isNotEmpty) {
       for (final w in ayahs[mine[order] - 1]) {
         await _tapTile(tester, _tile(w).first);
         await tester.pump();
@@ -75,7 +74,7 @@ Future<void> _solve(
       order++;
       continue;
     }
-    if (find.text('Tap the āyāt in order.').evaluate().isNotEmpty) {
+    if (find.text('Put the āyāt in order.').evaluate().isNotEmpty) {
       for (final a in ayahs) {
         await _tapTile(tester, _tile(a.join(' ')).first);
         await tester.pump();
@@ -276,7 +275,7 @@ void main() {
 
       await tester.tap(find.text('I said it!'));
       await tester.pump();
-      expect(find.text('Tap the words in order.'), findsOneWidget);
+      expect(find.text('Put the words in order.'), findsOneWidget);
     });
 
     testWidgets('the words are never offered already in order', (tester) async {
@@ -428,7 +427,7 @@ void main() {
       tester.view.devicePixelRatio = 2;
       addTearDown(tester.view.reset);
       final (settings, prog) = await _boot();
-      settings.arabicScale = 1.35;
+      settings.kidsTextScale = 1.35;
       for (final session in [1, 2, 3]) {
         await tester.pumpWidget(const SizedBox());
         await open(tester, settings, prog, session);

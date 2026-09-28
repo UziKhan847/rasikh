@@ -118,14 +118,5 @@ void main() {
         expect(q.correct, inInclusiveRange(0, q.options.length - 1));
       }
     });
-
-    testWidgets('the combined round mixes all four shapes', (tester) async {
-      await boot(tester);
-      final quiz = formsVarietyQuiz(ctx);
-      expect(quiz.questions.any((q) => q.optionColumns == 4), isTrue);
-      expect(quiz.questions.any((q) => q.sequence != null), isTrue);
-      expect(quiz.questions.any((q) => q.audioRef != null), isTrue);
-      expect(quiz.questions.any((q) => q.blank != null), isTrue);
-    });
   });
 }

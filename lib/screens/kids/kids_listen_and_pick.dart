@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 import '../../core/audio.dart';
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
-import '../../core/theme.dart';
 import '../../data/quran.dart';
-import '../../widgets/common.dart' show TapScale, starsForFraction;
+import '../../widgets/common.dart' show starsForFraction;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kWhite, kbC;
 import 'kids_desktop_nav.dart' show closeKidsOverlayOrPop;
 import 'kids_find_in_ayah.dart' show kidsBaseLetters, kidsFindSurahs;
 import 'kids_widgets.dart';
@@ -209,22 +211,13 @@ class _KidsListenAndPickState extends State<KidsListenAndPick> {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final rounds = _rounds;
     if (rounds == null) {
-      return Center(child: CircularProgressIndicator(color: p.accent));
+      return const KidsLoadingScreen();
     }
     if (rounds.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(Geo.gapXl),
-        child: Center(
-          child: Text(
-            context.l10n.kidsReadingUnavailable,
-            textAlign: TextAlign.center,
-            style: kidsStyle(context, size: 15, color: p.textDim),
-          ),
-        ),
-      );
+      return KidsMessageScreen(context.l10n.kidsReadingUnavailable);
     }
     if (_done && _graded > 0 && !_reported) {
       _reported = true;
@@ -249,20 +242,16 @@ class _KidsListenAndPickState extends State<KidsListenAndPick> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    context.l10n.kidsListenOffline,
-                    textAlign: TextAlign.center,
-                    style: kidsStyle(context, size: 15, color: p.textDim),
+                  KidsLessonCard(
+                    child: Text(
+                      context.l10n.kidsListenOffline,
+                      textAlign: TextAlign.center,
+                      style: kbText(18, kbC(ui.inkSoft),
+                          weight: FontWeight.w600, height: 1.35),
+                    ),
                   ),
                   const SizedBox(height: Geo.gapLg),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: p.accent,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    onPressed: () => closeKidsOverlayOrPop(context),
-                    child: Text(context.l10n.continueLabel),
-                  ),
+                  KidsNextButton(context.l10n.continueLabel, onTap: () => closeKidsOverlayOrPop(context)),
                 ],
               ),
             )
@@ -271,53 +260,50 @@ class _KidsListenAndPickState extends State<KidsListenAndPick> {
   }
 
   Widget _question(BuildContext context, KidsHeard r) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          context.l10n.kidsWhichWordHeard,
-          style: kidsStyle(context, size: 17, weight: FontWeight.w800),
-        ),
+        KidsLessonTitle(context.l10n.kidsWhichWordHeard, fontSize: 26),
         const SizedBox(height: Geo.gapMd),
+        // Hear it again — icon-only, so the accent face (UI_SPEC §1.5).
         Center(
-          child: TapScale(
+          child: KbSurface(
+            color: ui.accent,
+            edge: ui.accentEdge,
+            elev: KbElev.edge6,
+            circle: true,
+            width: 84,
+            height: 84,
+            alignment: Alignment.center,
             onTap: _say,
-            child: Container(
-              width: 84,
-              height: 84,
-              decoration: BoxDecoration(
-                color: p.accent2,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.volume_up_rounded,
-                color: Colors.white,
-                size: 40,
-              ),
-            ),
+            child: KbIcon('volume_up', size: 44, color: kbC(kWhite)),
           ),
         ),
         const SizedBox(height: Geo.gapLg),
         Expanded(
-          child: SingleChildScrollView(
+          child: KidsCentered(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final o in r.options)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: Geo.gapSm),
-                    child: _optionTile(context, r, o),
-                  ),
+                for (final (i, o) in r.options.indexed) ...[
+                  if (i > 0) const SizedBox(height: 12),
+                  _optionTile(context, r, o),
+                ],
               ],
             ),
           ),
         ),
+        const SizedBox(height: 12),
         Center(
-          child: TextButton.icon(
-            onPressed: _picked == null ? _skip : null,
-            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-            label: Text(context.l10n.kidsNextCard),
+          child: Opacity(
+            opacity: _picked == null ? 1 : .5,
+            child: KbPill(context.l10n.kidsNextCard,
+                ui: ui,
+                icon: Directionality.of(context) == TextDirection.rtl
+                    ? 'arrow_back'
+                    : 'arrow_forward',
+                onTap: _picked == null ? _skip : null),
           ),
         ),
       ],
@@ -325,36 +311,29 @@ class _KidsListenAndPickState extends State<KidsListenAndPick> {
   }
 
   Widget _optionTile(BuildContext context, KidsHeard r, String option) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final picked = _picked;
     final isRight = option == r.word;
-    final color = picked == null
-        ? p.surface
-        : isRight
-        ? AppColors.ok.withValues(alpha: .18)
-        : option == picked
-        ? AppColors.bad.withValues(alpha: .16)
-        : p.surface;
-    return TapScale(
+    return KbGlyphCell(
+      ui: ui,
+      square: false,
+      elev: KbElev.option,
+      state: picked == null
+          ? KbCellState.idle
+          : isRight
+              ? KbCellState.good
+              : option == picked
+                  ? KbCellState.bad
+                  : KbCellState.idle,
       onTap: () => _pick(option),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(Geo.radiusLg),
-          border: Border.all(
-            color: picked != null && isRight
-                ? AppColors.ok
-                : Colors.transparent,
-            width: 2,
-          ),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
         child: Text(
           option,
           textDirection: TextDirection.rtl,
           textAlign: TextAlign.center,
-          style: quranicStyle(context, size: 30),
+          style: kbText(30, kbC(ui.ink),
+              family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
         ),
       ),
     );

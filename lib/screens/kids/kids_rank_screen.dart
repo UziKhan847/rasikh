@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../core/geometry.dart';
 import '../../core/l10n.dart';
 import '../../core/responsive.dart';
 import '../../core/settings.dart';
-import '../../core/theme.dart';
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kWhite, kbC;
+import '../../kids_backdrops/kb_screens.dart' show KbPage;
+import '../../kids_backdrops/kb_widgets.dart';
 import 'kids_rank_data.dart';
 import 'kids_widgets.dart';
 
@@ -47,87 +50,60 @@ class _KidsRankScreenState extends State<KidsRankScreen> {
 
   Widget _mobileBuild(BuildContext context) {
     final s = SettingsScope.of(context);
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final rows = _rows;
-    return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-                Geo.gapLg, Geo.gapMd, Geo.gapLg, Geo.gapSm),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(context.l10n.kidsTabRank,
-                    style:
-                        kidsStyle(context, size: 20, weight: FontWeight.w800)),
-                const SizedBox(height: 4),
-                Text(context.l10n.kidsRankSub,
-                    style: kidsStyle(context, size: 13, color: p.textDim)),
-              ],
-            ),
-          ),
-          Expanded(
-            child: rows == null
-                ? Center(
-                    child: CircularProgressIndicator(color: p.accent))
-                : rows.length <= 1
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(Geo.gapLg),
-                          child: Text(context.l10n.kidsRankNeedsSiblings,
-                              textAlign: TextAlign.center,
-                              style: kidsStyle(context,
-                                  size: 14, color: p.textDim)),
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(Geo.gapLg),
-                        itemCount: rows.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(height: Geo.gapSm),
-                        itemBuilder: (context, i) => _RankRow(
-                            row: rows[i],
-                            rank: i + 1,
-                            isYou:
-                                rows[i].profile.id == s.activeKidsProfileId),
-                      ),
-          ),
+    // The design's Rank screen (kb_screens.dart `KbRankScreen`).
+    return KbPage(cross: CrossAxisAlignment.stretch, children: [
+      Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: KbHeading(context.l10n.kidsTabRank, ui: ui, fontSize: 30)),
+      const SizedBox(height: 12),
+      KbSubtitle(context.l10n.kidsRankSub, ui: ui, fontSize: 18),
+      const SizedBox(height: 26),
+      if (rows == null)
+        Padding(
+          padding: const EdgeInsets.only(top: 40),
+          child: Center(child: CircularProgressIndicator(color: kbC(ui.accent))),
+        )
+      else if (rows.length <= 1)
+        // On a card: this is a sentence, not a heading, and only headings
+        // may sit straight on the scene.
+        const _NeedsSiblingsCard()
+      else
+        for (var i = 0; i < rows.length; i++) ...[
+          if (i > 0) const SizedBox(height: 12),
+          _RankRow(
+              row: rows[i],
+              rank: i + 1,
+              isYou: rows[i].profile.id == s.activeKidsProfileId),
         ],
-      ),
-    );
+    ]);
   }
 
   Widget _desktopBuild(BuildContext context) {
     final s = SettingsScope.of(context);
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final rows = _rows;
     if (rows == null) {
-      return Center(child: CircularProgressIndicator(color: p.accent));
+      return Center(child: CircularProgressIndicator(color: kbC(ui.accent)));
     }
     return ListView(
       padding: const EdgeInsets.fromLTRB(44, 24, 44, 48),
       children: [
-        KidsSectionHeader(
-          title: context.l10n.kidsTabRank,
-          arabic: context.l10n.kidsRankArabic,
-          size: 24,
-          arabicSize: 20,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+                child: KbHeading(context.l10n.kidsTabRank, ui: ui, fontSize: 30)),
+            if (context.l10n.kidsRankArabic.isNotEmpty)
+              KbArabicTitle(context.l10n.kidsRankArabic, ui: ui),
+          ],
         ),
-        const SizedBox(height: 6),
-        Text(context.l10n.kidsRankSub,
-            style: kidsStyle(context, size: 13.5, color: p.textDim)),
-        const SizedBox(height: 22),
+        const SizedBox(height: 12),
+        KbSubtitle(context.l10n.kidsRankSub, ui: ui, fontSize: 18),
+        const SizedBox(height: 26),
         if (rows.length <= 1)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 40),
-            child: Center(
-              child: Text(context.l10n.kidsRankNeedsSiblings,
-                  textAlign: TextAlign.center,
-                  style: kidsStyle(context, size: 15, color: p.textDim)),
-            ),
-          )
+          const _NeedsSiblingsCard()
         else
           LayoutBuilder(builder: (context, c) {
             final narrow = c.maxWidth < 720;
@@ -135,15 +111,12 @@ class _KidsRankScreenState extends State<KidsRankScreen> {
                 rows.indexWhere((r) => r.profile.id == s.activeKidsProfileId);
             final list = Column(children: [
               _RankBanner(count: rows.length),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
               for (var i = 0; i < rows.length; i++)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: Geo.gapSm),
+                  padding: const EdgeInsets.only(bottom: 12),
                   child: _RankRow(
-                      row: rows[i],
-                      rank: i + 1,
-                      isYou: i == youIndex,
-                      desktop: true),
+                      row: rows[i], rank: i + 1, isYou: i == youIndex),
                 ),
             ]);
             if (narrow || youIndex < 0) return list;
@@ -151,7 +124,7 @@ class _KidsRankScreenState extends State<KidsRankScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(child: list),
-                const SizedBox(width: Geo.gapLg),
+                const SizedBox(width: 28),
                 SizedBox(
                     width: 280, child: _YouCard(rows: rows, youIndex: youIndex)),
               ],
@@ -162,34 +135,46 @@ class _KidsRankScreenState extends State<KidsRankScreen> {
   }
 }
 
+/// "Add a brother or sister to race" — a sentence, so it goes on a card.
+class _NeedsSiblingsCard extends StatelessWidget {
+  const _NeedsSiblingsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final ui = kbUi(context);
+    return KbSurface(
+      color: ui.surface,
+      edge: ui.edge,
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
+      child: Text(context.l10n.kidsRankNeedsSiblings,
+          textAlign: TextAlign.center,
+          style: kbText(18, kbC(ui.inkSoft),
+              weight: FontWeight.w600, height: 1.35)),
+    );
+  }
+}
+
+/// The desktop leaderboard's title card — the deep card, as Home's Practice.
 class _RankBanner extends StatelessWidget {
   final int count;
   const _RankBanner({required this.count});
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-            colors: [p.accent2, p.accentDeep],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(Geo.radiusLg),
-        boxShadow: [
-          BoxShadow(
-              color: p.accent2.withValues(alpha: .30),
-              blurRadius: 20,
-              offset: const Offset(0, 8)),
-        ],
-      ),
+    final ui = kbUi(context);
+    return KbSurface(
+      color: ui.cardDeep,
+      edge: ui.cardDeepEdge,
+      elev: KbElev.cardDeep,
+      highlight: true,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       child: Row(children: [
         const Text('🏆', style: TextStyle(fontSize: 26)),
-        const SizedBox(width: 12),
-        Text(context.l10n.kidsRankBannerTitle,
-            style: kidsStyle(context,
-                size: 17, weight: FontWeight.w800, color: Colors.white)),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(context.l10n.kidsRankBannerTitle,
+              style: kbText(21, kbC(kWhite), height: 1.15)),
+        ),
       ]),
     );
   }
@@ -202,25 +187,31 @@ class _YouCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final you = rows[youIndex];
     final isFirst = youIndex == 0;
     final gap = isFirst ? 0 : rows[youIndex - 1].xp - you.xp;
-    return Container(
-      padding: const EdgeInsets.all(Geo.gapLg),
-      decoration: kidsPanel(context),
+    return KbSurface(
+      color: ui.surface,
+      edge: ui.edge,
+      padding: const EdgeInsets.all(20),
       child: Column(children: [
-        KidsAvatar(profile: you.profile, size: 44),
+        KbAvatar(
+          size: 72,
+          background: kbC(ui.tile),
+          face: (d) => KidsAvatar(profile: you.profile, size: d / 1.15),
+        ),
         const SizedBox(height: 10),
         Text(context.l10n.kidsRankYouAre(youIndex + 1),
-            style: kidsStyle(context, size: 16, weight: FontWeight.w800)),
-        const SizedBox(height: 3),
+            style: kbText(21, kbC(ui.ink), height: 1.1)),
+        const SizedBox(height: 4),
         Text(
             isFirst
                 ? context.l10n.kidsRankYouAreFirst
                 : context.l10n.kidsRankToNext(gap, youIndex),
             textAlign: TextAlign.center,
-            style: kidsStyle(context, size: 12.5, color: p.textDim)),
+            style: kbText(16, kbC(ui.inkSoft),
+                weight: FontWeight.w600, height: 1.35)),
       ]),
     );
   }
@@ -230,57 +221,16 @@ class _RankRow extends StatelessWidget {
   final KidsRankRow row;
   final int rank;
   final bool isYou;
-  final bool desktop;
-  const _RankRow(
-      {required this.row,
-      required this.rank,
-      required this.isYou,
-      this.desktop = false});
+  const _RankRow({required this.row, required this.rank, required this.isYou});
 
   @override
-  Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    return Container(
-      padding: const EdgeInsets.all(Geo.gapMd),
-      decoration: BoxDecoration(
-        color: isYou ? p.accent.withValues(alpha: .14) : p.surface,
-        borderRadius: BorderRadius.circular(Geo.radiusMd),
-        border: isYou
-            ? Border.all(color: p.accent, width: 2)
-            : desktop
-                ? Border.all(color: p.surfaceHigh, width: 1.5)
-                : null,
-      ),
-      child: Row(children: [
-        Container(
-          width: 30,
-          height: 30,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: rank <= 3 ? p.amber.withValues(alpha: .25) : p.surfaceHigh,
-          ),
-          child: Text('$rank',
-              style: kidsStyle(context, size: 13, weight: FontWeight.w800)),
-        ),
-        const SizedBox(width: Geo.gapMd),
-        KidsAvatar(profile: row.profile, size: 26),
-        const SizedBox(width: Geo.gapSm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(isYou ? context.l10n.kidsYou : row.profile.name,
-                  style:
-                      kidsStyle(context, size: 14.5, weight: FontWeight.w700)),
-              Text(context.l10n.kidsLevelLabel(row.level),
-                  style: kidsStyle(context, size: 11.5, color: p.textDim)),
-            ],
-          ),
-        ),
-        Text('${row.xp} XP',
-            style: kidsStyle(context, size: 14, weight: FontWeight.w800)),
-      ]),
-    );
-  }
+  Widget build(BuildContext context) => KbRankRow(
+        ui: kbUi(context),
+        rank: rank,
+        face: (d) => KidsAvatar(profile: row.profile, size: d / 1.15),
+        name: isYou ? context.l10n.kidsYou : row.profile.name,
+        level: context.l10n.kidsLevelLabel(row.level),
+        xp: '${row.xp} XP',
+        me: isYou,
+      );
 }

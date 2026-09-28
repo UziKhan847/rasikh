@@ -5,3 +5,6 @@ lib/l10n/untranslated.json
 .dart_tool/
 build/
 .packages
+
+# kb_backdrop_compare_test output (rendered PNGs + diff heat-maps)
+test/_out/

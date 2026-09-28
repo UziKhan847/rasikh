@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
 import '../../core/settings.dart' show ProgressStore;
-import '../../core/theme.dart';
 import '../../data/quran.dart';
 import '../../widgets/common.dart' show MediaRow, starsForFraction;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_choice_card.dart';
 import 'kids_order_card.dart';
 import 'kids_widgets.dart';
@@ -209,21 +211,11 @@ class _KidsMemoriseLessonState extends State<KidsMemoriseLesson> {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
     if (_ayahs == null) {
-      return Center(child: CircularProgressIndicator(color: p.accent));
+      return const KidsLoadingScreen();
     }
     if (_steps.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(Geo.gapXl),
-        child: Center(
-          child: Text(
-            context.l10n.kidsReadingUnavailable,
-            textAlign: TextAlign.center,
-            style: kidsStyle(context, size: 15, color: p.textDim),
-          ),
-        ),
-      );
+      return KidsMessageScreen(context.l10n.kidsReadingUnavailable);
     }
     if (_done && !_reported) {
       _reported = true;
@@ -300,9 +292,9 @@ class _Chunks extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(Geo.gapMd),
-      decoration: kidsCard(context),
+    final ui = kbUi(context);
+    return KidsLessonCard(
+      padding: const EdgeInsets.all(16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -313,7 +305,7 @@ class _Chunks extends StatelessWidget {
                 c.join(' '),
                 textDirection: TextDirection.rtl,
                 textAlign: TextAlign.center,
-                style: quranicStyle(context, size: 30),
+                style: kbText(30, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
               ),
             ),
         ],
@@ -322,25 +314,14 @@ class _Chunks extends StatelessWidget {
   }
 }
 
+/// The step's instruction, on the sky — the design's lesson heading.
 Widget _prompt(BuildContext context, String text) => Padding(
   padding: const EdgeInsets.only(bottom: Geo.gapMd),
-  child: Text(
-    text,
-    style: kidsStyle(context, size: 17, weight: FontWeight.w800),
-  ),
+  child: KidsLessonTitle(text, fontSize: 26),
 );
 
-Widget _primary(BuildContext context, String label, VoidCallback? onTap) {
-  final p = kidsPal(context);
-  return FilledButton(
-    style: FilledButton.styleFrom(
-      backgroundColor: p.accent,
-      padding: const EdgeInsets.symmetric(vertical: 16),
-    ),
-    onPressed: onTap,
-    child: Text(label),
-  );
-}
+Widget _primary(BuildContext context, String label, VoidCallback? onTap) =>
+    KidsNextButton(label, onTap: onTap);
 
 /// Hear the āyah and follow it. Ungraded: it cannot be, and must not be a wall.
 class _ListenCard extends StatelessWidget {
@@ -359,11 +340,11 @@ class _ListenCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _prompt(context, context.l10n.kidsMemListen),
         Expanded(
-          child: SingleChildScrollView(
+          child: KidsCentered(
             child: Column(
               children: [
+                _prompt(context, context.l10n.kidsMemListen),
                 _Chunks(chunks: chunks),
                 const SizedBox(height: Geo.gapSm),
                 MediaRow(ref: '$kidsMemoriseSurah:$ayah'),
@@ -399,28 +380,35 @@ class _SayCardState extends State<_SayCard> {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _prompt(context, context.l10n.kidsMemSay),
         Expanded(
-          child: SingleChildScrollView(child: _Chunks(chunks: widget.chunks)),
+          child: KidsCentered(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _prompt(context, context.l10n.kidsMemSay),
+                _Chunks(chunks: widget.chunks),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: Geo.gapMd),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             for (var i = 0; i < _times; i++)
+              // Progress dots: the accent fill on the track (UI_SPEC §2).
               Container(
-                width: 14,
-                height: 14,
+                width: 16,
+                height: 16,
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: i < _said
-                      ? p.accent
-                      : p.textDim.withValues(alpha: .25),
+                  color: kbC(i < _said ? ui.accent : ui.surface),
+                  border: Border.all(color: kbC(ui.edge), width: 2),
                 ),
               ),
           ],
@@ -460,17 +448,19 @@ class _FadeCardState extends State<_FadeCard> {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final visible = _peek ? widget.words.length : _levels[_level];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _prompt(context, context.l10n.kidsMemFade),
         Expanded(
-          child: SingleChildScrollView(
-            child: Container(
-              padding: const EdgeInsets.all(Geo.gapMd),
-              decoration: kidsCard(context),
+          child: KidsCentered(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+            _prompt(context, context.l10n.kidsMemFade),
+            KidsLessonCard(
+              padding: const EdgeInsets.all(16),
               child: Wrap(
                 textDirection: TextDirection.rtl,
                 alignment: WrapAlignment.center,
@@ -486,9 +476,7 @@ class _FadeCardState extends State<_FadeCard> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: i < visible
-                            ? Colors.transparent
-                            : p.textDim.withValues(alpha: .12),
+                        color: kbC(i < visible ? ui.surface : ui.track),
                         borderRadius: BorderRadius.circular(Geo.radiusMd),
                       ),
                       child: Opacity(
@@ -496,21 +484,28 @@ class _FadeCardState extends State<_FadeCard> {
                         child: Text(
                           w,
                           textDirection: TextDirection.rtl,
-                          style: quranicStyle(context, size: 30),
+                          style: kbText(30, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
                         ),
                       ),
                     ),
                 ],
               ),
             ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: Geo.gapMd),
         if (_last)
-          TextButton.icon(
-            onPressed: _peek ? null : _peekNow,
-            icon: const Icon(Icons.visibility_rounded, size: 18),
-            label: Text(context.l10n.kidsMemPeek),
+          Padding(
+            padding: const EdgeInsets.only(bottom: Geo.gapMd),
+            child: Center(
+              child: Opacity(
+                opacity: _peek ? .5 : 1,
+                child: KbPill(context.l10n.kidsMemPeek,
+                    ui: ui, icon: 'visibility', onTap: _peek ? null : _peekNow),
+              ),
+            ),
           ),
         _primary(
           context,
@@ -551,17 +546,16 @@ class _NextCardState extends State<_NextCard> {
 
   @override
   Widget build(BuildContext context) {
+    final ui = kbUi(context);
     return KidsChoiceCard(
       prompt: context.l10n.kidsMemNext,
-      display: Container(
-        padding: const EdgeInsets.all(Geo.gapMd),
-        decoration: kidsCard(context),
-        alignment: Alignment.center,
+      display: KidsLessonCard(
+        padding: const EdgeInsets.all(16),
         child: Text(
           widget.from,
           textDirection: TextDirection.rtl,
           textAlign: TextAlign.center,
-          style: quranicStyle(context, size: 26),
+          style: kbText(26, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
         ),
       ),
       options: [
@@ -572,7 +566,7 @@ class _NextCardState extends State<_NextCard> {
               o,
               textDirection: TextDirection.rtl,
               textAlign: TextAlign.center,
-              style: quranicStyle(context, size: 24),
+              style: kbText(24, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
             ),
           ),
       ],

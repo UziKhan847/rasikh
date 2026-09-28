@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
 import '../../core/letter_audio.dart';
-import '../../core/theme.dart';
+import '../../data/kids_glosses.dart' show kidsWordGloss;
 import '../../data/kids_sentences.dart';
 import '../../widgets/common.dart' show buildOptions, pickN, starsForFraction;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_checkpoint_quiz.dart' show kidsCheckpointEvery;
 import 'kids_choice_card.dart';
 import 'kids_widgets.dart';
@@ -147,10 +150,10 @@ class _KidsWordsLessonState extends State<KidsWordsLesson> {
       // answer is never sitting on the card's face.
       reviewId: 'kids.word.${answer.letter}',
       arabic: answer.targetWord,
-      answer: answer.gloss,
+      answer: kidsWordGloss(context, answer),
       distractors: [
         for (final o in options)
-          if (o != answer) o.gloss,
+          if (o != answer) kidsWordGloss(context, o),
       ],
       optionsArabic: false,
     );
@@ -212,33 +215,33 @@ class _IntroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.all(Geo.gapLg),
-              decoration: kidsCard(context),
+          child: KidsCentered(
+            child: KidsLessonCard(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.auto_stories_rounded, size: 44),
+                  KbGlyphTile('auto_stories',
+                      icon: true,
+                      size: 76,
+                      radius: 22,
+                      fontSize: 42,
+                      bg: ui.tile,
+                      ink: ui.tileInk),
                   const SizedBox(height: Geo.gapMd),
                   Text(
                     context.l10n.readingWords,
-                    style: kidsStyle(
-                      context,
-                      size: 19,
-                      weight: FontWeight.w800,
-                    ),
+                    style: kbText(24, kbC(ui.ink)),
                   ),
                   const SizedBox(height: Geo.gapSm),
                   Text(
                     context.l10n.kidsWordsIntro,
                     textAlign: TextAlign.center,
-                    style: kidsStyle(context, size: 14, color: p.textDim),
+                    style: kbText(18, kbC(ui.inkSoft), weight: FontWeight.w600, height: 1.35),
                   ),
                 ],
               ),
@@ -246,14 +249,7 @@ class _IntroCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Geo.gapLg),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: p.accent,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: onNext,
-          child: Text(context.l10n.kidsNextCard),
-        ),
+        KidsNextButton(context.l10n.kidsNextCard, onTap: onNext),
       ],
     );
   }
@@ -274,37 +270,32 @@ class _SentenceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final parts = sentence.sentence.split(sentence.targetWord);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.all(Geo.gapLg),
-              decoration: kidsCard(context),
+          child: KidsCentered(
+            child: KidsLessonCard(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   RichText(
                     textDirection: TextDirection.rtl,
                     textAlign: TextAlign.center,
+                    textScaler: MediaQuery.textScalerOf(context),
                     text: TextSpan(
                       children: [
                         for (var i = 0; i < parts.length; i++) ...[
                           if (i > 0)
                             TextSpan(
                               text: sentence.targetWord,
-                              style: quranicStyle(
-                                context,
-                                size: 28,
-                                color: p.accent,
-                              ).copyWith(fontWeight: FontWeight.w800),
+                              style: kbText(28, kbC(ui.linkInk), family: kbFontQuran, weight: FontWeight.w800, height: 1.9),
                             ),
                           TextSpan(
                             text: parts[i],
-                            style: quranicStyle(context, size: 28),
+                            style: kbText(28, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
                           ),
                         ],
                       ],
@@ -312,36 +303,22 @@ class _SentenceCard extends StatelessWidget {
                   ),
                   const SizedBox(height: Geo.gapMd),
                   Text(
-                    '${sentence.gloss} — ${sentence.translit}',
+                    '${kidsWordGloss(context, sentence)} — ${sentence.translit}',
                     textAlign: TextAlign.center,
-                    style: kidsStyle(context, size: 13, color: p.textDim),
+                    style: kbText(16, kbC(ui.inkSoft), weight: FontWeight.w600, height: 1.35),
                   ),
                   const SizedBox(height: Geo.gapSm),
-                  TextButton.icon(
-                    onPressed: () => LetterAudio.playOrComingSoonRaw(
+                  KidsListenButton(onTap: () => LetterAudio.playOrComingSoonRaw(
                       context,
                       sentence.sentence,
-                    ),
-                    icon: Icon(Icons.volume_up_rounded, color: p.accent2),
-                    label: Text(
-                      context.l10n.listen,
-                      style: kidsStyle(context, color: p.accent2),
-                    ),
-                  ),
+                    )),
                 ],
               ),
             ),
           ),
         ),
         const SizedBox(height: Geo.gapLg),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: p.accent,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: onNext,
-          child: Text(context.l10n.kidsNextCard),
-        ),
+        KidsNextButton(context.l10n.kidsNextCard, onTap: onNext),
       ],
     );
   }
@@ -367,14 +344,15 @@ class _CheckCard extends StatefulWidget {
 class _CheckCardState extends State<_CheckCard> {
   @override
   Widget build(BuildContext context) {
+    final ui = kbUi(context);
     return KidsChoiceCard(
-      prompt: context.l10n.kidsWhichWordMeans(widget.answer.gloss),
+      prompt: context.l10n.kidsWhichWordMeans(kidsWordGloss(context, widget.answer)),
       options: [
         for (final s in widget.options)
           Text(
             s.targetWord,
             textDirection: TextDirection.rtl,
-            style: quranicStyle(context, size: 26),
+            style: kbText(26, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
           ),
       ],
       correct: widget.options.indexWhere(
@@ -383,7 +361,7 @@ class _CheckCardState extends State<_CheckCard> {
       aspect: 1.6,
       hint: context.l10n.kidsHintWords,
       // The word said in Latin letters, with what it means.
-      explain: '${widget.answer.translit} — ${widget.answer.gloss}',
+      explain: '${widget.answer.translit} — ${kidsWordGloss(context, widget.answer)}',
       onMiss: (_) => widget.onMiss(),
       onDone: widget.onDone,
     );

@@ -7,6 +7,9 @@ import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/letters.dart';
 import 'package:qiraah_arabiyyah/data/tajwid_path.dart' show tajwidTopicById;
 import 'package:qiraah_arabiyyah/screens/kids/kids_extra_letter_lesson.dart';
+import 'package:qiraah_arabiyyah/screens/kids/kids_game_bingo.dart';
+import 'package:qiraah_arabiyyah/screens/kids/kids_game_memory_match.dart';
+import 'package:qiraah_arabiyyah/screens/kids/kids_game_three_in_a_row.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_letter_flow.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_madd_lesson.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_muqattaat_lesson.dart';
@@ -65,9 +68,11 @@ void main() {
 
   /// A stage's tracing lessons, without the check-up quizzes woven between
   /// them — those are `KidsItem`s too, but they open a `QuizScreen`.
+  /// A stage's teaching tiles — neither the check-ups woven between them nor
+  /// the games (both have their own namespace, and neither is a lesson).
   List<KidsItem> lessonsOf(String stage) => [
     for (final i in kidsPath(ctx).firstWhere((b) => b.id == stage).items(ctx))
-      if (!i.id.startsWith('kids.check.')) i,
+      if (!i.id.startsWith('kids.check.') && !i.id.startsWith('kids.game.')) i,
   ];
 
   testWidgets('every stage has items, a title and its own subtitle', (
@@ -214,15 +219,25 @@ void main() {
       [
         (5, '${prefix}5'),
         (11, '${prefix}10'),
-        (17, '${prefix}15'),
-        (23, '${prefix}20'),
-        (29, '${prefix}25'),
+        (18, '${prefix}15'),
+        (24, '${prefix}20'),
+        (31, '${prefix}25'),
       ],
     );
-    // 28 lessons + 5 check-ups, and nothing tacked onto the end: the
-    // stage's own quiz is the very next stage.
-    expect(items, hasLength(letters.length + 5));
+    // ...and a game after every SECOND check-up, which is what the two gaps
+    // of 7 above (rather than 6) are: check-up, game, five more lessons.
+    expect(
+      [
+        for (var i = 0; i < items.length; i++)
+          if (items[i].id.startsWith('kids.game.')) (i, items[i].id),
+      ],
+      [(12, 'kids.game.letters.10'), (25, 'kids.game.letters.20')],
+    );
+    // 28 lessons + 5 check-ups + 2 games, and nothing tacked onto the end:
+    // the stage's own quiz is the very next stage.
+    expect(items, hasLength(letters.length + 5 + 2));
     expect(items.last.id.startsWith(prefix), isFalse);
+    expect(items.last.id.startsWith('kids.game.'), isFalse);
   });
 
   testWidgets('the joining-forms check-up counts by LETTER, not by lesson', (
@@ -248,14 +263,21 @@ void main() {
           23,
           '${prefix}10',
         ), // + a shift of 1 for each checkpoint already placed
-        (37, '${prefix}15'),
-        (53, '${prefix}20'),
-        (69, '${prefix}25'),
+        (38, '${prefix}15'), // + 1 for the game that follows check-up 10
+        (54, '${prefix}20'),
+        (71, '${prefix}25'), // + 1 more for the game that follows check-up 20
       ],
     );
+    expect(
+      [
+        for (var i = 0; i < items.length; i++)
+          if (items[i].id.startsWith('kids.game.')) (i, items[i].id),
+      ],
+      [(24, 'kids.game.forms.10'), (55, 'kids.game.forms.20')],
+    );
     expect(items.last.id.startsWith(prefix), isFalse);
-    // 72 lessons (kidsFormsLessonCount) + 5 check-ups.
-    expect(items, hasLength(77));
+    // 72 lessons (kidsFormsLessonCount) + 5 check-ups + 2 games.
+    expect(items, hasLength(79));
   });
 
   testWidgets('a checkpoint id cannot be counted as a lesson', (tester) async {
@@ -275,6 +297,104 @@ void main() {
     }
     expect(prog.kidsLettersLearned, 0);
     expect(prog.countStarred('kids.forms.'), 0);
+  });
+
+  /// The games are Practice tiles on Home too. These cover the OTHER half of
+  /// the decision: they also fall along the path itself, where the quizzes
+  /// fall, so a long stage has some variety in it.
+  group('the games on the path', () {
+    testWidgets('a game id is never counted as a lesson either', (
+      tester,
+    ) async {
+      await boot(tester);
+      // Same hazard as `kids.check.`: `kidsLettersLearned` and the
+      // joining-forms badge count by PREFIX, so a game filed under one of
+      // them would inflate a count it is not part of.
+      for (final block in kidsPath(ctx)) {
+        for (final item in block.items(ctx)) {
+          if (!item.id.startsWith('kids.game.')) continue;
+          expect(item.id.startsWith('kids.letter.'), isFalse, reason: item.id);
+          expect(item.id.startsWith('kids.forms.'), isFalse, reason: item.id);
+          expect(item.id.startsWith('kids.check.'), isFalse, reason: item.id);
+        }
+      }
+      prog.report('kids.game.letters.10', 3);
+      prog.report('kids.game.forms.10', 3);
+      expect(prog.kidsLettersLearned, 0);
+      expect(prog.countStarred('kids.forms.'), 0);
+      expect(prog.countStarred('kids.check.'), 0);
+    });
+
+    testWidgets('all three games appear, and none is the only one', (
+      tester,
+    ) async {
+      await boot(tester);
+      final games = [
+        for (final block in kidsPath(ctx))
+          for (final item in block.items(ctx))
+            if (item.id.startsWith('kids.game.')) item,
+      ];
+      expect(games.map((i) => i.id).toSet(), hasLength(games.length),
+          reason: 'two game slots share an id');
+      final kinds = games.map((i) => i.open(ctx).runtimeType).toSet();
+      // The point of three games is variety; a path that only ever opened one
+      // of them would have missed it.
+      expect(kinds, containsAll(<Type>[
+        KidsThreeInARow,
+        KidsMemoryMatch,
+        KidsGameBingo,
+      ]));
+      // Spread across stages, not clustered in one.
+      final stages = [
+        for (final block in kidsPath(ctx))
+          if (block.items(ctx).any((i) => i.id.startsWith('kids.game.')))
+            block.id,
+      ];
+      expect(stages, hasLength(greaterThanOrEqualTo(4)));
+    });
+
+    testWidgets('every game grades itself, like a quiz', (tester) async {
+      await boot(tester);
+      for (final block in kidsPath(ctx)) {
+        for (final item in block.items(ctx)) {
+          if (!item.id.startsWith('kids.game.')) continue;
+          expect(item.completeOnOpen, isFalse, reason: item.id);
+          expect(item.glyph, isEmpty, reason: item.id);
+        }
+      }
+    });
+
+    testWidgets('a game opened with nothing learned still has a board', (
+      tester,
+    ) async {
+      // The dev unlock opens the whole path at once, so a game tile can be
+      // reached before its own gate would have been met on Home. It must top
+      // its board up from the front of the path rather than throw.
+      await boot(tester);
+      expect(prog.kidsLettersLearned, 0);
+      for (final block in kidsPath(ctx)) {
+        for (final item in block.items(ctx)) {
+          if (!item.id.startsWith('kids.game.')) continue;
+          final game = item.open(ctx);
+          final known = switch (game) {
+            KidsThreeInARow(:final known) => known,
+            KidsMemoryMatch(:final known) => known,
+            KidsGameBingo(:final known) => known,
+            _ => fail('${item.id} did not open a game: $game'),
+          };
+          expect(
+            known.length,
+            greaterThanOrEqualTo(game is KidsGameBingo ? 10 : 6),
+            reason: item.id,
+          );
+          expect(
+            known.map((l) => l.char).toSet(),
+            hasLength(known.length),
+            reason: '${item.id}: the same letter twice in the board pool',
+          );
+        }
+      }
+    });
   });
 
   testWidgets('non-joiners are never asked for a shape they do not have', (
@@ -478,18 +598,34 @@ void main() {
       // Three sessions per mark, closing on the grown-up unit's own Test —
       // see _drillBlock. Unlike the plain _unitBlock stages, the Learn side
       // here is NOT `completeOnOpen`: each drill grades itself.
-      for (final (id, markIds) in [
-        ('harakat', ['fatha', 'kasra', 'damma']),
-        ('sukun', ['sukun']),
-        ('shadda', ['shadda']),
-        ('tanwin', ['fathatan', 'kasratan', 'dammatan']),
+      for (final (id, markIds, extraIds) in [
+        // harakat/sukun/shadda each get a tamrīn item — real words carrying
+        // the mark(s) just drilled — between their drills and their Test.
+        // ...and then a game, so a stage of nine drill sessions is not nine
+        // drill sessions and a Test.
+        (
+          'harakat',
+          ['fatha', 'kasra', 'damma'],
+          ['kids.harakat.words', 'kids.game.harakat'],
+        ),
+        ('sukun', ['sukun'], ['kids.sukun.words', 'kids.game.sukun']),
+        ('shadda', ['shadda'], ['kids.shadda.words', 'kids.game.shadda']),
+        // tanwīn gets the shapes lesson in place of word practice, since it
+        // already shows real, highlighted muṣḥaf examples; see
+        // `_wordPracticeItem`'s own doc.
+        (
+          'tanwin',
+          ['fathatan', 'kasratan', 'dammatan'],
+          ['kids.tanwin.shapes', 'kids.game.tanwin'],
+        ),
       ]) {
         final items = kidsPath(ctx).firstWhere((b) => b.id == id).items(ctx);
         final drills = markIds.length * kidsDrillSessions;
-        expect(items, hasLength(drills + 1), reason: id);
+        expect(items, hasLength(drills + extraIds.length + 1), reason: id);
         expect(items.map((i) => i.id), [
           for (final m in markIds)
             for (var n = 1; n <= kidsDrillSessions; n++) 'kids.$id.$m.$n',
+          ...extraIds,
           'kids.$id.test',
         ]);
         for (final drill in items.take(drills)) {
@@ -602,9 +738,17 @@ void main() {
     // One word, then two, then three.
     expect(at('words.two'), greaterThan(at('words')));
     expect(at('words.three'), greaterThan(at('words.two')));
-    // Tajwīd last, and the capstone after everything.
+    // Tajwīd, the review, and then the reading ladder — the last thing on the
+    // path, from az-Zalzalah (99) to an-Nās (114), with al-Ikhlāṣ keeping the
+    // id it had as the one closing sūrah.
     expect(at('tajwid.nun'), greaterThan(at('words.three')));
-    expect(at('capstone'), ids.length - 1);
+    expect(at('review'), greaterThan(at('tajwid.nun')));
+    final ladder = [
+      for (final n in [for (var n = 99; n <= 114; n++) n])
+        n == 112 ? 'capstone' : 'read.$n',
+    ];
+    expect(ids.skip(ids.length - ladder.length).toList(), ladder);
+    expect(at('read.99'), greaterThan(at('review')));
   });
 
   testWidgets('sun and moon letters are taught once, not twice', (
@@ -704,11 +848,15 @@ void main() {
     },
   );
 
-  testWidgets('reading stages ladder from two words to a whole sūrah', (
+  testWidgets('reading stages ladder from two words to sūrah after sūrah', (
     tester,
   ) async {
     await boot(tester);
-    for (final id in ['words.two', 'words.three', 'capstone']) {
+    for (final id in [
+      'words.two',
+      'words.three',
+      for (var n = 99; n <= 114; n++) n == 112 ? 'capstone' : 'read.$n',
+    ]) {
       final items = kidsPath(ctx).firstWhere((b) => b.id == id).items(ctx);
       expect(items, hasLength(1), reason: id);
       expect(items.single.id, 'kids.$id.read');

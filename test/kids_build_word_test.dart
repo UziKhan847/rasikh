@@ -11,7 +11,6 @@ import 'package:qiraah_arabiyyah/data/quran.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_build_word.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_find_in_ayah.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_home_screen.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -42,7 +41,7 @@ Widget _harness(AppSettings s, ProgressStore p, Widget child) => SettingsScope(
 );
 
 Finder _tile(String text) =>
-    find.descendant(of: find.byType(TapScale), matching: find.text(text));
+    find.descendant(of: kidsTappables(), matching: find.text(text));
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -244,7 +243,7 @@ void main() {
       tester.view.devicePixelRatio = 2;
       addTearDown(tester.view.reset);
       final (settings, prog) = await _boot();
-      settings.arabicScale = 1.35;
+      settings.kidsTextScale = 1.35;
       final words = await open(tester, settings, prog, seed: 7);
       for (final w in words) {
         expect(tester.takeException(), isNull);

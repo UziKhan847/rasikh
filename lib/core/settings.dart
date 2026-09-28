@@ -31,6 +31,25 @@ const bool kIndopakMushafAvailable = true;
 /// profiles, same UI" in the Kids Mode plan). [gender] is used solely to pick
 /// a grammatically-correct Arabic praise form (أَحْسَنْتَ vs أَحْسَنْتِ); '' renders
 /// the gender-neutral copy.
+/// Shop frames that were retired, and the frame each one became — so a child who
+/// bought the golden or the emerald frame keeps a frame of the same price tier
+/// instead of losing what they paid for. Applied wherever a saved frame id or an
+/// owned-items list is read back.
+const kLegacyFrameIds = {
+  'golden_frame': 'starlight_frame',
+  'emerald_frame': 'aurora_frame',
+};
+
+/// How much Kids Mode's backdrop and cards paint — a dial, not a switch.
+///
+///  * [plain] — flat `bg`, flat cards. Exactly the look every kids screen had
+///    before the depth pass, and the low-end-device escape hatch.
+///  * [medium] — the soft painted scene and raised cards, with **no moving
+///    layer at all**. This is the setting a slower phone picks, so it must
+///    cost nothing per frame.
+///  * [high] — the vivid scene, with drifting motes.
+enum KidsDetail { plain, medium, high }
+
 class KidsProfile {
   final String id;
   String name;
@@ -53,6 +72,12 @@ class KidsProfile {
   String theme; // a kids_* palette family id, 'kids' if nothing equipped
   String frame; // an owned KidsShopItem id, '' if no frame equipped
 
+  /// The emoji the child chose when their profile was made, remembered while an
+  /// avatar unlock from the shop is worn over it, so taking the unlock off puts
+  /// their own avatar back rather than a stand-in. Empty until an unlock is
+  /// first equipped.
+  String baseAvatar;
+
   KidsProfile({
     required this.id,
     required this.name,
@@ -60,6 +85,7 @@ class KidsProfile {
     this.gender = '',
     this.theme = 'kids',
     this.frame = '',
+    this.baseAvatar = '',
   });
 
   Map<String, dynamic> toJson() => {
@@ -69,6 +95,7 @@ class KidsProfile {
         'gender': gender,
         'theme': theme,
         'frame': frame,
+        'baseAvatar': baseAvatar,
       };
 
   factory KidsProfile.fromJson(Map<String, dynamic> m) => KidsProfile(
@@ -77,7 +104,9 @@ class KidsProfile {
         avatar: (m['avatar'] ?? '🦊') as String,
         gender: (m['gender'] ?? '') as String,
         theme: (m['theme'] ?? 'kids') as String,
-        frame: (m['frame'] ?? '') as String,
+        // A frame that has since been retired keeps working as its successor.
+        frame: kLegacyFrameIds[m['frame']] ?? (m['frame'] ?? '') as String,
+        baseAvatar: (m['baseAvatar'] ?? '') as String,
       );
 }
 
@@ -125,6 +154,34 @@ class AppSettings extends ChangeNotifier {
       // separate app, no backend, no accounts (see docs/privacy-policy.html)
   String kidsThemeMode = 'light'; // 'light' | 'dark' | 'oled' — independent
       // of the grown-up `themeMode` (see kidsPal() in core/theme.dart)
+  /// How big everything in Kids Mode is drawn — Latin text AND Arabic — as a
+  /// multiplier on its sizes: 0.9 small, 1.0 medium (the default), 1.2 large.
+  /// Kids Mode's own dial, independent of the grown-up Reading Coach's
+  /// [arabicScale], which used to resize the Arabic in a child's screens
+  /// while the rest of their text stayed put (see `kidsStyle` in core/theme).
+  double kidsTextScale = 1.0;
+
+  /// Painted backdrops, raised gradient cards, and the celebration's fuller
+  /// pop — the depth pass over Kids Mode's flat backgrounds. [KidsDetail.high]
+  /// by default; [KidsDetail.plain] gives back exactly the flat look every
+  /// screen had before it, which is also the low-end-device escape hatch (see
+  /// `KidsBackdrop`).
+  ///
+  /// Replaces a `bool kidsHighDetail`, which is why [load] still reads that
+  /// key: an install that turned detail off must not get it switched back on.
+  KidsDetail kidsDetail = KidsDetail.high;
+
+  /// Whether cards get the raised gradient look — every level but plain.
+  /// (Medium and high differ only in the backdrop and its motion.)
+  bool get kidsRaised => kidsDetail != KidsDetail.plain;
+
+  /// Minutes into a Kids Mode session before [KidsShell] suggests a break —
+  /// once, gently, never a lockout. `0` is off (the default): a parent opts
+  /// in, this app never nags on its own. Paired with the Home tab's own
+  /// "good place to stop" banner once the daily goal is met, these are the
+  /// direct answer to the "hard to put down without crying" complaint —
+  /// see the v4 plan's Phase 7.
+  int kidsSessionMinutes = 0;
   List<KidsProfile> kidsProfiles = [];
   String? activeKidsProfileId;
 
@@ -211,6 +268,24 @@ class AppSettings extends ChangeNotifier {
     super.dispose();
   }
 
+  /// The detail level from persisted JSON [m].
+  ///
+  /// The new `kidsDetail` key wins when present. Otherwise the old
+  /// `kidsHighDetail` bool is mapped — `true` to high, `false` to plain — so a
+  /// parent who turned detail off keeps it off. Neither key means a fresh
+  /// install, which gets the default.
+  static KidsDetail _loadKidsDetail(Map<String, dynamic> m) {
+    final named = m['kidsDetail'];
+    if (named is String) {
+      for (final d in KidsDetail.values) {
+        if (d.name == named) return d;
+      }
+    }
+    final legacy = m['kidsHighDetail'];
+    if (legacy is bool) return legacy ? KidsDetail.high : KidsDetail.plain;
+    return KidsDetail.high;
+  }
+
   Future<void> load() async {
     final p = await SharedPreferences.getInstance();
     final raw = p.getString(_key);
@@ -265,6 +340,9 @@ class AppSettings extends ChangeNotifier {
     playerBarPinned = m['playerPinned'] ?? true;
     kidsMode = m['kidsMode'] ?? false;
     kidsThemeMode = m['kidsThemeMode'] ?? 'light';
+    kidsTextScale = ((m['kidsTextScale'] ?? 1.0) as num).toDouble().clamp(0.8, 1.2);
+    kidsDetail = _loadKidsDetail(m);
+    kidsSessionMinutes = (m['kidsSessionMinutes'] as num?)?.toInt() ?? 0;
     kidsProfiles = ((m['kidsProfiles'] as List?) ?? const [])
         .map((e) => KidsProfile.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
@@ -312,6 +390,9 @@ class AppSettings extends ChangeNotifier {
         'playerPinned': playerBarPinned,
         'kidsMode': kidsMode,
         'kidsThemeMode': kidsThemeMode,
+        'kidsTextScale': kidsTextScale,
+        'kidsDetail': kidsDetail.name,
+        'kidsSessionMinutes': kidsSessionMinutes,
         'kidsProfiles': [for (final p in kidsProfiles) p.toJson()],
         'activeKidsProfileId': activeKidsProfileId,
       }),
@@ -947,7 +1028,10 @@ class ProgressStore extends ChangeNotifier {
         ..addAll(((m['badges'] as List?) ?? const []).cast<String>());
       shopOwned
         ..clear()
-        ..addAll(((m['shop'] as List?) ?? const []).cast<String>());
+        ..addAll([
+          for (final id in ((m['shop'] as List?) ?? const []).cast<String>())
+            kLegacyFrameIds[id] ?? id,
+        ]);
       unlockAll = (m['unlockAll'] ?? false) as bool;
       devStage = m['devStage'] as String?;
     }

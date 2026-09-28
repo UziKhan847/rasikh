@@ -8,7 +8,6 @@ import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/letters.dart';
 import 'package:qiraah_arabiyyah/data/tashkeel.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_syllable_drill.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -55,7 +54,7 @@ Future<void> _finishDrill(WidgetTester tester) async {
       await tester.tap(saidIt);
       continue;
     }
-    final options = find.byType(TapScale);
+    final options = kidsTappables();
     if (options.evaluate().isNotEmpty) {
       await tester.tap(options.first);
       // The check-up holds its answer on screen briefly before advancing.
@@ -112,7 +111,7 @@ void main() {
       );
       await tester.pump();
 
-      await tester.tap(find.byIcon(Icons.volume_up_rounded));
+      await tester.tap(kidsListenIcon());
       await tester.pump();
       expect(played, ['بِ']);
     },
@@ -142,7 +141,7 @@ void main() {
           await tester.tap(saidIt);
           await tester.pump();
         } else {
-          final options = find.byType(TapScale);
+          final options = kidsTappables();
           if (options.evaluate().isNotEmpty) {
             await tester.tap(options.first);
             await tester.pump(const Duration(milliseconds: 800));
@@ -182,6 +181,6 @@ void main() {
       await tester.pump();
     }
     expect(find.text('Which one did you just say?'), findsOneWidget);
-    expect(find.byType(TapScale), findsNWidgets(4));
+    expect(kidsTappables(), findsNWidgets(4));
   });
 }

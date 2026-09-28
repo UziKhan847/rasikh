@@ -34,6 +34,62 @@ const kidsDailyGoal = 5; // lessons/day shown on the Home goal ring
 /// this many goes at the same shape, graded on the best of them.
 const kidsWritingPasses = 5;
 
+/// One sūrah on the reading ladder.
+class KidsReadingSurah {
+  final int n;
+
+  /// As the muṣḥaf writes it — checked against the bundled `meta.json`.
+  final String arabic;
+  final String translit;
+
+  /// 0 = the whole āyah on one line, else that many words to a line.
+  final int wordsPerChunk;
+  const KidsReadingSurah(this.n, this.arabic, this.translit, this.wordsPerChunk);
+}
+
+/// The sūrahs a child reads on the path's closing ladder, in muṣḥaf order —
+/// from az-Zalzalah to an-Nās. The longer āyāt of the first ones come three
+/// words to a line; from al-Fīl on a line is a whole āyah.
+///
+/// (Two earlier stages — "Two Words" and "Three Words", over al-Ikhlāṣ and
+/// al-Kawthar — teach the skill before this; the ladder is where it is used.)
+const kidsReadingSurahs = <KidsReadingSurah>[
+  KidsReadingSurah(99, 'الزلزلة', 'Az-Zalzalah', 3),
+  KidsReadingSurah(100, 'العاديات', 'Al-ʿĀdiyāt', 3),
+  KidsReadingSurah(101, 'القارعة', 'Al-Qāriʿah', 3),
+  KidsReadingSurah(102, 'التكاثر', 'At-Takāthur', 3),
+  KidsReadingSurah(103, 'العصر', 'Al-ʿAṣr', 0),
+  KidsReadingSurah(104, 'الهمزة', 'Al-Humazah', 3),
+  KidsReadingSurah(105, 'الفيل', 'Al-Fīl', 0),
+  KidsReadingSurah(106, 'قريش', 'Quraysh', 0),
+  KidsReadingSurah(107, 'الماعون', 'Al-Māʿūn', 0),
+  KidsReadingSurah(108, 'الكوثر', 'Al-Kawthar', 0),
+  KidsReadingSurah(109, 'الكافرون', 'Al-Kāfirūn', 0),
+  KidsReadingSurah(110, 'النصر', 'An-Naṣr', 0),
+  KidsReadingSurah(111, 'المسد', 'Al-Masad', 0),
+  KidsReadingSurah(112, 'الإخلاص', 'Al-Ikhlāṣ', 0),
+  KidsReadingSurah(113, 'الفلق', 'Al-Falaq', 0),
+  KidsReadingSurah(114, 'الناس', 'An-Nās', 0),
+];
+
+/// The progress id a sūrah's reading stage reports under. al-Ikhlāṣ keeps the
+/// id it had when it was the path's one closing "capstone" sūrah, so a child
+/// who had already read it keeps that.
+String kidsReadingProgressId(int surah) =>
+    surah == 112 ? 'kids.capstone.read' : 'kids.read.$surah.read';
+
+/// How many of the ladder's sūrahs [p] has read to the end.
+int kidsSurahsRead(ProgressStore p) => kidsReadingSurahs
+    .where((s) => p.starsFor(kidsReadingProgressId(s.n)) > 0)
+    .length;
+
+/// [s]'s name for the current language: in Arabic for an Arabic or Urdu
+/// reader, transliterated otherwise.
+String kidsSurahTitle(BuildContext context, KidsReadingSurah s) {
+  final lang = Localizations.localeOf(context).languageCode;
+  return lang == 'ar' || lang == 'ur' ? s.arabic : s.translit;
+}
+
 class KidsBadge {
   final String id;
   final String emoji;
@@ -211,10 +267,27 @@ List<KidsBadge> kidsBadgeDefs() => [
           title: (c) => c.l10n.kidsBadgePathFinished,
           earned: (p) => p.starsFor('kids.review.test') > 0),
       KidsBadge(
+          // Any sūrah on the closing reading ladder — the first one counts,
+          // whichever it is (this used to be the single capstone sūrah).
           id: 'read_a_surah',
           emoji: '📖',
           title: (c) => c.l10n.kidsBadgeReadASurah,
-          earned: (p) => p.starsFor('kids.capstone.read') > 0),
+          earned: (p) => kidsSurahsRead(p) >= 1),
+      KidsBadge(
+          id: 'read_five_surahs',
+          emoji: '📚',
+          title: (c) => c.l10n.kidsBadgeReadFiveSurahs,
+          earned: (p) => kidsSurahsRead(p) >= 5),
+      KidsBadge(
+          id: 'read_ten_surahs',
+          emoji: '🏅',
+          title: (c) => c.l10n.kidsBadgeReadTenSurahs,
+          earned: (p) => kidsSurahsRead(p) >= 10),
+      KidsBadge(
+          id: 'read_all_surahs',
+          emoji: '🌟',
+          title: (c) => c.l10n.kidsBadgeReadAllSurahs,
+          earned: (p) => kidsSurahsRead(p) >= kidsReadingSurahs.length),
       // ── habit ──
       KidsBadge(
           id: 'streak_3',
@@ -322,7 +395,7 @@ class KidsShopItem {
 }
 
 /// The one-time cosmetic purchases. Every one renders somewhere the child
-/// already looks — see [kidsFrameColor] and [kidsAvatarUnlock] below, and
+/// already looks — see [kidsFrameKind] and [kidsAvatarUnlock] below, and
 /// `KidsAvatar` in `screens/kids/kids_widgets.dart` — which is the whole
 /// point: the shop used to sell three items that appeared nowhere in the app
 /// once bought.
@@ -396,7 +469,33 @@ List<KidsShopItem> kidsShopItems(BuildContext context) => [
           cost: 110,
           shelf: KidsShopShelf.looks,
           title: (c) => c.l10n.kidsShopWhaleAvatar),
+      // The two the design's avatar set adds that the Qurʼān also names. The
+      // design draws four more (cat, bunny, penguin, owl) that it does not, so
+      // they are NOT sold — see `kidsAnimals` — and they are priced as the
+      // design prices these two, the eight above keeping what they always cost.
+      KidsShopItem(
+          id: 'monkey_avatar', // al-Baqarah 2:65, al-Aʿrāf 7:166
+          emoji: '🐵',
+          cost: 100,
+          shelf: KidsShopShelf.looks,
+          title: (c) => c.l10n.kidsShopMonkeyAvatar),
+      KidsShopItem(
+          id: 'sheep_avatar', // Ṣād 38:23–24, al-Anʿām 6:143
+          emoji: '🐑',
+          cost: 120,
+          shelf: KidsShopShelf.looks,
+          title: (c) => c.l10n.kidsShopSheepAvatar),
       // ── looks: frames ──
+      // Four frames that differ by TECHNIQUE, not just by colour: a plain ring,
+      // a ring of beads, a soft halo, a sweeping two-tone ring. They were once
+      // three flat rings in silver, gold and emerald, and the gold was the very
+      // colour of every badge border and goal ring already on screen, and the
+      // emerald was the default theme's own teal — so a bought frame looked
+      // like something the app already had. The three below also take their
+      // colours from the child's equipped THEME (see `KidsAvatar`), so a frame
+      // never clashes with the screen it sits on. `golden_frame` and
+      // `emerald_frame` were retired into `starlight_frame` and `aurora_frame`
+      // of the same price tier (`kLegacyFrameIds`); do not re-use those ids.
       KidsShopItem(
           id: 'silver_frame',
           emoji: '⚪',
@@ -404,17 +503,23 @@ List<KidsShopItem> kidsShopItems(BuildContext context) => [
           shelf: KidsShopShelf.looks,
           title: (c) => c.l10n.kidsShopSilverFrame),
       KidsShopItem(
-          id: 'golden_frame',
-          emoji: '🖼️',
+          id: 'starlight_frame',
+          emoji: '✨',
           cost: 100,
           shelf: KidsShopShelf.looks,
-          title: (c) => c.l10n.kidsShopGoldenFrame),
+          title: (c) => c.l10n.kidsShopStarlightFrame),
       KidsShopItem(
-          id: 'emerald_frame',
-          emoji: '💚',
-          cost: 140,
+          id: 'glow_frame',
+          emoji: '🌟',
+          cost: 120,
           shelf: KidsShopShelf.looks,
-          title: (c) => c.l10n.kidsShopEmeraldFrame),
+          title: (c) => c.l10n.kidsShopGlowFrame),
+      KidsShopItem(
+          id: 'aurora_frame',
+          emoji: '🌌',
+          cost: 160,
+          shelf: KidsShopShelf.looks,
+          title: (c) => c.l10n.kidsShopAuroraFrame),
       // ── colours — repaints the whole of Kids Mode; see `kidsPal` ──
       KidsShopItem(
           id: 'kids_ocean',
@@ -434,19 +539,92 @@ List<KidsShopItem> kidsShopItems(BuildContext context) => [
           cost: 250,
           shelf: KidsShopShelf.colours,
           title: (c) => c.l10n.kidsShopThemeNight),
+      KidsShopItem(
+          id: 'kids_forest',
+          emoji: '🌳',
+          cost: 200,
+          shelf: KidsShopShelf.colours,
+          title: (c) => c.l10n.kidsShopThemeForest),
+      KidsShopItem(
+          id: 'kids_lagoon',
+          emoji: '🐠',
+          cost: 200,
+          shelf: KidsShopShelf.colours,
+          title: (c) => c.l10n.kidsShopThemeLagoon),
+      KidsShopItem(
+          id: 'kids_blossom',
+          emoji: '🌸',
+          cost: 250,
+          shelf: KidsShopShelf.colours,
+          title: (c) => c.l10n.kidsShopThemeBlossom),
+      KidsShopItem(
+          id: 'kids_sunset',
+          emoji: '🌅',
+          cost: 250,
+          shelf: KidsShopShelf.colours,
+          title: (c) => c.l10n.kidsShopThemeSunset),
+      KidsShopItem(
+          id: 'kids_rain',
+          emoji: '🌧️',
+          cost: 200,
+          shelf: KidsShopShelf.colours,
+          title: (c) => c.l10n.kidsShopThemeRain),
+      KidsShopItem(
+          id: 'kids_cave',
+          emoji: '🦇',
+          cost: 250,
+          shelf: KidsShopShelf.colours,
+          title: (c) => c.l10n.kidsShopThemeCave),
+      KidsShopItem(
+          id: 'kids_sunrise',
+          emoji: '🌄',
+          cost: 250,
+          shelf: KidsShopShelf.colours,
+          title: (c) => c.l10n.kidsShopThemeSunrise),
+      KidsShopItem(
+          id: 'kids_frozen',
+          emoji: '🧊',
+          cost: 250,
+          shelf: KidsShopShelf.colours,
+          title: (c) => c.l10n.kidsShopThemeFrozen),
+      KidsShopItem(
+          id: 'kids_snowy',
+          emoji: '⛄',
+          cost: 250,
+          shelf: KidsShopShelf.colours,
+          title: (c) => c.l10n.kidsShopThemeSnowy),
     ];
 
-/// The ring colour a frame item draws around the avatar — see `KidsAvatar`.
-/// Null for no frame equipped or an unrecognised id.
+/// How a frame is drawn around the avatar.
+enum KidsFrameKind {
+  /// A plain ring.
+  ring,
+
+  /// A ring of small beads.
+  beads,
+
+  /// A thin ring with a soft halo outside it.
+  glow,
+
+  /// A ring that sweeps between the theme's colours.
+  sweep,
+}
+
+/// How the frame [frameId] is drawn — see `KidsAvatar`. Null for no frame
+/// equipped or an unrecognised id. A retired id resolves to its successor
+/// ([kLegacyFrameIds]).
 ///
-/// A ring is one of only two cosmetics that work on an emoji avatar (the
+/// A frame is one of only two cosmetics that work on an emoji avatar (the
 /// other being [kidsAvatarUnlock]): it surrounds the emoji rather than trying
 /// to sit on it, so it stays legible from 64px down to the 17px the desktop
-/// nav renders at.
-Color? kidsFrameColor(String frameId) => switch (frameId) {
-      'silver_frame' => const Color(0xFFB9C2CC),
-      'golden_frame' => const Color(0xFFF4B23E),
-      'emerald_frame' => const Color(0xFF2FB39A),
+/// nav renders at. Each kind is a different SHAPE, so they stay distinct at
+/// 17px too, where two rings of two colours are the same smudge.
+KidsFrameKind? kidsFrameKind(String frameId) =>
+    switch (kLegacyFrameIds[frameId] ?? frameId) {
+      'silver_frame' => KidsFrameKind.ring,
+      'starlight_frame' => KidsFrameKind.beads,
+      'glow_frame' => KidsFrameKind.glow,
+      'aurora_frame' => KidsFrameKind.sweep,
       _ => null,
     };
 
@@ -462,6 +640,8 @@ String? kidsAvatarUnlock(String itemId) => switch (itemId) {
       'horse_avatar' => '🐎',
       'cow_avatar' => '🐄',
       'whale_avatar' => '🐋',
+      'monkey_avatar' => '🐵',
+      'sheep_avatar' => '🐑',
       _ => null,
     };
 
@@ -472,38 +652,68 @@ String? kidsAvatarUnlock(String itemId) => switch (itemId) {
 /// just becomes the unlocked emoji).
 bool kidsItemEquipped(KidsShopItem item, KidsProfile profile) {
   if (item.shelf == KidsShopShelf.colours) return profile.theme == item.id;
-  if (kidsFrameColor(item.id) != null) return profile.frame == item.id;
+  if (kidsFrameKind(item.id) != null) return profile.frame == item.id;
   final avatar = kidsAvatarUnlock(item.id);
   return avatar != null && profile.avatar == avatar;
 }
 
-/// True when taking [item] back off is itself a real, offered choice. A frame
-/// has a meaningful "none" — the empty string it already defaults to. A
-/// palette or an avatar swap does not: there is no shop item representing
-/// "the original theme" or "the original avatar" to revert to, so those are
-/// one-way once something else is equipped over them, the same way choosing
-/// an avatar at profile creation already is.
-bool kidsItemUnequippable(KidsShopItem item) =>
-    kidsFrameColor(item.id) != null;
+/// The palette family every child starts on, and goes back to when a bought
+/// theme is taken off.
+const kKidsDefaultTheme = 'kids';
+
+/// The avatar a profile falls back to when it has no [KidsProfile.baseAvatar]
+/// on record (a profile saved before that field existed).
+const kKidsDefaultAvatar = '🦊';
 
 /// Equips [item] on [profile]. The caller is responsible for wrapping this
 /// in `AppSettings.update` so the change is persisted and observed.
 void kidsEquipItem(KidsShopItem item, KidsProfile profile) {
   if (item.shelf == KidsShopShelf.colours) {
     profile.theme = item.id;
-  } else if (kidsFrameColor(item.id) != null) {
+  } else if (kidsFrameKind(item.id) != null) {
     profile.frame = item.id;
   } else {
     final avatar = kidsAvatarUnlock(item.id);
-    if (avatar != null) profile.avatar = avatar;
+    if (avatar == null) return;
+    // Remember the avatar the child chose themselves — but only if what they
+    // are wearing now is theirs, not another unlock (swapping the whale for the
+    // bee must not make the whale their "own" avatar).
+    final wearingUnlock = kidsAvatarUnlockEmojis.contains(profile.avatar);
+    if (!wearingUnlock) profile.baseAvatar = profile.avatar;
+    profile.avatar = avatar;
   }
 }
 
-/// Un-equips [item] from [profile]. Only meaningful where
-/// [kidsItemUnequippable] is true; a no-op otherwise.
+/// Every emoji an avatar unlock can swap to.
+const kidsAvatarUnlockEmojis = {
+  '🐪', '🐝', '🐘', '🐜', '🕷️', '🐎', '🐄', '🐋', //
+  '🐵', '🐑', //
+};
+
+/// Takes [item] off [profile], back to what was there before: no frame, the
+/// default theme, the child's own avatar. A no-op if [item] is not what they
+/// are wearing.
+///
+/// **Every cosmetic can be taken back off.** A frame's "none" is the empty
+/// string it already defaults to; a theme's is the default palette
+/// ([kKidsDefaultTheme]); an avatar unlock's is the emoji the child chose when
+/// they made their profile ([KidsProfile.baseAvatar]). This used to be true only
+/// of frames, on the reasoning that there was "no shop item representing the
+/// original theme". So an equipped theme showed a dead "Worn" label with no
+/// button, and a child who bought Ocean could never go back to the default (or
+/// off the whale, back to their own avatar) — the only way out was a new
+/// profile, which lost every star, gem and badge.
 void kidsUnequipItem(KidsShopItem item, KidsProfile profile) {
-  if (kidsFrameColor(item.id) != null && profile.frame == item.id) {
-    profile.frame = '';
+  if (item.shelf == KidsShopShelf.colours) {
+    if (profile.theme == item.id) profile.theme = kKidsDefaultTheme;
+  } else if (kidsFrameKind(item.id) != null) {
+    if (profile.frame == item.id) profile.frame = '';
+  } else {
+    final avatar = kidsAvatarUnlock(item.id);
+    if (avatar != null && profile.avatar == avatar) {
+      profile.avatar =
+          profile.baseAvatar.isEmpty ? kKidsDefaultAvatar : profile.baseAvatar;
+    }
   }
 }
 

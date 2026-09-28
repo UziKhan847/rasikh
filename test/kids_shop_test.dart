@@ -29,13 +29,13 @@ void main() {
     test('deducts gems exactly once and only when affordable', () {
       final prog = ProgressStore(profileId: 'p_buy');
       prog.awardGems(100);
-      expect(prog.buyShopItem('golden_frame', 100), isTrue);
+      expect(prog.buyShopItem('starlight_frame', 100), isTrue);
       expect(prog.gems, 0);
-      expect(prog.shopOwned.contains('golden_frame'), isTrue);
+      expect(prog.shopOwned.contains('starlight_frame'), isTrue);
 
       // Already owned: refused even with plenty of gems.
       prog.awardGems(1000);
-      expect(prog.buyShopItem('golden_frame', 100), isFalse);
+      expect(prog.buyShopItem('starlight_frame', 100), isFalse);
       expect(prog.gems, 1000);
     });
 
@@ -75,17 +75,17 @@ void main() {
       await boot(tester);
       final items = {for (final i in kidsShopItems(ctx)) i.id: i};
 
-      expect(kidsItemEquipped(items['golden_frame']!, profile), isFalse);
-      kidsEquipItem(items['golden_frame']!, profile);
-      expect(profile.frame, 'golden_frame');
-      expect(kidsItemEquipped(items['golden_frame']!, profile), isTrue);
+      expect(kidsItemEquipped(items['starlight_frame']!, profile), isFalse);
+      kidsEquipItem(items['starlight_frame']!, profile);
+      expect(profile.frame, 'starlight_frame');
+      expect(kidsItemEquipped(items['starlight_frame']!, profile), isTrue);
       // Equipping a frame must not touch the theme slot.
       expect(profile.theme, 'kids');
 
       // A second frame replaces the first rather than stacking.
-      kidsEquipItem(items['emerald_frame']!, profile);
-      expect(profile.frame, 'emerald_frame');
-      expect(kidsItemEquipped(items['golden_frame']!, profile), isFalse);
+      kidsEquipItem(items['aurora_frame']!, profile);
+      expect(profile.frame, 'aurora_frame');
+      expect(kidsItemEquipped(items['starlight_frame']!, profile), isFalse);
 
       kidsEquipItem(items['kids_ocean']!, profile);
       expect(profile.theme, 'kids_ocean');
@@ -105,18 +105,86 @@ void main() {
       expect(kidsItemEquipped(camel, profile), isTrue);
     });
 
-    testWidgets('a frame can be taken back off; a theme or avatar cannot',
+    testWidgets('every cosmetic can be taken back off', (tester) async {
+      await boot(tester);
+      final items = {for (final i in kidsShopItems(ctx)) i.id: i};
+
+      // A frame goes back to no frame.
+      kidsEquipItem(items['starlight_frame']!, profile);
+      kidsUnequipItem(items['starlight_frame']!, profile);
+      expect(profile.frame, isEmpty);
+
+      // A theme goes back to the default palette — the bug this pins: a
+      // bought Ocean could be equipped but never un-equipped, because the
+      // unequip button existed only for frames.
+      kidsEquipItem(items['kids_ocean']!, profile);
+      expect(profile.theme, 'kids_ocean');
+      kidsUnequipItem(items['kids_ocean']!, profile);
+      expect(profile.theme, kKidsDefaultTheme);
+      expect(kidsItemEquipped(items['kids_ocean']!, profile), isFalse);
+
+      // An avatar unlock goes back to the avatar the child chose themselves.
+      profile.avatar = '🦁';
+      kidsEquipItem(items['whale_avatar']!, profile);
+      expect(profile.avatar, '🐋');
+      kidsUnequipItem(items['whale_avatar']!, profile);
+      expect(profile.avatar, '🦁');
+    });
+
+    testWidgets('taking off an item that is not worn changes nothing',
         (tester) async {
       await boot(tester);
       final items = {for (final i in kidsShopItems(ctx)) i.id: i};
 
-      expect(kidsItemUnequippable(items['golden_frame']!), isTrue);
-      expect(kidsItemUnequippable(items['kids_ocean']!), isFalse);
-      expect(kidsItemUnequippable(items['camel_avatar']!), isFalse);
+      kidsEquipItem(items['glow_frame']!, profile);
+      kidsEquipItem(items['kids_night']!, profile);
+      kidsUnequipItem(items['starlight_frame']!, profile); // not worn
+      kidsUnequipItem(items['kids_ocean']!, profile); // not worn
+      expect(profile.frame, 'glow_frame');
+      expect(profile.theme, 'kids_night');
+    });
 
-      kidsEquipItem(items['golden_frame']!, profile);
-      kidsUnequipItem(items['golden_frame']!, profile);
-      expect(profile.frame, isEmpty);
+    testWidgets('swapping one avatar unlock for another keeps the child\'s own',
+        (tester) async {
+      await boot(tester);
+      final items = {for (final i in kidsShopItems(ctx)) i.id: i};
+
+      profile.avatar = '🦁';
+      kidsEquipItem(items['whale_avatar']!, profile);
+      kidsEquipItem(items['bee_avatar']!, profile);
+      expect(profile.avatar, '🐝');
+      // The whale must not have become "their own" avatar on the way past.
+      kidsUnequipItem(items['bee_avatar']!, profile);
+      expect(profile.avatar, '🦁');
+    });
+
+    testWidgets('a profile with no remembered avatar falls back to the default',
+        (tester) async {
+      await boot(tester);
+      final items = {for (final i in kidsShopItems(ctx)) i.id: i};
+
+      // Saved before `baseAvatar` existed, while already wearing an unlock.
+      profile.avatar = '🐋';
+      kidsUnequipItem(items['whale_avatar']!, profile);
+      expect(profile.avatar, kKidsDefaultAvatar);
+    });
+
+    test('every avatar unlock is listed in kidsAvatarUnlockEmojis', () {
+      const ids = [
+        'camel_avatar',
+        'bee_avatar',
+        'elephant_avatar',
+        'ant_avatar',
+        'spider_avatar',
+        'horse_avatar',
+        'cow_avatar',
+        'whale_avatar',
+        // Added with the drawn animal avatars — the two of the design's six new
+        // animals that the Qurʼān also names (see `kidsAnimals`).
+        'monkey_avatar',
+        'sheep_avatar',
+      ];
+      expect({for (final id in ids) kidsAvatarUnlock(id)!}, kidsAvatarUnlockEmojis);
     });
 
     testWidgets('every Looks item resolves to a real, rendering cosmetic',
@@ -128,7 +196,7 @@ void main() {
       // drawn on) reads as a rendering artefact and shipped once already.
       for (final item in kidsShopItems(ctx)
           .where((i) => i.shelf == KidsShopShelf.looks)) {
-        final isFrame = kidsFrameColor(item.id) != null;
+        final isFrame = kidsFrameKind(item.id) != null;
         final isAvatar = kidsAvatarUnlock(item.id) != null;
         expect(isFrame || isAvatar, isTrue,
             reason: '${item.id} equips nothing that KidsAvatar can draw');
@@ -150,21 +218,63 @@ void main() {
     testWidgets('a bought frame actually renders around KidsAvatar',
         (tester) async {
       await boot(tester);
-      profile.frame = 'golden_frame';
-      await tester.pumpWidget(MaterialApp(
-        home: KidsAvatar(profile: profile),
+      // No frame: the bare emoji, nothing painted around it.
+      await tester.pumpWidget(SettingsScope(
+        settings: AppSettings(),
+        child: MaterialApp(home: KidsAvatar(profile: profile)),
       ));
+      expect(
+          find.descendant(
+              of: find.byType(KidsAvatar), matching: find.byType(CustomPaint)),
+          findsNothing);
 
-      // Presence of a circular border is the whole point — before this, an
-      // owned frame changed nothing a widget test (or a child) could see.
-      final container = tester.widget<Container>(find
-          .descendant(
-              of: find.byType(KidsAvatar), matching: find.byType(Container))
-          .first);
-      final decoration = container.decoration as BoxDecoration;
-      expect(decoration.border, isNotNull);
-      expect((decoration.border as Border).top.color,
-          kidsFrameColor('golden_frame'));
+      // Each frame paints, at the biggest size (the profile picker) and the
+      // smallest (the desktop nav), without throwing.
+      for (final id in [
+        'silver_frame',
+        'starlight_frame',
+        'glow_frame',
+        'aurora_frame',
+      ]) {
+        for (final size in [17.0, 44.0, 64.0]) {
+          profile.frame = id;
+          await tester.pumpWidget(SettingsScope(
+            settings: AppSettings(),
+            child: MaterialApp(home: KidsAvatar(profile: profile, size: size)),
+          ));
+          expect(
+              find.descendant(
+                  of: find.byType(KidsAvatar),
+                  matching: find.byType(CustomPaint)),
+              findsOneWidget,
+              reason: '$id at $size');
+          expect(tester.takeException(), isNull, reason: '$id at $size');
+        }
+      }
+    });
+
+    testWidgets('the four frames are four different kinds, not four colours',
+        (tester) async {
+      await boot(tester);
+      final kinds = {
+        for (final id in [
+          'silver_frame',
+          'starlight_frame',
+          'glow_frame',
+          'aurora_frame',
+        ])
+          kidsFrameKind(id)
+      };
+      expect(kinds.length, 4);
+      expect(kinds.contains(null), isFalse);
+    });
+
+    testWidgets('a retired frame id renders as its successor', (tester) async {
+      await boot(tester);
+      expect(kidsFrameKind('golden_frame'), kidsFrameKind('starlight_frame'));
+      expect(kidsFrameKind('emerald_frame'), kidsFrameKind('aurora_frame'));
+      expect(kidsFrameKind(''), isNull);
+      expect(kidsFrameKind('no_such_frame'), isNull);
     });
 
     testWidgets('a bought theme changes what kidsPal resolves to',
@@ -202,10 +312,10 @@ void main() {
       final a = ProgressStore(profileId: 'p_iso_a');
       final b = ProgressStore(profileId: 'p_iso_b');
       a.awardGems(100);
-      a.buyShopItem('golden_frame', 100);
+      a.buyShopItem('starlight_frame', 100);
 
-      expect(a.shopOwned.contains('golden_frame'), isTrue);
-      expect(b.shopOwned.contains('golden_frame'), isFalse);
+      expect(a.shopOwned.contains('starlight_frame'), isTrue);
+      expect(b.shopOwned.contains('starlight_frame'), isFalse);
       expect(b.gems, 0);
     });
 
@@ -213,7 +323,7 @@ void main() {
       final a = KidsProfile(id: 'a', name: 'Sara');
       final b = KidsProfile(id: 'b', name: 'Yusuf');
 
-      a.frame = 'golden_frame';
+      a.frame = 'starlight_frame';
       expect(b.frame, isEmpty);
       a.theme = 'kids_ocean';
       expect(b.theme, 'kids');
@@ -226,10 +336,10 @@ void main() {
           id: 'p1',
           name: 'Sara',
           theme: 'kids_desert',
-          frame: 'golden_frame');
+          frame: 'starlight_frame');
       final restored = KidsProfile.fromJson(p.toJson());
       expect(restored.theme, 'kids_desert');
-      expect(restored.frame, 'golden_frame');
+      expect(restored.frame, 'starlight_frame');
     });
 
     test('a profile saved with the retired hat key still loads', () {
@@ -239,11 +349,51 @@ void main() {
         'avatar': '🦊',
         'gender': '',
         'theme': 'kids',
-        'frame': 'golden_frame',
+        'frame': 'starlight_frame',
         'hat': 'falcon_hat',
       });
-      expect(restored.frame, 'golden_frame');
+      expect(restored.frame, 'starlight_frame');
       expect(restored.toJson().containsKey('hat'), isFalse);
+    });
+
+    test('a profile saved with a retired frame loads as its successor', () {
+      for (final (old, now) in [
+        ('golden_frame', 'starlight_frame'),
+        ('emerald_frame', 'aurora_frame'),
+      ]) {
+        final restored = KidsProfile.fromJson(
+            {'id': 'p1', 'name': 'Sara', 'frame': old});
+        expect(restored.frame, now, reason: old);
+        // And it is a frame the shop can still draw, so the child keeps a
+        // visible ring for what they paid.
+        expect(kidsFrameKind(restored.frame), isNotNull);
+      }
+    });
+
+    test('the remembered avatar round-trips', () {
+      final p = KidsProfile(
+          id: 'p1', name: 'Sara', avatar: '🐋', baseAvatar: '🦁');
+      final restored = KidsProfile.fromJson(p.toJson());
+      expect(restored.baseAvatar, '🦁');
+      expect(restored.avatar, '🐋');
+    });
+
+    test('owned retired frames are migrated when the store loads', () async {
+      SharedPreferences.setMockInitialValues({
+        'noor.kidsxp.v1.p_legacy': jsonEncode({
+          'xp': 10,
+          'gems': 5,
+          'badges': <String>[],
+          'shop': ['golden_frame', 'emerald_frame', 'kids_ocean'],
+        }),
+      });
+      final prog = ProgressStore(profileId: 'p_legacy');
+      await prog.load();
+      expect(prog.shopOwned,
+          containsAll(['starlight_frame', 'aurora_frame', 'kids_ocean']));
+      expect(prog.shopOwned.contains('golden_frame'), isFalse);
+      expect(prog.shopOwned.contains('emerald_frame'), isFalse);
+      SharedPreferences.setMockInitialValues({});
     });
 
     test('an old profile blob with no equip fields defaults safely', () {
@@ -329,6 +479,107 @@ void main() {
       expect(notifications, before,
           reason: 'acknowledging is bookkeeping, not a state change other '
               'widgets should react to');
+    });
+  });
+
+  group('Rewards shop row', () {
+    // Pumps the Rewards tab with [owned] in the store and [equip] applied to
+    // the profile, on a tall window so the whole shop is built.
+    Future<(AppSettings, KidsProfile, ProgressStore)> open(
+        WidgetTester tester,
+        {required List<String> owned,
+        void Function(KidsProfile)? equip}) async {
+      useReducedMotion(tester);
+      tester.view.physicalSize = const Size(480, 3200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      SharedPreferences.setMockInitialValues({});
+      final settings = AppSettings();
+      await settings.load();
+      settings.kidsMode = true;
+      settings.desktopMode = 'off';
+      final profile = KidsProfile(id: 'p1', name: 'Sara');
+      settings.addKidsProfile(profile);
+      equip?.call(profile);
+      final prog = ProgressStore(profileId: 'p1');
+      await prog.load();
+      prog.awardGems(2000);
+      for (final id in owned) {
+        prog.buyShopItem(id, 1);
+      }
+      await tester.pumpWidget(SettingsScope(
+        settings: settings,
+        child: ProgressScope(
+          progress: prog,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+            home: const Scaffold(body: KidsRewardsScreen()),
+          ),
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 100));
+      return (settings, profile, prog);
+    }
+
+    // Themes are a grid of painted tiles now (the design's theme shop). Taking a
+    // theme off is the same logic as ever — `kidsUnequipItem`, back to the
+    // original palette — reached by tapping the Classic tile.
+    testWidgets('a worn theme can be taken off from the Classic tile, and put '
+        'back on', (tester) async {
+      final (_, profile, _) = await open(tester,
+          owned: ['kids_ocean'], equip: (p) => p.theme = 'kids_ocean');
+      final classic = find.byKey(const ValueKey('kidsThemeTile.kids'));
+      final ocean = find.byKey(const ValueKey('kidsThemeTile.kids_ocean'));
+      expect(find.descendant(of: ocean, matching: find.text('In use')),
+          findsOneWidget);
+
+      await tester.ensureVisible(classic);
+      await tester.tap(classic);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(profile.theme, kKidsDefaultTheme);
+      expect(find.descendant(of: classic, matching: find.text('In use')),
+          findsOneWidget);
+      // ...and it can be put back on: owned, so no price, just "Use".
+      expect(find.descendant(of: ocean, matching: find.text('Use')),
+          findsOneWidget);
+      await tester.ensureVisible(ocean);
+      await tester.tap(ocean);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(profile.theme, 'kids_ocean');
+    });
+
+    testWidgets('a worn frame offers "Take off", and it works', (tester) async {
+      final (_, profile, _) = await open(tester,
+          owned: ['starlight_frame'],
+          equip: (p) => p.frame = 'starlight_frame');
+      expect(find.text('Take off'), findsOneWidget);
+
+      await tester.tap(find.text('Take off'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(profile.frame, isEmpty);
+    });
+
+    testWidgets('a worn avatar unlock gives the original avatar back',
+        (tester) async {
+      final (_, profile, _) = await open(tester,
+          owned: ['whale_avatar'], equip: (p) {
+        p.avatar = '🦁';
+        kidsEquipItem(
+            KidsShopItem(
+                id: 'whale_avatar',
+                emoji: '🐋',
+                cost: 1,
+                shelf: KidsShopShelf.looks,
+                title: (_) => ''),
+            p);
+      });
+      expect(profile.avatar, '🐋');
+      await tester.tap(find.text('Use original'));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(profile.avatar, '🦁');
     });
   });
 

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../core/settings.dart';
-import '../../core/theme.dart';
 import '../../data/kids_content.dart';
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_profile_picker.dart';
 
 /// The three-stage gate every Kids Mode shell (mobile bottom-nav, desktop
@@ -111,8 +112,8 @@ class _ProfileLoaderState extends State<_ProfileLoader> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: kidsPal(context).bg,
+        backgroundColor: kbPageBg(kbUi(context)),
         body: Center(
-            child: CircularProgressIndicator(color: kidsPal(context).accent)),
+            child: CircularProgressIndicator(color: kbC(kbUi(context).accent))),
       );
 }

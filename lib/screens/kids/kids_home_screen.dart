@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 
-import '../../core/geometry.dart';
 import '../../core/l10n.dart';
 import '../../core/responsive.dart';
 import '../../core/settings.dart';
-import '../../core/theme.dart';
 import '../../data/kids_content.dart';
-import '../../widgets/common.dart';
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kWhite, kbC;
+import '../../kids_backdrops/kb_screens.dart' show KbPage;
+import '../../kids_backdrops/kb_widgets.dart';
 import 'kids_checkpoint_quiz.dart' show kidsWarmUpQuiz;
 import 'kids_desktop_nav.dart';
 import 'kids_build_word.dart';
 import 'kids_find_in_ayah.dart';
+import 'kids_game_bingo.dart';
+import 'kids_game_memory_match.dart';
+import 'kids_game_three_in_a_row.dart';
 import 'kids_listen_and_pick.dart';
 import 'kids_memorise.dart';
 import 'kids_mouth_map.dart';
@@ -29,9 +34,12 @@ const _pathWindow = 6;
 /// this many nodes tall.
 const _trailVisibleRows = 5;
 
-/// Height of one row of the vertical trail. Load-bearing — [_ScrollingTrail]
-/// scrolls in multiples of it to bring the current node into view.
-const _trailRowHeight = 82.0;
+/// One row of the vertical trail: the design's 68 px node under a 6 px gap.
+/// The current node is taller (84 px, with its "Start" tag above) and gets
+/// [_trailCurrentRowHeight]. Load-bearing — [_ScrollingTrail] scrolls by these
+/// to bring the current node into view.
+const _trailRowHeight = 74.0;
+const _trailCurrentRowHeight = 126.0;
 
 /// The Home tab, laid out to the Kids Mode design: greeting + streak pill,
 /// a filled coral daily-goal card, a "keep going" resume card, the letter
@@ -50,7 +58,6 @@ class KidsHomeScreen extends StatelessWidget {
     if (useDesktop(context)) return _desktopBuild(context);
     final s = SettingsScope.of(context);
     final prog = ProgressScope.of(context);
-    final p = kidsPal(context);
     final profile = s.activeKidsProfile!;
     // The trail follows the stage the child is actually up to, not a flat
     // list of 28 letters — see kids_path.dart.
@@ -60,53 +67,47 @@ class KidsHomeScreen extends StatelessWidget {
     final allDone = doneCount >= items.length;
     final currentItem = items[allDone ? items.length - 1 : doneCount];
 
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(
-            Geo.gapLg, Geo.gapMd, Geo.gapLg, Geo.gapXl),
-        children: [
-          _Header(
-              name: profile.name,
-              streakDays: prog.streakDays,
-              streakFreezes: prog.streakFreezes),
-          _FreezeBanner(prog: prog),
-          const SizedBox(height: Geo.gapLg),
-          _DailyGoalCard(done: prog.todayActivityCount),
-          const SizedBox(height: Geo.gapLg),
-          KidsSectionHeader(title: context.l10n.kidsKeepGoing),
-          const SizedBox(height: Geo.gapSm),
-          _ResumeCard(
-            item: currentItem,
-            fraction: items.isEmpty ? 0 : doneCount / items.length,
-            allDone: allDone,
-          ),
-          const SizedBox(height: Geo.gapLg),
-          KidsSectionHeader(
-            title: block.title(context),
-            arabic: block.badge,
-          ),
-          const SizedBox(height: Geo.gapSm),
-          _LetterTrail(
-              items: items,
-              doneCount: doneCount,
-              axis: Axis.vertical,
-              unlocked: prog.unlockAll),
-          Center(
-            child: TextButton(
-              onPressed: onGoLearn,
-              child: Text(context.l10n.kidsSeeWholePath,
-                  style: kidsStyle(context,
-                      size: 13, weight: FontWeight.w700, color: p.accent)),
-            ),
-          ),
-          const SizedBox(height: Geo.gapSm),
-          KidsSectionHeader(title: context.l10n.kidsPractice),
-          const SizedBox(height: Geo.gapSm),
-          _WarmUpBanner(prog: prog),
-          _PracticeRows(cards: _practiceCards(context, prog)),
-        ],
+    final ui = kbUi(context);
+    // The design's Home (kb_screens.dart `KbHomeScreen`): headings on the sky,
+    // everything else on solid cards, the same order and gaps — with the app's
+    // own greeting, daily goal and practice shortcuts in their places.
+    return KbPage(cross: CrossAxisAlignment.stretch, children: [
+      _Header(
+          name: profile.name,
+          streakDays: prog.streakDays,
+          streakFreezes: prog.streakFreezes),
+      _FreezeBanner(prog: prog),
+      const SizedBox(height: 18),
+      _DailyGoalCard(done: prog.todayActivityCount),
+      _GentleStopBanner(done: prog.todayActivityCount),
+      const SizedBox(height: 30),
+      Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: KbHeading(context.l10n.kidsKeepGoing, ui: ui, fontSize: 25)),
+      const SizedBox(height: 14),
+      _ResumeCard(
+        item: currentItem,
+        fraction: items.isEmpty ? 0 : doneCount / items.length,
+        allDone: allDone,
       ),
-    );
+      const SizedBox(height: 30),
+      _StageHeading(title: block.title(context), arabic: block.badge),
+      const SizedBox(height: 14),
+      _LetterTrail(
+          items: items,
+          doneCount: doneCount,
+          axis: Axis.vertical,
+          unlocked: prog.unlockAll),
+      const SizedBox(height: 22),
+      Center(child: KbPill(context.l10n.kidsSeeWholePath, ui: ui, onTap: onGoLearn)),
+      const SizedBox(height: 28),
+      Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: KbHeading(context.l10n.kidsPractice, ui: ui, fontSize: 25)),
+      const SizedBox(height: 14),
+      _WarmUpBanner(prog: prog),
+      _PracticeRows(cards: _practiceCards(context, prog)),
+    ]);
   }
 
   Widget _desktopBuild(BuildContext context) {
@@ -127,27 +128,28 @@ class KidsHomeScreen extends StatelessWidget {
           done: prog.todayActivityCount,
           onContinue: () => openKidsItem(context, currentItem),
         ),
-        const SizedBox(height: Geo.gapLg),
-        KidsSectionHeader(
-          title: block.title(context),
-          arabic: block.badge,
-        ),
-        const SizedBox(height: Geo.gapSm),
-        Container(
-          padding: const EdgeInsets.all(Geo.gapLg),
-          decoration: kidsPanel(context, radius: Geo.radiusXl),
-          child: _LetterTrail(
-              items: items,
-              doneCount: doneCount,
-              axis: Axis.horizontal,
-              unlocked: prog.unlockAll),
-        ),
-        const SizedBox(height: Geo.gapLg),
-        KidsSectionHeader(
-          title: context.l10n.kidsPractice,
-          arabic: context.l10n.kidsPracticeArabic,
-        ),
-        const SizedBox(height: Geo.gapSm),
+        _GentleStopBanner(done: prog.todayActivityCount),
+        const SizedBox(height: 30),
+        _StageHeading(title: block.title(context), arabic: block.badge),
+        const SizedBox(height: 14),
+        Builder(builder: (context) {
+          final ui = kbUi(context);
+          return KbSurface(
+            color: ui.surface,
+            edge: ui.edge,
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+            child: _LetterTrail(
+                items: items,
+                doneCount: doneCount,
+                axis: Axis.horizontal,
+                unlocked: prog.unlockAll),
+          );
+        }),
+        const SizedBox(height: 28),
+        _StageHeading(
+            title: context.l10n.kidsPractice,
+            arabic: context.l10n.kidsPracticeArabic),
+        const SizedBox(height: 14),
         _WarmUpBanner(prog: prog),
         _PracticeRows(cards: _practiceCards(context, prog)),
       ],
@@ -157,9 +159,9 @@ class KidsHomeScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _ProfileRailCard(profile: profile, prog: prog),
-        const SizedBox(height: Geo.gapMd),
+        const SizedBox(height: 18),
         _RankRailCard(onViewAll: onGoRank),
-        const SizedBox(height: Geo.gapMd),
+        const SizedBox(height: 18),
         _BadgesRailCard(onViewAll: onGoRewards),
       ],
     );
@@ -172,7 +174,7 @@ class KidsHomeScreen extends StatelessWidget {
           if (narrow)
             Column(children: [
               left,
-              const SizedBox(height: Geo.gapLg),
+              const SizedBox(height: 28),
               right,
             ])
           else
@@ -180,7 +182,7 @@ class KidsHomeScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(child: left),
-                const SizedBox(width: Geo.gapLg),
+                const SizedBox(width: 28),
                 SizedBox(width: 300, child: right),
               ],
             ),
@@ -190,7 +192,9 @@ class KidsHomeScreen extends StatelessWidget {
   }
 }
 
-/// "Marhaba 👋 / Hello, {name}!" with the streak pill opposite it.
+/// "Marhaba 👋 / Hello, {name}!" with the streak pill opposite it: a subtitle
+/// and a page heading on the sky, the streak as a solid pill (the gem
+/// counter's shape).
 class _Header extends StatelessWidget {
   final String name;
   final int streakDays;
@@ -202,7 +206,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -210,54 +214,72 @@ class _Header extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(context.l10n.kidsMarhaba,
-                  style: kidsStyle(context,
-                      size: 12.5, weight: FontWeight.w600, color: p.textDim)),
-              const SizedBox(height: 2),
-              Text(context.l10n.kidsHelloName(name),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style:
-                      kidsStyle(context, size: 22, weight: FontWeight.w800)),
+              KbSubtitle(context.l10n.kidsMarhaba, ui: ui, fontSize: 18),
+              KbHeading(context.l10n.kidsHelloName(name), ui: ui, fontSize: 30),
             ],
           ),
         ),
-        const SizedBox(width: Geo.gapSm),
+        const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(5, 5, 12, 5),
-              decoration: BoxDecoration(
-                color: p.amber.withValues(alpha: .18),
-                borderRadius: BorderRadius.circular(Geo.radiusPill),
-              ),
+            KbSurface(
+              color: ui.surface,
+              edge: ui.edge,
+              elev: KbElev.edge4,
+              radius: 999,
+              padding: const EdgeInsets.fromLTRB(10, 6, 14, 4),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Container(
-                  width: 21,
-                  height: 21,
-                  decoration:
-                      BoxDecoration(shape: BoxShape.circle, color: p.amber),
-                  child: const Icon(Icons.local_fire_department_rounded,
-                      size: 13, color: Colors.white),
-                ),
-                const SizedBox(width: 7),
+                KbIcon('local_fire_department', size: 22, color: kbC(ui.accent)),
+                const SizedBox(width: 4),
                 Text(context.l10n.streakDaysCount(streakDays),
-                    style: kidsStyle(context,
-                        size: 12.5, weight: FontWeight.w800)),
+                    style: kbText(18, kbC(ui.ink))),
               ]),
             ),
             // A bought streak freeze is otherwise a silent mechanic — this
             // is the one place a family sees it is there at all, and how
             // many are left, before it is ever spent.
             if (streakFreezes > 0) ...[
-              const SizedBox(height: 4),
-              Text(context.l10n.kidsFreezesCount(streakFreezes),
-                  style: kidsStyle(context,
-                      size: 11, weight: FontWeight.w700, color: p.accent2)),
+              const SizedBox(height: 8),
+              KbSubtitle(context.l10n.kidsFreezesCount(streakFreezes),
+                  ui: ui, fontSize: 15),
             ],
           ],
         ),
+      ],
+    );
+  }
+}
+
+/// A stage or section heading with its Arabic name opposite it. The Arabic
+/// sits on a small tile, never on the sky — UI_SPEC §1.6: letters always sit
+/// on a tile.
+class _StageHeading extends StatelessWidget {
+  final String title;
+  final String arabic;
+  const _StageHeading({required this.title, this.arabic = ''});
+
+  @override
+  Widget build(BuildContext context) {
+    final ui = kbUi(context);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Flexible(child: KbHeading(title, ui: ui, fontSize: 25)),
+        if (arabic.isNotEmpty) ...[
+          const SizedBox(width: 12),
+          KbSurface(
+            color: ui.tile,
+            edge: ui.edge,
+            elev: KbElev.edge3,
+            radius: 14,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(arabic,
+                textDirection: TextDirection.rtl,
+                style: kbText(22, kbC(ui.tileInk),
+                    family: kbFontArabic, weight: FontWeight.w600, height: 1.6)),
+          ),
+        ],
       ],
     );
   }
@@ -315,31 +337,34 @@ class _FreezeBannerState extends State<_FreezeBanner> {
   @override
   Widget build(BuildContext context) {
     if (!_show) return const SizedBox.shrink();
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     return Padding(
-      padding: const EdgeInsets.only(top: Geo.gapSm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: p.accent2.withValues(alpha: .15),
-          borderRadius: BorderRadius.circular(Geo.radiusPill),
+      padding: const EdgeInsets.only(top: 12),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: KbSurface(
+          color: ui.surface,
+          edge: ui.edge,
+          elev: KbElev.edge4,
+          radius: 999,
+          padding: const EdgeInsets.fromLTRB(14, 7, 18, 5),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Text('🧊', style: TextStyle(fontSize: 16)),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(context.l10n.kidsStreakSaved,
+                  style: kbText(17, kbC(ui.ink))),
+            ),
+          ]),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Text('🧊', style: TextStyle(fontSize: 15)),
-          const SizedBox(width: 6),
-          Text(context.l10n.kidsStreakSaved,
-              style: kidsStyle(context,
-                  size: 12.5, weight: FontWeight.w700, color: p.accent2)),
-        ]),
       ),
     );
   }
 }
 
-/// The filled coral daily-goal panel — a white ring on the accent, per the
-/// design (the same [KidsGoalRing], recoloured for a dark ground). On
-/// desktop the design adds an explicit "Continue" button; mobile keeps the
-/// separate [_ResumeCard] below it for that action instead.
+/// The daily goal: a solid card with the goal ring — accent on the track, the
+/// kit's progress colours. On desktop the design adds an explicit "Continue"
+/// button; mobile keeps the separate [_ResumeCard] below it for that action.
 class _DailyGoalCard extends StatelessWidget {
   final int done;
   final VoidCallback? onContinue;
@@ -347,86 +372,102 @@ class _DailyGoalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final capped = done.clamp(0, kidsDailyGoal);
     final left = kidsDailyGoal - capped;
-    return Container(
-      padding: const EdgeInsets.all(Geo.gapLg),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-            colors: [p.accent, p.accentBright],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(Geo.radiusXl),
-        boxShadow: [
-          BoxShadow(
-              color: p.accent.withValues(alpha: .30),
-              blurRadius: 18,
-              offset: const Offset(0, 8)),
-        ],
-      ),
+    return KbSurface(
+      color: ui.surface,
+      edge: ui.edge,
+      elev: KbElev.card,
+      padding: const EdgeInsets.all(16),
       child: Row(children: [
         KidsGoalRing(
           fraction: done / kidsDailyGoal,
           size: 68,
-          strokeWidth: 6,
-          color: Colors.white,
-          trackColor: Colors.white.withValues(alpha: .28),
+          strokeWidth: 7,
+          color: kbC(ui.accent),
+          trackColor: kbC(ui.track),
           center: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text('$capped',
-                style: kidsStyle(context,
-                    size: 20, weight: FontWeight.w800, color: Colors.white)),
+            Text('$capped', style: kbText(22, kbC(ui.ink), height: 1)),
             Text('/$kidsDailyGoal',
-                style: kidsStyle(context,
-                    size: 11,
-                    weight: FontWeight.w700,
-                    color: Colors.white.withValues(alpha: .8))),
+                style: kbText(13, kbC(ui.inkSoft),
+                    weight: FontWeight.w700, height: 1)),
           ]),
         ),
-        const SizedBox(width: Geo.gapMd),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(context.l10n.kidsDailyGoalTitle,
-                  style: kidsStyle(context,
-                      size: 17, weight: FontWeight.w800, color: Colors.white)),
-              const SizedBox(height: 5),
+                  style: kbText(21, kbC(ui.ink), height: 1.1)),
+              const SizedBox(height: 4),
               Text(
                   left == 0
                       ? context.l10n.kidsGoalComplete
                       : context.l10n.kidsGoalRemaining(left),
-                  style: kidsStyle(context,
-                      size: 12.5,
-                      color: Colors.white.withValues(alpha: .92))),
+                  style: kbText(16, kbC(ui.inkSoft),
+                      weight: FontWeight.w600, height: 1.35)),
             ],
           ),
         ),
         if (onContinue != null) ...[
-          const SizedBox(width: Geo.gapMd),
-          TapScale(
-            onTap: onContinue!,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(Geo.radiusMd),
-              ),
-              child: Text(context.l10n.continueLabel,
-                  style: kidsStyle(context,
-                      size: 14.5, weight: FontWeight.w800, color: p.accent)),
-            ),
-          ),
+          const SizedBox(width: 14),
+          KbPill(context.l10n.continueLabel,
+              ui: ui, kind: KbPillKind.deep, onTap: onContinue),
         ],
       ]),
     );
   }
 }
 
-/// The "keep going" resume card: the letter in a teal-tinted swatch, its
-/// name, the path progress bar, and a coral go button. Mobile-only — the
-/// desktop layout folds this action into the goal card's "Continue" button.
+/// Shown once today's goal is met: a calm, non-blocking suggestion that this
+/// is a fine place to stop — everything below stays fully open, nothing is
+/// locked, and there is no streak-anxiety framing. The direct answer to the
+/// "hard to put down without crying" complaint the v4 research turned up:
+/// where other apps use the goal as a launchpad into "just one more", this
+/// one uses it to say "you're done, and that's good".
+class _GentleStopBanner extends StatelessWidget {
+  final int done;
+  const _GentleStopBanner({required this.done});
+
+  @override
+  Widget build(BuildContext context) {
+    if (done < kidsDailyGoal) return const SizedBox.shrink();
+    final ui = kbUi(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: KbSurface(
+        color: ui.surface,
+        edge: ui.edge,
+        elev: KbElev.card,
+        radius: 22,
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+        child: Row(children: [
+          const Text('🌙', style: TextStyle(fontSize: 26)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(context.l10n.kidsGentleStopTitle,
+                    style: kbText(18, kbC(ui.ink), height: 1.15)),
+                Text(context.l10n.kidsGentleStopSub,
+                    style: kbText(15, kbC(ui.inkSoft),
+                        weight: FontWeight.w600, height: 1.35)),
+              ],
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// The "keep going" resume card — the design's Home "Next" card: the item in a
+/// glyph tile, its name, the path progress bar and the accent go button.
+/// Mobile-only — the desktop layout folds this action into the goal card's
+/// "Continue" button.
 class _ResumeCard extends StatelessWidget {
   final KidsItem item;
   final double fraction;
@@ -436,73 +477,20 @@ class _ResumeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    return TapScale(
-      onTap: () => openKidsItem(context, item),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: kidsCard(context),
-        child: Row(children: [
-          Container(
-            width: 54,
-            height: 54,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: p.accent2.withValues(alpha: .14),
-              borderRadius: BorderRadius.circular(Geo.radiusMd),
-            ),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: item.glyph.isEmpty
-                  ? Icon(item.icon, size: 26, color: p.accent2)
-                  : Text(item.glyph,
-                      textDirection: TextDirection.rtl,
-                      style: quranicStyle(context,
-                          size: 28, height: 1.05, color: p.accent2)),
-            ),
-          ),
-          const SizedBox(width: Geo.gapMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                    // Stage-neutral: a stage's items are letters, quizzes,
-                    // lesson pages or a reading, so "Letter Test" and "You
-                    // finished the alphabet!" were both wrong here.
-                    allDone
-                        ? context.l10n.kidsStageDone
-                        : context.l10n.kidsNextUp(item.label(context)),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: kidsStyle(context,
-                        size: 14.5, weight: FontWeight.w800)),
-                const SizedBox(height: 9),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(Geo.radiusPill),
-                  child: LinearProgressIndicator(
-                    value: fraction.clamp(0, 1),
-                    minHeight: 7,
-                    backgroundColor: p.surfaceHigh,
-                    valueColor: AlwaysStoppedAnimation(p.accent2),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: Geo.gapMd),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: p.accent),
-            child: Icon(
-                rtl ? Icons.arrow_back_rounded : Icons.arrow_forward_rounded,
-                size: 21,
-                color: Colors.white),
-          ),
-        ]),
-      ),
+    return KbNextCard(
+      ui: kbUi(context),
+      glyph: item.glyph,
+      icon: item.glyph.isEmpty ? kbIconName(item.icon) : null,
+      // Stage-neutral: a stage's items are letters, quizzes, lesson pages or
+      // a reading, so "Letter Test" and "You finished the alphabet!" were
+      // both wrong here.
+      title: allDone
+          ? context.l10n.kidsStageDone
+          : context.l10n.kidsNextUp(item.label(context)),
+      progress: fraction,
+      goIcon: rtl ? 'arrow_back' : 'arrow_forward',
+      onGo: () => openKidsItem(context, item),
     );
   }
 }
@@ -539,31 +527,38 @@ class _LetterTrail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
 
     if (axis == Axis.horizontal) {
-      // Desktop keeps a fixed window: the trail is one row inside a bordered
-      // card, and the whole stage sits beside it on the Learn tab anyway.
-      // Start a step behind where the child is, so a cleared node stays in
-      // view, and never run past the end of the stage.
+      // Desktop keeps a fixed window: the trail is one row inside a card, and
+      // the whole stage sits beside it on the Learn tab anyway. Start a step
+      // behind where the child is, so a cleared node stays in view, and never
+      // run past the end of the stage.
       final start = (doneCount - 1)
           .clamp(0, (items.length - _pathWindow).clamp(0, items.length));
       final end = (start + _pathWindow).clamp(0, items.length);
-      return SizedBox(
-        height: 68,
+      // The design's nodes at their own size, spread across the card — and
+      // the whole row scaled down, rather than overflowing, in a card too
+      // narrow for them.
+      final natural = (end - start) * (68.0 + 12) + 16;
+      return LayoutBuilder(builder: (context, c) {
+        final row = SizedBox(
+        width: c.maxWidth < natural ? natural : c.maxWidth,
+        height: _trailCurrentRowHeight,
         child: Stack(
-          alignment: Alignment.center,
+          alignment: Alignment.bottomCenter,
           children: [
-            Positioned.fill(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 30),
-                child: CustomPaint(
-                    painter:
-                        _DashedSpinePainter(kidsLockedFill(p), Axis.horizontal)),
-              ),
+            Positioned(
+              left: 30,
+              right: 30,
+              bottom: 34 - 2.5,
+              height: 5,
+              child: CustomPaint(
+                  painter: _TrailLinePainter(ui.pathLine, Axis.horizontal)),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 for (var i = start; i < end; i++)
                   _TrailNode(item: items[i], state: _stateAt(i)),
@@ -571,31 +566,48 @@ class _LetterTrail extends StatelessWidget {
             ),
           ],
         ),
-      );
+        );
+        return c.maxWidth < natural
+            ? FittedBox(fit: BoxFit.scaleDown, child: row)
+            : row;
+      });
     }
 
-    // Mobile holds the *whole* stage and scrolls within itself.
+    // Mobile holds the *whole* stage and scrolls within itself. The design's
+    // zig-zag (kb_components.dart `KbLessonPath`): nodes alternate sides
+    // inside 34 px of padding, over a dashed line down the middle.
     return _ScrollingTrail(
       length: items.length,
       current: doneCount,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _DashedSpinePainter(kidsLockedFill(p), Axis.vertical),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 34),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              top: 30,
+              bottom: 30,
+              child: CustomPaint(
+                painter: _TrailLinePainter(ui.pathLine, Axis.vertical),
+              ),
             ),
-          ),
-          Column(
-            children: [
-              for (var i = 0; i < items.length; i++)
-                _TrailRowAlign(
-                  node: _TrailNode(item: items[i], state: _stateAt(i)),
-                  // Alternate sides so the trail keeps its zig-zag rhythm.
-                  alignment: i.isEven ? -0.55 : 0.55,
-                ),
-            ],
-          ),
-        ],
+            Column(
+              children: [
+                for (var i = 0; i < items.length; i++)
+                  SizedBox(
+                    height: i == doneCount
+                        ? _trailCurrentRowHeight
+                        : _trailRowHeight,
+                    child: Align(
+                      alignment: i.isEven
+                          ? AlignmentDirectional.bottomStart
+                          : AlignmentDirectional.bottomEnd,
+                      child: _TrailNode(item: items[i], state: _stateAt(i)),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -627,15 +639,24 @@ class _ScrollingTrailState extends State<_ScrollingTrail> {
   late final ScrollController _c =
       ScrollController(initialScrollOffset: _offsetFor(widget.current));
 
-  double get _height =>
-      widget.length.clamp(1, _trailVisibleRows) * _trailRowHeight;
+  /// Every row is [_trailRowHeight] except the current one's.
+  bool get _hasCurrent => widget.current < widget.length;
+
+  double get _contentHeight =>
+      widget.length * _trailRowHeight +
+      (_hasCurrent ? _trailCurrentRowHeight - _trailRowHeight : 0);
+
+  double get _height => _scrolls
+      ? (_trailVisibleRows - 1) * _trailRowHeight + _trailCurrentRowHeight
+      : _contentHeight;
 
   bool get _scrolls => widget.length > _trailVisibleRows;
 
   /// Puts node [i] one row down from the top, so the step just cleared is
   /// still visible above it.
   double _offsetFor(int i) {
-    final max = (widget.length * _trailRowHeight - _height).clamp(0.0, 1e6);
+    final max = (_contentHeight - _height).clamp(0.0, 1e6);
+    // Rows above the current one are all the standard height.
     return ((i - 1) * _trailRowHeight).clamp(0.0, max);
   }
 
@@ -673,33 +694,77 @@ class _ScrollingTrailState extends State<_ScrollingTrail> {
     super.dispose();
   }
 
-  /// A short wash of the page colour at the cut edges, so the trail reads as
-  /// a window on to something longer instead of a list that stops there.
-  /// Keyed so a test can tell it apart from the true edge of the stage — see
-  /// the caller: it must only appear on a side that actually hides content.
-  Widget _fade(Color bg, {required bool top}) => Positioned(
+  /// The trail itself fades out over the last 22 px at a cut edge, so it reads
+  /// as a window on to something longer instead of a list that stops there.
+  /// A mask, not a wash of colour: the scene shows through it.
+  ///
+  /// One mask, always there, whose gradient changes — never a mask that comes
+  /// and goes around the scroll view, which would move the scroll view in the
+  /// tree, rebuild its scroll position and cancel a drag in progress.
+  static Shader _mask(Rect r, {required bool top, required bool bottom}) {
+    final edge = (22 / r.height).clamp(0.0, .5);
+    final clear = kbC(kWhite, 0), solid = kbC(kWhite);
+    return LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      stops: [0, edge, 1 - edge, 1],
+      colors: [top ? clear : solid, solid, solid, bottom ? clear : solid],
+    ).createShader(r);
+  }
+
+  /// The band a fade covers. Keyed so a test can tell it apart from the true
+  /// edge of the stage — see the caller: it must only appear on a side that
+  /// actually hides content.
+  Widget _fadeBand({required bool top}) => Positioned(
         key: ValueKey(top ? 'kids.trail.fadeTop' : 'kids.trail.fadeBottom'),
         top: top ? 0 : null,
         bottom: top ? null : 0,
         left: 0,
         right: 0,
         height: 22,
-        child: IgnorePointer(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: top ? Alignment.topCenter : Alignment.bottomCenter,
-                end: top ? Alignment.bottomCenter : Alignment.topCenter,
-                colors: [bg, bg.withValues(alpha: 0)],
-              ),
-            ),
-          ),
-        ),
+        child: const IgnorePointer(child: SizedBox.expand()),
       );
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final scroller = NotificationListener<OverscrollNotification>(
+        // Hands the leftover drag to the Home list underneath. Without
+        // this the trail is a dead end: a finger that scrolls to the
+        // stage's last node just stops, and the child has to lift off
+        // and start a new drag in the page margin to reach the practice
+        // tiles below — which is not discoverable and reads as the
+        // scroll being broken.
+        //
+        // ClampingScrollPhysics (above) is what makes this possible:
+        // unlike BouncingScrollPhysics, which absorbs the excess into a
+        // stretch, it reports whatever it could not consume as an
+        // OverscrollNotification — during a drag AND during a fling, so
+        // momentum carries through too. Forwarding the delta by hand
+        // also sidesteps the gesture arena entirely: the inner
+        // scrollable keeps the gesture from first touch to last, so
+        // there is never a contest for the outer list to win.
+        //
+        // It works in both directions — overscroll at the top is
+        // negative, so dragging down on a top-parked trail scrolls the
+        // page back up.
+        onNotification: (n) {
+          if (n.depth != 0) return false; // our own scroll view only
+          // Resolved from THIS context, which sits above the
+          // SingleChildScrollView below — so it finds the Home
+          // page scroll, not the trail itself.
+          final outer = Scrollable.maybeOf(context)?.position;
+          if (outer == null || !outer.hasContentDimensions) return false;
+          final to = (outer.pixels + n.overscroll)
+              .clamp(outer.minScrollExtent, outer.maxScrollExtent);
+          if (to != outer.pixels) outer.jumpTo(to);
+          return true;
+        },
+        child: SingleChildScrollView(
+          controller: _c,
+          physics: const ClampingScrollPhysics(),
+          child: widget.child,
+        ),
+    );
     return SizedBox(
       key: const ValueKey('kids.trail'),
       height: _height,
@@ -717,24 +782,18 @@ class _ScrollingTrailState extends State<_ScrollingTrail> {
           if (mounted) setState(() {});
           return false;
         },
-        child: Stack(
-          children: [
-            SingleChildScrollView(
-              controller: _c,
-              physics: const ClampingScrollPhysics(),
-              child: widget.child,
-            ),
-            // Reactive to the actual scroll position, not just "is this stage
-            // long enough to scroll at all": a fade painted at an edge that
-            // has nothing beyond it claims there is more to see when there
-            // isn't — which on a stage's true last node (nothing below it,
-            // and ClampingScrollPhysics gives no bounce to say so either)
-            // reads as the scroll being stuck rather than having reached the
-            // end.
-            if (_scrolls)
-              AnimatedBuilder(
+        // Reactive to the actual scroll position, not just "is this stage
+        // long enough to scroll at all": a fade at an edge that has nothing
+        // beyond it claims there is more to see when there isn't — which on
+        // a stage's true last node (nothing below it, and
+        // ClampingScrollPhysics gives no bounce to say so either) reads as
+        // the scroll being stuck rather than having reached the end.
+        child: !_scrolls
+            ? scroller
+            : AnimatedBuilder(
                 animation: _c,
-                builder: (context, _) {
+                child: scroller,
+                builder: (context, child) {
                   // hasClients alone isn't enough — the position exists
                   // before its first layout pass, and maxScrollExtent is null
                   // until hasContentDimensions is true.
@@ -745,35 +804,26 @@ class _ScrollingTrailState extends State<_ScrollingTrail> {
                   final atBottom =
                       !hasDims || _c.offset >= _c.position.maxScrollExtent;
                   return Stack(children: [
-                    if (!atTop) _fade(p.bg, top: true),
-                    if (!atBottom) _fade(p.bg, top: false),
+                    ShaderMask(
+                      blendMode: BlendMode.dstIn,
+                      shaderCallback: (r) =>
+                          _mask(r, top: !atTop, bottom: !atBottom),
+                      child: child,
+                    ),
+                    if (!atTop) _fadeBand(top: true),
+                    if (!atBottom) _fadeBand(top: false),
                   ]);
                 },
               ),
-          ],
-        ),
       ),
     );
   }
 }
 
-/// Vertical-layout wrapper: places one [_TrailNode] to either side of the
-/// dashed spine.
-class _TrailRowAlign extends StatelessWidget {
-  final Widget node;
-  final double alignment;
-  const _TrailRowAlign({required this.node, required this.alignment});
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        height: _trailRowHeight,
-        child: Align(alignment: Alignment(alignment, 0), child: node),
-      );
-}
-
-/// One trail circle: done (amber check), current (coral, the letter itself),
-/// or locked (a padlock). Shared by both the vertical (mobile) and
-/// horizontal (desktop) trail layouts.
+/// One trail circle — the design's path node (kb_components.dart
+/// `KbPathNode`): done (reward face, check badge), current (bigger, accent
+/// ring, "Start" tag), locked (lock badge) or open (plain, no badge). Shared
+/// by both the vertical (mobile) and horizontal (desktop) trail layouts.
 class _TrailNode extends StatelessWidget {
   final KidsItem item;
   final _LetterState state;
@@ -781,10 +831,8 @@ class _TrailNode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
     final locked = state == _LetterState.locked;
     final current = state == _LetterState.current;
-    final size = current ? 68.0 : 56.0;
     final name = item.label(context);
 
     return Semantics(
@@ -793,69 +841,31 @@ class _TrailNode extends StatelessWidget {
       key: ValueKey('kids.trail.${item.id}'),
       label: name,
       button: true,
-      child: TapScale(
-        onTap: () {
-          if (locked) {
-            ScaffoldMessenger.of(context)
-              ..clearSnackBars()
-              ..showSnackBar(
-                  SnackBar(content: Text(context.l10n.kidsItemLocked)));
-            return;
-          }
-          openKidsItem(context, item);
-        },
-        // The letter the child is on breathes, so the eye lands on where to
-        // go next without needing to read anything.
-        child: _MaybePulse(
-          enabled: current,
-          child: Container(
-          width: size,
-          height: size,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: switch (state) {
-              _LetterState.done => p.amber,
-              _LetterState.current => p.accent,
-              _LetterState.open => p.surfaceHigh,
-              _LetterState.locked => kidsLockedFill(p),
-            },
-            // Only a cleared or current node is lifted off the spine; an
-            // unlocked-but-unplayed one sits flat, like a locked one.
-            boxShadow: locked || state == _LetterState.open
-                ? null
-                : [
-                    BoxShadow(
-                        color: (current ? p.accent : p.amber)
-                            .withValues(alpha: .32),
-                        blurRadius: 14,
-                        offset: const Offset(0, 6)),
-                  ],
-          ),
-          child: switch (state) {
-            _LetterState.done =>
-              const Icon(Icons.check_rounded, size: 26, color: Colors.white),
-            _LetterState.locked => Icon(Icons.lock_rounded,
-                size: 20, color: p.textDim.withValues(alpha: .75)),
-            // Same glyph as the current node, in the muted fill above: it can
-            // be opened, but it is not where the child is.
-            _LetterState.open || _LetterState.current => FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: item.glyph.isEmpty
-                      ? Icon(item.icon,
-                          size: 28, color: current ? Colors.white : p.text)
-                      : Text(item.glyph,
-                          textDirection: TextDirection.rtl,
-                          style: quranicStyle(context,
-                              size: 30,
-                              height: 1.05,
-                              color: current ? Colors.white : p.text)),
-                ),
-              ),
-            },
-          ),
+      // The letter the child is on breathes, so the eye lands on where to go
+      // next without needing to read anything.
+      child: _MaybePulse(
+        enabled: current,
+        child: KbPathNode(
+          ui: kbUi(context),
+          letter: item.glyph,
+          icon: item.glyph.isEmpty ? kbIconName(item.icon) : null,
+          startLabel: context.l10n.kidsPathStart,
+          state: switch (state) {
+            _LetterState.done => KbNodeState.done,
+            _LetterState.current => KbNodeState.current,
+            _LetterState.open => KbNodeState.open,
+            _LetterState.locked => KbNodeState.locked,
+          },
+          onTap: () {
+            if (locked) {
+              ScaffoldMessenger.of(context)
+                ..clearSnackBars()
+                ..showSnackBar(
+                    SnackBar(content: Text(context.l10n.kidsItemLocked)));
+              return;
+            }
+            openKidsItem(context, item);
+          },
         ),
       ),
     );
@@ -923,36 +933,35 @@ class _MaybePulseState extends State<_MaybePulse>
   }
 }
 
-/// The dashed spine the trail nodes hang off, vertical or horizontal.
-class _DashedSpinePainter extends CustomPainter {
+/// The dashed line the trail nodes hang off: the design's 5 px dashes, 15 on
+/// and 10 off, in the palette's path colour.
+class _TrailLinePainter extends CustomPainter {
   final Color color;
   final Axis axis;
-  _DashedSpinePainter(this.color, this.axis);
+  _TrailLinePainter(this.color, this.axis);
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
-    const dash = 7.0, gap = 8.0;
+      ..strokeWidth = 5;
     if (axis == Axis.vertical) {
       final x = size.width / 2;
-      for (var y = 6.0; y < size.height - 6; y += dash + gap) {
+      for (var y = 0.0; y < size.height; y += 25) {
         canvas.drawLine(
-            Offset(x, y), Offset(x, (y + dash).clamp(0, size.height)), paint);
+            Offset(x, y), Offset(x, (y + 15).clamp(0, size.height)), paint);
       }
     } else {
       final y = size.height / 2;
-      for (var x = 0.0; x < size.width; x += dash + gap) {
+      for (var x = 0.0; x < size.width; x += 25) {
         canvas.drawLine(
-            Offset(x, y), Offset((x + dash).clamp(0, size.width), y), paint);
+            Offset(x, y), Offset((x + 15).clamp(0, size.width), y), paint);
       }
     }
   }
 
   @override
-  bool shouldRepaint(_DashedSpinePainter old) =>
+  bool shouldRepaint(_TrailLinePainter old) =>
       old.color != color || old.axis != axis;
 }
 
@@ -968,34 +977,18 @@ class _WarmUpBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final due = prog.dueCount;
     if (due == 0) return const SizedBox.shrink();
-    final p = kidsPal(context);
+    // The design's Practice card: the one deep card on Home, the one thing on
+    // it that is trying to get tapped.
     return Padding(
-      padding: const EdgeInsets.only(bottom: Geo.gapMd),
-      child: TapScale(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: KbDeepCard(
+        ui: kbUi(context),
+        icon: 'wb_twilight',
+        title: context.l10n.kidsWarmUp,
+        subtitle: context.l10n.kidsWarmUpSub(due),
         onTap: () => pushKidsOverlay(context,
             title: context.l10n.kidsWarmUp,
             builder: (c) => kidsWarmUpQuiz(c, ProgressScope.of(c))),
-        child: Container(
-          padding: const EdgeInsets.all(Geo.gapMd),
-          decoration: kidsCard(context),
-          child: Row(children: [
-            Icon(Icons.wb_twilight_rounded, color: p.amber, size: 30),
-            const SizedBox(width: Geo.gapMd),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(context.l10n.kidsWarmUp,
-                      style: kidsStyle(context,
-                          size: 15, weight: FontWeight.w800)),
-                  Text(context.l10n.kidsWarmUpSub(due),
-                      style: kidsStyle(context, size: 12, color: p.textDim)),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: p.textDim),
-          ]),
-        ),
       ),
     );
   }
@@ -1110,12 +1103,48 @@ List<Widget> _practiceCards(BuildContext context, ProgressStore prog) {
                 },
                 progressId: 'kids.practice.listen')),
       ),
+    // Three games, sharing the same board engine — real retrieval practice
+    // with an actual game on top, never a path stage (a lost or drawn game
+    // must never gate a stage the way a missed lesson step never does
+    // either). Each gate mirrors the one lesson-shape gate above it: enough
+    // known letters for the letters themselves to make a fair board.
+    if (known.length >= 6)
+      _PracticeCard(
+        icon: Icons.grid_3x3_rounded,
+        label: context.l10n.kidsGameThreeInARow,
+        onTap: () => pushKidsOverlay(context,
+            title: context.l10n.kidsGameThreeInARow,
+            builder: (c) => KidsThreeInARow(
+                known: kidsLearnedLetters(ProgressScope.of(c)),
+                progressId: 'kids.practice.three_in_a_row')),
+      ),
+    if (known.length >= 6)
+      _PracticeCard(
+        icon: Icons.grid_view_rounded,
+        label: context.l10n.kidsGameMemoryMatch,
+        onTap: () => pushKidsOverlay(context,
+            title: context.l10n.kidsGameMemoryMatch,
+            builder: (c) => KidsMemoryMatch(
+                known: kidsLearnedLetters(ProgressScope.of(c)),
+                progressId: 'kids.practice.memory_match')),
+      ),
+    if (known.length >= 10)
+      _PracticeCard(
+        icon: Icons.casino_rounded,
+        label: context.l10n.kidsGameBingo,
+        onTap: () => pushKidsOverlay(context,
+            title: context.l10n.kidsGameBingo,
+            builder: (c) => KidsGameBingo(
+                known: kidsLearnedLetters(ProgressScope.of(c)),
+                progressId: 'kids.practice.bingo')),
+      ),
   ];
   return cards;
 }
 
 /// [cards] in rows of three — four across is too narrow for a phone — with
-/// the last row padded so every card keeps the same width.
+/// the last row padded so every card keeps the same width, and every card in
+/// a row the same height.
 class _PracticeRows extends StatelessWidget {
   final List<Widget> cards;
   const _PracticeRows({required this.cards});
@@ -1127,19 +1156,23 @@ class _PracticeRows extends StatelessWidget {
     for (var i = 0; i < cards.length; i += perRow) {
       final chunk = cards.skip(i).take(perRow).toList();
       rows.add(Padding(
-        padding: EdgeInsets.only(top: i == 0 ? 0 : Geo.gapMd),
-        child: Row(children: [
-          for (var j = 0; j < perRow; j++) ...[
-            if (j > 0) const SizedBox(width: Geo.gapMd),
-            Expanded(child: j < chunk.length ? chunk[j] : const SizedBox()),
-          ],
-        ]),
+        padding: EdgeInsets.only(top: i == 0 ? 0 : 12),
+        child: IntrinsicHeight(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            for (var j = 0; j < perRow; j++) ...[
+              if (j > 0) const SizedBox(width: 12),
+              Expanded(child: j < chunk.length ? chunk[j] : const SizedBox()),
+            ],
+          ]),
+        ),
       ));
     }
     return Column(children: rows);
   }
 }
 
+/// One practice shortcut: a tile (UI_SPEC §1 — solid face, hard edge) with
+/// its symbol in a glyph tile and the name under it.
 class _PracticeCard extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -1149,19 +1182,27 @@ class _PracticeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    return TapScale(
+    final ui = kbUi(context);
+    return KbSurface(
+      color: ui.surface,
+      edge: ui.edge,
+      elev: KbElev.tile,
+      radius: 20,
+      padding: const EdgeInsets.fromLTRB(6, 14, 6, 12),
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(Geo.gapMd),
-        decoration: kidsCard(context),
-        child: Column(children: [
-          Icon(icon, color: p.accent2, size: 26),
-          const SizedBox(height: 8),
-          Text(label,
-              style: kidsStyle(context, size: 13, weight: FontWeight.w700)),
-        ]),
-      ),
+      child: Column(children: [
+        KbGlyphTile(kbIconName(icon),
+            icon: true,
+            size: 50,
+            radius: 16,
+            fontSize: 28,
+            bg: ui.tile,
+            ink: ui.tileInk),
+        const SizedBox(height: 8),
+        Text(label,
+            textAlign: TextAlign.center,
+            style: kbText(16, kbC(ui.ink), height: 1.15)),
+      ]),
     );
   }
 }
@@ -1175,31 +1216,34 @@ class _ProfileRailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    return Container(
-      padding: const EdgeInsets.all(Geo.gapLg),
-      decoration: kidsPanel(context),
+    final ui = kbUi(context);
+    return KbSurface(
+      color: ui.surface,
+      edge: ui.edge,
+      padding: const EdgeInsets.all(20),
       child: Column(children: [
-        KidsAvatar(profile: profile, size: 44),
-        const SizedBox(height: 8),
+        KbAvatar(
+          size: 72,
+          background: kbC(ui.tile),
+          face: (d) => KidsAvatar(profile: profile, size: d / 1.15),
+        ),
+        const SizedBox(height: 10),
         Text(profile.name,
-            style: kidsStyle(context, size: 15, weight: FontWeight.w800)),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: kbText(21, kbC(ui.ink), height: 1.1)),
         Text(context.l10n.kidsLevelLabel(prog.level),
-            style: kidsStyle(context, size: 11, color: p.textDim)),
-        const SizedBox(height: Geo.gapMd),
+            style: kbText(15, kbC(ui.inkSoft), weight: FontWeight.w600)),
+        const SizedBox(height: 14),
         Row(children: [
           Expanded(
-            child: _MiniStat(
-                value: '${prog.xp}',
-                label: context.l10n.kidsStatXp,
-                color: p.accent2),
-          ),
-          const SizedBox(width: 6),
+              child: _MiniStat(
+                  value: '${prog.xp}', label: context.l10n.kidsStatXp)),
+          const SizedBox(width: 10),
           Expanded(
             child: _MiniStat(
                 value: context.l10n.streakDaysCount(prog.streakDays),
-                label: context.l10n.kidsStatStreak,
-                color: p.accent),
+                label: context.l10n.kidsStatStreak),
           ),
         ]),
       ]),
@@ -1207,31 +1251,54 @@ class _ProfileRailCard extends StatelessWidget {
   }
 }
 
+/// A stat inside a card: flat on the tile colour, since the card is already
+/// the raised thing.
 class _MiniStat extends StatelessWidget {
   final String value;
   final String label;
-  final Color color;
-  const _MiniStat(
-      {required this.value, required this.label, required this.color});
+  const _MiniStat({required this.value, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    final tint = kidsTint(context, color);
+    final ui = kbUi(context);
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      padding: const EdgeInsets.fromLTRB(4, 10, 4, 8),
       decoration: BoxDecoration(
-          color: tint.bg, borderRadius: BorderRadius.circular(Geo.radiusSm)),
+          color: kbC(ui.tile), borderRadius: BorderRadius.circular(16)),
       child: Column(children: [
         Text(value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: kidsStyle(context,
-                size: 13, weight: FontWeight.w800, color: tint.text)),
+            style: kbText(20, kbC(ui.tileInk), height: 1.1)),
         Text(label,
-            style: kidsStyle(context, size: 9, color: p.textDim)),
+            style: kbText(14, kbC(ui.tileInk), weight: FontWeight.w600)),
       ]),
     );
+  }
+}
+
+/// A rail card's title row with its "View all" link — secondary text on a
+/// surface, so link ink.
+class _RailTitle extends StatelessWidget {
+  final String title;
+  final VoidCallback? onViewAll;
+  const _RailTitle({required this.title, this.onViewAll});
+
+  @override
+  Widget build(BuildContext context) {
+    final ui = kbUi(context);
+    return Row(children: [
+      Expanded(child: Text(title, style: kbText(20, kbC(ui.ink)))),
+      if (onViewAll != null)
+        Semantics(
+          button: true,
+          child: GestureDetector(
+            onTap: onViewAll,
+            child: Text(context.l10n.kidsViewAll,
+                style: kbText(16, kbC(ui.linkInk))),
+          ),
+        ),
+    ]);
   }
 }
 
@@ -1261,50 +1328,45 @@ class _RankRailCardState extends State<_RankRailCard> {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final rows = _rows?.take(3).toList() ?? const <KidsRankRow>[];
-    return Container(
-      padding: const EdgeInsets.all(Geo.gapMd),
-      decoration: kidsPanel(context),
+    return KbSurface(
+      color: ui.surface,
+      edge: ui.edge,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Expanded(
-              child: Text(context.l10n.kidsRankBannerTitle,
-                  style: kidsStyle(context,
-                      size: 13.5, weight: FontWeight.w800)),
-            ),
-            if (widget.onViewAll != null)
-              GestureDetector(
-                onTap: widget.onViewAll,
-                child: Text(context.l10n.kidsViewAll,
-                    style: kidsStyle(context,
-                        size: 11, weight: FontWeight.w700, color: p.accent)),
-              ),
-          ]),
+          _RailTitle(
+              title: context.l10n.kidsRankBannerTitle,
+              onViewAll: widget.onViewAll),
           if (rows.length > 1) ...[
-            const SizedBox(height: Geo.gapSm),
+            const SizedBox(height: 8),
             for (var i = 0; i < rows.length; i++)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(children: [
-                  Text('${i + 1}',
-                      style: kidsStyle(context,
-                          size: 12, weight: FontWeight.w800, color: p.textDim)),
-                  const SizedBox(width: 9),
-                  KidsAvatar(profile: rows[i].profile, size: 18),
-                  const SizedBox(width: 7),
+                  SizedBox(
+                    width: 18,
+                    child: Text('${i + 1}',
+                        style: kbText(17, kbC(ui.inkSoft))),
+                  ),
+                  const SizedBox(width: 6),
+                  KbAvatar(
+                    size: 34,
+                    background: kbC(ui.tile),
+                    face: (d) =>
+                        KidsAvatar(profile: rows[i].profile, size: d / 1.15),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(rows[i].profile.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: kidsStyle(context,
-                            size: 12.5, weight: FontWeight.w700)),
+                        style: kbText(17, kbC(ui.ink))),
                   ),
                   Text('${rows[i].xp} XP',
-                      style: kidsStyle(context,
-                          size: 11, weight: FontWeight.w800, color: p.textDim)),
+                      style: kbText(15, kbC(ui.inkSoft))),
                 ]),
               ),
           ],
@@ -1323,45 +1385,33 @@ class _BadgesRailCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final prog = ProgressScope.of(context);
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final earned =
         kidsBadgeDefs().where((b) => b.earned(prog)).take(3).toList();
-    return Container(
-      padding: const EdgeInsets.all(Geo.gapMd),
-      decoration: kidsPanel(context),
+    return KbSurface(
+      color: ui.surface,
+      edge: ui.edge,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Expanded(
-              child: Text(context.l10n.kidsBadges,
-                  style: kidsStyle(context,
-                      size: 13.5, weight: FontWeight.w800)),
-            ),
-            if (onViewAll != null)
-              GestureDetector(
-                onTap: onViewAll,
-                child: Text(context.l10n.kidsViewAll,
-                    style: kidsStyle(context,
-                        size: 11, weight: FontWeight.w700, color: p.accent)),
-              ),
-          ]),
-          const SizedBox(height: Geo.gapSm),
+          _RailTitle(title: context.l10n.kidsBadges, onViewAll: onViewAll),
+          const SizedBox(height: 10),
           if (earned.isEmpty)
-            Text('—', style: kidsStyle(context, size: 13, color: p.textDim))
+            Text('—', style: kbText(17, kbC(ui.inkSoft)))
           else
             Row(children: [
               for (final b in earned)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsetsDirectional.only(end: 8),
                   child: Container(
-                    width: 38,
-                    height: 38,
+                    width: 40,
+                    height: 40,
                     alignment: Alignment.center,
+                    // An earned badge wears the reward colour (UI_SPEC §2).
                     decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: p.amber.withValues(alpha: .18)),
-                    child: Text(b.emoji, style: const TextStyle(fontSize: 17)),
+                        shape: BoxShape.circle, color: kbC(ui.reward)),
+                    child: Text(b.emoji, style: const TextStyle(fontSize: 19)),
                   ),
                 ),
             ]),

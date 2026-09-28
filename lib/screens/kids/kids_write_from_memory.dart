@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
 import '../../core/settings.dart' show ProgressScope;
-import '../../core/theme.dart';
 import '../../data/glyph_names.dart' show letterName;
 import '../../data/letters.dart';
 import '../../data/strokes.dart' show glyphFor;
-import '../../widgets/common.dart' show StarRow, pickN, starsForFraction;
+import '../../widgets/common.dart' show pickN, starsForFraction;
 import '../tracing_screen.dart' show TracingBoard;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_widgets.dart';
 
 /// How many letters one "Write it" round asks for — five is a check-up's
@@ -151,14 +153,10 @@ class _WriteStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          context.l10n.kidsWriteFromMemory(letterName(context, letter)),
-          style: kidsStyle(context, size: 17, weight: FontWeight.w800),
-        ),
+        KidsLessonTitle(context.l10n.kidsWriteFromMemory(letterName(context, letter)), fontSize: 26),
         const SizedBox(height: Geo.gapSm),
         Expanded(
           child: TracingBoard(
@@ -172,16 +170,28 @@ class _WriteStep extends StatelessWidget {
         ),
         if (last != null) ...[
           const SizedBox(height: Geo.gapSm),
-          Center(child: StarRow(last == 0 ? 1 : last!, size: 30)),
-          const SizedBox(height: Geo.gapSm),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: p.accent,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            onPressed: onNext,
-            child: Text(context.l10n.kidsNextCard),
+          // The stars, on a small surface capsule — icons on the sky would
+          // not read on every scene.
+          Center(
+            child: Builder(builder: (context) {
+              final ui = kbUi(context);
+              final n = last == 0 ? 1 : last!;
+              return KbSurface(
+                color: ui.surface,
+                edge: ui.edge,
+                elev: KbElev.edge4,
+                radius: 999,
+                padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  for (var i = 0; i < 3; i++)
+                    KbIcon(i < n ? 'star' : 'star_outline',
+                        size: 30, color: kbC(i < n ? ui.reward : ui.inkSoft)),
+                ]),
+              );
+            }),
           ),
+          const SizedBox(height: Geo.gapSm),
+          KidsNextButton(context.l10n.kidsNextCard, onTap: onNext),
         ],
       ],
     );

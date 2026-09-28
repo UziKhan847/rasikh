@@ -9,6 +9,9 @@ import '../../data/glyph_names.dart' show tajwidHow, tajwidName, tajwidTrigger;
 import '../../data/tajweed.dart';
 import '../../widgets/common.dart'
     show MediaRow, buildOptions, pickN, starsForFraction;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_choice_card.dart';
 import 'kids_mouth_map.dart'
     show
@@ -252,34 +255,34 @@ class _IntroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.all(Geo.gapLg),
-              decoration: kidsCard(context),
+          child: KidsCentered(
+            child: KidsLessonCard(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, size: 48, color: p.accent),
+                  KbGlyphTile(kbIconName(icon),
+                      icon: true,
+                      size: 76,
+                      radius: 22,
+                      fontSize: 42,
+                      bg: ui.tile,
+                      ink: ui.tileInk),
                   const SizedBox(height: Geo.gapMd),
                   Text(
                     title,
                     textAlign: TextAlign.center,
-                    style: kidsStyle(
-                      context,
-                      size: 20,
-                      weight: FontWeight.w800,
-                    ),
+                    style: kbText(24, kbC(ui.ink)),
                   ),
                   const SizedBox(height: Geo.gapSm),
                   Text(
                     subtitle,
                     textAlign: TextAlign.center,
-                    style: kidsStyle(context, size: 14, color: p.textDim),
+                    style: kbText(18, kbC(ui.inkSoft), weight: FontWeight.w600, height: 1.35),
                   ),
                 ],
               ),
@@ -287,14 +290,7 @@ class _IntroCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Geo.gapLg),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: p.accent,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: onNext,
-          child: Text(context.l10n.kidsNextCard),
-        ),
+        KidsNextButton(context.l10n.kidsNextCard, onTap: onNext),
       ],
     );
   }
@@ -311,20 +307,15 @@ class _RuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          tajwidName(context, rule),
-          style: kidsStyle(context, size: 19, weight: FontWeight.w800),
-        ),
+        KidsLessonTitle(tajwidName(context, rule)),
         const SizedBox(height: Geo.gapSm),
         Expanded(
-          child: SingleChildScrollView(
-            child: Container(
-              padding: const EdgeInsets.all(Geo.gapLg),
-              decoration: kidsCard(context),
+          child: KidsCentered(
+            child: KidsLessonCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -332,7 +323,7 @@ class _RuleCard extends StatelessWidget {
                     child: Text(
                       rule.arabicName,
                       textDirection: TextDirection.rtl,
-                      style: quranicStyle(context, size: 30, color: rule.color),
+                      style: kbText(30, rule.color, family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
                     ),
                   ),
                   if (rule.letters.isNotEmpty) ...[
@@ -341,7 +332,7 @@ class _RuleCard extends StatelessWidget {
                       child: Text(
                         rule.letters.split('').join('  '),
                         textDirection: TextDirection.rtl,
-                        style: quranicStyle(context, size: 22),
+                        style: kbText(22, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
                       ),
                     ),
                   ],
@@ -362,28 +353,21 @@ class _RuleCard extends StatelessWidget {
                     Center(
                       child: Text(
                         '${kidsZoneEmoji(zone)}  ${kidsZoneName(context, zone)}',
-                        style: kidsStyle(
-                          context,
-                          size: 14,
-                          weight: FontWeight.w800,
-                          color: kidsZoneColor(p, zone),
-                        ),
+                        // The zone's own colour on the mouth map — content,
+                        // not decoration, like the tajwīd rule colours.
+                        style: kbText(18, kidsZoneColor(kidsPal(context), zone)),
                       ),
                     ),
                   ],
                   const SizedBox(height: Geo.gapMd),
                   Text(
                     tajwidTrigger(context, rule),
-                    style: kidsStyle(context, size: 14).copyWith(height: 1.35),
+                    style: kbText(18, kbC(ui.ink), weight: FontWeight.w600, height: 1.35),
                   ),
                   const SizedBox(height: Geo.gapSm),
                   Text(
                     tajwidHow(context, rule),
-                    style: kidsStyle(
-                      context,
-                      size: 14,
-                      color: p.textDim,
-                    ).copyWith(height: 1.35),
+                    style: kbText(18, kbC(ui.inkSoft), weight: FontWeight.w600, height: 1.35),
                   ),
                   const SizedBox(height: Geo.gapMd),
                   Center(child: _ColoredVerse(rule: rule)),
@@ -395,14 +379,7 @@ class _RuleCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Geo.gapLg),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: p.accent,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: onNext,
-          child: Text(context.l10n.kidsNextCard),
-        ),
+        KidsNextButton(context.l10n.kidsNextCard, onTap: onNext),
       ],
     );
   }
@@ -418,24 +395,27 @@ class _ColoredVerse extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ui = kbUi(context);
     return RichText(
       textDirection: TextDirection.rtl,
       textAlign: TextAlign.center,
+      textScaler: MediaQuery.textScalerOf(context),
       text: TextSpan(
         children: [
           for (final seg in rule.example.segs)
             TextSpan(
               text: seg.text,
-              style:
-                  quranicStyle(
-                    context,
-                    size: 24,
-                    color: seg.ruleId == rule.id ? rule.color : null,
-                  ).copyWith(
-                    fontWeight: seg.ruleId == rule.id
-                        ? FontWeight.w800
-                        : FontWeight.normal,
-                  ),
+              // The rule's own colour on the part it names — the same colour
+              // coding the grown-up Tajwīd screens use.
+              style: kbText(
+                24,
+                seg.ruleId == rule.id ? rule.color : kbC(ui.ink),
+                family: kbFontQuran,
+                weight: seg.ruleId == rule.id
+                    ? FontWeight.w800
+                    : FontWeight.w400,
+                height: 1.9,
+              ),
             ),
         ],
       ),
@@ -467,19 +447,18 @@ class _CheckCard extends StatefulWidget {
 class _CheckCardState extends State<_CheckCard> {
   @override
   Widget build(BuildContext context) {
+    final ui = kbUi(context);
     return KidsChoiceCard(
       prompt: context.l10n.kidsWhichRuleIsThis,
       // Scrollable inside the card: nothing caps how long a real verse
       // excerpt can be (mu'ānaqah's own full-āyah example overflowed one).
-      display: Container(
-        padding: const EdgeInsets.all(Geo.gapMd),
-        decoration: kidsCard(context),
-        alignment: Alignment.center,
+      display: KidsLessonCard(
+        padding: const EdgeInsets.all(16),
         child: Text(
           widget.verse,
           textDirection: TextDirection.rtl,
           textAlign: TextAlign.center,
-          style: quranicStyle(context, size: 24),
+          style: kbText(24, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
         ),
       ),
       options: [
@@ -487,7 +466,7 @@ class _CheckCardState extends State<_CheckCard> {
           Text(
             tajwidName(context, option),
             textAlign: TextAlign.center,
-            style: kidsStyle(context, size: 14, weight: FontWeight.w700),
+            style: kbText(18, kbC(ui.ink), weight: FontWeight.w700),
           ),
       ],
       correct: widget.options.indexWhere((o) => o.id == widget.answer.id),

@@ -99,7 +99,7 @@ void main() {
     }
 
     testWidgets('over the whole alphabet, 30 different rounds', (tester) async {
-      var sawOdd = false, sawHunter = false, sawWhich = false;
+      var sawOdd = false, sawHunter = false, sawWhich = false, sawTwin = false;
       for (var seed = 0; seed < 30; seed++) {
         final quiz = await build(tester, letters, seed);
         expect(quiz.questions, isNotEmpty);
@@ -124,19 +124,39 @@ void main() {
             // ي is drawn dotless when isolated, so it can never be a hunt
             // option — the glyph would contradict "2 dots below".
             expect(q.options, isNot(contains('ي')));
-            // Every picked target really shares one dot signature.
-            final sigs = {
-              for (final i in q.correctSet!)
-                '${letterFor(q.options[i]).dotCount}.'
-                    '${letterFor(q.options[i]).dotPos}',
-            };
-            expect(sigs, hasLength(1));
-            // ...and no rejected option shares it.
-            for (var i = 0; i < q.options.length; i++) {
-              if (q.correctSet!.contains(i)) continue;
-              final l = letterFor(q.options[i]);
-              expect('${l.dotCount}.${l.dotPos}', isNot(sigs.single));
-            }
+            // The targets share the property the question asks for — the
+            // same dots (count and place), the same count, or the same place —
+            // and no rejected option has it.
+            final targets = [
+              for (final i in q.correctSet!) letterFor(q.options[i]),
+            ];
+            final rejected = [
+              for (var i = 0; i < q.options.length; i++)
+                if (!q.correctSet!.contains(i)) letterFor(q.options[i]),
+            ];
+            final rules = <bool Function(ArabicLetter)>[
+              (l) =>
+                  l.dotCount == targets.first.dotCount &&
+                  l.dotPos == targets.first.dotPos,
+              (l) => l.dotCount == targets.first.dotCount,
+              (l) => l.dotCount > 0 && l.dotPos == targets.first.dotPos,
+            ];
+            expect(
+              rules.any(
+                (rule) =>
+                    targets.every(rule) && !rejected.any(rule),
+              ),
+              isTrue,
+              reason: 'a hunt is one rule: ${q.prompt} ${q.options}',
+            );
+          } else if (q.prompt == 'Which letter looks like this one?') {
+            sawTwin = true;
+            // Exactly one option looks like the letter shown.
+            final shown = letterFor(q.arabic!);
+            final near = kidsConfusablesIn(shown, letters).map((l) => l.char);
+            expect(q.options.where(near.contains), hasLength(1));
+            expect(near, contains(q.options[q.correct]));
+            expect(q.options, isNot(contains(shown.char)));
           } else if (q.reviewId == null) {
             sawOdd = true;
             expect(q.options, hasLength(4));
@@ -154,7 +174,7 @@ void main() {
           }
         }
       }
-      expect([sawOdd, sawHunter, sawWhich], everyElement(isTrue));
+      expect([sawOdd, sawHunter, sawWhich, sawTwin], everyElement(isTrue));
     });
 
     testWidgets('with only a pair of look-alikes it still builds a round', (

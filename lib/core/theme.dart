@@ -82,24 +82,80 @@ const _kidsAccents = (
 // Same accent-tuple-plus-neutrals shape as every family above; the point of
 // buying one is that it repaints the WHOLE of Kids Mode, since every kids
 // screen already resolves colour through `kidsPal`/`PaletteScope`.
+//
+// Every colour a screen paints must come out of one of these — `accent2` and
+// `amber` most of all. `amber` is the "reward" colour (stars, the goal ring,
+// badges, gems, the mascot, the streak pill), and it used to be one shared
+// gold for every family, which is why Ocean's blue screens still had an
+// orange mascot; and Ocean's own `accent2` used to BE an orange, painting the
+// gems and the rank banner.
 const _kidsOceanAccents = (
-  Color(0xFF2196C9), Color(0xFF5BC4E8), Color(0xFF15738F), Color(0xFFF2A65A));
+  Color(0xFF2196C9), Color(0xFF5BC4E8), Color(0xFF15738F), Color(0xFF6C63D6));
+// Desert is sand, ochre and dusk — deliberately far from the default family's
+// cream, coral and teal, which already reads as warm and sandy. (It used to
+// share that family's teal, its gold and its pure-white surface, so buying it
+// changed very little.)
 const _kidsDesertAccents = (
-  Color(0xFFD97B4A), Color(0xFFE9A06D), Color(0xFFB5602E), Color(0xFF3FA79A));
+  Color(0xFFC9772B), Color(0xFFE3A45B), Color(0xFF94531A), Color(0xFF7B5EA7));
 const _kidsNightAccents = (
   Color(0xFF4A3F8C), Color(0xFF6C5CE7), Color(0xFF352A6B), Color(0xFFE8C468));
+// Four more, chosen so every family's own ACCENT sits at least 25° apart on
+// the hue wheel from every other one (verified in `kids_palette_test.dart`)
+// — the point of a shop full of themes is that each one is recognisably its
+// own colour, not a slightly-different version of one already sold.
+const _kidsForestAccents = (
+  Color(0xFF389444), Color(0xFF70CD7C), Color(0xFF195726), Color(0xFF885E3A));
+const _kidsLagoonAccents = (
+  Color(0xFF2C967C), Color(0xFF59CFBB), Color(0xFF165A51), Color(0xFFCEB07E));
+const _kidsBlossomAccents = (
+  Color(0xFFC760C7), Color(0xFFE29CE2), Color(0xFF883A88), Color(0xFF7153AC));
+// Sunset's own accent leans magenta-red rather than orange (orange sits too
+// close to Desert's hue to tell the two apart) — the "orange" half of
+// "orange-magenta" is `accentBright` instead, so the gradient between them
+// still reads as a sunset.
+const _kidsSunsetAccents = (
+  Color(0xFFD4545E), Color(0xFFF0A06A), Color(0xFF792A37), Color(0xFF8D57A8));
+// Five more, for the painted-scene themes (Rain, Cave, Sunrise, Frozen,
+// Snowy). Unlike the seven above these are NOT kept 25° apart in hue — Frozen
+// and Ocean are both blue by nature, Sunrise and Desert both warm — because
+// each is now a whole painted scene, not just a colour. What keeps them from
+// reading as twins is the scene-identity guard in `kids_palette_test.dart`.
+const _kidsRainAccents = (
+  Color(0xFF4F6D8A), Color(0xFF8FB3D1), Color(0xFF2E4459), Color(0xFF7A6FA8));
+const _kidsCaveAccents = (
+  Color(0xFF6B4F8C), Color(0xFF9B7FD0), Color(0xFF3A2A4E), Color(0xFF3F8C8A));
+const _kidsSunriseAccents = (
+  Color(0xFFF08A4B), Color(0xFFFFC27A), Color(0xFFA2472A), Color(0xFFE0679A));
+const _kidsFrozenAccents = (
+  Color(0xFF3AA5C8), Color(0xFF8FDDF0), Color(0xFF1D6A86), Color(0xFF7C8BE0));
+const _kidsSnowyAccents = (
+  Color(0xFF5C7FB0), Color(0xFFA9C4E8), Color(0xFF34507A), Color(0xFF8A7FC0));
+// Each family's reward colour — see [Palette.amber].
+const _kidsOceanAmber = Color(0xFF28C4B4); // aqua, not gold
+const _kidsDesertAmber = Color(0xFFE6B34A); // sun on sand
+const _kidsNightAmber = Color(0xFFF0D278); // moon gold
+const _kidsForestAmber = Color(0xFFC3B555); // moss gold
+const _kidsLagoonAmber = Color(0xFFED876E); // coral
+const _kidsBlossomAmber = Color(0xFFE2AD78); // rose gold
+const _kidsSunsetAmber = Color(0xFFEEAF77); // peach
+const _kidsRainAmber = Color(0xFFF2C94C);
+const _kidsCaveAmber = Color(0xFF5FE0D0);
+const _kidsSunriseAmber = Color(0xFFFFD66B);
+const _kidsFrozenAmber = Color(0xFFC6F4FF);
+const _kidsSnowyAmber = Color(0xFFFF8A65);
 
 Palette _p(
         Brightness b,
         int bg, int surface, int high, int text, int dim,
         int paper, int paperInk, int shadow,
-        (Color, Color, Color, Color) a) =>
+        (Color, Color, Color, Color) a, {Color? amber}) =>
     Palette(
       brightness: b,
       bg: Color(bg), surface: Color(surface), surfaceHigh: Color(high),
       text: Color(text), textDim: Color(dim),
       paper: Color(paper), paperInk: Color(paperInk), shadow: Color(shadow),
       accent: a.$1, accentBright: a.$2, accentDeep: a.$3, accent2: a.$4,
+      amber: amber ?? const Color(0xFFF4B23E),
     );
 
 final _palettes = <String, Palette>{
@@ -130,40 +186,143 @@ final _palettes = <String, Palette>{
   // rebuilt around each theme's own accent tuple. ──
   'kids_ocean.light': _p(Brightness.light, 0xFFEFF7FA, 0xFFFFFFFF, 0xFFE1F0F5,
       0xFF1E3A44, 0xFF6D8B94, 0xFFFBF1DD, 0xFF2B2417, 0x1A1E3A44,
-      _kidsOceanAccents),
+      _kidsOceanAccents, amber: _kidsOceanAmber),
   'kids_ocean.dark': _p(Brightness.dark, 0xFF11202A, 0xFF172934, 0xFF203847,
       0xFFE7F2F6, 0xFF8FADB6, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
-      _kidsOceanAccents),
+      _kidsOceanAccents, amber: _kidsOceanAmber),
   'kids_ocean.oled': _p(Brightness.dark, 0xFF000000, 0xFF0D1A22, 0xFF172934,
       0xFFE7F2F6, 0xFF7E9BA4, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
-      _kidsOceanAccents),
-  'kids_desert.light': _p(Brightness.light, 0xFFF9F0E0, 0xFFFFFFFF,
-      0xFFF2E2C6, 0xFF4A3524, 0xFF9C8368, 0xFFFBF1DD, 0xFF2B2417, 0x1A4A3524,
-      _kidsDesertAccents),
-  'kids_desert.dark': _p(Brightness.dark, 0xFF2A1F14, 0xFF35271A, 0xFF443322,
-      0xFFF5EAD9, 0xFFBBA285, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
-      _kidsDesertAccents),
-  'kids_desert.oled': _p(Brightness.dark, 0xFF000000, 0xFF1E150D, 0xFF35271A,
-      0xFFF5EAD9, 0xFFAB9276, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
-      _kidsDesertAccents),
+      _kidsOceanAccents, amber: _kidsOceanAmber),
+  'kids_desert.light': _p(Brightness.light, 0xFFF3E4C6, 0xFFFFF8EA,
+      0xFFE9D3A8, 0xFF3F2A14, 0xFF8C7451, 0xFFFBF1DD, 0xFF2B2417, 0x1A3F2A14,
+      _kidsDesertAccents, amber: _kidsDesertAmber),
+  'kids_desert.dark': _p(Brightness.dark, 0xFF2B1F10, 0xFF37281A, 0xFF473521,
+      0xFFF6EAD3, 0xFFBFA57F, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
+      _kidsDesertAccents, amber: _kidsDesertAmber),
+  'kids_desert.oled': _p(Brightness.dark, 0xFF000000, 0xFF20160B, 0xFF37281A,
+      0xFFF6EAD3, 0xFFAE946E, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
+      _kidsDesertAccents, amber: _kidsDesertAmber),
   'kids_night.light': _p(Brightness.light, 0xFFF3F0FA, 0xFFFFFFFF, 0xFFE9E3F5,
       0xFF2E2A4A, 0xFF817BA0, 0xFFFBF1DD, 0xFF2B2417, 0x1A2E2A4A,
-      _kidsNightAccents),
+      _kidsNightAccents, amber: _kidsNightAmber),
   'kids_night.dark': _p(Brightness.dark, 0xFF1B1830, 0xFF242040, 0xFF302A54,
       0xFFEEEBFA, 0xFFA79FCB, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
-      _kidsNightAccents),
+      _kidsNightAccents, amber: _kidsNightAmber),
   'kids_night.oled': _p(Brightness.dark, 0xFF000000, 0xFF161228, 0xFF242040,
       0xFFEEEBFA, 0xFF938AB8, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
-      _kidsNightAccents),
+      _kidsNightAccents, amber: _kidsNightAmber),
+  'kids_forest.light': _p(Brightness.light, 0xFFE8F2E9, 0xFFFFFFFF, 0xFFD5E7D7,
+      0xFF163B1B, 0xFF6F9B74, 0xFFFBF1DD, 0xFF2B2417, 0x1A163B1B,
+      _kidsForestAccents, amber: _kidsForestAmber),
+  'kids_forest.dark': _p(Brightness.dark, 0xFF152818, 0xFF1F3722, 0xFF2B4A2F,
+      0xFFE7F3E9, 0xFF9DBEA1, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
+      _kidsForestAccents, amber: _kidsForestAmber),
+  'kids_forest.oled': _p(Brightness.dark, 0xFF000000, 0xFF101E12, 0xFF1F3722,
+      0xFFE7F3E9, 0xFF87AB8C, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
+      _kidsForestAccents, amber: _kidsForestAmber),
+  'kids_lagoon.light': _p(Brightness.light, 0xFFE8F2F0, 0xFFFFFFFF, 0xFFD5E7E2,
+      0xFF163B32, 0xFF6F9B90, 0xFFFBF1DD, 0xFF2B2417, 0x1A163B32,
+      _kidsLagoonAccents, amber: _kidsLagoonAmber),
+  'kids_lagoon.dark': _p(Brightness.dark, 0xFF152823, 0xFF1F3731, 0xFF2B4A42,
+      0xFFE7F3F0, 0xFF9DBEB6, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
+      _kidsLagoonAccents, amber: _kidsLagoonAmber),
+  'kids_lagoon.oled': _p(Brightness.dark, 0xFF000000, 0xFF101E1B, 0xFF1F3731,
+      0xFFE7F3F0, 0xFF87ABA2, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
+      _kidsLagoonAccents, amber: _kidsLagoonAmber),
+  'kids_blossom.light': _p(Brightness.light, 0xFFF2E8F2, 0xFFFFFFFF, 0xFFE7D5E7,
+      0xFF3B163B, 0xFF9B6F9B, 0xFFFBF1DD, 0xFF2B2417, 0x1A3B163B,
+      _kidsBlossomAccents, amber: _kidsBlossomAmber),
+  'kids_blossom.dark': _p(Brightness.dark, 0xFF281528, 0xFF371F37, 0xFF4A2B4A,
+      0xFFF3E7F3, 0xFFBE9DBE, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
+      _kidsBlossomAccents, amber: _kidsBlossomAmber),
+  'kids_blossom.oled': _p(Brightness.dark, 0xFF000000, 0xFF1E101E, 0xFF371F37,
+      0xFFF3E7F3, 0xFFAB87AB, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
+      _kidsBlossomAccents, amber: _kidsBlossomAmber),
+  'kids_sunset.light': _p(Brightness.light, 0xFFF2E8E9, 0xFFFFFFFF, 0xFFE7D5D6,
+      0xFF3B1619, 0xFF9B6F72, 0xFFFBF1DD, 0xFF2B2417, 0x1A3B1619,
+      _kidsSunsetAccents, amber: _kidsSunsetAmber),
+  'kids_sunset.dark': _p(Brightness.dark, 0xFF281517, 0xFF371F21, 0xFF4A2B2E,
+      0xFFF3E7E8, 0xFFBE9DA0, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
+      _kidsSunsetAccents, amber: _kidsSunsetAmber),
+  'kids_sunset.oled': _p(Brightness.dark, 0xFF000000, 0xFF1E1011, 0xFF371F21,
+      0xFFF3E7E8, 0xFFAB878A, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
+      _kidsSunsetAccents, amber: _kidsSunsetAmber),
+  'kids_rain.light': _p(Brightness.light, 0xFFE9EEF2, 0xFFFFFFFF, 0xFFDAE0E4,
+      0xFF1F2D3A, 0xFF7A848D, 0xFFFBF1DD, 0xFF2B2417, 0x1A1F2D3A,
+      _kidsRainAccents, amber: _kidsRainAmber),
+  'kids_rain.dark': _p(Brightness.dark, 0xFF141C24, 0xFF202B35, 0xFF2D3A47,
+      0xFFF2F6F9, 0xFFAFB5B9, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
+      _kidsRainAccents, amber: _kidsRainAmber),
+  'kids_rain.oled': _p(Brightness.dark, 0xFF000000, 0xFF0F151B, 0xFF202B35,
+      0xFFF2F6F9, 0xFF9A9FA3, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
+      _kidsRainAccents, amber: _kidsRainAmber),
+  'kids_cave.light': _p(Brightness.light, 0xFFECE8F0, 0xFFFFFFFF, 0xFFDDD9E2,
+      0xFF2A2233, 0xFF817B88, 0xFFFBF1DD, 0xFF2B2417, 0x1A2A2233,
+      _kidsCaveAccents, amber: _kidsCaveAmber),
+  'kids_cave.dark': _p(Brightness.dark, 0xFF16121C, 0xFF231D2E, 0xFF312840,
+      0xFFF3F0F9, 0xFFB1ADB7, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
+      _kidsCaveAccents, amber: _kidsCaveAmber),
+  'kids_cave.oled': _p(Brightness.dark, 0xFF000000, 0xFF110E15, 0xFF231D2E,
+      0xFFF3F0F9, 0xFF9C98A1, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
+      _kidsCaveAccents, amber: _kidsCaveAmber),
+  'kids_sunrise.light': _p(Brightness.light, 0xFFFBEFE6, 0xFFFFFFFF, 0xFFEDE0D7,
+      0xFF3D2418, 0xFF927F75, 0xFFFBF1DD, 0xFF2B2417, 0x1A3D2418,
+      _kidsSunriseAccents, amber: _kidsSunriseAmber),
+  'kids_sunrise.dark': _p(Brightness.dark, 0xFF2A1A14, 0xFF3F2B1E, 0xFF553C28,
+      0xFFFFF8EF, 0xFFBFB5AD, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
+      _kidsSunriseAccents, amber: _kidsSunriseAmber),
+  'kids_sunrise.oled': _p(Brightness.dark, 0xFF000000, 0xFF20140F, 0xFF3F2B1E,
+      0xFFFFF8EF, 0xFFA89F98, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
+      _kidsSunriseAccents, amber: _kidsSunriseAmber),
+  'kids_frozen.light': _p(Brightness.light, 0xFFEAF4F8, 0xFFFFFFFF, 0xFFDAE5EA,
+      0xFF15323D, 0xFF758991, 0xFFFBF1DD, 0xFF2B2417, 0x1A15323D,
+      _kidsFrozenAccents, amber: _kidsFrozenAmber),
+  'kids_frozen.dark': _p(Brightness.dark, 0xFF0E1C24, 0xFF1B2F38, 0xFF28434D,
+      0xFFF2FBFD, 0xFFAEB8BC, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
+      _kidsFrozenAccents, amber: _kidsFrozenAmber),
+  'kids_frozen.oled': _p(Brightness.dark, 0xFF000000, 0xFF0B151B, 0xFF1B2F38,
+      0xFFF2FBFD, 0xFF99A2A5, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
+      _kidsFrozenAccents, amber: _kidsFrozenAmber),
+  'kids_snowy.light': _p(Brightness.light, 0xFFF1F3F7, 0xFFFFFFFF, 0xFFE2E4E9,
+      0xFF23303F, 0xFF808892, 0xFFFBF1DD, 0xFF2B2417, 0x1A23303F,
+      _kidsSnowyAccents, amber: _kidsSnowyAmber),
+  'kids_snowy.dark': _p(Brightness.dark, 0xFF131A26, 0xFF222B39, 0xFF313C4D,
+      0xFFF5F8FC, 0xFFB1B5BC, 0xFF2E2A1F, 0xFFF0E7D2, 0x00000000,
+      _kidsSnowyAccents, amber: _kidsSnowyAmber),
+  'kids_snowy.oled': _p(Brightness.dark, 0xFF000000, 0xFF0E141D, 0xFF222B39,
+      0xFFF5F8FC, 0xFF9C9FA5, 0xFF1B170E, 0xFFEFE6D0, 0x00000000,
+      _kidsSnowyAccents, amber: _kidsSnowyAmber),
 };
 
 /// Palette family ids the Kids Mode shop can unlock, in the order they
 /// appear on its Colours shelf — see `kidsShopItems` in `kids_content.dart`.
 /// `'kids'` itself is always available and is not a purchase.
-const kKidsShopThemeFamilies = ['kids_ocean', 'kids_desert', 'kids_night'];
+const kKidsShopThemeFamilies = [
+  'kids_ocean',
+  'kids_desert',
+  'kids_night',
+  'kids_forest',
+  'kids_lagoon',
+  'kids_blossom',
+  'kids_sunset',
+  'kids_rain',
+  'kids_cave',
+  'kids_sunrise',
+  'kids_frozen',
+  'kids_snowy',
+];
 
-Palette paletteFor(String family, String mode) =>
-    _palettes['$family.$mode'] ?? _palettes['mint.light']!;
+/// The palette for [family] in [mode]. An unrecognised mode falls back to the
+/// family's light palette, and an unrecognised family to its own kind's
+/// default — a corrupt or retired `kids_*` id must give a child the DEFAULT
+/// Kids Mode palette, not the grown-up app's mint green.
+Palette paletteFor(String family, String mode) {
+  final base = family.startsWith('kids') ? 'kids' : 'mint';
+  return _palettes['$family.$mode'] ??
+      _palettes['$family.light'] ??
+      _palettes['$base.$mode'] ??
+      _palettes['$base.light']!;
+}
 
 /// The families the grown-up theme picker cycles through/offers. 'kids' is
 /// deliberately excluded — it's Kids Mode's own palette (see [kidsPal]),
@@ -331,6 +490,75 @@ TextTheme _withFallback(List<String> fallback, TextTheme t) {
   );
 }
 
+/// The multiplier on Arabic glyph sizes: the grown-up Reading Coach's
+/// [AppSettings.arabicScale], or — while Kids Mode is on — Kids Mode's own
+/// [AppSettings.kidsTextScale]. A parent's reader slider used to resize the
+/// Arabic in a child's screens while the child's Latin text stayed put, and the
+/// child's app had no say in it.
+double arabicScaleOf(AppSettings s) =>
+    s.kidsMode ? s.kidsTextScale : s.arabicScale;
+
+/// [arabicScaleOf], minus Kids Mode's dial when a [KidsTextScale] above
+/// [context] already applies it as a text scaler — so it is applied once.
+double _arabicScaleAt(BuildContext context, AppSettings s) =>
+    s.kidsMode && kidsTextScaledAbove(context) ? 1.0 : arabicScaleOf(s);
+
+/// Kids Mode's own Text size dial (Me ▸ Appearance ▸ Text size), applied ONCE
+/// to everything below it — as a text scaler, which also reaches text drawn
+/// with plain `TextStyle`s, like the design kit's (`lib/kids_backdrops/`).
+///
+/// The style helpers ([kidsStyle], [arabicStyle], [quranicStyle], [uiStyle])
+/// used to multiply by the dial themselves; under a [KidsTextScale] they skip
+/// it, and outside one (a dialog, a widget test pumping a bare screen) they
+/// still apply it, so no text is ever scaled twice and none is left unscaled.
+/// Nesting is harmless: an inner one is a no-op.
+class KidsTextScale extends StatelessWidget {
+  final Widget child;
+  const KidsTextScale({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    if (kidsTextScaledAbove(context)) return child;
+    final k = SettingsScope.of(context).kidsTextScale;
+    final mq = MediaQuery.of(context);
+    return _KidsTextScaled(
+      child: MediaQuery(
+        data: mq.copyWith(textScaler: _TimesScaler(mq.textScaler, k)),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _KidsTextScaled extends InheritedWidget {
+  const _KidsTextScaled({required super.child});
+  @override
+  bool updateShouldNotify(_KidsTextScaled old) => false;
+}
+
+/// Whether a [KidsTextScale] above [context] already applies the dial.
+bool kidsTextScaledAbove(BuildContext context) =>
+    context.getInheritedWidgetOfExactType<_KidsTextScaled>() != null;
+
+/// The platform's own scaler (which may be non-linear) applied to the font size
+/// the Kids dial asks for — the same result the style helpers used to produce by
+/// multiplying the size before handing it to the platform.
+class _TimesScaler extends TextScaler {
+  final TextScaler base;
+  final double k;
+  const _TimesScaler(this.base, this.k);
+  @override
+  double scale(double fontSize) => base.scale(fontSize * k);
+  @override
+  // ignore: deprecated_member_use
+  double get textScaleFactor => base.textScaleFactor * k;
+  @override
+  bool operator ==(Object other) =>
+      other is _TimesScaler && other.base == base && other.k == k;
+  @override
+  int get hashCode => Object.hash(base, k);
+}
+
 /// Arabic text style that respects reader settings (scale, tracking,
 /// word spacing). Defaults to the palette text color.
 TextStyle arabicStyle(
@@ -343,7 +571,7 @@ TextStyle arabicStyle(
   final s = SettingsScope.of(context);
   return TextStyle(
     fontFamily: 'ScheherazadeNew',
-    fontSize: size * s.arabicScale,
+    fontSize: size * _arabicScaleAt(context, s),
     height: height,
     fontWeight: weight,
     letterSpacing: s.letterTracking,
@@ -373,7 +601,7 @@ TextStyle quranicStyle(
   final s = SettingsScope.of(context);
   return TextStyle(
     fontFamily: 'UthmanicHafs',
-    fontSize: size * s.arabicScale,
+    fontSize: size * _arabicScaleAt(context, s),
     height: height,
     fontWeight: weight,
     letterSpacing: s.letterTracking,
@@ -394,11 +622,17 @@ TextStyle uiStyle(
   Color? color,
   FontWeight weight = FontWeight.w500,
 }) {
-  final (family, fallback) = _uiFont(SettingsScope.of(context).language);
+  final s = SettingsScope.of(context);
+  final (family, fallback) = _uiFont(s.language);
   return TextStyle(
       fontFamily: family,
       fontFamilyFallback: fallback,
-      fontSize: size,
+      // Kids Mode's own size dial reaches the shared quiz screen too — it is
+      // drawn with this helper, not [kidsStyle], and would otherwise stay
+      // small when everything around it grew.
+      fontSize: s.kidsMode && !kidsTextScaledAbove(context)
+          ? size * s.kidsTextScale
+          : size,
       fontWeight: weight,
       color: color ?? pal(context).text);
 }
@@ -422,7 +656,11 @@ TextStyle kidsStyle(
       // scripts ("The echoing bounce of قطب جد"). Real devices would fall back
       // to a system face, but a bundled one makes it certain.
       fontFamilyFallback: const ['Outfit', 'ScheherazadeNew'],
-      fontSize: size,
+      // Kids Mode's own size dial (Me ▸ Appearance ▸ Text size). The number at
+      // a call site is the MEDIUM size; Small and Large scale it.
+      fontSize: kidsTextScaledAbove(context)
+          ? size
+          : size * SettingsScope.of(context).kidsTextScale,
       fontWeight: weight,
       color: color ?? kidsPal(context).text);
 }

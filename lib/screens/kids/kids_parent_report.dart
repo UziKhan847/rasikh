@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 
-import '../../core/geometry.dart';
 import '../../core/l10n.dart';
 import '../../core/responsive.dart';
 import '../../core/settings.dart';
-import '../../core/theme.dart';
+import '../downloads_screen.dart';
 import 'kids_path.dart';
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kWhite, kbC;
+import '../../kids_backdrops/kb_widgets.dart' show KbAvatar;
 import 'kids_widgets.dart';
+
+/// The session-reminder presets offered below — `0` is off.
+const _kidsSessionPresets = [0, 15, 20, 30];
 
 /// A read-only look at how a child is doing, for the grown-up sitting next to
 /// them — reached only through [showKidsParentGate].
@@ -29,6 +35,7 @@ class KidsParentReport extends StatelessWidget {
   static String talkKey(String blockId) {
     if (blockId.startsWith('letters') ||
         blockId.startsWith('forms') ||
+        blockId == 'join' ||
         blockId.startsWith('special')) {
       return 'shapes';
     }
@@ -42,7 +49,11 @@ class KidsParentReport extends StatelessWidget {
     }.contains(blockId)) {
       return 'sounds';
     }
-    if (blockId.startsWith('words') || blockId == 'capstone') return 'reading';
+    if (blockId.startsWith('words') ||
+        blockId.startsWith('read.') ||
+        blockId == 'capstone') {
+      return 'reading';
+    }
     if (const {'wasl', 'solar_lunar', 'tamarbuta', 'waqf'}.contains(blockId) ||
         blockId.startsWith('tajwid.')) {
       return 'rules';
@@ -52,7 +63,6 @@ class KidsParentReport extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
     final s = SettingsScope.of(context);
     final prog = ProgressScope.of(context);
     final profile = s.activeKidsProfile;
@@ -90,216 +100,275 @@ class KidsParentReport extends StatelessWidget {
     };
 
     Widget section(String title, Widget child) => Padding(
-      padding: const EdgeInsets.only(bottom: Geo.gapLg),
+      padding: const EdgeInsets.only(bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            title,
-            style: kidsStyle(context, size: 15, weight: FontWeight.w800),
-          ),
-          const SizedBox(height: Geo.gapSm),
-          Container(
-            padding: const EdgeInsets.all(Geo.gapMd),
-            decoration: kidsCard(context),
-            child: child,
-          ),
+          // A settings-size heading on the sky, its card under it.
+          KidsLessonTitle(title, fontSize: 21, height: 1.1),
+          const SizedBox(height: 12),
+          Builder(builder: (context) {
+            final ui = kbUi(context);
+            return KbSurface(
+              color: ui.surface,
+              edge: ui.edge,
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+              child: child,
+            );
+          }),
         ],
       ),
     );
 
     final dayLetters = MaterialLocalizations.of(context).narrowWeekdays;
-    final content = Padding(
-      padding: const EdgeInsets.all(Geo.gapLg),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (profile != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: Geo.gapLg),
-                child: Row(
-                  children: [
-                    KidsAvatar(profile: profile, size: 52),
-                    const SizedBox(width: Geo.gapMd),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            profile.name,
-                            style: kidsStyle(
-                              context,
-                              size: 20,
-                              weight: FontWeight.w800,
-                            ),
-                          ),
-                          Text(
-                            context.l10n.kidsLevelLabel(prog.level),
-                            style: kidsStyle(
-                              context,
-                              size: 12,
-                              color: p.textDim,
-                            ),
-                          ),
-                        ],
+    return KidsScreenScaffold(
+      title: context.l10n.kidsParentReport,
+      child: Builder(builder: (context) {
+        final ui = kbUi(context);
+        final body = kbText(15, kbC(ui.inkSoft),
+            weight: FontWeight.w600, height: 1.35);
+        return SingleChildScrollView(
+          clipBehavior: Clip.none,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (profile != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Row(
+                    children: [
+                      KbAvatar(
+                        size: 64,
+                        background: kbC(ui.surface),
+                        face: (d) =>
+                            KidsAvatar(profile: profile, size: d / 1.15),
                       ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            KidsLessonTitle(profile.name,
+                                fontSize: 26, height: 1.1),
+                            KidsLessonSubtitle(
+                                context.l10n.kidsLevelLabel(prog.level),
+                                fontSize: 17),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              section(
+                context.l10n.kidsParentReport,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.l10n.kidsReportCurrentStage(current!.title(context)),
+                      style: kbText(17, kbC(ui.ink), weight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 10),
+                    KbProgress(
+                        value: itemTotal == 0 ? 0 : doneTotal / itemTotal,
+                        ui: ui,
+                        height: 10),
+                    const SizedBox(height: 6),
+                    Text(
+                      context.l10n.kidsReportOverall(doneTotal, itemTotal),
+                      style: body,
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        KbIcon('local_fire_department',
+                            size: 22, color: kbC(ui.accent)),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            context.l10n.kidsReportStreakDays(prog.streakDays),
+                            style: kbText(16, kbC(ui.ink),
+                                weight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    // The seven days on a row of their own, spread across the
+                    // card: beside the streak text they were wider than a
+                    // 320px phone's card.
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        for (var i = 0; i < 7; i++)
+                          Container(
+                            width: 26,
+                            height: 26,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: kbC(prog.weekdayActive(i)
+                                  ? ui.accent
+                                  : ui.track),
+                            ),
+                            child: Text(
+                              dayLetters[(i + 1) % 7],
+                              style: kbText(
+                                  11,
+                                  kbC(prog.weekdayActive(i)
+                                      ? kWhite
+                                      : ui.inkSoft),
+                                  height: 1),
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
               ),
-            section(
-              context.l10n.kidsParentReport,
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    context.l10n.kidsReportCurrentStage(current.title(context)),
-                    style: kidsStyle(
-                      context,
-                      size: 14,
-                      weight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: Geo.gapSm),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(Geo.radiusPill),
-                    child: LinearProgressIndicator(
-                      value: itemTotal == 0 ? 0 : doneTotal / itemTotal,
-                      minHeight: 8,
-                      backgroundColor: p.surfaceHigh,
-                      valueColor: AlwaysStoppedAnimation(p.accent2),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    context.l10n.kidsReportOverall(doneTotal, itemTotal),
-                    style: kidsStyle(context, size: 12, color: p.textDim),
-                  ),
-                  const SizedBox(height: Geo.gapMd),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.local_fire_department_rounded,
-                        color: p.amber,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          context.l10n.kidsReportStreakDays(prog.streakDays),
-                          style: kidsStyle(
-                            context,
-                            size: 13,
-                            weight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: Geo.gapSm),
-                  // The seven days on a row of their own, spread across the
-                  // card: beside the streak text they were wider than a
-                  // 320px phone's card.
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      for (var i = 0; i < 7; i++)
-                        CircleAvatar(
-                          radius: 11,
-                          backgroundColor: prog.weekdayActive(i)
-                              ? p.accent
-                              : p.surfaceHigh,
-                          child: Text(
-                            dayLetters[(i + 1) % 7],
-                            style: kidsStyle(
-                              context,
-                              size: 9,
-                              weight: FontWeight.w800,
-                              color: prog.weekdayActive(i)
-                                  ? Colors.white
-                                  : p.textDim,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            section(
-              context.l10n.kidsReportPractise,
-              weak.isEmpty
-                  ? Text(
-                      context.l10n.kidsReportNothing,
-                      style: kidsStyle(context, size: 13, color: p.textDim),
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: Geo.gapMd,
-                          runSpacing: Geo.gapSm,
-                          children: [
-                            for (final it in weak.take(3))
-                              Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    it.arabic,
-                                    textDirection: TextDirection.rtl,
-                                    style: quranicStyle(
-                                      context,
-                                      size: 30,
-                                      color: p.accent,
+              section(
+                context.l10n.kidsReportPractise,
+                weak.isEmpty
+                    ? Text(context.l10n.kidsReportNothing, style: body)
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 10,
+                            children: [
+                              for (final it in weak.take(3))
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    KbGlyphTile(it.arabic,
+                                        bg: ui.tile,
+                                        ink: ui.tileInk,
+                                        size: 60,
+                                        radius: 18,
+                                        fontSize: 28),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      it.answer,
+                                      style: kbText(13, kbC(ui.inkSoft),
+                                          weight: FontWeight.w700),
                                     ),
-                                  ),
-                                  Text(
-                                    it.answer,
-                                    style: kidsStyle(
-                                      context,
-                                      size: 11,
-                                      color: p.textDim,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                          if (due > 0) ...[
+                            const SizedBox(height: 10),
+                            Text(context.l10n.kidsReportDue(due), style: body),
                           ],
-                        ),
-                        if (due > 0) ...[
-                          const SizedBox(height: Geo.gapSm),
-                          Text(
-                            context.l10n.kidsReportDue(due),
-                            style: kidsStyle(
-                              context,
-                              size: 12,
-                              color: p.textDim,
-                            ),
-                          ),
                         ],
+                      ),
+              ),
+              section(
+                context.l10n.kidsReportTalk,
+                Text(talk,
+                    style: kbText(16, kbC(ui.ink),
+                        weight: FontWeight.w600, height: 1.35)),
+              ),
+              section(
+                context.l10n.kidsSessionReminder,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.l10n.kidsSessionReminderSub, style: body),
+                    const SizedBox(height: 12),
+                    // The design's choice chips (the New Profile gender chips).
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 12,
+                      children: [
+                        for (final m in _kidsSessionPresets)
+                          KbChoiceChip(
+                            m == 0
+                                ? context.l10n.kidsSessionOff
+                                : context.l10n.kidsSessionMinutes(m),
+                            ui: ui,
+                            selected: s.kidsSessionMinutes == m,
+                            onTap: () =>
+                                s.update(() => s.kidsSessionMinutes = m),
+                          ),
                       ],
                     ),
-            ),
-            section(
-              context.l10n.kidsReportTalk,
-              Text(talk, style: kidsStyle(context, size: 13)),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (useDesktop(context)) return content;
-    return Scaffold(
-      backgroundColor: p.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        title: Text(
-          context.l10n.kidsParentReport,
-          style: kidsStyle(context, size: 16, weight: FontWeight.w800),
-        ),
-      ),
-      body: SafeArea(child: content),
+                  ],
+                ),
+              ),
+              section(
+                context.l10n.kidsParentBackupTitle,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.l10n.kidsParentBackupSub, style: body),
+                    const SizedBox(height: 12),
+                    Wrap(spacing: 10, runSpacing: 12, children: [
+                      KbPill(
+                        context.l10n.backUp,
+                        ui: ui,
+                        icon: 'upload',
+                        fontSize: 17,
+                        iconSize: 20,
+                        padding: const EdgeInsets.fromLTRB(16, 8, 20, 6),
+                        onTap: () async {
+                          final path = await BackupService.export(s);
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context)
+                            ..clearSnackBars()
+                            ..showSnackBar(SnackBar(
+                                content: Text(path == null
+                                    ? context.l10n.backupFailed
+                                    : context.l10n.backedUpTo(path))));
+                        },
+                      ),
+                      KbPill(
+                        context.l10n.restore,
+                        ui: ui,
+                        icon: 'download',
+                        fontSize: 17,
+                        iconSize: 20,
+                        padding: const EdgeInsets.fromLTRB(16, 8, 20, 6),
+                        onTap: () async {
+                          final ok = await BackupService.restore(s, prog);
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context)
+                            ..clearSnackBars()
+                            ..showSnackBar(SnackBar(
+                                content: Text(ok
+                                    ? context.l10n.backupRestored
+                                    : context.l10n.noBackupFound)));
+                        },
+                      ),
+                    ]),
+                  ],
+                ),
+              ),
+              section(
+                context.l10n.kidsParentOfflineTitle,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.l10n.kidsParentOfflineSub, style: body),
+                    const SizedBox(height: 12),
+                    KbPill(
+                      context.l10n.manageDownloads,
+                      ui: ui,
+                      icon: 'download_for_offline',
+                      fontSize: 17,
+                      iconSize: 20,
+                      padding: const EdgeInsets.fromLTRB(16, 8, 20, 6),
+                      onTap: () =>
+                          pushAdaptive(context, const DownloadsScreen()),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
     );
   }
 }

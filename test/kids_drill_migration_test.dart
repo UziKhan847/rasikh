@@ -6,7 +6,6 @@ import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/tashkeel.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_syllable_drill.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -120,8 +119,8 @@ void main() {
       if (said.evaluate().isNotEmpty) {
         letterSteps++;
         await tester.tap(said);
-      } else if (find.byType(TapScale).evaluate().isNotEmpty) {
-        await tester.tap(find.byType(TapScale).first);
+      } else if (kidsTappables().evaluate().isNotEmpty) {
+        await tester.tap(kidsTappables().first);
         await tester.pump(const Duration(milliseconds: 800));
       }
     }

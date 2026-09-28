@@ -6,6 +6,7 @@ import '../../core/l10n.dart';
 import '../../data/glyph_names.dart';
 import '../../data/letters.dart';
 import '../../data/variants.dart';
+import '../../data/word_pool.dart';
 import '../../widgets/common.dart';
 
 /// Extra joining-form question shapes, shared by the grown-up Qāʿidah unit
@@ -255,54 +256,50 @@ List<QuizQuestion> listenAndPickQuestions(BuildContext context,
 
 // ── tāʼ marbūṭah vs. final hāʼ ────────────────────────────────────────────
 
-/// "Which letter ends this word?" — ة or ه, over every real example the
-/// variants data carries for the pair.
+/// "Which letter ends this word?" — ة, ه or the open ت it is so often mistaken
+/// for, over a wide pool of real words.
 ///
-/// The Qāʿidah practice round already asks this once via
+/// The Qāʿidah practice round already asks the ة / ه question once via
 /// `haaVsTaaMarbutaQuestion`, but that only ever uses each variant's PRIMARY
 /// word, so it can produce exactly two distinct questions. A whole stage
-/// built on it would repeat itself; this draws on the `moreExamples` too.
+/// built on it would repeat itself; this draws on the variants' `moreExamples`
+/// AND on every verbatim word the marks' and waṣl's examples carry that ends in
+/// one of the two — several dozen, not ten. It also offers three options, not
+/// two: with only ة and ه a round was a coin flip.
 List<QuizQuestion> taMarbutaQuestions(BuildContext context, {int count = 6}) {
-  final pool = <(String, String, String)>[]; // word, highlight, answer
+  final pool = <String, (String, String)>{}; // word -> (highlight, answer)
   for (final v in letterVariants) {
     if (v.id != 'haa.word_final' && v.id != 'taa_marbuta.word_final') continue;
     final answer = v.id.startsWith('haa') ? 'ه' : 'ة';
-    pool.add((v.word, v.highlight, answer));
+    pool[v.word] = (v.highlight, answer);
     for (final (word, _, highlight) in v.moreExamples) {
-      pool.add((word, highlight, answer));
+      pool[word] = (highlight, answer);
     }
   }
+  for (final word in quranicExampleWords()) {
+    final end = wordEnding(word);
+    if (end == null || pool.containsKey(word)) continue;
+    final base = end.substring(0, String.fromCharCode(end.runes.first).length);
+    if (base == 'ة' || base == 'ه') pool[word] = (end, base);
+  }
+  final entries = pool.entries.toList();
   return [
-    for (final (word, highlight, answer) in pickN(pool, count, _rng))
+    for (final e in pickN(entries, count, _rng))
       () {
-        final o = buildOptions(answer, const ['ه', 'ة'], _rng);
+        final (highlight, answer) = e.value;
+        final o = buildOptions(answer, const ['ه', 'ة', 'ت'], _rng, count: 3);
         return QuizQuestion(
           prompt: context.l10n.qpWhichLetterEndsWord,
-          arabic: word,
+          arabic: e.key,
           highlight: highlight,
           options: o.options,
           correct: o.correct,
           optionsAreArabic: true,
-          reviewId: 'variant.taMarbuta.$word',
+          optionColumns: 3,
+          optionAspect: 1.4,
+          reviewId: 'variant.taMarbuta.${e.key}',
           explain: context.l10n.lsnTaMarbutaHint,
         );
       }()
   ];
-}
-
-/// All four shapes in one round — what both the Qāʿidah unit's Test phase and
-/// the Kids Mode forms block run.
-QuizScreen formsVarietyQuiz(BuildContext context,
-    {bool graded = true, String progressId = 'qaidah.forms'}) {
-  final qs = <QuizQuestion>[
-    ...formGridQuestions(context),
-    ...formPositionQuestions(context),
-    ...buildTheWordQuestions(context),
-    ...listenAndPickQuestions(context, count: 2),
-  ]..shuffle(_rng);
-  return QuizScreen(
-      title: context.l10n.formsQuiz,
-      progressId: progressId,
-      questions: qs,
-      graded: graded);
 }

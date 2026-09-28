@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../core/geometry.dart';
-import '../../core/theme.dart';
 import '../../data/extra_letters.dart';
 import '../../data/glyph_names.dart' show letterName;
+import '../../data/kids_glosses.dart' show kidsExtraLetterNote;
 import '../../widgets/common.dart' show MediaRow, highlightSpans;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_widgets.dart';
 
 /// One "meet this character" card for a letter the 28-letter alphabet
@@ -26,106 +28,83 @@ class KidsExtraLetterLesson extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
     final letter = letterForAny(char)!;
-    final note = extraLetterNotes[char] ?? '';
+    final note = kidsExtraLetterNote(context, char);
     final more = extraLetterMoreExamples[char] ?? const [];
+    final words = [
+      (letter.exampleWord, letter.exampleRef, char),
+      for (final (word, ref, hl) in more.take(2)) (word, ref, hl),
+    ];
     return KidsLessonScaffold(
       index: 0,
       total: 1,
       done: true,
-      child: Padding(
-        padding: const EdgeInsets.only(top: Geo.gapLg),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(Geo.gapLg),
-                decoration: kidsCard(context),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Text(
-                        char,
+      child: KidsCentered(
+        // The design's Hamzah card (kb_screens.dart `KbHamzahScreen`): the
+        // character on its tile, its name and note, then each real example on
+        // a word block with its Listen / Watch pills.
+        child: Builder(builder: (context) {
+          final ui = kbUi(context);
+          final base = kbText(38, kbC(ui.ink),
+              family: kbFontQuran, weight: FontWeight.w400, height: 1.9);
+          return KbSurface(
+            color: ui.surface,
+            edge: ui.edge,
+            elev: KbElev.hero,
+            radius: 32,
+            padding: const EdgeInsets.fromLTRB(22, 30, 22, 26),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: KbGlyphTile(char,
+                      bg: ui.tile,
+                      ink: ui.tileInk,
+                      size: 110,
+                      radius: 30,
+                      fontSize: 66),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  letterName(context, letter),
+                  textAlign: TextAlign.center,
+                  style: kbText(30, kbC(ui.ink)),
+                ),
+                if (note.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    note,
+                    textAlign: TextAlign.center,
+                    style: kbText(19, kbC(ui.inkSoft),
+                        weight: FontWeight.w600, height: 1.35),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                for (final (i, (word, ref, hl)) in words.indexed) ...[
+                  if (i > 0) const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
+                    decoration: BoxDecoration(
+                        color: kbC(ui.wordBg),
+                        borderRadius: BorderRadius.circular(22)),
+                    child: Column(children: [
+                      RichText(
                         textDirection: TextDirection.rtl,
-                        style: quranicStyle(context, size: 56, color: p.accent),
-                      ),
-                    ),
-                    const SizedBox(height: Geo.gapSm),
-                    Text(
-                      letterName(context, letter),
-                      textAlign: TextAlign.center,
-                      style: kidsStyle(
-                        context,
-                        size: 19,
-                        weight: FontWeight.w800,
-                      ),
-                    ),
-                    if (note.isNotEmpty) ...[
-                      const SizedBox(height: Geo.gapMd),
-                      Text(
-                        note,
                         textAlign: TextAlign.center,
-                        style: kidsStyle(context, size: 13, color: p.textDim),
-                      ),
-                    ],
-                    const SizedBox(height: Geo.gapMd),
-                    Center(
-                      child: RichText(
-                        textDirection: TextDirection.rtl,
-                        textAlign: TextAlign.center,
+                        textScaler: MediaQuery.textScalerOf(context),
                         text: TextSpan(
-                          children: highlightSpans(
-                            letter.exampleWord,
-                            char,
-                            quranicStyle(context, size: 30),
-                            quranicStyle(context, size: 30, color: p.accent),
-                          ),
+                          children: highlightSpans(word, hl, base,
+                              base.copyWith(color: kbC(ui.linkInk))),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: Geo.gapSm),
-                    Center(child: MediaRow(ref: letter.exampleRef)),
-                    if (more.isNotEmpty) ...[
-                      const SizedBox(height: Geo.gapMd),
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: Geo.gapMd,
-                        runSpacing: Geo.gapSm,
-                        children: [
-                          for (final (word, ref, hl) in more.take(2))
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                RichText(
-                                  textDirection: TextDirection.rtl,
-                                  text: TextSpan(
-                                    children: highlightSpans(
-                                      word,
-                                      hl,
-                                      quranicStyle(context, size: 20),
-                                      quranicStyle(
-                                        context,
-                                        size: 20,
-                                        color: p.accent,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                MediaRow(ref: ref),
-                              ],
-                            ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+                      MediaRow(ref: ref),
+                    ]),
+                  ),
+                ],
+              ],
+            ),
+          );
+        }),
       ),
     );
   }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../core/geometry.dart';
 import '../../core/l10n.dart';
-import '../../core/theme.dart';
-import '../../widgets/common.dart' show TapScale;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
+import '../../kids_backdrops/kb_ui.dart';
+import 'kids_widgets.dart' show KidsCentered, KidsNextButton;
 
 /// One multiple-choice check, the way every kid lesson asks them — and the way
 /// the research on young children says a check should behave:
@@ -116,39 +118,37 @@ class _KidsChoiceCardState extends State<KidsChoiceCard> {
     });
   }
 
+  /// An option as the design's answer cell (kb_components.dart `KbGlyphCell`):
+  /// idle on the surface; a wrong pick in the "bad" colours, faded (UI_SPEC
+  /// §1.7: fade, never go transparent); the right one, once revealed, in the
+  /// "good" colours.
   Widget _tile(BuildContext context, int i) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final tried = _tried.contains(i);
     final isRight = i == widget.correct;
     final revealed = _resolved && isRight;
-    final tile = Container(
-      alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      constraints: widget.columns == 1
-          ? const BoxConstraints(minHeight: 56)
-          : null,
-      decoration: BoxDecoration(
-        color: revealed
-            ? AppColors.ok.withValues(alpha: .18)
-            : tried
-            ? AppColors.bad.withValues(alpha: .14)
-            : p.surface,
-        borderRadius: BorderRadius.circular(Geo.radiusLg),
-        border: Border.all(
-          color: revealed ? AppColors.ok : Colors.transparent,
-          width: 2,
+    final cell = KbGlyphCell(
+      ui: ui,
+      state: revealed
+          ? KbCellState.good
+          : tried
+              ? KbCellState.bad
+              : KbCellState.idle,
+      elev: KbElev.option,
+      square: false,
+      onTap: _resolved || tried ? null : () => _tap(i),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Opacity(
+          opacity: tried && !revealed ? .5 : 1,
+          child: widget.options[i],
         ),
       ),
-      child: Opacity(
-        opacity: tried && !revealed ? .5 : 1,
-        child: widget.options[i],
-      ),
     );
-    // A tile that has been tried is no longer a target, and stops being a
-    // TapScale, so the ones still in play are the only tappable things left.
-    return _resolved || tried
-        ? tile
-        : TapScale(onTap: () => _tap(i), child: tile);
+    return widget.columns == 1
+        ? ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 64), child: cell)
+        : cell;
   }
 
   Widget _options(BuildContext context) {
@@ -156,126 +156,121 @@ class _KidsChoiceCardState extends State<KidsChoiceCard> {
       for (var i = 0; i < widget.options.length; i++) _tile(context, i),
     ];
     if (widget.columns == 1) {
-      return SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final t in tiles)
-              Padding(
-                padding: const EdgeInsets.only(bottom: Geo.gapSm),
-                child: t,
-              ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (i, t) in tiles.indexed) ...[
+            if (i > 0) const SizedBox(height: 12),
+            t,
           ],
-        ),
+        ],
       );
     }
     return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      // Room for the cells' edges and rings, which sit outside their boxes.
+      clipBehavior: Clip.none,
       crossAxisCount: widget.columns,
-      mainAxisSpacing: Geo.gapMd,
-      crossAxisSpacing: Geo.gapMd,
+      mainAxisSpacing: 14,
+      crossAxisSpacing: 12,
       childAspectRatio: widget.aspect,
       children: tiles,
     );
   }
 
-  /// The end of a check with an explanation: was it right, what was right if
-  /// not, and why — replacing the options, which have done their job.
   Widget _panel(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final right = _solved;
-    return SingleChildScrollView(
-      child: Container(
-        padding: const EdgeInsets.all(Geo.gapMd),
-        decoration: kidsCard(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              right
-                  ? context.l10n.kidsCheckYes
-                  : context.l10n.kidsCheckNotQuite,
-              style: kidsStyle(
-                context,
-                size: 16,
-                weight: FontWeight.w800,
-                color: right ? AppColors.ok : p.accent,
-              ),
-            ),
-            if (!right) ...[
-              const SizedBox(height: Geo.gapSm),
-              Container(
-                alignment: Alignment.center,
-                constraints: const BoxConstraints(minHeight: 56),
-                decoration: BoxDecoration(
-                  color: AppColors.ok.withValues(alpha: .18),
-                  borderRadius: BorderRadius.circular(Geo.radiusLg),
-                  border: Border.all(color: AppColors.ok, width: 2),
-                ),
+    return KbSurface(
+      color: ui.surface,
+      edge: ui.edge,
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            right ? context.l10n.kidsCheckYes : context.l10n.kidsCheckNotQuite,
+            style: kbText(20, kbC(right ? KbUi.goodEdge : ui.linkInk)),
+          ),
+          if (!right) ...[
+            const SizedBox(height: 10),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 64),
+              child: KbGlyphCell(
+                ui: ui,
+                state: KbCellState.good,
+                elev: KbElev.edge3,
+                square: false,
                 child: widget.options[widget.correct],
               ),
-            ],
-            const SizedBox(height: Geo.gapSm),
-            Text(widget.explain!, style: kidsStyle(context, size: 14)),
+            ),
           ],
-        ),
+          const SizedBox(height: 12),
+          Text(widget.explain!,
+              style: kbText(17, kbC(ui.ink),
+                  weight: FontWeight.w600, height: 1.35)),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final explaining = _resolved && widget.explain != null;
     final retrying = _tried.isNotEmpty && !_resolved;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          widget.prompt,
-          style: kidsStyle(context, size: 17, weight: FontWeight.w800),
-        ),
-        const SizedBox(height: Geo.gapMd),
-        // Flexible and scrollable rather than fixed: a real verse can be as
-        // long as a whole āyah.
-        if (widget.display != null)
-          Flexible(child: SingleChildScrollView(child: widget.display)),
-        const SizedBox(height: Geo.gapMd),
-        if (retrying)
-          Container(
-            margin: const EdgeInsets.only(bottom: Geo.gapMd),
-            padding: const EdgeInsets.all(Geo.gapSm),
-            decoration: BoxDecoration(
-              color: p.amber.withValues(alpha: .18),
-              borderRadius: BorderRadius.circular(Geo.radiusMd),
-            ),
-            child: Row(
+        Expanded(
+          child: KidsCentered(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(Icons.lightbulb_rounded, size: 20, color: p.amber),
-                const SizedBox(width: Geo.gapSm),
-                Expanded(
-                  child: Text(
-                    widget.hint ?? context.l10n.kidsCheckTryAgain,
-                    style: kidsStyle(
-                      context,
-                      size: 13,
-                      weight: FontWeight.w700,
+                // The question, on the sky — the design's quiz prompt.
+                KbSubtitle(widget.prompt,
+                    ui: ui, fontSize: 22, height: 1.3, align: TextAlign.center),
+                const SizedBox(height: 18),
+                if (widget.display != null) ...[
+                  widget.display!,
+                  const SizedBox(height: 24),
+                ],
+                if (retrying)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: KbSurface(
+                      color: ui.surface,
+                      edge: ui.edge,
+                      elev: KbElev.edge4,
+                      radius: 18,
+                      padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
+                      child: Row(
+                        children: [
+                          KbDot('lightbulb',
+                              bg: ui.reward, ink: ui.rewardInk, size: 30,
+                              iconSize: 19),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              widget.hint ?? context.l10n.kidsCheckTryAgain,
+                              style: kbText(17, kbC(ui.ink),
+                                  weight: FontWeight.w700, height: 1.3),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                explaining ? _panel(context) : _options(context),
               ],
             ),
           ),
-        Expanded(child: explaining ? _panel(context) : _options(context)),
+        ),
         if (explaining) ...[
-          const SizedBox(height: Geo.gapMd),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: p.accent,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            onPressed: _report,
-            child: Text(context.l10n.kidsNextCard),
-          ),
+          const SizedBox(height: 18),
+          KidsNextButton(context.l10n.kidsNextCard, onTap: _report),
         ],
       ],
     );

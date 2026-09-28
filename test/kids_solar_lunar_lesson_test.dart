@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_solar_lunar_lesson.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -37,8 +36,8 @@ Widget _harness(AppSettings s, ProgressStore p, Widget child) => SettingsScope(
   ),
 );
 
-/// Drives the lesson to completion: "Next" on a letter card, "Check" after
-/// picking every Sun tile on a sort card, until Continue appears.
+/// Drives the lesson to completion: "Next" on a letter card, tapping every tile
+/// into a bin on a sort card, until Continue appears.
 Future<void> _finishLesson(WidgetTester tester) async {
   for (var i = 0; i < 80; i++) {
     await tester.pump(const Duration(milliseconds: 50));
@@ -49,17 +48,8 @@ Future<void> _finishLesson(WidgetTester tester) async {
       await tester.tap(next.first);
       continue;
     }
-    final check = find.text('Check');
-    if (check.evaluate().isNotEmpty) {
-      // Tap the first tile, then submit — correctness doesn't matter here,
-      // only that the flow keeps moving.
-      final tile = find.byType(TapScale);
-      if (tile.evaluate().isNotEmpty) {
-        await tester.tap(tile.first);
-        await tester.pump();
-      }
-      await tester.tap(check);
-      await tester.pump(const Duration(milliseconds: 1000));
+    if (sortCardShowing()) {
+      await finishSortByTap(tester);
       continue;
     }
   }
@@ -114,7 +104,7 @@ void main() {
     expect(prog.starsFor('kids.solar_lunar.learn'), greaterThan(0));
   });
 
-  testWidgets('a check-up asks to tap every Sun Letter from a mixed pool', (
+  testWidgets('a check-up sorts a mixed pool into sun and moon', (
     tester,
   ) async {
     useReducedMotion(tester);
@@ -134,7 +124,11 @@ void main() {
       await tester.tap(find.text('Next'));
       await tester.pump();
     }
-    expect(find.text('Tap every Sun Letter'), findsOneWidget);
-    expect(find.byType(TapScale), findsNWidgets(5));
+    expect(find.text('Sun or moon? Put each word in its place.'),
+        findsOneWidget);
+    // Five words to sort, into two bins.
+    expect(find.byType(Draggable<String>), findsNWidgets(5));
+    expect(find.text('Sun letters'), findsOneWidget);
+    expect(find.text('Moon letters'), findsOneWidget);
   });
 }

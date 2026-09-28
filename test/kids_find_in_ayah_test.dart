@@ -9,7 +9,6 @@ import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/letters.dart';
 import 'package:qiraah_arabiyyah/data/quran.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_find_in_ayah.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -212,6 +211,6 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('Tap every word with'), findsOneWidget);
-    expect(find.byType(TapScale), findsWidgets);
+    expect(kidsTappables(), findsWidgets);
   });
 }

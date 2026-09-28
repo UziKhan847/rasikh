@@ -2,14 +2,16 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../core/geometry.dart';
 import '../../core/l10n.dart';
-import '../../core/theme.dart';
 import '../../data/special_shapes.dart';
 import '../../widgets/common.dart'
-    show buildOptions, highlightSpans, pickN, starsForFraction;
+    show buildOptions, pickN, starsForFraction;
 import '../../widgets/lesson.dart' show shapeSvg;
 import 'kids_choice_card.dart';
+import '../../data/kids_glosses.dart';
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_widgets.dart';
 
 final _rng = math.Random();
@@ -130,14 +132,24 @@ class _KidsSpecialShapesLessonState extends State<KidsSpecialShapesLesson> {
   }
 }
 
-String _formCaption(BuildContext context, ShapeForm f) => f.position != null
-    ? switch (f.position!) {
-        ShapePosition.isolated => context.l10n.formAlone,
-        ShapePosition.beginning => context.l10n.formStart,
-        ShapePosition.middle => context.l10n.formMiddle,
-        ShapePosition.ending => context.l10n.formEnd,
-      }
-    : f.label;
+String _formCaption(BuildContext context, ShapeForm f) {
+  if (f.position != null) {
+    return switch (f.position!) {
+      ShapePosition.isolated => context.l10n.formAlone,
+      ShapePosition.beginning => context.l10n.formStart,
+      ShapePosition.middle => context.l10n.formMiddle,
+      ShapePosition.ending => context.l10n.formEnd,
+    };
+  }
+  // The three Lām + Hamzah labels are the only ones set by [label] rather
+  // than [position]; give them the kid-worded, translated versions.
+  return switch (f.label) {
+    'Hamzah Above' => context.l10n.kidsShapeFormMarkAbove,
+    'Hamzah Below' => context.l10n.kidsShapeFormMarkBelow,
+    'With Alif Maddah' => context.l10n.kidsShapeFormWavy,
+    _ => f.label,
+  };
+}
 
 class _ShapeCard extends StatelessWidget {
   final SpecialShape shape;
@@ -146,21 +158,16 @@ class _ShapeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final example = shape.examples.isNotEmpty ? shape.examples.first : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          shape.title,
-          style: kidsStyle(context, size: 19, weight: FontWeight.w800),
-        ),
-        const SizedBox(height: Geo.gapSm),
+        KidsLessonTitle(kidsShapeTitle(context, shape)),
+        const SizedBox(height: 16),
         Expanded(
-          child: SingleChildScrollView(
-            child: Container(
-              padding: const EdgeInsets.all(Geo.gapLg),
-              decoration: kidsCard(context),
+          child: KidsCentered(
+            child: KidsLessonCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -170,85 +177,57 @@ class _ShapeCard extends StatelessWidget {
                       shape.forms.first.asset,
                       mm: shapeSvgMm[shape.forms.first.asset]!,
                       boxSide: 80,
-                      color: p.accent,
+                      color: kbC(ui.tileInk),
                     ),
                   ),
                   if (shape.forms.length > 1) ...[
-                    const SizedBox(height: Geo.gapMd),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    const SizedBox(height: 14),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 14,
+                      runSpacing: 10,
                       children: [
-                        for (final f in shape.forms) ...[
+                        for (final f in shape.forms)
                           Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               shapeSvg(
                                 context,
                                 f.asset,
                                 mm: shapeSvgMm[f.asset]!,
                                 boxSide: 36,
-                                color: p.text,
+                                color: kbC(ui.ink),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 _formCaption(context, f),
-                                style: kidsStyle(context, size: 10),
+                                style: kbText(14, kbC(ui.inkSoft),
+                                    weight: FontWeight.w700),
                               ),
                             ],
                           ),
-                          if (f != shape.forms.last)
-                            const SizedBox(width: Geo.gapMd),
-                        ],
                       ],
                     ),
                   ],
-                  const SizedBox(height: Geo.gapMd),
+                  const SizedBox(height: 14),
                   Text(
-                    shape.note,
+                    kidsShapeNote(context, shape),
                     textAlign: TextAlign.center,
-                    style: kidsStyle(context, size: 13, color: p.textDim),
+                    style: kbText(17, kbC(ui.inkSoft),
+                        weight: FontWeight.w600, height: 1.35),
                   ),
                   if (example != null) ...[
-                    const SizedBox(height: Geo.gapMd),
-                    RichText(
-                      textDirection: TextDirection.rtl,
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        children: highlightSpans(
-                          example.word,
-                          example.highlight,
-                          quranicStyle(context, size: 28),
-                          quranicStyle(context, size: 28, color: p.accent),
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 12),
+                    KidsQuranWord(example.word,
+                        highlight: example.highlight, size: 28),
                   ],
-                  const SizedBox(height: Geo.gapMd),
-                  Container(
-                    padding: const EdgeInsets.all(Geo.gapSm),
-                    decoration: BoxDecoration(
-                      color: p.accent2.withValues(alpha: .10),
-                      borderRadius: BorderRadius.circular(Geo.radiusMd),
-                    ),
-                    child: Text(
-                      shape.tellApart,
-                      textAlign: TextAlign.center,
-                      style: kidsStyle(context, size: 12, color: p.accent2),
-                    ),
-                  ),
                 ],
               ),
             ),
           ),
         ),
-        const SizedBox(height: Geo.gapLg),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: p.accent,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: onNext,
-          child: Text(context.l10n.kidsNextCard),
-        ),
+        const SizedBox(height: 24),
+        KidsNextButton(context.l10n.kidsNextCard, onTap: onNext),
       ],
     );
   }
@@ -267,9 +246,9 @@ class _CheckCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     return KidsChoiceCard(
-      prompt: context.l10n.kidsWhichShapeIsThis(answer.title),
+      prompt: context.l10n.kidsWhichShapeIsThis(kidsShapeTitle(context, answer)),
       options: [
         for (final option in options)
           shapeSvg(
@@ -277,13 +256,15 @@ class _CheckCard extends StatelessWidget {
             option.forms.first.asset,
             mm: shapeSvgMm[option.forms.first.asset]!,
             boxSide: 56,
-            color: p.text,
+            color: kbC(ui.ink),
           ),
       ],
       correct: options.indexWhere((o) => o.id == answer.id),
       aspect: 1.3,
-      // What tells this shape from the ones it is confused with.
-      explain: answer.tellApart,
+      // What tells this shape from the ones it is confused with — shown as a
+      // correction after a miss, not a second paragraph read before the
+      // question.
+      explain: kidsShapeTip(context, answer),
       onDone: onDone,
     );
   }

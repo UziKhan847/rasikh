@@ -7,7 +7,6 @@ import 'package:qiraah_arabiyyah/core/letter_audio.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/kids_sentences.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_words_lesson.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -48,7 +47,7 @@ Future<void> _finishLesson(WidgetTester tester) async {
       await tester.tap(next.first);
       continue;
     }
-    final options = find.byType(TapScale);
+    final options = kidsTappables();
     if (options.evaluate().isNotEmpty) {
       await tester.tap(options.first);
       await tester.pump(const Duration(milliseconds: 1000));
@@ -98,7 +97,7 @@ void main() {
 
     final first = kidsSentences.first;
     expect(find.textContaining(first.gloss), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.volume_up_rounded));
+    await tester.tap(kidsListenIcon());
     await tester.pump();
     expect(played, [first.sentence]);
   });
@@ -120,7 +119,7 @@ void main() {
       await tester.pump();
     }
     expect(find.textContaining('Which word means'), findsOneWidget);
-    expect(find.byType(TapScale), findsNWidgets(4));
+    expect(kidsTappables(), findsNWidgets(4));
   });
 
   testWidgets('walking all 28 sentences reports a real, graded result', (

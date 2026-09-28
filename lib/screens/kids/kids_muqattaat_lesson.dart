@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
-import '../../core/theme.dart';
 import '../../data/glyph_names.dart' show letterNameOf;
 import '../../data/muqattaat.dart';
 import '../../widgets/common.dart'
     show MediaRow, buildOptions, pickN, starsForFraction;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_checkpoint_quiz.dart' show kidsCheckpointEvery;
 import 'kids_choice_card.dart';
 import 'kids_widgets.dart';
@@ -210,38 +212,32 @@ class _IntroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.all(Geo.gapLg),
-              decoration: kidsCard(context),
+          child: KidsCentered(
+            child: KidsLessonCard(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     'الٓمٓ',
                     textDirection: TextDirection.rtl,
-                    style: quranicStyle(context, size: 44, color: p.accent),
+                    style: kbText(44, kbC(ui.linkInk), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
                   ),
                   const SizedBox(height: Geo.gapMd),
                   Text(
                     context.l10n.unitMuqattaat,
                     textAlign: TextAlign.center,
-                    style: kidsStyle(
-                      context,
-                      size: 19,
-                      weight: FontWeight.w800,
-                    ),
+                    style: kbText(24, kbC(ui.ink)),
                   ),
                   const SizedBox(height: Geo.gapSm),
                   Text(
                     context.l10n.kidsMuqattaatIntro,
                     textAlign: TextAlign.center,
-                    style: kidsStyle(context, size: 14, color: p.textDim),
+                    style: kbText(18, kbC(ui.inkSoft), weight: FontWeight.w600, height: 1.35),
                   ),
                 ],
               ),
@@ -249,14 +245,7 @@ class _IntroCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Geo.gapLg),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: p.accent,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: onNext,
-          child: Text(context.l10n.kidsNextCard),
-        ),
+        KidsNextButton(context.l10n.kidsNextCard, onTap: onNext),
       ],
     );
   }
@@ -271,21 +260,31 @@ class _SetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final chars = set.letters.split('');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Letters sit on a card, never on the sky (UI_SPEC §1.6) — the
+        // design's quiz word card.
         Center(
-          child: Text(
-            set.displayText,
-            textDirection: TextDirection.rtl,
-            style: quranicStyle(context, size: 36),
+          child: KbSurface(
+            color: ui.surface,
+            edge: ui.edge,
+            elev: KbElev.big,
+            radius: 28,
+            padding: const EdgeInsets.fromLTRB(32, 2, 32, 0),
+            child: Text(
+              set.displayText,
+              textDirection: TextDirection.rtl,
+              style: kbText(40, kbC(ui.ink),
+                  family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
+            ),
           ),
         ),
         const SizedBox(height: Geo.gapMd),
         Expanded(
-          child: SingleChildScrollView(
+          child: KidsCentered(
             child: Column(
               children: [
                 Wrap(
@@ -294,22 +293,25 @@ class _SetCard extends StatelessWidget {
                   runSpacing: Geo.gapSm,
                   children: [
                     for (final ch in chars)
-                      Container(
+                      KbSurface(
+                        color: ui.surface,
+                        edge: ui.edge,
+                        elev: KbElev.tile,
+                        radius: 20,
                         width: 78,
                         padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: kidsCard(context),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               ch,
                               textDirection: TextDirection.rtl,
-                              style: quranicStyle(context, size: 30),
+                              style: kbText(30, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               letterNameOf(context, ch),
-                              style: kidsStyle(context, size: 11),
+                              style: kbText(14, kbC(ui.ink), weight: FontWeight.w600, height: 1.35),
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 4),
@@ -319,12 +321,7 @@ class _SetCard extends StatelessWidget {
                                   : context.l10n.kidsMuqattaatCounts(
                                       muqattaatCounts[ch]!,
                                     ),
-                              style: kidsStyle(
-                                context,
-                                size: 10,
-                                color: p.accent2,
-                                weight: FontWeight.w700,
-                              ),
+                              style: kbText(14, kbC(ui.linkInk), weight: FontWeight.w700),
                               textAlign: TextAlign.center,
                             ),
                           ],
@@ -332,29 +329,28 @@ class _SetCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: Geo.gapMd),
-                Text(
-                  context.l10n.kidsMuqattaatOpensSurah(
-                    set.surahs.map((n) => '$n').join(', '),
-                  ),
-                  textAlign: TextAlign.center,
-                  style: kidsStyle(context, size: 12.5, color: p.textDim),
+                const SizedBox(height: Geo.gapLg),
+                KidsLessonCard(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                  child: Column(children: [
+                    Text(
+                      context.l10n.kidsMuqattaatOpensSurah(
+                        set.surahs.map((n) => '$n').join(', '),
+                      ),
+                      textAlign: TextAlign.center,
+                      style: kbText(16, kbC(ui.inkSoft),
+                          weight: FontWeight.w600, height: 1.35),
+                    ),
+                    const SizedBox(height: Geo.gapSm),
+                    MediaRow(ref: set.ref),
+                  ]),
                 ),
-                const SizedBox(height: Geo.gapSm),
-                MediaRow(ref: set.ref),
               ],
             ),
           ),
         ),
         const SizedBox(height: Geo.gapLg),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: p.accent,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: onNext,
-          child: Text(context.l10n.kidsNextCard),
-        ),
+        KidsNextButton(context.l10n.kidsNextCard, onTap: onNext),
       ],
     );
   }
@@ -382,13 +378,23 @@ class _CheckCard extends StatefulWidget {
 class _CheckCardState extends State<_CheckCard> {
   @override
   Widget build(BuildContext context) {
+    final ui = kbUi(context);
     return KidsChoiceCard(
       prompt: context.l10n.kidsHowManyCounts,
+      // The design's quiz word card (kb_screens.dart `KbQuizScreen`).
       display: Center(
-        child: Text(
-          widget.letter,
-          textDirection: TextDirection.rtl,
-          style: quranicStyle(context, size: 60),
+        child: KbSurface(
+          color: ui.surface,
+          edge: ui.edge,
+          elev: KbElev.big,
+          radius: 28,
+          padding: const EdgeInsets.fromLTRB(40, 6, 40, 0),
+          child: Text(
+            widget.letter,
+            textDirection: TextDirection.rtl,
+            style: kbText(64, kbC(ui.ink),
+                family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
+          ),
         ),
       ),
       options: [
@@ -398,7 +404,7 @@ class _CheckCardState extends State<_CheckCard> {
                 ? context.l10n.kidsMuqattaatNoStretch
                 : context.l10n.kidsMuqattaatCounts(value),
             textAlign: TextAlign.center,
-            style: kidsStyle(context, size: 13, weight: FontWeight.w700),
+            style: kbText(16, kbC(ui.ink), weight: FontWeight.w700),
           ),
       ],
       correct: widget.options.indexOf(widget.answer),

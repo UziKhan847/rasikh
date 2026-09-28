@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_waqf_lesson.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -46,8 +45,9 @@ Future<void> _finishLesson(WidgetTester tester) async {
       await tester.tap(next.first);
       continue;
     }
-    final options = find.byType(TapScale);
+    final options = kidsTappables();
     if (options.evaluate().isNotEmpty) {
+      await tester.ensureVisible(options.first);
       await tester.tap(options.first);
       await tester.pump(const Duration(milliseconds: 1000));
       continue;

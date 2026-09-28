@@ -14,8 +14,14 @@ import '../lessons/forms_quizzes.dart' show taMarbutaQuestions;
 import 'kids_checkpoint_quiz.dart';
 import 'kids_desktop_nav.dart';
 import 'kids_extra_letter_lesson.dart';
+import 'kids_game_bingo.dart';
+import 'kids_game_memory_match.dart';
+import 'kids_game_three_in_a_row.dart';
+import 'kids_join_letters.dart';
+import 'kids_lookalike_quiz.dart' show kidsLearnedLetters;
 import 'kids_letter_flow.dart';
 import 'kids_madd_lesson.dart';
+import 'kids_mark_words_lesson.dart';
 import 'kids_muqattaat_lesson.dart';
 import 'kids_reading_screen.dart';
 import 'kids_special_shapes_lesson.dart';
@@ -23,6 +29,7 @@ import 'kids_review_recap.dart';
 import 'kids_solar_lunar_lesson.dart';
 import 'kids_stage_quizzes.dart';
 import 'kids_syllable_drill.dart';
+import 'kids_tanwin_shapes_lesson.dart';
 import 'kids_tajwid_rule_lesson.dart';
 import 'kids_waqf_lesson.dart';
 import 'kids_wasl_lesson.dart';
@@ -191,14 +198,21 @@ String _glyphInFormFor(ArabicLetter l, String form) => switch (form) {
 /// not a checkpoint.
 List<KidsItem> _withCheckpoints(
   List<KidsItem> lessons,
-  KidsItem Function(int upTo) checkpoint,
-) {
+  KidsItem Function(int upTo) checkpoint, {
+  /// A game after every SECOND checkpoint (see [_gameItem]). Every other one
+  /// on purpose: a game at every checkpoint would be the reward for finishing
+  /// five lessons rather than a change of pace within a long stage.
+  KidsItem Function(int upTo)? game,
+}) {
   final out = <KidsItem>[];
   for (var i = 0; i < lessons.length; i++) {
     out.add(lessons[i]);
     final done = i + 1;
     if (done % kidsCheckpointEvery == 0 && done != lessons.length) {
       out.add(checkpoint(done));
+      if (game != null && done % (kidsCheckpointEvery * 2) == 0) {
+        out.add(game(done));
+      }
     }
   }
   return out;
@@ -239,6 +253,14 @@ List<KidsItem> _formsWithCheckpoints(List<ArabicLetter> letters) {
           (c, id, n) => kidsFormsCheckpoint(c, progressId: id, upTo: n),
         ),
       );
+      if (done % (kidsCheckpointEvery * 2) == 0) {
+        out.add(
+          _gameItem(
+            'kids.game.forms.$done',
+            _gameAt(const [KidsPathGame.threeInARow, KidsPathGame.bingo], done),
+          ),
+        );
+      }
     }
   }
   return out;
@@ -273,6 +295,12 @@ KidsBlock _drillBlock({
   required QuizScreen Function(BuildContext, String testId) test,
   required String Function(BuildContext) title,
   required String Function(BuildContext) subtitle,
+  /// Extra items between the drills and the Test — the tanwīn shapes lesson,
+  /// and now the tamrīn word-practice item every drill stage gets (see
+  /// [_wordPracticeItem]). Not a new BLOCK: adding one would move every later
+  /// stage's index and every `kids_badges_test.dart`/`kids_path_test.dart`
+  /// position pinned to it.
+  List<KidsItem Function(BuildContext)> extra = const [],
 }) => KidsBlock(
   id: id,
   title: title,
@@ -305,10 +333,90 @@ KidsBlock _drillBlock({
               ),
             );
           }(),
+      for (final e in extra) e(c),
       _quizItem(kidsTestId, (c) => c.l10n.phaseTest, (c) => test(c, kidsTestId)),
     ];
   },
 );
+
+/// The tamrīn every Qāʿidah runs after its own table: real muṣḥaf words
+/// carrying [markIds], between a drill stage's last session and its Test (see
+/// `_drillBlock`'s `extra`). Not fed word practice by this route: `tanwin`,
+/// whose own [KidsTanwinShapesLesson] already shows a real, highlighted
+/// muṣḥaf example for each of the three allograph shapes — a second,
+/// generic word-practice item over the same nine examples would repeat it.
+KidsItem _wordPracticeItem(String stageId, List<String> markIds) => KidsItem(
+  id: 'kids.$stageId.words',
+  icon: Icons.menu_book_rounded,
+  label: (c) => c.l10n.kidsPracticeWordsTitle,
+  open: (c) => KidsMarkWordsLesson(
+    markIds: markIds,
+    progressId: 'kids.$stageId.words',
+  ),
+);
+
+/// Which of the three board games a path slot opens.
+enum KidsPathGame { threeInARow, memoryMatch, bingo }
+
+/// A game between lessons. The three games are Practice tiles too, on demand;
+/// these slots are about PACING — a stage of twenty-eight letters is a long
+/// way to walk on lessons and check-ups alone, and the games are the variety
+/// in it. They fall where a checkpoint already does, so the rhythm reads as
+/// "five lessons, a check-up, a game".
+///
+/// Its own `kids.game.` namespace, deliberately: the lesson ids are counted
+/// by PREFIX in several places (`kidsLettersLearned` over `kids.letter.`, the
+/// joining-forms badge over `kids.forms.`), and an item filed under one of
+/// those would quietly inflate a count it is not part of — the same reasoning
+/// [_checkpointItem] gives for its own namespace.
+///
+/// Which game a slot opens is fixed here rather than chosen when it opens: a
+/// tile whose label changed between one look and the next is not something a
+/// child can look forward to.
+KidsItem _gameItem(String id, KidsPathGame which) => KidsItem(
+  id: id,
+  icon: Icons.videogame_asset_rounded,
+  label: (c) => switch (which) {
+    KidsPathGame.threeInARow => c.l10n.kidsGameThreeInARow,
+    KidsPathGame.memoryMatch => c.l10n.kidsGameMemoryMatch,
+    KidsPathGame.bingo => c.l10n.kidsGameBingo,
+  },
+  open: (c) {
+    final known = _gameLetters(ProgressScope.of(c), which);
+    return switch (which) {
+      KidsPathGame.threeInARow =>
+        KidsThreeInARow(known: known, progressId: id),
+      KidsPathGame.memoryMatch =>
+        KidsMemoryMatch(known: known, progressId: id),
+      KidsPathGame.bingo => KidsGameBingo(known: known, progressId: id),
+    };
+  },
+);
+
+/// The letters a path game plays with: the ones actually cleared, topped up
+/// from the front of the path if there are fewer than the board needs.
+///
+/// Every slot below sits far enough along that the top-up never fires in
+/// normal play — but the dev unlock opens the whole path at once, and a tile
+/// that threw when opened early would be worse than one that plays with the
+/// first six letters.
+List<ArabicLetter> _gameLetters(ProgressStore prog, KidsPathGame which) {
+  final need = which == KidsPathGame.bingo ? 10 : 6;
+  final known = kidsLearnedLetters(prog);
+  if (known.length >= need) return known;
+  final out = [...known];
+  for (final l in letters) {
+    if (out.length >= need) break;
+    if (!out.any((k) => k.char == l.char)) out.add(l);
+  }
+  return out;
+}
+
+/// Picks a stage's game by position, so a child meets all three rather than
+/// the same one every time — and never the same one twice running.
+KidsPathGame _gameAt(List<KidsPathGame> order, int upTo) =>
+    order[(upTo ~/ (kidsCheckpointEvery * 2) - 1).clamp(0, 1 << 30) %
+        order.length];
 
 /// A Tajwīd rule-family stage taught rule by rule (`KidsTajwidRuleLesson`) —
 /// works for a family of any size, from qalqalah's one rule to nūn sākinah's
@@ -435,6 +543,23 @@ KidsBlock _readingBlock({
   ],
 );
 
+/// One sūrah of the closing reading ladder.
+KidsBlock _surahBlock(KidsReadingSurah s) => _readingBlock(
+  id: s.n == 112 ? 'capstone' : 'read.${s.n}',
+  badge: _arabicIndic(s.n),
+  surah: s.n,
+  wordsPerChunk: s.wordsPerChunk,
+  wholeAyahs: s.wordsPerChunk == 0,
+  title: (c) => kidsSurahTitle(c, s),
+  subtitle: (c) =>
+      s.wordsPerChunk == 0 ? c.l10n.kidsBlockReadAyahSub : c.l10n.kidsBlockReadThreeSub,
+);
+
+/// [n] in Arabic-Indic digits — the way the muṣḥaf numbers a sūrah.
+String _arabicIndic(int n) => [
+  for (final d in '$n'.runes) String.fromCharCode(0x0660 + d - 0x30),
+].join();
+
 /// A block of "meet this character" pages, drawn from [extraLetters] — the
 /// hamza carriers, tāʼ marbūṭah and alif maqṣūrah that the 28-letter alphabet
 /// does not cover but the muṣḥaf uses constantly.
@@ -467,6 +592,16 @@ List<KidsBlock> kidsPath(BuildContext context) => [
         'letters',
         upTo,
         (c, id, n) => kidsLetterCheckpoint(c, progressId: id, upTo: n),
+      ),
+      // Bingo is not offered here: it needs ten letters on a sixteen-cell
+      // board, and the first slot falls at ten exactly. It comes in Joining
+      // Shapes, by which point the whole alphabet is behind the child.
+      game: (upTo) => _gameItem(
+        'kids.game.letters.$upTo',
+        _gameAt(const [
+          KidsPathGame.memoryMatch,
+          KidsPathGame.threeInARow,
+        ], upTo),
       ),
     ),
   ),
@@ -517,6 +652,23 @@ List<KidsBlock> kidsPath(BuildContext context) => [
           progressId: 'kids.quiz.forms',
           upTo: kidsLetterPath.length,
         ),
+      ),
+    ],
+  ),
+  // Every shape has been met one at a time; here they are put to use, by hand.
+  // Its own `kids.join.` namespace — not `kids.forms.`, which the joining-forms
+  // badge counts by prefix.
+  KidsBlock(
+    id: 'join',
+    title: (c) => c.l10n.kidsJoinTitle,
+    subtitle: (c) => c.l10n.kidsBlockJoinSub,
+    badge: 'بيت',
+    items: (c) => [
+      KidsItem(
+        id: 'kids.join.words',
+        icon: Icons.link_rounded,
+        label: (c) => c.l10n.kidsJoinTitle,
+        open: (c) => const KidsJoinLettersLesson(progressId: 'kids.join.words'),
       ),
     ],
   ),
@@ -598,6 +750,10 @@ List<KidsBlock> kidsPath(BuildContext context) => [
     markIds: const ['fatha', 'kasra', 'damma'],
     title: (c) => c.l10n.unitHarakat,
     subtitle: (c) => c.l10n.unitHarakatSub,
+    extra: [
+      (c) => _wordPracticeItem('harakat', const ['fatha', 'kasra', 'damma']),
+      (c) => _gameItem('kids.game.harakat', KidsPathGame.bingo),
+    ],
   ),
   _drillBlock(
     id: 'sukun',
@@ -613,6 +769,10 @@ List<KidsBlock> kidsPath(BuildContext context) => [
     // (`tashkilName`); `mkSukun` is that same name as a plain string.
     title: (c) => c.l10n.mkSukun,
     subtitle: (c) => c.l10n.unitSukunSub,
+    extra: [
+      (c) => _wordPracticeItem('sukun', const ['sukun']),
+      (c) => _gameItem('kids.game.sukun', KidsPathGame.memoryMatch),
+    ],
   ),
   // Shaddah directly after sukūn: it IS sukūn plus a moving letter, and
   // the grown-up lesson literally builds it as بۡ + بَ = بَّ.
@@ -628,6 +788,10 @@ List<KidsBlock> kidsPath(BuildContext context) => [
     markIds: const ['shadda'],
     title: (c) => c.l10n.shaddah,
     subtitle: (c) => c.l10n.unitShaddahSub,
+    extra: [
+      (c) => _wordPracticeItem('shadda', const ['shadda']),
+      (c) => _gameItem('kids.game.shadda', KidsPathGame.threeInARow),
+    ],
   ),
   _kidLearnBlock(
     id: 'madd',
@@ -640,15 +804,20 @@ List<KidsBlock> kidsPath(BuildContext context) => [
   _drillBlock(
     id: 'tanwin',
     badge: 'بً',
-    test: (c, id) => kidsSyllableQuiz(
-      c,
-      title: c.l10n.unitTanwin,
-      progressId: id,
-      markIds: const ['fathatan', 'kasratan', 'dammatan'],
-    ),
+    test: (c, id) => kidsTanwinTest(c, progressId: id),
     markIds: const ['fathatan', 'kasratan', 'dammatan'],
     title: (c) => c.l10n.unitTanwin,
     subtitle: (c) => c.l10n.unitTanwinSub,
+    extra: [
+      (c) => KidsItem(
+        id: 'kids.tanwin.shapes',
+        icon: Icons.looks_rounded,
+        label: (c) => c.l10n.kidsTanwinShapesTitle,
+        open: (c) =>
+            const KidsTanwinShapesLesson(progressId: 'kids.tanwin.shapes'),
+      ),
+      (c) => _gameItem('kids.game.tanwin', KidsPathGame.bingo),
+    ],
   ),
   _gradedLessonBlock(
     id: 'muqattaat',
@@ -794,16 +963,10 @@ List<KidsBlock> kidsPath(BuildContext context) => [
     title: (c) => c.l10n.qaidahReview,
     subtitle: (c) => c.l10n.unitReviewSub,
   ),
-  // The capstone: everything, in one real sūrah, read āyah by āyah.
-  _readingBlock(
-    id: 'capstone',
-    badge: '١١٢',
-    surah: 112,
-    wordsPerChunk: 0,
-    wholeAyahs: true,
-    title: (c) => c.l10n.kidsBlockCapstone,
-    subtitle: (c) => c.l10n.kidsBlockCapstoneSub,
-  ),
+  // The reading ladder: from az-Zalzalah to an-Nās, every sūrah of the last
+  // two juz' that a child can read on their own, one stage each, in muṣḥaf
+  // order. al-Ikhlāṣ keeps the id it had as the single "capstone" sūrah.
+  for (final s in kidsReadingSurahs) _surahBlock(s),
 ];
 
 // ── opening and progress ──────────────────────────────────────────────────

@@ -3,8 +3,13 @@ import 'package:flutter/material.dart';
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
 import '../../core/settings.dart';
-import '../../core/theme.dart';
-import '../../widgets/common.dart';
+import '../../data/kids_avatars.dart';
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
+import '../../kids_backdrops/kb_screens.dart' show KbPage;
+import '../../kids_backdrops/kb_widgets.dart';
+import 'kids_avatar_face.dart';
 import 'kids_desktop_nav.dart';
 import 'kids_widgets.dart';
 
@@ -14,7 +19,10 @@ import 'kids_widgets.dart';
 /// these are named in the Qurʼān (the horse in al-ʿĀdiyāt, the frog in
 /// al-Aʿrāf 7:133, the lion in al-Muddaththir 74:51), as are the extra
 /// avatars the shop unlocks — see `kidsShopItems` in `data/kids_content.dart`.
-const _avatarChoices = ['🦊', '🐼', '🐯', '🦁', '🐨', '🐸', '🐴', '🐬'];
+///
+/// These are the avatars a new profile can pick for free. Each has drawn art
+/// (`kids_avatars.dart`); the shop sells the rest.
+const kidsAvatarChoices = ['🦊', '🐼', '🐯', '🦁', '🐨', '🐸', '🐴', '🐬'];
 
 /// "Who's learning?" — the family-profile picker Kids Mode opens with. With
 /// no profile yet (a brand-new install) it goes straight to the creation
@@ -44,31 +52,13 @@ class _KidsProfilePickerState extends State<KidsProfilePicker> {
     _creating ??= SettingsScope.of(context).kidsProfiles.isEmpty;
   }
 
-  Widget _body(BuildContext context, bool creating) {
-    final s = SettingsScope.of(context);
-    return creating
-        ? _CreateProfileForm(
-            onCreated: widget.onDone,
-            onCancel: s.kidsProfiles.isEmpty
-                ? null
-                : () => setState(() => _creating = false),
-          )
-        : _ProfileGrid(
-            onAdd: () => setState(() => _creating = true),
-            onPick: (id) {
-              s.setActiveKidsProfile(id);
-              widget.onDone();
-            },
-          );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
     final creating = _creating ?? SettingsScope.of(context).kidsProfiles.isEmpty;
     final title = creating
         ? context.l10n.kidsNewProfileTitle
         : context.l10n.kidsWhosLearning;
+    final back = widget.canCancel && !creating ? () => Navigator.maybePop(context) : null;
 
     // Reached two ways: directly from KidsProfileGate (no profile yet — both
     // shells, needs its own full Scaffold since no shell chrome exists around
@@ -81,104 +71,132 @@ class _KidsProfilePickerState extends State<KidsProfilePicker> {
           constraints: const BoxConstraints(maxWidth: 520),
           child: Padding(
             padding: const EdgeInsets.all(Geo.gapXl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(title,
-                    style:
-                        kidsStyle(context, size: 19, weight: FontWeight.w800)),
-                const SizedBox(height: Geo.gapMd),
-                Expanded(child: _body(context, creating)),
-              ],
-            ),
+            child: _body(context, creating, title, null),
           ),
         ),
       );
     }
 
+    // The design's page: title on the sky, content scrolling over the scene.
     return Scaffold(
-      backgroundColor: p.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        automaticallyImplyLeading: widget.canCancel && !creating,
-        title: Text(title,
-            style: kidsStyle(context, size: 19, weight: FontWeight.w800)),
-      ),
-      body: SafeArea(child: _body(context, creating)),
+      backgroundColor: kbPageBg(kbUi(context)),
+      body: KidsBackdrop(child: _body(context, creating, title, back)),
     );
+  }
+
+  Widget _body(BuildContext context, bool creating, String title, VoidCallback? back) {
+    final s = SettingsScope.of(context);
+    return Builder(builder: (context) {
+      final ui = kbUi(context);
+      final heading = Row(children: [
+        if (back != null) ...[
+          KbRoundButton(
+              Directionality.of(context) == TextDirection.rtl
+                  ? 'arrow_forward'
+                  : 'arrow_back',
+              ui: ui,
+              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+              onTap: back),
+          const SizedBox(width: 16),
+        ],
+        Flexible(child: KbHeading(title, ui: ui, fontSize: 30)),
+      ]);
+      return creating
+          ? _CreateProfileForm(
+              heading: heading,
+              onCreated: widget.onDone,
+              onCancel: s.kidsProfiles.isEmpty
+                  ? null
+                  : () => setState(() => _creating = false),
+            )
+          : _ProfileGrid(
+              heading: heading,
+              onAdd: () => setState(() => _creating = true),
+              onPick: (id) {
+                s.setActiveKidsProfile(id);
+                widget.onDone();
+              },
+            );
+    });
   }
 }
 
+/// "Who's learning?" — every profile as a tile, plus Add. The design has no
+/// screen for this, so it is built from the kit's own rules: solid tiles with a
+/// hard edge, the active child's tile selected (tile face, accent ring, accent
+/// edge), each avatar in a surface circle.
 class _ProfileGrid extends StatelessWidget {
+  final Widget heading;
   final VoidCallback onAdd;
   final void Function(String id) onPick;
-  const _ProfileGrid({required this.onAdd, required this.onPick});
+  const _ProfileGrid({required this.heading, required this.onAdd, required this.onPick});
 
   @override
   Widget build(BuildContext context) {
     final s = SettingsScope.of(context);
-    final p = kidsPal(context);
-    return GridView.count(
-      padding: const EdgeInsets.all(Geo.gapLg),
-      crossAxisCount: 3,
-      mainAxisSpacing: Geo.gapMd,
-      crossAxisSpacing: Geo.gapMd,
-      children: [
-        for (final profile in s.kidsProfiles)
-          TapScale(
-            onTap: () => onPick(profile.id),
-            child: Container(
-              decoration: BoxDecoration(
-                color: p.surface,
-                borderRadius: BorderRadius.circular(Geo.radiusLg),
-                border: Border.all(
-                    color: profile.id == s.activeKidsProfileId
-                        ? p.accent
-                        : Colors.transparent,
-                    width: 2),
-              ),
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  KidsAvatar(profile: profile, size: 34),
-                  const SizedBox(height: 6),
-                  Text(profile.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: kidsStyle(context,
-                          size: 13, weight: FontWeight.w700)),
-                ],
-              ),
-            ),
-          ),
-        TapScale(
-          onTap: onAdd,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(Geo.radiusLg),
-              border: Border.all(color: p.surfaceHigh, width: 2),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add_rounded, color: p.textDim, size: 30),
-                const SizedBox(height: 4),
-                Text(context.l10n.kidsAddProfile,
-                    style: kidsStyle(context, size: 11.5, color: p.textDim)),
-              ],
-            ),
-          ),
-        ),
-      ],
+    final ui = kbUi(context);
+    Widget cell(bool selected, Widget top, String label, VoidCallback onTap, {Key? key}) => KbSurface(
+      key: key,
+      color: selected ? ui.tile : ui.surface,
+      edge: selected ? ui.accentEdge : ui.edge,
+      outline: selected ? ui.accent : null,
+      elev: KbElev.tile,
+      radius: 20,
+      padding: const EdgeInsets.fromLTRB(8, 14, 8, 10),
+      onTap: onTap,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        top,
+        const SizedBox(height: 6),
+        Text(label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: kbText(17, kbC(selected ? ui.tileInk : ui.ink))),
+      ]),
     );
+    return KbPage(top: 52, bottom: 40, cross: CrossAxisAlignment.stretch, children: [
+      heading,
+      const SizedBox(height: 22),
+      LayoutBuilder(builder: (context, c) {
+        const gap = 12.0;
+        final w = (c.maxWidth - gap * 2) / 3;
+        return Wrap(spacing: gap, runSpacing: gap, children: [
+          for (final profile in s.kidsProfiles)
+            SizedBox(
+              width: w,
+              child: cell(
+                profile.id == s.activeKidsProfileId,
+                KbAvatar(
+                  size: 64,
+                  background: kbC(ui.surface),
+                  face: (d) => KidsAvatar(profile: profile, size: d / 1.15),
+                ),
+                profile.name,
+                () => onPick(profile.id),
+              ),
+            ),
+          SizedBox(
+            width: w,
+            child: cell(
+              false,
+              SizedBox(
+                height: 64,
+                child: Center(child: KbIcon('add', size: 34, color: kbC(ui.inkSoft))),
+              ),
+              context.l10n.kidsAddProfile,
+              onAdd,
+            ),
+          ),
+        ]);
+      }),
+    ]);
   }
 }
 
 class _CreateProfileForm extends StatefulWidget {
+  final Widget heading;
   final VoidCallback onCreated;
   final VoidCallback? onCancel;
-  const _CreateProfileForm({required this.onCreated, this.onCancel});
+  const _CreateProfileForm({required this.heading, required this.onCreated, this.onCancel});
 
   @override
   State<_CreateProfileForm> createState() => _CreateProfileFormState();
@@ -186,7 +204,7 @@ class _CreateProfileForm extends StatefulWidget {
 
 class _CreateProfileFormState extends State<_CreateProfileForm> {
   final _name = TextEditingController();
-  String _avatar = _avatarChoices.first;
+  String _avatar = kidsAvatarChoices.first;
   String _gender = '';
 
   @override
@@ -207,108 +225,98 @@ class _CreateProfileFormState extends State<_CreateProfileForm> {
     widget.onCreated();
   }
 
+  /// The animal's name, for the preview — the free choices, which are the only
+  /// avatars this form offers.
+  String? _animalName(BuildContext context) => switch (kidsAnimalFor(_avatar)?.id) {
+    'fox' => context.l10n.kidsAnimalFox,
+    'panda' => context.l10n.kidsAnimalPanda,
+    'tiger' => context.l10n.kidsAnimalTiger,
+    'lion' => context.l10n.kidsAnimalLion,
+    'koala' => context.l10n.kidsAnimalKoala,
+    'frog' => context.l10n.kidsAnimalFrog,
+    'horse' => context.l10n.kidsAnimalHorse,
+    'dolphin' => context.l10n.kidsAnimalDolphin,
+    _ => null,
+  };
+
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(Geo.gapLg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(_avatar, style: const TextStyle(fontSize: 64)),
-          const SizedBox(height: Geo.gapMd),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final a in _avatarChoices)
-                TapScale(
-                  onTap: () => setState(() => _avatar = a),
-                  child: Container(
-                    width: 46,
-                    height: 46,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: a == _avatar
-                          ? p.accent.withValues(alpha: .18)
-                          : p.surface,
-                      border: Border.all(
-                          color: a == _avatar ? p.accent : p.surfaceHigh,
-                          width: 2),
-                    ),
-                    child: Text(a, style: const TextStyle(fontSize: 22)),
-                  ),
-                ),
-            ],
+    final ui = kbUi(context);
+    final name = _animalName(context);
+    // The design's New Profile screen (kb_screens.dart `KbProfileScreen`), same
+    // widget order and gaps, on the app's own form state.
+    return KbPage(top: 52, bottom: 40, cross: CrossAxisAlignment.stretch, children: [
+      widget.heading,
+      const SizedBox(height: 22),
+      Row(children: [
+        KbSurface(
+          color: ui.surface, edge: ui.edge, elev: KbElev.big, circle: true,
+          width: 128, height: 128, alignment: Alignment.center,
+          child: KidsAvatarFace(_avatar, size: 108 / 1.15),
+        ),
+        const SizedBox(width: 18),
+        if (name != null)
+          Flexible(
+            child: Text(name,
+                style: kbText(24, kbC(ui.headInk), height: 1.1, shadows: ui.headShadows)),
           ),
-          const SizedBox(height: Geo.gapLg),
-          // Deliberately NOT autofocused. This is the only text field in the
-          // app, so it was also the only thing that could raise a keyboard —
-          // and it did, the instant Kids Mode was switched on for the first
-          // time, over the avatar row that is the form's actual first step.
-          TextField(
-            controller: _name,
-            style: kidsStyle(context, size: 16),
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: p.surface,
-              hintText: context.l10n.kidsNameHint,
-              hintStyle: kidsStyle(context, size: 15, color: p.textDim),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(Geo.radiusMd),
-                  borderSide: BorderSide.none),
-            ),
-          ),
-          const SizedBox(height: Geo.gapMd),
-          Text(context.l10n.kidsGenderPrompt,
-              style: kidsStyle(context, size: 12.5, color: p.textDim)),
-          const SizedBox(height: 8),
-          Row(children: [
-            for (final (label, value) in [
-              (context.l10n.kidsGenderBoy, 'm'),
-              (context.l10n.kidsGenderGirl, 'f'),
-              (context.l10n.kidsGenderSkip, ''),
-            ])
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                // Explicit colors, not the ambient ChoiceChip theme — same
-                // reason every other ChoiceChip in this app (about_screen.dart,
-                // dyslexia_screen.dart) sets its own: with no chip theme
-                // customized, Material 3's default renders as a near-black
-                // pill, which reads as broken against Kids Mode's warm palette.
-                child: ChoiceChip(
-                  label: Text(label),
-                  selected: _gender == value,
-                  selectedColor: p.accent,
-                  backgroundColor: p.surface,
-                  side: BorderSide(color: p.surfaceHigh),
-                  labelStyle: kidsStyle(context,
-                      size: 13,
-                      weight: FontWeight.w700,
-                      color: _gender == value ? Colors.white : p.text),
-                  onSelected: (_) => setState(() => _gender = value),
-                ),
+      ]),
+      const SizedBox(height: 24),
+      LayoutBuilder(builder: (context, c) {
+        const gapX = 8.0, gapY = 10.0, cols = 6;
+        final w = (c.maxWidth - gapX * (cols - 1)) / cols;
+        return Wrap(spacing: gapX, runSpacing: gapY, children: [
+          for (final a in kidsAvatarChoices)
+            SizedBox(
+              width: w,
+              child: KbAvatarPickerTile(
+                key: ValueKey('kidsAvatarChoice.$a'),
+                ui: ui,
+                selected: a == _avatar,
+                locked: false,
+                face: (d) => KidsAvatarFace(a, size: d / 1.15),
+                onTap: () => setState(() => _avatar = a),
               ),
-          ]),
-          const SizedBox(height: Geo.gapXl),
-          AnimatedBuilder(
-            animation: _name,
-            builder: (context, _) => FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: p.accent,
-                  padding: const EdgeInsets.symmetric(vertical: 16)),
-              onPressed: _name.text.trim().isEmpty ? null : _submit,
-              child: Text(context.l10n.kidsStartLearning),
             ),
-          ),
-          if (widget.onCancel != null) ...[
-            const SizedBox(height: 8),
-            TextButton(
-                onPressed: widget.onCancel, child: Text(context.l10n.cancel)),
-          ],
-        ],
+        ]);
+      }),
+      const SizedBox(height: 24),
+      // Deliberately NOT autofocused. This is the only text field in the app,
+      // so it was also the only thing that could raise a keyboard — and it did,
+      // the instant Kids Mode was switched on for the first time, over the
+      // avatar row that is the form's actual first step.
+      KbTextField(ui: ui, controller: _name, hint: context.l10n.kidsNameHint),
+      const SizedBox(height: 18),
+      KbSubtitle(context.l10n.kidsGenderPrompt, ui: ui, fontSize: 18),
+      const SizedBox(height: 12),
+      // A Wrap: three chips are wider than a 320px phone at the Large text
+      // size (and wider still in French).
+      Wrap(spacing: 10, runSpacing: 10, children: [
+        for (final (label, value) in [
+          (context.l10n.kidsGenderBoy, 'm'),
+          (context.l10n.kidsGenderGirl, 'f'),
+          (context.l10n.kidsGenderSkip, ''),
+        ])
+          KbChoiceChip(label, ui: ui, selected: _gender == value,
+              onTap: () => setState(() => _gender = value)),
+      ]),
+      const SizedBox(height: 28),
+      AnimatedBuilder(
+        animation: _name,
+        builder: (context, _) => KbBigButton(
+          context.l10n.kidsStartLearning,
+          ui: ui,
+          enabled: _name.text.trim().isNotEmpty,
+          onTap: _submit,
+        ),
       ),
-    );
+      if (widget.onCancel != null) ...[
+        const SizedBox(height: 18),
+        Center(
+          child: KbPill(context.l10n.cancel, ui: ui, elev: KbElev.edge4,
+              padding: const EdgeInsets.fromLTRB(20, 7, 20, 5), onTap: widget.onCancel),
+        ),
+      ],
+    ]);
   }
 }

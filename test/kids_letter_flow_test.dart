@@ -63,7 +63,7 @@ void main() {
     // it is findable by its semantic label instead of as literal text.
     expect(find.text('This is Alif'), findsOneWidget);
     expect(find.bySemanticsLabel('ا'), findsOneWidget);
-    expect(find.byIcon(Icons.volume_up_rounded), findsOneWidget);
+    expect(kidsListenIcon(), findsOneWidget);
     // Four steps: shape, say it, trace with more strokes, trace with fewer.
     expect(find.text('Step 1 of 4'), findsOneWidget);
   });

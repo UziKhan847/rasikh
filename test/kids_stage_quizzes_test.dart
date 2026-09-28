@@ -20,7 +20,7 @@ import 'package:qiraah_arabiyyah/screens/kids/kids_words_lesson.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_widgets.dart'
     show kidsQuizLength;
 import 'package:qiraah_arabiyyah/widgets/common.dart'
-    show QuizQuestion, QuizScreen, TapScale;
+    show QuizQuestion, QuizScreen;
 
 import 'kids_test_support.dart';
 
@@ -58,9 +58,13 @@ Future<void> _walk(WidgetTester tester) async {
     await tester.pump(const Duration(milliseconds: 50));
     expect(tester.takeException(), isNull, reason: 'step $i');
     if (find.text('Continue').evaluate().isNotEmpty) return;
+    if (sortCardShowing()) {
+      await finishSortByTap(tester);
+      continue;
+    }
     final check = find.text('Check');
     if (check.evaluate().isNotEmpty) {
-      final tile = find.byType(TapScale);
+      final tile = kidsTappables();
       if (tile.evaluate().isNotEmpty) {
         await tester.tap(tile.first, warnIfMissed: false);
         await tester.pump();
@@ -74,8 +78,9 @@ Future<void> _walk(WidgetTester tester) async {
       await tester.tap(next.first, warnIfMissed: false);
       continue;
     }
-    final options = find.byType(TapScale);
+    final options = kidsTappables();
     if (options.evaluate().isNotEmpty) {
+      await tester.ensureVisible(options.first);
       await tester.tap(options.first, warnIfMissed: false);
       await tester.pump(const Duration(milliseconds: 1000));
     }
@@ -112,7 +117,7 @@ void main() {
       'sun and moon': (
         (id) => KidsSolarLunarLesson(progressId: id, quiz: true),
         3,
-        'Tap every Sun Letter',
+        'Sun or moon?',
       ),
       'tajwīd (nūn)': (
         (id) => KidsTajwidRuleLesson(
@@ -203,7 +208,7 @@ void main() {
           ),
         );
         await tester.pump();
-        await tester.tap(find.byType(TapScale).first, warnIfMissed: false);
+        await tester.tap(kidsTappables().first, warnIfMissed: false);
         await tester.pump(const Duration(milliseconds: 1000));
       }
       expect(prog.dueCount, greaterThan(0));
@@ -240,8 +245,11 @@ void main() {
       expect(s('ب', 'fatha'), 'ba');
       expect(s('ت', 'kasra'), 'ti');
       expect(s('ث', 'damma'), 'thu');
-      expect(s('ب', 'sukun'), 'b');
-      expect(s('ت', 'shadda'), 'tt');
+      // Sukūn and shaddah cannot be said alone — kidsSyllableSound answers
+      // with the FIRST of kidsSyllableForms, a sākin letter after a carrier
+      // vowel for sukūn, and the letter doubled with a fatḥah for shaddah.
+      expect(s('ب', 'sukun'), 'ab');
+      expect(s('ت', 'shadda'), 'atta');
       expect(s('ن', 'fathatan'), 'nan');
       expect(s('ج', 'dammatan'), 'jun');
     });
@@ -251,7 +259,15 @@ void main() {
       expect(kidsWordHasMark('sukun', 'هُوَ'), isFalse);
       expect(kidsWordHasMark('shadda', 'ٱللَّهِ'), isTrue);
       expect(kidsWordHasMark('shadda', 'قُلۡ'), isFalse);
-      expect(() => kidsWordHasMark('fatha', 'x'), throwsArgumentError);
+      // The ḥarakāt too — each is a single code point in the muṣḥaf text.
+      expect(kidsWordHasMark('fatha', 'خَلَقَ'), isTrue);
+      expect(kidsWordHasMark('fatha', 'بِسۡمِ'), isFalse);
+      expect(kidsWordHasMark('kasra', 'بِسۡمِ'), isTrue);
+      expect(kidsWordHasMark('kasra', 'خَلَقَ'), isFalse);
+      expect(kidsWordHasMark('damma', 'يَقُولُ'), isTrue);
+      expect(kidsWordHasMark('damma', 'خَلَقَ'), isFalse);
+      // The tanwīn are written more than one way, so are not asked about.
+      expect(() => kidsWordHasMark('fathatan', 'x'), throwsArgumentError);
     });
 
     List<QuizQuestion> questionsOf(QuizScreen q) => q.questions;
@@ -285,19 +301,105 @@ void main() {
         );
         expect(qs, hasLength(kidsQuizLength));
         final marksAsked = <String>{};
+        var sound = 0, sounds = 0, spot = 0;
         for (final q in qs) {
-          expect(q.options, hasLength(4), reason: 'seed $seed');
-          expect(q.options.toSet(), hasLength(4), reason: 'options are unique');
-          expect(q.correct, inInclusiveRange(0, 3));
-          // The keyed answer really is that syllable's sound.
-          final l = letters.firstWhere((x) => x.char == q.arabic![0]);
-          final mark = tashkil.firstWhere(
-            (t) => 'kids.syllable.${t.id}.${l.char}' == q.reviewId,
+          expect(
+            q.options.toSet(),
+            hasLength(q.options.length),
+            reason: 'options are unique',
           );
-          expect(q.options[q.correct], kidsSyllableSound(l, mark));
-          marksAsked.add(mark.id);
+          expect(q.correct, inInclusiveRange(0, q.options.length - 1));
+          if (q.arabic != null) {
+            // "How does this sound?" — the keyed answer really is that
+            // syllable's sound.
+            sound++;
+            expect(q.options, hasLength(4), reason: 'seed $seed');
+            final l = letters.firstWhere((x) => x.char == q.arabic![0]);
+            final mark = tashkil.firstWhere(
+              (t) => 'kids.syllable.${t.id}.${l.char}' == q.reviewId,
+            );
+            expect(q.options[q.correct], kidsSyllableSound(l, mark));
+            marksAsked.add(mark.id);
+          } else if (q.reviewId != null) {
+            // "Which one says …?" — the right syllable is the one with that
+            // sound, and no other option sounds like it.
+            sounds++;
+            expect(q.options, hasLength(4), reason: 'seed $seed');
+            final said = RegExp('“(.+)”').firstMatch(q.prompt)!.group(1)!;
+            String soundOf(String syllable) => kidsSyllableSound(
+              letters.firstWhere((x) => x.char == syllable[0]),
+              tashkil.firstWhere(
+                (t) => t.mark.substring(1) == syllable.substring(1),
+              ),
+            );
+            expect(soundOf(q.options[q.correct]), said, reason: 'seed $seed');
+            for (final (i, o) in q.options.indexed) {
+              if (i != q.correct) expect(soundOf(o), isNot(said));
+            }
+            final l = letters.firstWhere(
+              (x) => x.char == q.options[q.correct][0],
+            );
+            marksAsked.add(
+              tashkil
+                  .firstWhere(
+                    (t) => 'kids.syllable.${t.id}.${l.char}' == q.reviewId,
+                  )
+                  .id,
+            );
+          } else {
+            // "Which word has …?" — the machine agrees with the answer.
+            spot++;
+            // The mark asked about is the one shown in the prompt.
+            final id = ['fatha', 'kasra', 'damma'].firstWhere(
+              (m) => q.prompt.contains(
+                tashkil.firstWhere((t) => t.id == m).mark,
+              ),
+            );
+            for (final (i, o) in q.options.indexed) {
+              expect(kidsWordHasMark(id, o), i == q.correct, reason: '$id: $o');
+            }
+          }
         }
         expect(marksAsked, {'fatha', 'kasra', 'damma'}, reason: 'seed $seed');
+        // Three ways of asking, not one prompt eight times over.
+        expect(
+          [sound, sounds, spot],
+          everyElement(greaterThan(0)),
+          reason: 'seed $seed',
+        );
+        expect(qs.map((q) => q.prompt).toSet().length, greaterThan(3));
+      }
+    });
+
+    testWidgets('a tanwīn round has no word-search (the marks vary in print)', (
+      tester,
+    ) async {
+      final (settings, prog) = await _boot();
+      late BuildContext ctx;
+      await tester.pumpWidget(
+        _harness(
+          settings,
+          prog,
+          Builder(
+            builder: (c) {
+              ctx = c;
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      for (var seed = 0; seed < 20; seed++) {
+        final qs = questionsOf(
+          kidsSyllableQuiz(
+            ctx,
+            title: 'T',
+            progressId: 'p',
+            markIds: const ['fathatan', 'kasratan', 'dammatan'],
+            rng: math.Random(seed),
+          ),
+        );
+        expect(qs, hasLength(kidsQuizLength));
+        expect(qs.every((q) => q.reviewId != null), isTrue);
       }
     });
 
@@ -318,7 +420,7 @@ void main() {
           ),
         ),
       );
-      for (final markId in ['sukun', 'shadda']) {
+      for (final markId in ['sukun', 'shadda', 'fatha', 'kasra', 'damma']) {
         for (var seed = 0; seed < 40; seed++) {
           final qs = questionsOf(
             kidsMarkSpotQuiz(
@@ -384,6 +486,7 @@ void main() {
         expect(qs, hasLength(8));
         for (final q in qs) {
           expect(q.correctSet, isNull, reason: 'review has no multi-select');
+          if (q.sequence != null) continue; // tap-in-order has no single answer
           expect(q.correct, inInclusiveRange(0, q.options.length - 1));
         }
       }
@@ -412,6 +515,8 @@ void main() {
       await tester.pump();
       final quiz = tester.widget<QuizScreen>(find.byType(QuizScreen));
       for (final q in quiz.questions) {
+        // The quiz scrolls; an option can sit below an 800×600 test window.
+        await tester.ensureVisible(find.text(q.options[q.correct]).first);
         await tester.tap(find.text(q.options[q.correct]).first);
         await tester.pump(const Duration(milliseconds: 800));
       }

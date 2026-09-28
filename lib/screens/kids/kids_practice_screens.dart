@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../../core/geometry.dart';
 import '../../core/l10n.dart';
 import '../../core/letter_audio.dart';
-import '../../core/responsive.dart';
 import '../../core/settings.dart';
-import '../../core/theme.dart';
 import '../../data/glyph_names.dart';
 import '../../data/kids_content.dart';
 import '../../data/letters.dart';
-import '../../widgets/common.dart';
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kWhite, kbC;
+import 'kids_widgets.dart';
 
 /// The letters a child has already met — the same set the Home screen's
 /// letter path marks "done" or "current". Flashcards/Listening review this
@@ -33,98 +33,79 @@ class _KidsFlashcardsScreenState extends State<KidsFlashcardsScreen> {
   bool _flipped = false;
 
   Widget _card(BuildContext context, ArabicLetter letter, double width) {
-    return TapScale(
-      onTap: () => setState(() => _flipped = !_flipped),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 250),
-        child: Container(
-          key: ValueKey('$_i-$_flipped'),
-          width: width,
-          height: width * 1.25,
-          alignment: Alignment.center,
-          decoration: kidsCard(context, radius: Geo.radiusXl),
-          padding: const EdgeInsets.all(Geo.gapLg),
-          child: _flipped
-              ? Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(letterName(context, letter),
-                        style:
-                            kidsStyle(context, size: 22, weight: FontWeight.w800)),
-                    const SizedBox(height: 14),
-                    Text(letter.exampleWord,
-                        textDirection: TextDirection.rtl,
-                        style: quranicStyle(context, size: 30)),
-                  ],
-                )
-              : Text(letter.char,
-                  textDirection: TextDirection.rtl,
-                  style: quranicStyle(context, size: 72)),
-        ),
+    final ui = kbUi(context);
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      // The design's big lesson card; tap it to turn it over.
+      child: KbSurface(
+        key: ValueKey('$_i-$_flipped'),
+        color: ui.surface,
+        edge: ui.edge,
+        elev: KbElev.big,
+        radius: 30,
+        width: width,
+        height: width * 1.25,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(20),
+        onTap: () => setState(() => _flipped = !_flipped),
+        child: _flipped
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(letterName(context, letter),
+                      textAlign: TextAlign.center,
+                      style: kbText(28, kbC(ui.ink))),
+                  const SizedBox(height: 14),
+                  KidsQuranWord(letter.exampleWord, size: 30),
+                ],
+              )
+            : Text(letter.char,
+                textDirection: TextDirection.rtl,
+                style: kbText(110, kbC(ui.ink),
+                    family: kbFontArabic,
+                    weight: FontWeight.w600,
+                    height: 1.3)),
       ),
     );
   }
 
   Widget _body(BuildContext context, ArabicLetter letter, int poolLength) {
-    return Column(children: [
-      Expanded(
-        child: Center(
-          child: LayoutBuilder(builder: (context, c) {
-            final width = c.maxHeight < c.maxWidth
-                ? (c.maxHeight * .8).clamp(180.0, 320.0)
-                : (c.maxWidth * .8).clamp(180.0, 320.0);
-            return _card(context, letter, width);
-          }),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: Center(
+            child: LayoutBuilder(builder: (context, c) {
+              final width = c.maxHeight < c.maxWidth
+                  ? (c.maxHeight * .75).clamp(180.0, 320.0)
+                  : (c.maxWidth * .8).clamp(180.0, 320.0);
+              return _card(context, letter, width);
+            }),
+          ),
         ),
-      ),
-      const SizedBox(height: Geo.gapMd),
-      Text(context.l10n.kidsTapToFlip,
-          style: kidsStyle(context, size: 12.5, color: kidsPal(context).textDim)),
-      const SizedBox(height: Geo.gapMd),
-      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        FilledButton.icon(
-          style: FilledButton.styleFrom(backgroundColor: kidsPal(context).accent),
-          onPressed: () => setState(() {
+        const SizedBox(height: 16),
+        KidsLessonSubtitle(context.l10n.kidsTapToFlip,
+            fontSize: 18, align: TextAlign.center),
+        const SizedBox(height: 20),
+        KidsNextButton(
+          context.l10n.kidsNextCard,
+          onTap: () => setState(() {
             _i = (_i + 1) % poolLength;
             _flipped = false;
           }),
-          icon: const Icon(Icons.arrow_forward_rounded),
-          label: Text(context.l10n.kidsNextCard),
         ),
-      ]),
-    ]);
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final prog = ProgressScope.of(context);
-    final p = kidsPal(context);
     final pool = _reviewableLetters(prog);
     final letter = pool[_i % pool.length];
-
-    if (useDesktop(context)) {
-      return Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420, maxHeight: 520),
-          child: Padding(
-            padding: const EdgeInsets.all(Geo.gapXl),
-            child: _body(context, letter, pool.length),
-          ),
-        ),
-      );
-    }
-    return Scaffold(
-      backgroundColor: p.bg,
-      appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          title: Text(context.l10n.kidsFlashcards,
-              style: kidsStyle(context, size: 17, weight: FontWeight.w800))),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(Geo.gapLg),
-          child: _body(context, letter, pool.length),
-        ),
-      ),
+    return KidsScreenScaffold(
+      caption: context.l10n.kidsFlashcards,
+      child: _body(context, letter, pool.length),
     );
   }
 }
@@ -136,62 +117,48 @@ class KidsListeningScreen extends StatelessWidget {
   const KidsListeningScreen({super.key});
 
   Widget _row(BuildContext context, ArabicLetter letter) {
-    final p = kidsPal(context);
-    return TapScale(
+    final ui = kbUi(context);
+    return KbSurface(
+      color: ui.surface,
+      edge: ui.edge,
+      radius: 22,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       onTap: () => LetterAudio.playOrComingSoon(context, letter),
-      child: Container(
-        padding: const EdgeInsets.all(Geo.gapMd),
-        decoration: kidsCard(context),
-        child: Row(children: [
-          Text(letter.char,
-              textDirection: TextDirection.rtl,
-              style: quranicStyle(context, size: 30)),
-          const SizedBox(width: Geo.gapMd),
-          Expanded(
-            child: Text(letterName(context, letter),
-                style: kidsStyle(context, size: 15, weight: FontWeight.w700)),
-          ),
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: p.accent2, shape: BoxShape.circle),
-            child: const Icon(Icons.play_arrow_rounded,
-                color: Colors.white, size: 20),
-          ),
-        ]),
-      ),
+      child: Row(children: [
+        KbGlyphTile(letter.char, bg: ui.tile, ink: ui.tileInk, size: 56),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(letterName(context, letter),
+              style: kbText(20, kbC(ui.ink))),
+        ),
+        // Icon-only, so the accent face is allowed (UI_SPEC §1.5).
+        KbSurface(
+          color: ui.accent,
+          edge: ui.accentEdge,
+          elev: KbElev.edge4,
+          circle: true,
+          width: 44,
+          height: 44,
+          alignment: Alignment.center,
+          child: KbIcon('play_arrow', size: 26, color: kbC(kWhite)),
+        ),
+      ]),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final prog = ProgressScope.of(context);
-    final p = kidsPal(context);
     final pool = _reviewableLetters(prog);
-
-    final list = ListView.separated(
-      padding: const EdgeInsets.all(Geo.gapLg),
-      itemCount: pool.length,
-      separatorBuilder: (_, _) => const SizedBox(height: Geo.gapSm),
-      itemBuilder: (context, i) => _row(context, pool[i]),
-    );
-
-    if (useDesktop(context)) {
-      return Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: list,
-        ),
-      );
-    }
-    return Scaffold(
-      backgroundColor: p.bg,
-      appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          title: Text(context.l10n.kidsListening,
-              style: kidsStyle(context, size: 17, weight: FontWeight.w800))),
-      body: SafeArea(child: list),
+    return KidsScreenScaffold(
+      caption: context.l10n.kidsListening,
+      child: ListView.separated(
+        padding: const EdgeInsets.only(bottom: 16),
+        clipBehavior: Clip.none,
+        itemCount: pool.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 14),
+        itemBuilder: (context, i) => _row(context, pool[i]),
+      ),
     );
   }
 }

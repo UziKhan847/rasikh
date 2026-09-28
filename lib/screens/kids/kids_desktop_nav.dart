@@ -65,7 +65,9 @@ void pushKidsOverlay(BuildContext context,
           data: kidsTheme(routeContext),
           child: ProgressScope(
             progress: progress,
-            child: Builder(builder: builder),
+            // The Kids text size, for every screen pushed from Kids Mode —
+            // the tabs get it from the shell, which this route sits above.
+            child: KidsTextScale(child: Builder(builder: builder)),
           ),
         ),
       ),

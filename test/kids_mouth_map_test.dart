@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:qiraah_arabiyyah/kids_backdrops/kb_components.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:qiraah_arabiyyah/core/l10n.dart';
@@ -11,7 +12,6 @@ import 'package:qiraah_arabiyyah/data/makharij.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_home_screen.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_mouth_map.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_tajwid_rule_lesson.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -135,18 +135,18 @@ void main() {
 
       expect(find.byType(Material), findsWidgets);
       expect(find.textContaining('Tap each place'), findsOneWidget);
-      final next = find.widgetWithText(FilledButton, 'Next');
-      expect(tester.widget<FilledButton>(next).onPressed, isNull);
+      final next = find.widgetWithText(KbBigButton, 'Next');
+      expect(tester.widget<KbBigButton>(next).enabled, isFalse);
 
       // Five dots on the map.
-      final dots = find.byType(TapScale);
+      final dots = kidsTappables();
       expect(dots, findsNWidgets(5));
       for (var i = 0; i < 5; i++) {
-        expect(tester.widget<FilledButton>(next).onPressed, isNull);
+        expect(tester.widget<KbBigButton>(next).enabled, isFalse);
         await tester.tap(dots.at(i));
         await tester.pump();
       }
-      expect(tester.widget<FilledButton>(next).onPressed, isNotNull);
+      expect(tester.widget<KbBigButton>(next).enabled, isTrue);
       // The last place tapped is explained: its name, its letters, its tip.
       expect(find.textContaining('nose'), findsWidgets);
     });
@@ -164,7 +164,7 @@ void main() {
         ),
       );
       await tester.pump();
-      await tester.tap(find.byType(TapScale).at(1)); // the throat
+      await tester.tap(kidsTappables().at(1)); // the throat
       await tester.pump();
       expect(find.textContaining('Touch your throat'), findsOneWidget);
       for (final l in kidsZoneLetters('halq')) {
@@ -173,13 +173,13 @@ void main() {
     });
 
     Future<void> explore(WidgetTester tester) async {
-      final dots = find.byType(TapScale);
+      final dots = kidsTappables();
       for (var i = 0; i < 5; i++) {
         await tester.tap(dots.at(i));
         await tester.pump();
       }
-      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Next'));
-      await tester.tap(find.widgetWithText(FilledButton, 'Next'));
+      await tester.ensureVisible(find.widgetWithText(KbBigButton, 'Next'));
+      await tester.tap(find.widgetWithText(KbBigButton, 'Next'));
       await tester.pump();
     }
 
@@ -269,7 +269,7 @@ void main() {
       tester.view.devicePixelRatio = 2;
       addTearDown(tester.view.reset);
       final (settings, prog) = await _boot();
-      settings.arabicScale = 1.35;
+      settings.kidsTextScale = 1.35;
       await tester.pumpWidget(
         _harness(
           settings,
@@ -283,21 +283,22 @@ void main() {
       await tester.pump();
       expect(tester.takeException(), isNull);
       // Every place, so the tallest explanation (the tongue's letters) shows.
-      final dots = find.byType(TapScale);
+      final dots = kidsTappables();
       for (var i = 0; i < 5; i++) {
         await tester.tap(dots.at(i));
         await tester.pump();
         expect(tester.takeException(), isNull, reason: 'place $i');
       }
-      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Next'));
-      await tester.tap(find.widgetWithText(FilledButton, 'Next'));
+      await tester.ensureVisible(find.widgetWithText(KbBigButton, 'Next'));
+      await tester.tap(find.widgetWithText(KbBigButton, 'Next'));
       await tester.pump();
       for (var i = 0; i < 6; i++) {
         // Whatever is tapped: right first time, or a second try, or the
         // reveal — the panel that follows is the tallest thing here.
         for (var t = 0; t < 2; t++) {
-          final tiles = find.byType(TapScale);
+          final tiles = kidsTappables();
           if (tiles.evaluate().isEmpty) break;
+          await tester.ensureVisible(tiles.first);
           await tester.tap(tiles.first, warnIfMissed: false);
           await tester.pump();
         }
@@ -397,7 +398,7 @@ void main() {
       // Iẓhār: the throat, marked on the head — and nothing on it to tap.
       expect(find.byType(KidsMouthDiagram), findsOneWidget);
       expect(find.textContaining('The Throat'), findsOneWidget);
-      expect(find.byType(TapScale), findsNothing);
+      expect(kidsTappables(), findsNothing);
 
       await tester.tap(find.text('Next'));
       await tester.pump();

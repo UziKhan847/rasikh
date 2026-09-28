@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
 import '../../core/audio.dart';
-import '../../core/geometry.dart';
 import '../../core/l10n.dart';
-import '../../core/responsive.dart';
 import '../../core/settings.dart';
-import '../../core/theme.dart';
 import '../../data/kids_content.dart';
 import '../../data/quran.dart';
-import '../../widgets/common.dart';
-import 'kids_desktop_nav.dart';
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kBlack, kWhite, kbC;
+import 'kids_widgets.dart';
 
 /// "Read it aloud, then tap" over real Qurʼānic text — the reading half of
 /// the Kids path, from one word at a time up to a whole short sūrah.
@@ -60,6 +60,11 @@ class _Chunk {
 
 class _KidsReadingScreenState extends State<KidsReadingScreen> {
   List<_Chunk>? _chunks;
+
+  /// One key per line, so the list can be scrolled to the line being read: the
+  /// longer sūrahs run to a couple of dozen lines, and a child should not have
+  /// to find their place again after every tap.
+  final List<GlobalKey> _keys = [];
   String? _error;
   int _done = 0;
 
@@ -89,6 +94,9 @@ class _KidsReadingScreenState extends State<KidsReadingScreen> {
           out.add(_Chunk(words.sublist(i, end), a + 1, i));
         }
       }
+      _keys
+        ..clear()
+        ..addAll(List.generate(out.length, (_) => GlobalKey()));
       if (mounted) setState(() => _chunks = out);
     } catch (e) {
       // The corpus is bundled, so this should not happen — but a reading
@@ -101,12 +109,32 @@ class _KidsReadingScreenState extends State<KidsReadingScreen> {
   void _tap(int i) {
     if (i != _done) return; // in order, one at a time
     setState(() => _done++);
-    if (_done < _chunks!.length) return;
+    if (_done < _chunks!.length) {
+      _revealCurrent();
+      return;
+    }
     final prog = ProgressScope.of(context);
     prog.report(widget.progressId, 3);
     prog.awardXp(kidsXpPerStar * 3);
     prog.awardGems(kidsGemsPerLesson);
     // Badges sync centrally off this store — see `kidsSyncBadges`.
+  }
+
+  /// Scrolls the line now being read into view, a little below the top.
+  void _revealCurrent() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _done >= _keys.length) return;
+      final at = _keys[_done].currentContext;
+      if (at == null) return;
+      Scrollable.ensureVisible(
+        at,
+        alignment: .3,
+        duration: kidsReduceMotion(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   /// The whole āyah, flowing — the way it is recited. Used by the capstone,
@@ -175,108 +203,79 @@ class _KidsReadingScreenState extends State<KidsReadingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final chunks = _chunks;
 
-    Widget body;
     if (_error != null) {
-      body = Center(
-        child: Padding(
-          padding: const EdgeInsets.all(Geo.gapXl),
-          child: Text(context.l10n.kidsReadingUnavailable,
-              textAlign: TextAlign.center,
-              style: kidsStyle(context, size: 15, color: p.textDim)),
-        ),
-      );
-    } else if (chunks == null) {
-      body = Center(child: CircularProgressIndicator(color: p.accent));
+      return KidsMessageScreen(context.l10n.kidsReadingUnavailable);
+    }
+    if (chunks == null) return const KidsLoadingScreen();
+
+    final Widget body;
+    if (_done >= chunks.length) {
+      // The same celebration every other lesson ends on — mascot, stars
+      // landing one at a time, confetti — rather than the bare Continue
+      // button this used to leave sixteen reading stages on, with the XP and
+      // gems already awarded silently in [_tap].
+      body = const KidsLessonResult(stars: 3);
     } else {
-      final allDone = _done >= chunks.length;
-      body = Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    Geo.gapLg, Geo.gapMd, Geo.gapLg, Geo.gapSm),
-                child: Row(children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(Geo.radiusPill),
-                      child: LinearProgressIndicator(
-                        value: chunks.isEmpty ? 0 : _done / chunks.length,
-                        minHeight: 8,
-                        backgroundColor: p.surfaceHigh,
-                        valueColor: AlwaysStoppedAnimation(p.accent2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: Geo.gapSm),
-                  Text('$_done / ${chunks.length}',
-                      style: kidsStyle(context,
-                          size: 12.5,
-                          weight: FontWeight.w800,
-                          color: p.accent2)),
-                ]),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Geo.gapLg),
-                child: Text(context.l10n.kidsReadAloudThenTap,
-                    style: kidsStyle(context, size: 13, color: p.textDim)),
-              ),
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          KbSurface(
+            color: ui.surface,
+            edge: ui.edge,
+            elev: KbElev.card,
+            radius: 22,
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+            child: Row(children: [
               Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(
-                      Geo.gapLg, Geo.gapMd, Geo.gapLg, Geo.gapXl),
-                  itemCount: chunks.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: Geo.gapSm),
-                  itemBuilder: (context, i) => _ChunkCard(
-                    words: chunks[i].words,
-                    lit: _litChunk == i ? _litWord : -1,
-                    state: i < _done
-                        ? _ChunkState.done
-                        : i == _done
-                            ? _ChunkState.current
-                            : _ChunkState.ahead,
-                    onTap: () => _tap(i),
-                    onHear: () => _hearLine(i),
-                    // A line that is a whole āyah can also be heard flowing.
-                    onHearFlowing: widget.wholeAyahs
-                        ? () => _hearAyah(chunks[i].ayah)
-                        : null,
-                    onWord: (w) => _hearWord(i, w),
-                  ),
-                ),
+                child: KbProgress(
+                    value: chunks.isEmpty ? 0 : _done / chunks.length, ui: ui),
               ),
-              if (allDone)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      Geo.gapLg, 0, Geo.gapLg, Geo.gapLg),
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                        backgroundColor: p.accent,
-                        padding: const EdgeInsets.symmetric(vertical: 16)),
-                    onPressed: () => closeKidsOverlayOrPop(context),
-                    child: Text(context.l10n.continueLabel),
-                  ),
-                ),
-            ],
+              const SizedBox(width: 12),
+              Text('$_done / ${chunks.length}',
+                  style: kbText(17, kbC(ui.linkInk))),
+            ]),
           ),
-        ),
+          const SizedBox(height: 14),
+          KidsLessonSubtitle(context.l10n.kidsReadAloudThenTap,
+              fontSize: 18, align: TextAlign.center),
+          Expanded(
+            child: ListView.separated(
+              // Every line is built up front (there are at most a few dozen)
+              // so each has a context to scroll to — see [_keys].
+              scrollCacheExtent: const ScrollCacheExtent.pixels(100000),
+              padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
+              // Room for the cards' edges and rings.
+              clipBehavior: Clip.none,
+              itemCount: chunks.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 14),
+              itemBuilder: (context, i) => _ChunkCard(
+                key: _keys[i],
+                words: chunks[i].words,
+                lit: _litChunk == i ? _litWord : -1,
+                state: i < _done
+                    ? _ChunkState.done
+                    : i == _done
+                        ? _ChunkState.current
+                        : _ChunkState.ahead,
+                onTap: () => _tap(i),
+                onHear: () => _hearLine(i),
+                // A line that is a whole āyah can also be heard flowing.
+                onHearFlowing:
+                    widget.wholeAyahs ? () => _hearAyah(chunks[i].ayah) : null,
+                onWord: (w) => _hearWord(i, w),
+              ),
+            ),
+          ),
+        ],
       );
     }
 
     // Embedded in the shell's content pane on desktop; its own route on
     // mobile — the same split every other full-pane kids screen uses.
-    if (useDesktop(context)) return body;
-    return Scaffold(
-      backgroundColor: p.bg,
-      appBar: AppBar(backgroundColor: Colors.transparent),
-      body: SafeArea(child: body),
-    );
+    return KidsScreenScaffold(child: body);
   }
 }
 
@@ -293,7 +292,8 @@ class _ChunkCard extends StatelessWidget {
   final VoidCallback? onHearFlowing;
   final ValueChanged<int> onWord;
   const _ChunkCard(
-      {required this.words,
+      {super.key,
+      required this.words,
       required this.lit,
       required this.state,
       required this.onTap,
@@ -303,25 +303,27 @@ class _ChunkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final current = state == _ChunkState.current;
     final done = state == _ChunkState.done;
-    return Opacity(
-      opacity: state == _ChunkState.ahead ? .45 : 1,
-      child: Container(
-        decoration: BoxDecoration(
-          color: p.surface,
-          borderRadius: BorderRadius.circular(Geo.radiusLg),
-          border: Border.all(
-              color: current
-                  ? p.accent
-                  : done
-                      ? p.amber
-                      : p.surfaceHigh,
-              width: current ? 2 : 1.5),
-        ),
-        padding: const EdgeInsets.fromLTRB(
-            Geo.gapMd, Geo.gapSm, Geo.gapSm, Geo.gapSm),
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    // A solid card whatever its state (UI_SPEC §1.7): the current line wears
+    // the selection ring, a read one the reward edge; a line still ahead fades
+    // its contents, never the card.
+    return KbSurface(
+      color: ui.surface,
+      edge: current
+          ? ui.accentEdge
+          : done
+              ? ui.rewardEdge
+              : ui.edge,
+      outline: current ? ui.accent : null,
+      outlineWidth: 3,
+      elev: KbElev.card,
+      radius: 22,
+      padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+      child: Opacity(
+        opacity: state == _ChunkState.ahead ? .45 : 1,
         child: Row(children: [
           // Word by word, not one string: each word is its own target (tap to
           // hear it) and its own highlight (lit while it is being said). A
@@ -339,53 +341,59 @@ class _ChunkCard extends StatelessWidget {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       padding:
-                          const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
                       decoration: BoxDecoration(
-                        color: i == lit
-                            ? p.accent.withValues(alpha: .18)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(Geo.radiusMd),
+                        color: i == lit ? kbC(ui.tile) : kbC(kBlack, 0),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Text(w,
                           textDirection: TextDirection.rtl,
-                          style: quranicStyle(context,
-                              size: 26, color: i == lit ? p.accent : null)),
+                          style: kbText(28,
+                              kbC(i == lit ? ui.tileInk : ui.ink),
+                              family: kbFontQuran,
+                              weight: FontWeight.w400,
+                              height: 1.9)),
                     ),
                   ),
               ],
             ),
           ),
-          IconButton(
-            tooltip: context.l10n.kidsWordByWord,
-            onPressed: onHear,
-            icon: Icon(Icons.record_voice_over_rounded, color: p.accent2),
-          ),
-          if (onHearFlowing != null)
-            IconButton(
-              tooltip: context.l10n.listen,
-              onPressed: onHearFlowing,
-              icon: Icon(Icons.volume_up_rounded, color: p.accent2),
-            ),
+          const SizedBox(width: 8),
+          KbRoundButton('record_voice_over',
+              ui: ui, tooltip: context.l10n.kidsWordByWord, onTap: onHear),
+          if (onHearFlowing != null) ...[
+            const SizedBox(width: 8),
+            KbRoundButton('volume_up',
+                ui: ui, tooltip: context.l10n.listen, onTap: onHearFlowing),
+          ],
+          const SizedBox(width: 8),
           // Tapping the tick is the "I read it" action, kept as its own
           // target so a mis-tap while reading doesn't skip the line.
-          TapScale(
+          KbSurface(
+            color: done
+                ? ui.reward
+                : current
+                    ? ui.accent
+                    : ui.disabledBg,
+            edge: done
+                ? ui.rewardEdge
+                : current
+                    ? ui.accentEdge
+                    : ui.edge,
+            elev: KbElev.edge4,
+            circle: true,
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
             onTap: onTap,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: done
-                    ? p.amber
+            child: KbIcon(
+                done ? 'check' : (rtl ? 'arrow_back' : 'arrow_forward'),
+                size: 24,
+                color: kbC(done
+                    ? ui.rewardInk
                     : current
-                        ? p.accent
-                        : kidsLockedFill(p),
-              ),
-              child: Icon(
-                  done ? Icons.check_rounded : Icons.arrow_forward_rounded,
-                  size: 20,
-                  color: Colors.white),
-            ),
+                        ? kWhite
+                        : ui.inkSoft)),
           ),
         ]),
       ),

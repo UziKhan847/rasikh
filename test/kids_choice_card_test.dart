@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_choice_card.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -97,7 +96,7 @@ void main() {
     expect(done, isEmpty, reason: 'not over yet');
     expect(find.text('Look at the sign.'), findsOneWidget);
     // The tried tile is no longer a target; the others still are.
-    expect(find.byType(TapScale), findsNWidgets(3));
+    expect(kidsTappables(), findsNWidgets(3));
 
     await tester.tap(find.text('opt2'));
     await tester.pump(const Duration(milliseconds: 1000));
@@ -152,7 +151,7 @@ void main() {
       expect(done, isEmpty, reason: 'the child reads at their own pace');
       expect(find.text('Yes!'), findsOneWidget);
       expect(find.text('Because of the small sign.'), findsOneWidget);
-      expect(find.byType(TapScale), findsNothing, reason: 'options are done');
+      expect(kidsTappables(), findsNothing, reason: 'options are done');
 
       await tester.tap(find.text('Next'));
       await tester.pump();

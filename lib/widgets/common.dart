@@ -9,6 +9,13 @@ import 'package:flutter/services.dart';
 
 import '../core/settings.dart';
 import '../core/theme.dart';
+import 'drag_kit.dart';
+import '../kids_backdrops/kb_app.dart' show kbUi;
+import '../kids_backdrops/kb_components.dart';
+import '../kids_backdrops/kb_scene.dart' show kWhite, kbC;
+import '../kids_backdrops/kb_ui.dart' show KbUi;
+import '../screens/kids/kids_widgets.dart'
+    show KidsLessonSubtitle, KidsScreenScaffold;
 
 /// Press-down scale feedback for any tappable card.
 class TapScale extends StatefulWidget {
@@ -125,7 +132,12 @@ class SectionHeader extends StatelessWidget {
 class StarRow extends StatelessWidget {
   final int stars;
   final double size;
-  const StarRow(this.stars, {super.key, this.size = 16});
+
+  /// The colour of a filled star. Null is the app-wide star gold; Kids Mode
+  /// passes its theme's own reward colour so the result screen's stars are not
+  /// orange on an Ocean screen.
+  final Color? color;
+  const StarRow(this.stars, {super.key, this.size = 16, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -135,7 +147,7 @@ class StarRow extends StatelessWidget {
         return Icon(
           i < stars ? Icons.star_rounded : Icons.star_outline_rounded,
           size: size,
-          color: i < stars ? AppColors.star : pal(context).surfaceHigh,
+          color: i < stars ? (color ?? AppColors.star) : pal(context).surfaceHigh,
         );
       }),
     );
@@ -251,6 +263,11 @@ class QuizQuestion {
   /// substring that is still shown.
   final String? blank;
 
+  /// With [blank]: the options can also be DRAGGED onto the word to fill its
+  /// gap (tapping one still answers). Off by default so the grown-up quizzes
+  /// keep their plain tap-to-answer feel.
+  final bool dragToGap;
+
   /// Lay the options out as a grid this many columns wide instead of the
   /// default 1–2 wide rows. Needed for glyph options: a dozen joining forms
   /// read as a grid of shapes, not as a stack of wide text buttons.
@@ -283,6 +300,7 @@ class QuizQuestion {
     this.correctSet,
     this.sequence,
     this.blank,
+    this.dragToGap = false,
     this.optionColumns,
     this.optionAspect,
     this.audioRef,
@@ -527,22 +545,40 @@ class _QuizScreenState extends State<QuizScreen> {
       });
 
   /// The question's Arabic, with either a colored highlight or a gap to fill.
-  Widget _questionArabic(BuildContext context, double size) => RichText(
-        key: ValueKey(_i),
-        textDirection: TextDirection.rtl,
-        textAlign: TextAlign.center,
-        text: TextSpan(
-          children: q.blank != null
-              ? blankSpans(q.arabic!, q.blank!, quranicStyle(context, size: size),
-                  pal(context).accent)
-              : highlightSpans(
-                  q.arabic!,
-                  q.highlight ?? '',
-                  quranicStyle(context, size: size),
-                  quranicStyle(context, size: size, color: pal(context).accent),
-                ),
-        ),
-      );
+  /// Once a gap question is answered the whole word is shown, its lifted letter
+  /// back in place and picked out — so the shape is seen where it belongs.
+  Widget _questionArabic(BuildContext context, double size) {
+    final base = quranicStyle(context, size: size);
+    final List<TextSpan> spans;
+    if (q.blank == null) {
+      spans = highlightSpans(q.arabic!, q.highlight ?? '', base,
+          quranicStyle(context, size: size, color: pal(context).accent));
+    } else if (_picked == null) {
+      spans = blankSpans(q.arabic!, q.blank!, base, pal(context).accent);
+    } else {
+      spans = highlightSpans(q.arabic!, q.blank!, base,
+          quranicStyle(context, size: size, color: AppColors.ok));
+    }
+    final word = RichText(
+      key: ValueKey(_i),
+      textDirection: TextDirection.rtl,
+      textAlign: TextAlign.center,
+      text: TextSpan(children: spans),
+    );
+    if (!(q.dragToGap && q.blank != null)) return word;
+    // A gap question that takes drags: the whole word is the drop target, lit
+    // while a shape is held over it. (The gap itself is a run of tatweel inside
+    // the text, not a widget — see [blankSpans] — so it cannot be one.)
+    return DropSlot<int>(
+      enabled: _picked == null,
+      onDrop: _pickSingle,
+      builder: (context, hovering) => DropGlow(
+        hovering: hovering != null,
+        color: pal(context).accent,
+        child: Padding(padding: const EdgeInsets.all(10), child: word),
+      ),
+    );
+  }
 
   /// "Play it" for a listening question.
   Widget _audioButton(BuildContext context) {
@@ -590,6 +626,7 @@ class _QuizScreenState extends State<QuizScreen> {
           total: _graded,
           graded: widget.graded);
     }
+    if (SettingsScope.of(context).kidsMode) return _kidsBuild(context);
     if (useDesktop(context)) return _desktopBuild(context);
     return Scaffold(
       appBar: AppBar(
@@ -680,6 +717,301 @@ class _QuizScreenState extends State<QuizScreen> {
   }
   String _qOf(BuildContext context) =>
       context.l10n.questionOf(_i + 1, widget.questions.length);
+
+  /// Kids Mode: the design's Warm-up screen (kb_screens.dart `KbQuizScreen`) —
+  /// the quiz name as a heading beside the way back, the question count
+  /// opposite, the framed progress bar, the prompt on the sky, the word on
+  /// its card, and the options as answer cells. Same questions, same grading.
+  Widget _kidsBuild(BuildContext context) {
+    return KidsScreenScaffold(
+      title: widget.title,
+      trailing: _qOf(context),
+      child: Builder(builder: (context) {
+        final ui = kbUi(context);
+        return SingleChildScrollView(
+          clipBehavior: Clip.none,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: (_i + 1) / widget.questions.length),
+                duration: const Duration(milliseconds: 350),
+                builder: (context, v, _) => KbFramedProgress(value: v, ui: ui),
+              ),
+              const SizedBox(height: 22),
+              KidsLessonSubtitle(q.prompt,
+                  fontSize: 22, height: 1.3, align: TextAlign.center),
+              const SizedBox(height: 18),
+              if (q.arabic != null)
+                Center(
+                  child: KbSurface(
+                    color: ui.surface,
+                    edge: ui.edge,
+                    elev: KbElev.big,
+                    radius: 28,
+                    padding: const EdgeInsets.fromLTRB(32, 6, 32, 0),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: _kidsQuestionArabic(
+                          context, ui, q.blank != null ? 56 : 84),
+                    ),
+                  ),
+                ),
+              if (q.audioRef != null) ...[
+                const SizedBox(height: 16),
+                Center(child: _kidsAudioButton(context, ui)),
+              ],
+              const SizedBox(height: 26),
+              if (_isOrder) _kidsOrderStrip(context, ui),
+              _kidsOptions(context, ui),
+              if (_isMulti) ...[
+                const SizedBox(height: 18),
+                KbBigButton(context.l10n.submitAnswer,
+                    ui: ui,
+                    enabled: _multiPicked.isNotEmpty && !_locked,
+                    onTap: _submitMulti),
+              ],
+              if (q.skippable) ...[
+                const SizedBox(height: 14),
+                Center(
+                  child: Opacity(
+                    opacity: _isLocked ? .5 : 1,
+                    child: KbPill(context.l10n.kidsNextCard,
+                        ui: ui,
+                        icon: Directionality.of(context) == TextDirection.rtl
+                            ? 'arrow_back'
+                            : 'arrow_forward',
+                        onTap: _isLocked ? null : _skip),
+                  ),
+                ),
+              ],
+              if (_isLocked && !_wasCorrect && q.explain != null) ...[
+                const SizedBox(height: 16),
+                KbSurface(
+                  color: ui.surface,
+                  edge: ui.edge,
+                  padding: const EdgeInsets.all(16),
+                  child: Text(q.explain!,
+                      textAlign: TextAlign.center,
+                      style: kbText(17, kbC(ui.ink),
+                          weight: FontWeight.w600, height: 1.35)),
+                ),
+              ],
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
+  /// [_questionArabic], in the design's quiz-word face (Amiri Quran, line
+  /// height 1.9) and the kit's inks.
+  Widget _kidsQuestionArabic(BuildContext context, KbUi ui, double size) {
+    final base = kbText(size, kbC(ui.ink),
+        family: kbFontQuran, weight: FontWeight.w400, height: 1.9);
+    final List<TextSpan> spans;
+    if (q.blank == null) {
+      spans = highlightSpans(q.arabic!, q.highlight ?? '', base,
+          base.copyWith(color: kbC(ui.linkInk)));
+    } else if (_picked == null) {
+      spans = blankSpans(q.arabic!, q.blank!, base, kbC(ui.linkInk));
+    } else {
+      spans = highlightSpans(q.arabic!, q.blank!, base,
+          base.copyWith(color: kbC(KbUi.goodEdge)));
+    }
+    final word = RichText(
+      key: ValueKey(_i),
+      textDirection: TextDirection.rtl,
+      textAlign: TextAlign.center,
+      textScaler: MediaQuery.textScalerOf(context),
+      text: TextSpan(children: spans),
+    );
+    if (!(q.dragToGap && q.blank != null)) return word;
+    return DropSlot<int>(
+      enabled: _picked == null,
+      onDrop: _pickSingle,
+      builder: (context, hovering) => DropGlow(
+        hovering: hovering != null,
+        color: kbC(ui.accent),
+        child: Padding(padding: const EdgeInsets.all(10), child: word),
+      ),
+    );
+  }
+
+  Widget _kidsAudioButton(BuildContext context, KbUi ui) {
+    final parts = q.audioRef!.split(':');
+    final s = int.tryParse(parts.first);
+    final a = int.tryParse(parts.length > 1 ? parts[1] : '');
+    return KbPill(context.l10n.listen,
+        ui: ui,
+        icon: 'volume_up',
+        fontSize: 20,
+        iconSize: 24,
+        padding: const EdgeInsets.fromLTRB(24, 10, 24, 8),
+        onTap: (s == null || a == null)
+            ? null
+            : () => AyahAudio.instance.play(s, a));
+  }
+
+  /// Ordering: what has been tapped so far, in tap order, on the tile colour.
+  Widget _kidsOrderStrip(BuildContext context, KbUi ui) {
+    if (_orderPicked.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final i in _orderPicked)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: kbC(ui.tile),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(q.options[i],
+                  textDirection:
+                      q.optionsAreArabic ? TextDirection.rtl : TextDirection.ltr,
+                  style: q.optionsAreArabic
+                      ? kbText(24, kbC(ui.tileInk),
+                          family: kbFontQuran,
+                          weight: FontWeight.w400,
+                          height: 1.6)
+                      : kbText(16, kbC(ui.tileInk), weight: FontWeight.w700)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// The options: one column of the design's answer cells (64 tall), or the
+  /// question's own grid of square tiles.
+  Widget _kidsOptions(BuildContext context, KbUi ui) {
+    final cols = q.optionColumns;
+    if (cols == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < q.options.length; i++) ...[
+            if (i > 0) const SizedBox(height: 12),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 64),
+              child: _kidsOptionTile(context, ui, i),
+            ),
+          ],
+        ],
+      );
+    }
+    return GridView.count(
+      crossAxisCount: cols,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      clipBehavior: Clip.none,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: q.optionAspect ?? 1.0,
+      children: [
+        for (var i = 0; i < q.options.length; i++) _kidsOptionTile(context, ui, i),
+      ],
+    );
+  }
+
+  Widget _kidsOptionTile(BuildContext context, KbUi ui, int i) {
+    var state = KbCellState.idle;
+    Widget? badge;
+    if (_isMulti) {
+      final selected = _multiPicked.contains(i);
+      if (_locked) {
+        if (q.correctSet!.contains(i)) {
+          state = KbCellState.good;
+        } else if (selected) {
+          state = KbCellState.bad;
+        }
+      } else if (selected) {
+        state = KbCellState.open;
+      }
+    } else if (_isOrder) {
+      final pos = _orderPicked.indexOf(i);
+      if (pos != -1) {
+        state = _locked
+            ? (q.sequence![pos] == q.options[i]
+                ? KbCellState.good
+                : KbCellState.bad)
+            : KbCellState.open;
+        badge = PositionedDirectional(
+          top: -8,
+          end: -8,
+          child: Container(
+            width: 26,
+            height: 26,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: kbC(ui.cardDeep),
+              shape: BoxShape.circle,
+              border: Border.all(color: kbC(ui.surface), width: 3),
+            ),
+            child: Text('${pos + 1}',
+                style: kbText(13, kbC(kWhite), height: 1)),
+          ),
+        );
+      }
+    } else if (_picked != null) {
+      if (i == q.correct) {
+        state = KbCellState.good;
+      } else if (i == _picked) {
+        state = KbCellState.bad;
+      }
+    }
+    final cell = KbGlyphCell(
+      ui: ui,
+      state: state,
+      square: false,
+      elev: KbElev.option,
+      onTap: () {
+        if (_isMulti) {
+          _toggleMulti(i);
+        } else if (_isOrder) {
+          _appendOrder(i);
+        } else {
+          _pickSingle(i);
+        }
+      },
+      // Scale-down guard: a grid tile is square rather than a wide row, and
+      // a large text size would otherwise clip the glyph.
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            q.options[i],
+            textAlign: TextAlign.center,
+            textDirection:
+                q.optionsAreArabic ? TextDirection.rtl : TextDirection.ltr,
+            style: q.optionsAreArabic
+                ? kbText(q.optionColumns != null ? 40 : 34,
+                    kbC(KbGlyphCell.inkOf(ui, state)),
+                    family: kbFontArabic,
+                    weight: FontWeight.w600,
+                    height: 1.3)
+                : kbText(19, kbC(KbGlyphCell.inkOf(ui, state)),
+                    weight: FontWeight.w700),
+          ),
+        ),
+      ),
+    );
+    final tile = badge == null
+        ? cell
+        : Stack(clipBehavior: Clip.none, children: [
+            Positioned.fill(child: cell),
+            badge,
+          ]);
+    if (q.dragToGap && q.blank != null && !_isMulti && !_isOrder) {
+      return DragTile<int>(data: i, enabled: _picked == null, child: tile);
+    }
+    return tile;
+  }
 
   /// Multi-select: a Submit button, enabled once at least one option is
   /// picked, disabled after grading.
@@ -803,7 +1135,7 @@ class _QuizScreenState extends State<QuizScreen> {
         ),
       ),
     );
-    return TapScale(
+    final tappable = TapScale(
       onTap: () {
         if (_isMulti) {
           _toggleMulti(i);
@@ -817,6 +1149,11 @@ class _QuizScreenState extends State<QuizScreen> {
           ? tile
           : Stack(clipBehavior: Clip.none, children: [tile, badge]),
     );
+    if (q.dragToGap && q.blank != null && !_isMulti && !_isOrder) {
+      return DragTile<int>(
+          data: i, enabled: _picked == null, child: tappable);
+    }
+    return tappable;
   }
 
   /// Desktop: quizzes and drills share ONE layout. See [_flatDesktopBuild].
@@ -1011,8 +1348,8 @@ class _ResultView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final frac = score / total;
-    final stars = starsForFraction(frac,
-        kids: SettingsScope.of(context).kidsMode);
+    final kidsMode = SettingsScope.of(context).kidsMode;
+    final stars = starsForFraction(frac, kids: kidsMode);
     final msg = !graded
         ? context.l10n.practiceRoundComplete
         : stars == 3
@@ -1020,6 +1357,65 @@ class _ResultView extends StatelessWidget {
             : stars >= 1
                 ? context.l10n.wellDoneKeepGoing
                 : context.l10n.reviewLessonTryAgain;
+    if (kidsMode) {
+      // The same result, on the design's hero card — the score on a glyph
+      // tile, the stars in the reward colour, Continue as the big button.
+      return KidsScreenScaffold(
+        title: title,
+        child: Builder(builder: (context) {
+          final ui = kbUi(context);
+          return Center(
+            child: SingleChildScrollView(
+              clipBehavior: Clip.none,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  KbSurface(
+                    color: ui.surface,
+                    edge: ui.edge,
+                    elev: KbElev.hero,
+                    radius: 32,
+                    padding: const EdgeInsets.fromLTRB(22, 26, 22, 24),
+                    child: Column(children: [
+                      KbGlyphTile('$score/$total',
+                          bg: ui.tile,
+                          ink: ui.tileInk,
+                          size: 110,
+                          radius: 30,
+                          fontSize: 34),
+                      if (graded) ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (var i = 0; i < 3; i++)
+                              KbIcon(i < stars ? 'star' : 'star_outline',
+                                  size: 44,
+                                  color: kbC(
+                                      i < stars ? ui.reward : ui.inkSoft)),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      Text(msg,
+                          textAlign: TextAlign.center,
+                          style: kbText(20, kbC(ui.ink), height: 1.25)),
+                    ]),
+                  ),
+                  const SizedBox(height: 28),
+                  KbBigButton(context.l10n.continueLabel,
+                      ui: ui,
+                      highlight: true,
+                      fontSize: 22,
+                      onTap: () => Navigator.pop(context)),
+                ],
+              ),
+            ),
+          );
+        }),
+      );
+    }
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: SafeArea(
@@ -1035,7 +1431,16 @@ class _ResultView extends StatelessWidget {
                       style: uiStyle(context, size: 24, weight: FontWeight.w700)),
                 ),
                 const SizedBox(height: 18),
-                if (graded) StarRow(stars, size: 40),
+                // Kids Mode's own reward colour, not the app-wide gold — a
+                // kids Test on an Ocean-themed screen must not show an
+                // orange star, the same fix the rest of Kids Mode already
+                // got.
+                if (graded)
+                  StarRow(
+                    stars,
+                    size: 40,
+                    color: kidsMode ? kidsPal(context).amber : null,
+                  ),
                 const SizedBox(height: 10),
                 Text(msg, style: uiStyle(context, size: 17)),
                 const SizedBox(height: 26),
@@ -1130,6 +1535,36 @@ class MediaRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (SettingsScope.of(context).kidsMode) {
+      // Kids Mode: the design's word-card pills (kb_screens.dart
+      // `KbHamzahScreen`) — Listen deep, Watch on the surface. Same actions.
+      final ui = kbUi(context);
+      const pad = EdgeInsets.fromLTRB(12, 6, 16, 4);
+      return Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 10,
+        runSpacing: 8,
+        children: [
+          KbPill(context.l10n.listen,
+              ui: ui,
+              kind: KbPillKind.deep,
+              icon: 'play_arrow',
+              fontSize: 16,
+              iconSize: 20,
+              elev: KbElev.edge3,
+              padding: pad,
+              onTap: () => _listen(context)),
+          KbPill(context.l10n.watch,
+              ui: ui,
+              icon: 'play_circle',
+              fontSize: 16,
+              iconSize: 20,
+              elev: KbElev.edge3,
+              padding: pad,
+              onTap: () => comingSoon(context, context.l10n.video)),
+        ],
+      );
+    }
     return Row(mainAxisSize: MainAxisSize.min, children: [
       TextButton.icon(
         onPressed: () => _listen(context),

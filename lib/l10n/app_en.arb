@@ -1381,6 +1381,10 @@
   "kidsAddProfile": "Add",
   "kidsAllLettersDone": "You finished the alphabet!",
   "kidsAppearance": "Appearance",
+  "kidsTextSize": "Text size",
+  "kidsTextSmall": "Small",
+  "kidsTextMedium": "Medium",
+  "kidsTextLarge": "Large",
   "kidsBadges": "Badges",
   "kidsBuy": "Get",
   "kidsDailyGoalSub": "Finish lessons to fill your ring",
@@ -1480,7 +1484,6 @@
     }
   },
   "kidsStreakSaved": "Your streak was saved!",
-  "kidsShopGoldenFrame": "Golden Frame",
   "kidsShopCamelAvatar": "Camel",
   "kidsShopBeeAvatar": "Bee",
   "kidsShopElephantAvatar": "Elephant",
@@ -1490,7 +1493,11 @@
   "kidsShopCowAvatar": "Cow",
   "kidsShopWhaleAvatar": "Whale",
   "kidsShopSilverFrame": "Silver Frame",
-  "kidsShopEmeraldFrame": "Emerald Frame",
+  "kidsShopStarlightFrame": "Starlight Frame",
+  "kidsShopGlowFrame": "Glow Frame",
+  "kidsShopAuroraFrame": "Aurora Frame",
+  "kidsShopTakeOff": "Take off",
+  "kidsShopUseOriginal": "Use original",
   "kidsHelloName": "Hello, {name}!",
   "@kidsHelloName": {
     "placeholders": {
@@ -1651,8 +1658,6 @@
   "kidsBlockTwoWords": "Two Words",
   "kidsBlockThreeWords": "Three Words",
   "kidsBlockWordsSub": "Join them up and read them together",
-  "kidsBlockCapstone": "Read a Sūrah",
-  "kidsBlockCapstoneSub": "Everything you have learned, in one real sūrah",
   "kidsBlockTajwid": "Beautiful Reading",
   "lsnTaMarbutaHint": "Tāʼ marbūṭah is a final hāʼ with two dots added above it.",
   "kidsNextUp": "Next: {name}",
@@ -1701,7 +1706,6 @@
       }
     }
   },
-  "kidsTapEverySunLetter": "Tap every Sun Letter",
   "kidsWhichRuleIsThis": "Which rule is this?",
   "kidsMuqattaatIntro": "Some sūrahs open with just letters — said one by one, like spelling your name: Alif. Lām. Mīm.",
   "kidsMuqattaatCounts": "{counts} counts",
@@ -1747,7 +1751,7 @@
       }
     }
   },
-      "kidsLookalikes": "Look-alikes",
+  "kidsLookalikes": "Look-alikes",
   "kidsOddOneOut": "Which one is different?",
   "kidsDotHunterPrompt": "Tap every letter with {dots}",
   "@kidsDotHunterPrompt": {
@@ -1855,8 +1859,8 @@
   "kidsMemFade": "Say it again while the words fade away.",
   "kidsMemHideMore": "Hide more",
   "kidsMemPeek": "Peek",
-  "kidsMemOrderWords": "Tap the words in order.",
-  "kidsMemOrderAyahs": "Tap the āyāt in order.",
+  "kidsMemOrderWords": "Put the words in order.",
+  "kidsMemOrderAyahs": "Put the āyāt in order.",
   "kidsMemNext": "What comes next?",
   "kidsWordByWord": "Word by word",
   "kidsBuildWord": "Build the word",
@@ -1878,7 +1882,7 @@
   "kidsWaqfWhyPair": "Two of these signs go together — stop at one of them, never both.",
   "kidsWaqfWhyPreferStop": "Stopping is better here, but you may keep going.",
   "kidsWaqfWhyPreferGo": "Keeping going is better here, but you may stop.",
-"kidsWarmUp": "Warm-up",
+  "kidsWarmUp": "Warm-up",
   "kidsWarmUpSub": "{n} to practise again",
   "@kidsWarmUpSub": {
     "placeholders": {
@@ -1887,7 +1891,7 @@
       }
     }
   },
-"kidsShowMe": "Show me",
+  "kidsShowMe": "Show me",
   "kidsSayItAloud": "Say it out loud!",
   "kidsSaidIt": "I said it!",
   "kidsTracePass": "Practice {index} of {total}",
@@ -1945,5 +1949,259 @@
     }
   },
   "kidsDevJumpStageHint": "Testing only — real progress is untouched. Pick a stage to point Home and Learn at it without playing through everything before it.",
-  "kidsDevJumpStageFollow": "Follow real progress"
+  "kidsDevJumpStageFollow": "Follow real progress",
+  "kidsDragShapeOntoWord": "Drag the right shape of {name} into the word",
+  "@kidsDragShapeOntoWord": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsSortSunMoon": "Sun or moon? Put each word in its place.",
+  "kidsSunLetters": "Sun letters",
+  "kidsMoonLetters": "Moon letters",
+  "kidsJoinTitle": "Join the letters",
+  "kidsJoinIntroTitle": "Letters hold hands",
+  "kidsJoinIntro": "Letters hold hands to make words. Drag a letter onto the one beside it — or just tap it — to join them.",
+  "kidsJoinSix": "But these six keep their hands to themselves:",
+  "kidsJoinPrompt": "Join the letters to make the word.",
+  "kidsJoinNoJoin": "{name} never joins the next letter.",
+  "@kidsJoinNoJoin": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsJoinNotNeighbours": "Only letters side by side can join.",
+  "kidsJoinDone": "That’s the word!",
+  "kidsBlockJoinSub": "Drag letters together to make real words",
+  "kidsWhichHasDots": "Which letter has {dots}?",
+  "@kidsWhichHasDots": {
+    "placeholders": {
+      "dots": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsPutInAlphabetOrder": "Tap the letters in alphabet order",
+  "kidsWhichIsColoured": "Which letter is in colour?",
+  "kidsFindTwin": "Which letter looks like this one?",
+  "kidsDotsCountAny": "{n, plural, =1{1 dot} other{{n} dots}}",
+  "@kidsDotsCountAny": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsDotsPosAny": "dots {pos}",
+  "@kidsDotsPosAny": {
+    "placeholders": {
+      "pos": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsWhichSays": "Which one says “{sound}”?",
+  "@kidsWhichSays": {
+    "placeholders": {
+      "sound": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsBlockReadThreeSub": "Read it three words at a time",
+  "kidsBlockReadAyahSub": "Read it, āyah by āyah",
+  "kidsBadgeReadFiveSurahs": "Five Sūrahs",
+  "kidsBadgeReadTenSurahs": "Ten Sūrahs",
+  "kidsBadgeReadAllSurahs": "Zalzalah to Nās",
+  "kidsShapeLamAlifTitle": "Lām + Alif",
+  "kidsShapeLamAlifNote": "Lām and Alif join hands and make one new shape: لا.",
+  "kidsShapeLamAlifTip": "No little mark on it? Then it is the plain Lām + Alif. A mark means Lām + Hamzah.",
+  "kidsShapeLamHamzaTitle": "Lām + Hamzah",
+  "kidsShapeLamHamzaNote": "It is the Lām + Alif shape again, with a little hamzah mark added. The mark can be above, below, or a wavy line.",
+  "kidsShapeLamHamzaTip": "Look at the mark. Above is أ. Below is إ. A wavy line is آ.",
+  "kidsShapeKafWrapsTitle": "Kāf hugs Alif or Lām",
+  "kidsShapeKafWrapsNote": "Kāf curls up and around the letter after it, like a hug.",
+  "kidsShapeKafWrapsTip": "Look inside the curl. A plain stick is Alif. A stick with a little hook at the bottom is Lām.",
+  "kidsShapeKafElongatedTitle": "The long Kāf",
+  "kidsShapeKafElongatedNote": "Sometimes Kāf stretches its bottom line very long. It is still the same Kāf.",
+  "kidsShapeKafElongatedTip": "The head is the same as usual. Only the line under it is longer.",
+  "kidsShapeMimOverJimTitle": "م over ج ح خ",
+  "kidsShapeMimOverJimNote": "Mīm tucks its little loop into the curve of Jīm, Ḥā’ or Khā’.",
+  "kidsShapeMimOverJimTip": "Look at the dot to find the letter. No dot is Ḥā’. One dot below is Jīm. One dot above is Khā’.",
+  "kidsShapeLamOverJimTitle": "ل over ج ح خ",
+  "kidsShapeLamOverJimNote": "Lām leans back and tucks its foot under Jīm, Ḥā’ or Khā’.",
+  "kidsShapeLamOverJimTip": "The same dot rule. No dot is Ḥā’. A dot below is Jīm. A dot above is Khā’.",
+  "kidsShapeToothOverJimTitle": "ب ت ث ن ي over ج ح خ",
+  "kidsShapeToothOverJimNote": "Bā’, Tā’, Thā’, Nūn or Yā’ tucks its head into Jīm, Ḥā’ or Khā’.",
+  "kidsShapeToothOverJimTip": "One dot below can belong to either letter. On the right, it is for Bā’, Tā’ or Nūn. On the left, it is for Jīm.",
+  "kidsShapeToothOverMimTitle": "ب ت ث ن ي over م",
+  "kidsShapeToothOverMimNote": "Bā’, Tā’, Thā’, Nūn or Yā’ drops down, and Mīm’s round loop sits under it.",
+  "kidsShapeToothOverMimTip": "Mīm’s loop is round and closed. Jīm, Ḥā’ and Khā’ have an open curve.",
+  "kidsShapeAynOverJimTitle": "ع over ج ح خ",
+  "kidsShapeAynOverJimNote": "‘Ayn sits on top, and Jīm, Ḥā’ or Khā’ tucks in underneath.",
+  "kidsShapeAynOverJimTip": "‘Ayn’s loop is open at the top. Below it, use the dot: none is Ḥā’, below is Jīm, above is Khā’.",
+  "kidsShapeFaqafOverJimTitle": "ف ق over ج ح خ",
+  "kidsShapeFaqafOverJimNote": "Fā’ or Qāf has a round head that sits above Jīm, Ḥā’ or Khā’.",
+  "kidsShapeFaqafOverJimTip": "One dot on the head is Fā’. Two dots is Qāf. Then use the dot to find the letter below.",
+  "kidsShapeMimOverMimTitle": "م over م",
+  "kidsShapeMimOverMimNote": "Two Mīms in a row: one sits above the other, not side by side.",
+  "kidsShapeMimOverMimTip": "Both loops look the same. Read the top one first, then the one under it.",
+  "kidsShapeMimFinalAfterToothTitle": "Mīm at the end",
+  "kidsShapeMimFinalAfterToothNote": "At the end of a word, Mīm sits close under the letter before it.",
+  "kidsShapeMimFinalAfterToothTip": "It is the usual end-of-word Mīm. Just look at where it sits: close to the letter before.",
+  "kidsShapeHaaMedialTitle": "Hā’ in the middle",
+  "kidsShapeHaaMedialNote": "In the middle of a word, Hā’ looks like a tiny 8 with two little loops.",
+  "kidsShapeHaaMedialTip": "Two little loops, like an 8, means Hā’. One round loop is Mīm.",
+  "kidsShapeRaZaElongatedFinalTitle": "The long Rā’ or Zāy",
+  "kidsShapeRaZaElongatedFinalNote": "At the end of a word, Rā’ or Zāy can stretch its tail out long.",
+  "kidsShapeRaZaElongatedFinalTip": "Rā’ has no dot. Zāy has one dot above. The long tail does not tell them apart — look for the dot.",
+  "kidsShapeFormMarkAbove": "Mark above",
+  "kidsShapeFormMarkBelow": "Mark below",
+  "kidsShapeFormWavy": "Wavy line",
+  "kidsExtraHamzah": "Hamzah is a tiny stop in your voice. It can stand on its own, with no seat.",
+  "kidsExtraAlifHamzahAbove": "Hamzah sits on top of an Alif.",
+  "kidsExtraAlifHamzahBelow": "Hamzah sits under an Alif.",
+  "kidsExtraWawHamzah": "Hamzah sits on a Wāw.",
+  "kidsExtraYaHamzah": "Hamzah sits on a Yā’ with no dots.",
+  "kidsExtraTaMarbuta": "Tā’ Marbūṭah ends many words. Keep reading and it sounds like “t”. Stop on it and it sounds like a soft “h”.",
+  "kidsExtraAlifMaqsura": "Alif Maqṣūrah looks like a Yā’ with no dots. It sounds like a long “aa”, just like Alif.",
+  "kidsExtraAlifWasl": "Alif Waṣl is an Alif with a small mark on top. Say it only when you start a word. When you join it to the word before, skip it.",
+  "kidsSmallDaggerAlifName": "Little Alif",
+  "kidsSmallDaggerAlifNote": "A tiny Alif written above a letter. Say it long, just like a full Alif: two counts.",
+  "kidsSmallWawName": "Little Wāw",
+  "kidsSmallWawNote": "A tiny Wāw sits on a ḍammah at the end of a word. Round your lips a little more for the “u”.",
+  "kidsSmallYaName": "Little Yā’",
+  "kidsSmallYaNote": "A tiny Yā’ sits on a kasrah at the end of a word. Stretch the “i” a little more.",
+  "kidsGlossDoor": "the door",
+  "kidsGlossHouse": "house",
+  "kidsGlossApple": "the apple",
+  "kidsGlossFox": "the fox",
+  "kidsGlossCamel": "the camel",
+  "kidsGlossMilk": "the milk",
+  "kidsGlossBread": "the bread",
+  "kidsGlossHen": "the hen",
+  "kidsGlossGold": "gold",
+  "kidsGlossMoon": "a moon",
+  "kidsGlossFlower": "the flower",
+  "kidsGlossFish": "the fish",
+  "kidsGlossSun": "the sun",
+  "kidsGlossFalcon": "the falcon",
+  "kidsGlossFrog": "the frog",
+  "kidsGlossBird": "the bird",
+  "kidsGlossShade": "the shade",
+  "kidsGlossEye": "the eye",
+  "kidsGlossCrow": "the crow",
+  "kidsGlossElephant": "the elephant",
+  "kidsGlossPen": "a pen",
+  "kidsGlossBook": "the book",
+  "kidsGlossNight": "the night",
+  "kidsGlossWater": "the water",
+  "kidsGlossBee": "the bee",
+  "kidsGlossCrescent": "the crescent",
+  "kidsGlossBoy": "the boy",
+  "kidsGlossHand": "the hand",
+  "kidsTanwinShapesTitle": "Tanwīn's Two Looks",
+  "kidsTanwinShapesIntro": "Tanwīn is not always drawn the same way. Its shape is a clue to what your voice does next.",
+  "kidsTanwinParallelName": "Side by side",
+  "kidsTanwinParallelHow": "Two marks stand side by side. Say the sound out loud and clear.",
+  "kidsTanwinAlternateName": "Stacked up",
+  "kidsTanwinAlternateHow": "The marks stack on top of each other. Let the sound blend into a hum with the letter after it.",
+  "kidsTanwinIqlabName": "Turns into a mīm",
+  "kidsTanwinIqlabHow": "A tiny mīm sits above or below instead. Close your lips and hum a quiet “m” before the bāʼ.",
+  "kidsTanwinSortPrompt": "Which sound does each tanwīn make? Sort the words.",
+  "kidsWhichShapeMakesSound": "Which shape means “{sound}”?",
+  "@kidsWhichShapeMakesSound": {
+    "placeholders": {
+      "sound": {
+        "type": "String"
+      }
+    }
+  },
+  "kidsTanwinAskClear": "Which shape says it clearly?",
+  "kidsTanwinAskHum": "Which shape blends into a hum?",
+  "kidsTanwinAskMim": "Which shape turns into an “m”?",
+  "kidsTapEachToHear": "Tap each one to hear it",
+  "kidsPracticeWords": "Now find it in real words",
+  "kidsPracticeWordsTitle": "Practice words",
+  "kidsReadIt": "I read it!",
+  "kidsPerfect": "Perfect!",
+  "kidsShopThemeForest": "Forest Theme",
+  "kidsShopThemeLagoon": "Lagoon Theme",
+  "kidsShopThemeBlossom": "Blossom Theme",
+  "kidsShopThemeSunset": "Sunset Theme",
+  "kidsGameThreeInARow": "Three in a Row",
+  "kidsGameThreeInARowSub": "Read a letter right to claim its square",
+  "kidsGameYourTurn": "Your turn — tap a square",
+  "kidsGameComputerTurn": "The computer's turn…",
+  "kidsGameYouWon": "You won!",
+  "kidsGameComputerWon": "The computer won this time",
+  "kidsGameDraw": "A draw — good game!",
+  "kidsGameMemoryMatch": "Memory Match",
+  "kidsGameMemoryMatchSub": "Find each letter's name",
+  "kidsGameFindPairs": "Flip two cards — find the letter and its name",
+  "kidsGameAllMatched": "You found them all!",
+  "kidsGameBingo": "Letter Bingo",
+  "kidsGameBingoSub": "Listen for the letter, then tap it",
+  "kidsGameBingoNoLine": "So close — try again!",
+  "kidsGentleStopTitle": "You've done your day",
+  "kidsGentleStopSub": "A good place to stop — it will all still be here tomorrow.",
+  "kidsSessionReminder": "Session reminder",
+  "kidsSessionReminderSub": "Suggest a break after this long — never a lockout, just a nudge.",
+  "kidsSessionOff": "Off",
+  "kidsSessionMinutes": "{n} minutes",
+  "@kidsSessionMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "kidsBreakTitle": "Time for a stretch?",
+  "kidsBreakSub": "You've been learning for a while — a short break helps it stick.",
+  "kidsBreakContinue": "Keep going",
+  "kidsParentBackupTitle": "Keep a copy of progress",
+  "kidsParentBackupSub": "Saved on this device only — nothing is sent anywhere.",
+  "kidsParentOfflineTitle": "Read offline",
+  "kidsParentOfflineSub": "Save the reading sūrahs ahead of time, for a plane or a weak signal.",
+  "kidsDetailLevel": "Detail",
+  "kidsDetailLevelSub": "How fancy the backgrounds are. Plain is flat and fastest, Medium is a calm scene, High moves.",
+  "kidsDetailPlain": "Plain",
+  "kidsDetailMedium": "Medium",
+  "kidsDetailHigh": "High",
+  "kidsShopThemeRain": "Rain Theme",
+  "kidsShopThemeCave": "Cave Theme",
+  "kidsShopThemeSunrise": "Sunrise Theme",
+  "kidsShopThemeFrozen": "Frozen Theme",
+  "kidsShopThemeSnowy": "Snowy Theme",
+  "kidsShopMonkeyAvatar": "Monkey",
+  "kidsShopSheepAvatar": "Sheep",
+  "kidsShopThemes": "Themes",
+  "kidsShopUse": "Use",
+  "kidsShopInUse": "In use",
+  "kidsThemeClassic": "Classic",
+  "kidsThemeOcean": "Ocean",
+  "kidsThemeLagoon": "Lagoon",
+  "kidsThemeDesert": "Desert",
+  "kidsThemeNight": "Night",
+  "kidsThemeForest": "Forest",
+  "kidsThemeBlossom": "Blossom",
+  "kidsThemeSunset": "Sunset",
+  "kidsThemeRain": "Rain",
+  "kidsThemeCave": "Cave",
+  "kidsThemeSunrise": "Sunrise",
+  "kidsThemeFrozen": "Frozen",
+  "kidsThemeSnowy": "Snowy",
+  "kidsAnimalFox": "Fox",
+  "kidsAnimalPanda": "Panda",
+  "kidsAnimalTiger": "Tiger",
+  "kidsAnimalLion": "Lion",
+  "kidsAnimalKoala": "Koala",
+  "kidsAnimalFrog": "Frog",
+  "kidsAnimalHorse": "Horse",
+  "kidsAnimalDolphin": "Dolphin",
+  "kidsPathStart": "Start"
 }

@@ -3,14 +3,20 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../core/geometry.dart';
-import '../../core/theme.dart';
-import '../../widgets/common.dart' show TapScale;
+import '../../widgets/drag_kit.dart';
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
+import 'kids_widgets.dart' show KidsCentered;
 
-/// Tap [items] in their right order — the words of an āyah, the āyāt of a
+/// Put [items] in their right order — the words of an āyah, the āyāt of a
 /// sūrah, the letters of a word. The tiles are offered shuffled and never
-/// already in order; a right tap moves its tile up into what is being built,
-/// a wrong tap flashes and costs the step its first-try mark but never undoes
-/// what is placed, so the child keeps building until it is right.
+/// already in order; a right tile moves up into what is being built, a wrong
+/// one flashes and costs the step its first-try mark but never undoes what is
+/// placed, so the child keeps building until it is right.
+///
+/// A tile is either DRAGGED into the row being built or just TAPPED — the two
+/// do exactly the same thing, so a child who cannot drag yet is not held back.
 ///
 /// [decoys] are extra tiles that belong nowhere (a look-alike letter among a
 /// word's own): tapping one is always wrong, and it stays on offer.
@@ -106,56 +112,77 @@ class _KidsOrderCardState extends State<KidsOrderCard> {
     }
   }
 
-  Widget _tile(BuildContext context, String text, Color color, Color? border) {
-    return Container(
-      width: widget.wide ? double.infinity : null,
-      padding: const EdgeInsets.symmetric(
-        horizontal: Geo.gapMd,
-        vertical: Geo.gapSm,
-      ),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(Geo.radiusLg),
-        border: Border.all(color: border ?? Colors.transparent, width: 2),
-      ),
-      child: Text(
-        text,
-        textDirection: TextDirection.rtl,
-        textAlign: TextAlign.center,
-        style: quranicStyle(context, size: widget.size),
+  /// A piece as the design's answer cell: idle on offer (bad for a moment
+  /// after a wrong tap), good once placed.
+  Widget _tile(BuildContext context, String text, KbCellState state,
+      {VoidCallback? onTap}) {
+    final ui = kbUi(context);
+    final cell = KbGlyphCell(
+      ui: ui,
+      state: state,
+      square: false,
+      radius: 18,
+      elev: state == KbCellState.good ? KbElev.edge3 : KbElev.option,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 4),
+        child: Text(
+          text,
+          textDirection: TextDirection.rtl,
+          textAlign: TextAlign.center,
+          style: kbText(widget.size, kbC(ui.ink),
+              family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
+        ),
       ),
     );
+    return widget.wide ? SizedBox(width: double.infinity, child: cell) : cell;
   }
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    final ok = AppColors.ok.withValues(alpha: .18);
+    final ui = kbUi(context);
     final placed = [for (var i = 0; i < _placed; i++) widget.items[i]];
     // The tiles still on offer, as slots of [_bank].
     final open = [
       for (var s = 0; s < _bank.length; s++)
         if (!_taken.contains(s)) s,
     ];
-    Widget offered(int s) => TapScale(
-      onTap: () => _tap(s),
+    Widget offered(int s) => DragTile<int>(
+      data: s,
+      enabled: !_finished,
       child: _tile(
         context,
         _all[_bank[s]],
-        _flash == s ? AppColors.bad.withValues(alpha: .16) : p.surface,
-        null,
+        _flash == s ? KbCellState.bad : KbCellState.idle,
+        onTap: () => _tap(s),
+      ),
+    );
+    // The empty place the next tile goes: a drag needs somewhere to land, and a
+    // child needs to see there IS a place.
+    final ghost = SizedBox(
+      width: widget.wide ? double.infinity : 64,
+      height: (widget.size * 1.5).clamp(48.0, double.infinity),
+      // The design's "open" cell: the selection ring says "this is next".
+      child: KbGlyphCell(
+        ui: ui,
+        state: KbCellState.open,
+        square: false,
+        radius: 18,
+        elev: KbElev.edge3,
+        child: KbIcon('add', size: 28, color: kbC(ui.accent)),
       ),
     );
     final built = _finished && widget.joined != null
-        ? Center(child: _tile(context, widget.joined!, ok, AppColors.ok))
+        ? Center(child: _tile(context, widget.joined!, KbCellState.good))
         : widget.wide
         ? Column(
             children: [
               for (final t in placed)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
-                  child: _tile(context, t, ok, AppColors.ok),
+                  child: _tile(context, t, KbCellState.good),
                 ),
+              if (!_finished) ghost,
             ],
           )
         : Wrap(
@@ -164,55 +191,64 @@ class _KidsOrderCardState extends State<KidsOrderCard> {
             spacing: Geo.gapSm,
             runSpacing: Geo.gapSm,
             children: [
-              for (final t in placed) _tile(context, t, ok, AppColors.ok),
+              for (final t in placed) _tile(context, t, KbCellState.good),
+              if (!_finished) ghost,
             ],
           );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: Geo.gapMd),
-          child: Text(
-            widget.prompt,
-            style: kidsStyle(context, size: 17, weight: FontWeight.w800),
-          ),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (widget.header != null) ...[
-                  widget.header!,
-                  const SizedBox(height: Geo.gapMd),
-                ],
-                // What has been built so far, in reading order.
-                Container(
-                  constraints: const BoxConstraints(minHeight: 72),
-                  padding: const EdgeInsets.all(Geo.gapSm),
-                  decoration: kidsCard(context),
+    // One centred block — prompt, model, what has been built, what is left —
+    // rather than a prompt at the top and a scroll view under it that packs to
+    // the top and leaves the rest of the screen empty.
+    return KidsCentered(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // The instruction, on the sky — the design's quiz prompt.
+          KbSubtitle(widget.prompt,
+              ui: ui, fontSize: 22, height: 1.3, align: TextAlign.center),
+          const SizedBox(height: Geo.gapMd),
+          if (widget.header != null) ...[
+            widget.header!,
+            const SizedBox(height: Geo.gapMd),
+          ],
+          // What has been built so far, in reading order — and where a dragged
+          // tile lands.
+          DropSlot<int>(
+            enabled: !_finished,
+            onDrop: _tap,
+            builder: (context, hovering) => DropGlow(
+              hovering: hovering != null,
+              color: kbC(ui.accent),
+              radius: 22,
+              child: KbSurface(
+                color: ui.surface,
+                edge: ui.edge,
+                radius: 22,
+                padding: const EdgeInsets.all(12),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 56),
                   child: built,
                 ),
-                const SizedBox(height: Geo.gapLg),
-                if (widget.wide) ...[
-                  for (final s in open)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: Geo.gapSm),
-                      child: offered(s),
-                    ),
-                ] else
-                  Wrap(
-                    textDirection: TextDirection.rtl,
-                    alignment: WrapAlignment.center,
-                    spacing: Geo.gapSm,
-                    runSpacing: Geo.gapSm,
-                    children: [for (final s in open) offered(s)],
-                  ),
-              ],
+              ),
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: Geo.gapLg),
+          if (widget.wide) ...[
+            for (final s in open)
+              Padding(
+                padding: const EdgeInsets.only(bottom: Geo.gapSm),
+                child: offered(s),
+              ),
+          ] else
+            Wrap(
+              textDirection: TextDirection.rtl,
+              alignment: WrapAlignment.center,
+              spacing: Geo.gapSm,
+              runSpacing: Geo.gapSm,
+              children: [for (final s in open) offered(s)],
+            ),
+        ],
+      ),
     );
   }
 }

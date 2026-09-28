@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:qiraah_arabiyyah/kids_backdrops/kb_components.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
+import 'package:qiraah_arabiyyah/data/kids_glosses.dart' show kidsSmallLetterName;
 import 'package:qiraah_arabiyyah/data/small_letters.dart';
 import 'package:qiraah_arabiyyah/data/tashkeel.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_madd_lesson.dart';
@@ -74,17 +76,19 @@ void main() {
       await tester.pumpWidget(_harness(settings, prog, const KidsMaddLesson()));
       await tester.pump();
 
-      // `MediaRow`'s own Listen/Watch buttons are also `TextButton`s, so
-      // find this one by its label rather than by type alone.
-      final button = find.widgetWithText(TextButton, 'Start — recite along');
+      // `MediaRow`'s own Listen/Watch buttons are also pills, so find this
+      // one by its label rather than by type alone.
+      final button = find.widgetWithText(KbPill, 'Start — recite along');
       expect(button, findsOneWidget);
-      expect(tester.widget<TextButton>(button).onPressed, isNotNull);
+      expect(tester.widget<KbPill>(button).onTap, isNotNull);
 
+      // Below the fold in a 600px window, as on a short phone: scroll to it.
+      await tester.ensureVisible(button);
       await tester.tap(button);
       await tester.pump();
       // Disabled while it plays — this is the only feedback a child gets
       // that a tap did something.
-      expect(tester.widget<TextButton>(button).onPressed, isNull);
+      expect(tester.widget<KbPill>(button).onTap, isNull);
 
       // Madd Ṭabī‘ī is a 2-count mark: 3 cycles of ~1.6s each is comfortably
       // under 6s. Pumped in chunks rather than `pumpAndSettle()`, which never
@@ -92,7 +96,7 @@ void main() {
       for (var i = 0; i < 12; i++) {
         await tester.pump(const Duration(milliseconds: 500));
       }
-      expect(tester.widget<TextButton>(button).onPressed, isNotNull);
+      expect(tester.widget<KbPill>(button).onTap, isNotNull);
     },
   );
 
@@ -100,8 +104,16 @@ void main() {
     'walks the seven counted marks, then the three small letters, in order',
     (tester) async {
       useReducedMotion(tester);
+      late BuildContext ctx;
       final (settings, prog) = await _boot();
-      await tester.pumpWidget(_harness(settings, prog, const KidsMaddLesson()));
+      await tester.pumpWidget(_harness(
+        settings,
+        prog,
+        Builder(builder: (c) {
+          ctx = c;
+          return const KidsMaddLesson();
+        }),
+      ));
       await tester.pump();
 
       final counted = tashkil.where((t) => t.counts >= 2).toList();
@@ -112,9 +124,10 @@ void main() {
         final label = isLast ? 'Continue' : 'Next';
         expect(find.text(label), findsOneWidget, reason: 'step $i');
         if (i >= counted.length) {
-          // A small letter's own card, named by its data.
+          // A small letter's own card, named by its kid-worded name.
           expect(
-            find.text(smallLetters[i - counted.length].name),
+            find.text(kidsSmallLetterName(
+                ctx, smallLetters[i - counted.length].id)),
             findsOneWidget,
             reason: 'step $i',
           );
@@ -138,13 +151,13 @@ void main() {
         await tester.tap(find.text('Next'));
         await tester.pump();
       }
-      final ring = find.widgetWithText(TextButton, 'Start — recite along');
-      expect(find.text('Dagger Alif'), findsOneWidget);
+      final ring = find.widgetWithText(KbPill, 'Start — recite along');
+      expect(find.text('Little Alif'), findsOneWidget);
       expect(ring, findsOneWidget);
 
       await tester.tap(find.text('Next'));
       await tester.pump();
-      expect(find.text('Small Wāw'), findsOneWidget);
+      expect(find.text('Little Wāw'), findsOneWidget);
       expect(ring, findsNothing);
     },
   );

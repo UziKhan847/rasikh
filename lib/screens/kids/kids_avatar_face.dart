@@ -1,0 +1,35 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+import '../../data/kids_avatars.dart';
+
+/// An avatar's face: the drawn animal when it has one (see [kidsAnimals]), the
+/// plain emoji when it does not.
+///
+/// Takes the emoji a profile stores rather than an animal id, so it can stand
+/// in for any `Text(profile.avatar)` — and for the shop's `Text(item.emoji)`,
+/// where a frame's ✨ or a theme's 🌊 has no drawn art and simply stays an emoji.
+///
+/// [size] is the emoji's font size, as it always was at these call sites; the
+/// drawn face takes about the space that emoji would, so a layout built for
+/// one holds for the other.
+class KidsAvatarFace extends StatelessWidget {
+  final String avatar;
+  final double size;
+  const KidsAvatarFace(this.avatar, {super.key, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final animal = kidsAnimalFor(avatar);
+    if (animal == null) return Text(avatar, style: TextStyle(fontSize: size));
+    final box = size * 1.15;
+    return SizedBox(
+      key: ValueKey('kidsAvatar.${animal.id}'),
+      width: box,
+      height: box,
+      // The emoji it replaces is read aloud as an animal; the drawing is
+      // decoration next to whatever labels it, so it stays out of the tree.
+      child: SvgPicture.asset(animal.asset, excludeFromSemantics: true),
+    );
+  }
+}

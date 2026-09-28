@@ -11,7 +11,7 @@ import 'package:qiraah_arabiyyah/screens/kids/kids_checkpoint_quiz.dart' show ki
 import 'package:qiraah_arabiyyah/screens/kids/kids_home_screen.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_syllable_drill.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_widgets.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show QuizScreen, TapScale;
+import 'package:qiraah_arabiyyah/widgets/common.dart' show QuizScreen;
 
 import 'kids_test_support.dart';
 
@@ -118,7 +118,7 @@ void main() {
     expect(find.text('Which one did you just say?'), findsOneWidget);
 
     final wrong = find
-        .descendant(of: find.byType(TapScale), matching: find.byType(Text))
+        .descendant(of: kidsTappables(), matching: find.byType(Text))
         .evaluate()
         .map((e) => (e.widget as Text).data)
         .firstWhere((t) => t != answer);

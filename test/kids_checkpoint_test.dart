@@ -61,7 +61,22 @@ void main() {
         expect(q.options.toSet(),
             everyElement(isIn(q.optionsAreArabic ? chars : names)),
             reason: 'upTo $upTo: ${q.prompt}');
-        expect(q.options[q.correct], isNotNull);
+        if (q.sequence != null) {
+          // The alphabet-order question: three letters already met, whose
+          // right order is the alphabet's own.
+          expect(q.sequence, hasLength(3));
+          expect(q.sequence!.toSet(), q.options.toSet());
+          expect(
+            q.sequence!.map((c) => met.indexWhere((l) => l.char == c)).toList(),
+            isNot(contains(-1)),
+          );
+          final idx = [
+            for (final c in q.sequence!) met.indexWhere((l) => l.char == c),
+          ];
+          expect(idx, [...idx]..sort(), reason: 'upTo $upTo: in alphabet order');
+        } else {
+          expect(q.options[q.correct], isNotNull);
+        }
       }
       // Cumulative, not "the five just done": the first letter has to keep
       // turning up, which is the whole reason for the checkpoint.
@@ -148,7 +163,7 @@ void main() {
             reason: '${q.arabic}: ${l.char} as $form');
       }
     }
-    expect(gaps, greaterThan(40), reason: 'about three a check-up');
+    expect(gaps, greaterThan(40), reason: 'two a check-up');
   });
 
   testWidgets('a check-up fires every five lessons', (tester) async {

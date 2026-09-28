@@ -5,22 +5,20 @@ import 'package:flutter/material.dart';
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
 import '../../core/letter_audio.dart';
-import '../../core/responsive.dart';
 import '../../core/settings.dart';
-import '../../core/theme.dart';
 import '../../data/glyph_ink.dart';
 import '../../data/glyph_names.dart';
 import '../../data/kids_content.dart';
-import '../../data/kids_sentences.dart' show kidsPraiseArabic;
 import '../../data/letters.dart';
 import '../../data/strokes.dart' show TracedGlyph;
 import '../../data/tracing_levels.dart';
-import '../../widgets/common.dart';
 import '../tracing_screen.dart' show TracingBoard;
-import 'kids_desktop_nav.dart';
 // Mutual import with kids_path.dart, which builds these lessons: the
 // celebration step reads the path back to name what comes next.
 import 'kids_path.dart';
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_widgets.dart';
 
 /// One thing to trace in a lesson: which glyph set, and which joining form.
@@ -222,50 +220,14 @@ class _KidsLetterFlowState extends State<KidsLetterFlow> {
       };
 
   @override
-  Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    if (useDesktop(context)) {
-      // The shell's own top bar carries the back control while an overlay
-      // is open (see KidsDesktopOverlay) — this just centres the step
-      // content to the design's per-step max width, plus the step label
-      // mobile otherwise shows in its AppBar title.
-      final maxWidth = switch (_step) {
-        _Step.shape || _Step.say => 460.0,
-        _Step.trace => 520.0,
-        _Step.result => 460.0,
-      };
-      return Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxWidth),
-          child: Padding(
-            padding: const EdgeInsets.all(Geo.gapXl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (_step != _Step.result) ...[
-                  Text(context.l10n.kidsStepOf(_stepNumber, _stepCount),
-                      style: kidsStyle(context, size: 13, color: p.textDim)),
-                  const SizedBox(height: Geo.gapSm),
-                ],
-                Expanded(child: _content(context)),
-              ],
-            ),
-          ),
-        ),
+  Widget build(BuildContext context) => KidsScreenScaffold(
+        // The step, beside the way back — on desktop the shell's own top bar
+        // has the way back, and this is the caption alone.
+        caption: _step == _Step.result
+            ? null
+            : context.l10n.kidsStepOf(_stepNumber, _stepCount),
+        child: _content(context),
       );
-    }
-    return Scaffold(
-      backgroundColor: p.bg,
-      appBar: _step == _Step.result
-          ? null
-          : AppBar(
-              backgroundColor: Colors.transparent,
-              title: Text(context.l10n.kidsStepOf(_stepNumber, _stepCount),
-                  style: kidsStyle(context, size: 13, color: p.textDim)),
-            ),
-      body: SafeArea(child: _content(context)),
-    );
-  }
 }
 
 /// The letter drawn in [form] — the same rendering `ArabicLetter.initial`/
@@ -296,47 +258,48 @@ class _ShapeStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final contrast = form != 'iso' && !letter.joins;
-    return Padding(
-      padding:
-          const EdgeInsets.fromLTRB(Geo.gapLg, 0, Geo.gapLg, Geo.gapLg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-              contrast
-                  ? context.l10n
-                      .kidsNeverJoinsForward(letterName(context, letter))
-                  : context.l10n.kidsThisIsLetter(letterName(context, letter)),
-              style: kidsStyle(context, size: 17, weight: FontWeight.w800)),
-          if (!contrast && form != 'iso') ...[
-            const SizedBox(height: 2),
-            Text(_formLabel(context, form),
-                style: kidsStyle(context, size: 12.5, color: p.textDim)),
-          ],
-          const SizedBox(height: Geo.gapMd),
-          Expanded(
-            child: contrast
-                ? Row(children: [
-                    Expanded(child: _GlyphHero(letter.char)),
-                    Icon(Icons.arrow_forward_rounded, color: p.textDim),
-                    Expanded(child: _GlyphHero(_glyphInForm(letter, form))),
-                  ])
-                : _GlyphHero(_glyphInForm(letter, form)),
-          ),
-          const SizedBox(height: Geo.gapMd),
-          Center(child: _HearButton(letter: letter)),
-          const SizedBox(height: Geo.gapLg),
-          FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: p.accent,
-                padding: const EdgeInsets.symmetric(vertical: 16)),
-            onPressed: onNext,
-            child: Text(context.l10n.kidsNextCard),
-          ),
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    // The design's lesson step (kb_screens.dart `KbLessonScreen`): the
+    // instruction on the sky, the letter on its card, Listen, Next.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        KidsLessonTitle(contrast
+            ? context.l10n.kidsNeverJoinsForward(letterName(context, letter))
+            : context.l10n.kidsThisIsLetter(letterName(context, letter))),
+        if (!contrast && form != 'iso') ...[
+          const SizedBox(height: 4),
+          KidsLessonSubtitle(_formLabel(context, form)),
         ],
-      ),
+        const SizedBox(height: Geo.gapMd),
+        Expanded(
+          child: contrast
+              ? Row(children: [
+                  Expanded(child: _GlyphHero(letter.char)),
+                  const SizedBox(width: 10),
+                  KbSurface(
+                    color: ui.surface,
+                    edge: ui.edge,
+                    elev: KbElev.edge3,
+                    circle: true,
+                    width: 34,
+                    height: 34,
+                    alignment: Alignment.center,
+                    child: KbIcon(rtl ? 'arrow_back' : 'arrow_forward',
+                        size: 22, color: kbC(ui.ink)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: _GlyphHero(_glyphInForm(letter, form))),
+                ])
+              : _GlyphHero(_glyphInForm(letter, form)),
+        ),
+        const SizedBox(height: Geo.gapMd),
+        Center(child: _HearButton(letter: letter)),
+        const SizedBox(height: 24),
+        KidsNextButton(context.l10n.kidsNextCard, onTap: onNext),
+      ],
     );
   }
 }
@@ -378,61 +341,52 @@ class _SayStepState extends State<_SayStep> {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    return Padding(
-      padding:
-          const EdgeInsets.fromLTRB(Geo.gapLg, 0, Geo.gapLg, Geo.gapLg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(context.l10n.kidsSayItAloud,
-              style: kidsStyle(context, size: 17, weight: FontWeight.w800)),
-          const SizedBox(height: Geo.gapMd),
-          Expanded(
-              child: _GlyphHero(_glyphInForm(widget.letter, widget.form))),
-          const SizedBox(height: Geo.gapMd),
-          // The name is what the child actually says, so it is spelled out
-          // under the shape rather than left for them to remember.
-          Center(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(letterName(context, widget.letter),
-                  style: kidsStyle(context,
-                      size: 30, weight: FontWeight.w800, color: p.accent)),
-            ),
+    final ui = kbUi(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        KidsLessonTitle(context.l10n.kidsSayItAloud),
+        const SizedBox(height: Geo.gapMd),
+        Expanded(child: _GlyphHero(_glyphInForm(widget.letter, widget.form))),
+        const SizedBox(height: Geo.gapMd),
+        // The name is what the child actually says, so it is spelled out
+        // under the shape rather than left for them to remember.
+        Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: KidsLessonTitle(letterName(context, widget.letter),
+                fontSize: 32, height: 1.1),
           ),
-          const SizedBox(height: Geo.gapMd),
-          // A dot per repetition, so how many are left is visible at a glance
-          // rather than something to read and count.
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (var i = 0; i < widget.times; i++)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  child: Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: i < _said ? p.amber : p.surfaceHigh,
-                    ),
+        ),
+        const SizedBox(height: Geo.gapMd),
+        // A dot per repetition, so how many are left is visible at a glance
+        // rather than something to read and count: the reward colour when
+        // said, the surface until then.
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < widget.times; i++)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: kbC(i < _said ? ui.reward : ui.surface),
+                    border: Border.all(
+                        color: kbC(i < _said ? ui.rewardEdge : ui.edge),
+                        width: 2),
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: Geo.gapMd),
-          Center(child: _HearButton(letter: widget.letter)),
-          const SizedBox(height: Geo.gapLg),
-          FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: p.accent,
-                padding: const EdgeInsets.symmetric(vertical: 16)),
-            onPressed: _tap,
-            child: Text(context.l10n.kidsSaidIt),
-          ),
-        ],
-      ),
+              ),
+          ],
+        ),
+        const SizedBox(height: Geo.gapMd),
+        Center(child: _HearButton(letter: widget.letter)),
+        const SizedBox(height: 24),
+        KidsNextButton(context.l10n.kidsSaidIt, onTap: _tap),
+      ],
     );
   }
 }
@@ -463,8 +417,12 @@ class _GlyphHero extends StatelessWidget {
         child: SizedBox(
           width: side,
           height: side,
-          child: Container(
-            decoration: kidsCard(context),
+          // The design's lesson letter card (`KbElev.big`, radius 28).
+          child: KbSurface(
+            color: kbUi(context).surface,
+            edge: kbUi(context).edge,
+            elev: KbElev.big,
+            radius: 28,
             padding: const EdgeInsets.all(Geo.gapXl),
             // The old `Text` widget exposed the glyph to a screen reader for
             // free; painting it on a canvas does not. Restore that with an
@@ -487,7 +445,7 @@ class _GlyphHero extends StatelessWidget {
                               style: TextStyle(
                                   fontFamily: 'UthmanicHafs',
                                   fontSize: 100,
-                                  color: kidsPal(context).text)),
+                                  color: kbC(kbUi(context).ink))),
                         ),
                       )
                     : SizedBox.expand(
@@ -496,7 +454,7 @@ class _GlyphHero extends StatelessWidget {
                               glyph: glyph,
                               top: ink.$1,
                               bottom: ink.$2,
-                              color: kidsPal(context).text),
+                              color: kbC(kbUi(context).ink)),
                         ),
                       ),
               ),
@@ -580,16 +538,12 @@ class _HearButton extends StatelessWidget {
   const _HearButton({required this.letter});
 
   @override
-  Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    return TextButton.icon(
-      onPressed: () => LetterAudio.playOrComingSoon(context, letter),
-      icon: Icon(Icons.volume_up_rounded, color: p.accent2),
-      label: Text(context.l10n.listen,
-          style: kidsStyle(context, color: p.accent2)),
-    );
-  }
+  Widget build(BuildContext context) => KidsListenButton(
+      onTap: () => LetterAudio.playOrComingSoon(context, letter));
 }
+
+/// The shortest the trace step lays out at before it scrolls instead.
+const _traceMinHeight = 560.0;
 
 class _TraceStep extends StatefulWidget {
   final ArabicLetter letter;
@@ -627,86 +581,110 @@ class _TraceStepState extends State<_TraceStep> {
   int _attempt = 0;
   int? _stars; // null until this attempt has been graded
 
+  /// The result panel, so a short screen can scroll it into view as it
+  /// appears (see [_traceMinHeight]).
+  final _resultKey = GlobalKey();
+
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final level = tracingLevels.firstWhere((l) => l.id == widget.levelId,
         orElse: () => tracingLevels.firstWhere((l) => !l.words));
     final glyph = level.glyphForIn(widget.letter.char, widget.form);
     final stars = _stars;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          Geo.gapLg, 0, Geo.gapLg, Geo.gapLg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(context.l10n.kidsTraceThe(letterName(context, widget.letter)),
-              style: kidsStyle(context, size: 17, weight: FontWeight.w800)),
-          // Which of the four shapes this is — only meaningful once a lesson
-          // teaches more than the isolated letter — and, where the shape is
-          // practised several times over, which go this is.
-          if (widget.form != 'iso' || widget.passes > 1)
-            Text(
-                [
-                  if (widget.form != 'iso') _formLabel(context, widget.form),
-                  if (widget.passes > 1)
-                    context.l10n.kidsTracePass(widget.pass, widget.passes),
-                ].join(' · '),
-                style: kidsStyle(context, size: 12.5, color: p.textDim)),
-          Row(children: [
-            TextButton.icon(
-              onPressed: () =>
-                  LetterAudio.playOrComingSoon(context, widget.letter),
-              icon: Icon(Icons.volume_up_rounded, color: p.accent2),
-              label: Text(context.l10n.listen,
-                  style: kidsStyle(context, color: p.accent2)),
-            ),
+    // The design's Write screen (kb_screens.dart `KbWriteScreen`). Like the
+    // design's full-height pages (`KbFullPage`) it has a floor: on a very
+    // short screen the step scrolls rather than squeezing the board.
+    final page = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        KidsLessonTitle(context.l10n.kidsTraceThe(letterName(context, widget.letter)),
+            height: 1.2),
+        // Which of the four shapes this is — only meaningful once a lesson
+        // teaches more than the isolated letter — and, where the shape is
+        // practised several times over, which go this is.
+        if (widget.form != 'iso' || widget.passes > 1)
+          KidsLessonSubtitle([
+            if (widget.form != 'iso') _formLabel(context, widget.form),
+            if (widget.passes > 1)
+              context.l10n.kidsTracePass(widget.pass, widget.passes),
+          ].join(' · ')),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: [
+            KbPill(context.l10n.listen,
+                ui: ui,
+                icon: 'volume_up',
+                fontSize: 17,
+                iconSize: 21,
+                elev: KbElev.edge4,
+                padding: const EdgeInsets.fromLTRB(14, 7, 18, 5),
+                onTap: () =>
+                    LetterAudio.playOrComingSoon(context, widget.letter)),
             // Optional — never a forced step. Recovers, on request, the
             // "watch how it's built" value that dropping the beginner
             // more-strokes pass gave up: a child who wants to see the shape
             // drawn before trying it can, without it being the default.
-            TextButton.icon(
-              onPressed: () => _showKidsWatch(context, widget.letter, glyph),
-              icon: Icon(Icons.visibility_rounded, color: p.accent2),
-              label: Text(context.l10n.kidsShowMe,
-                  style: kidsStyle(context, color: p.accent2)),
-            ),
-          ]),
-          const SizedBox(height: Geo.gapSm),
-          Expanded(
-            child: TracingBoard(
-              key: ValueKey(
-                  '${widget.letter.char}.${widget.form}.$_attempt'),
-              glyph: glyph,
-              mode: 'guided',
-              // The board's own overlay is the grown-up "Perfect trace / Try
-              // again" card, in the adult palette. Kids Mode shows its own
-              // below instead — the same reason the quizzes suppress it.
-              showOverlay: false,
-              onStars: (s) {
-                if (_stars != null) return;
-                // The shape has just been drawn and is still on screen: this
-                // is the moment the sound and the sight of the letter line
-                // up, so the letter says itself. Same reinforcement as the
-                // say-it-aloud step, on the writing half of the lesson.
-                LetterAudio.play(widget.letter);
-                setState(() => _stars = s);
-              },
-            ),
-          ),
-          if (stars != null) ...[
-            const SizedBox(height: Geo.gapMd),
-            _TraceResultPanel(
-              stars: stars,
-              onRetry: () => setState(() {
-                _attempt++;
-                _stars = null;
-              }),
-              onNext: () => widget.onDone(stars),
-            ),
+            KbPill(context.l10n.kidsShowMe,
+                ui: ui,
+                icon: 'visibility',
+                fontSize: 17,
+                iconSize: 21,
+                elev: KbElev.edge4,
+                padding: const EdgeInsets.fromLTRB(14, 7, 18, 5),
+                onTap: () => _showKidsWatch(context, widget.letter, glyph)),
           ],
+        ),
+        const SizedBox(height: 14),
+        Expanded(
+          child: TracingBoard(
+            key: ValueKey('${widget.letter.char}.${widget.form}.$_attempt'),
+            glyph: glyph,
+            mode: 'guided',
+            // The board's own overlay is the grown-up "Perfect trace / Try
+            // again" card, in the adult palette. Kids Mode shows its own
+            // below instead — the same reason the quizzes suppress it.
+            showOverlay: false,
+            onStars: (s) {
+              if (_stars != null) return;
+              // The shape has just been drawn and is still on screen: this
+              // is the moment the sound and the sight of the letter line
+              // up, so the letter says itself. Same reinforcement as the
+              // say-it-aloud step, on the writing half of the lesson.
+              LetterAudio.play(widget.letter);
+              setState(() => _stars = s);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final c = _resultKey.currentContext;
+                if (c != null && mounted) {
+                  Scrollable.ensureVisible(c,
+                      alignmentPolicy:
+                          ScrollPositionAlignmentPolicy.keepVisibleAtEnd);
+                }
+              });
+            },
+          ),
+        ),
+        if (stars != null) ...[
+          const SizedBox(height: Geo.gapMd),
+          _TraceResultPanel(
+            key: _resultKey,
+            stars: stars,
+            onRetry: () => setState(() {
+              _attempt++;
+              _stars = null;
+            }),
+            onNext: () => widget.onDone(stars),
+          ),
         ],
-      ),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, box) => box.maxHeight >= _traceMinHeight
+          ? page
+          : SingleChildScrollView(
+              child: SizedBox(height: _traceMinHeight, child: page)),
     );
   }
 }
@@ -715,10 +693,10 @@ class _TraceStepState extends State<_TraceStep> {
 /// replay [TracingBoard.watch] gives the adult Letters page, in a bottom
 /// sheet sized for the trace board rather than a full-screen page.
 void _showKidsWatch(BuildContext context, ArabicLetter letter, TracedGlyph glyph) {
-  final p = kidsPal(context);
+  final ui = kbUi(context);
   showModalBottomSheet(
     context: context,
-    backgroundColor: p.bg,
+    backgroundColor: kbC(ui.surface),
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -746,45 +724,51 @@ class _TraceResultPanel extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback onNext;
   const _TraceResultPanel(
-      {required this.stars, required this.onRetry, required this.onNext});
+      {super.key,
+      required this.stars,
+      required this.onRetry,
+      required this.onNext});
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    return Container(
-      padding: const EdgeInsets.all(Geo.gapMd),
-      decoration: kidsCard(context),
+    final ui = kbUi(context);
+    return KbSurface(
+      color: ui.surface,
+      edge: ui.edge,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       child: Column(children: [
-        StarRow(stars, size: 28),
-        const SizedBox(height: Geo.gapSm),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < 3; i++)
+              KbIcon(i < stars ? 'star' : 'star_outline',
+                  size: 32, color: kbC(i < stars ? ui.reward : ui.inkSoft)),
+          ],
+        ),
+        const SizedBox(height: 12),
         Row(children: [
           Expanded(
-            child: OutlinedButton.icon(
-              onPressed: onRetry,
-              style: OutlinedButton.styleFrom(
-                  foregroundColor: p.textDim,
-                  side: BorderSide(color: p.surfaceHigh, width: 1.5),
-                  padding: const EdgeInsets.symmetric(vertical: 14)),
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: Text(context.l10n.traceAgain,
-                  style: kidsStyle(context,
-                      size: 14, weight: FontWeight.w700, color: p.textDim)),
-            ),
+            child: KbPill(context.l10n.traceAgain,
+                ui: ui,
+                icon: 'refresh',
+                fontSize: 17,
+                iconSize: 20,
+                elev: KbElev.edge5,
+                padding: const EdgeInsets.fromLTRB(12, 11, 12, 9),
+                onTap: onRetry),
           ),
-          const SizedBox(width: Geo.gapSm),
+          const SizedBox(width: 12),
           Expanded(
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: p.accent,
-                  padding: const EdgeInsets.symmetric(vertical: 15)),
-              onPressed: onNext,
-              // Already a plain "Next" in every locale, not "Next card".
-              child: Text(context.l10n.kidsNextCard,
-                  style: kidsStyle(context,
-                      size: 14,
-                      weight: FontWeight.w800,
-                      color: Colors.white)),
-            ),
+            // Already a plain "Next" in every locale, not "Next card".
+            child: KbPill(context.l10n.kidsNextCard,
+                ui: ui,
+                kind: KbPillKind.deep,
+                icon: 'check',
+                fontSize: 17,
+                iconSize: 20,
+                elev: KbElev.edge5,
+                padding: const EdgeInsets.fromLTRB(12, 11, 12, 9),
+                onTap: onNext),
           ),
         ]),
       ]),
@@ -813,76 +797,29 @@ class _ResultStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = SettingsScope.of(context);
     final prog = ProgressScope.of(context);
-    final p = kidsPal(context);
-    final gender = s.activeKidsProfile?.gender ?? '';
-    final shownStars = stars == 0 ? 1 : stars;
+    final ui = kbUi(context);
     final next = _next(context, prog);
-    // Centred on the space it actually has, not on a guess at it: the minimum
-    // height used to be 60% of the window, which parked the whole celebration
-    // in the top half of a tall phone with the bottom half left empty. The
-    // scroll view stays, because on a short screen at a large text scale this
-    // column outgrows the viewport and "Continue" is the last thing in it.
-    return LayoutBuilder(builder: (context, c) {
-      return Stack(children: [
-        SizedBox(
-          height: c.maxHeight,
-          child: SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: c.maxHeight),
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: Geo.gapLg, vertical: Geo.gapLg),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const KidsMascot(size: 116),
-                      const SizedBox(height: Geo.gapMd),
-                      Text(context.l10n.kidsGreatJob,
-                          style: kidsStyle(context,
-                              size: 24, weight: FontWeight.w800)),
-                      const SizedBox(height: 4),
-                      Text(kidsPraiseArabic(gender),
-                          textDirection: TextDirection.rtl,
-                          style:
-                              quranicStyle(context, size: 22, color: p.accent)),
-                      const SizedBox(height: Geo.gapMd),
-                      StarRow(shownStars, size: 40),
-                      const SizedBox(height: Geo.gapMd),
-                      Text(
-                          context.l10n
-                              .kidsXpEarned(kidsXpPerStar * shownStars),
-                          style: kidsStyle(context,
-                              size: 15, weight: FontWeight.w700)),
-                      const SizedBox(height: 4),
-                      Text(context.l10n.streakDaysLabel(prog.streakDays),
-                          style:
-                              kidsStyle(context, size: 13, color: p.textDim)),
-                      const SizedBox(height: Geo.gapXl),
-                      FilledButton(
-                        style: FilledButton.styleFrom(
-                            backgroundColor: p.accent,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 32, vertical: 16)),
-                        onPressed: () => closeKidsOverlayOrPop(context),
-                        child: Text(context.l10n.continueLabel),
-                      ),
-                      if (next != null) ...[
-                        const SizedBox(height: Geo.gapLg),
-                        _NextUpChip(item: next),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
+    // The streak count and the "next up" chip are the two things this stage
+    // adds over the shared celebration — everything else (mascot, stars, XP,
+    // confetti, the star-by-star reveal) is [KidsLessonResult]'s own.
+    return KidsLessonResult(
+      stars: stars,
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            context.l10n.streakDaysLabel(prog.streakDays),
+            style: kbText(17, kbC(ui.inkSoft),
+                weight: FontWeight.w600, height: 1.35),
           ),
-        ),
-        const Positioned.fill(child: KidsConfetti()),
-      ]);
-    });
+          if (next != null) ...[
+            const SizedBox(height: Geo.gapLg),
+            _NextUpChip(item: next),
+          ],
+        ],
+      ),
+    );
   }
 }
 
@@ -895,32 +832,33 @@ class _NextUpChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
+    // A signpost on the tile colour — not a button.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      padding: const EdgeInsets.fromLTRB(12, 6, 16, 6),
       decoration: BoxDecoration(
-        color: p.surfaceHigh.withValues(alpha: .55),
-        borderRadius: BorderRadius.circular(Geo.radiusPill),
+        color: kbC(ui.tile),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (item.glyph.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Text(item.glyph,
-                  textDirection: TextDirection.rtl,
-                  style: quranicStyle(context,
-                      size: 19, height: 1.05, color: p.accent2)),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Icon(item.icon, size: 17, color: p.accent2),
-            ),
-          Text(context.l10n.kidsNextUp(item.label(context)),
-              style: kidsStyle(context,
-                  size: 13, weight: FontWeight.w700, color: p.textDim)),
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 8),
+            child: item.glyph.isNotEmpty
+                ? Text(item.glyph,
+                    textDirection: TextDirection.rtl,
+                    style: kbText(22, kbC(ui.tileInk),
+                        family: kbFontArabic,
+                        weight: FontWeight.w600,
+                        height: 1.3))
+                : KbIcon(kbIconName(item.icon),
+                    size: 20, color: kbC(ui.tileInk)),
+          ),
+          Flexible(
+            child: Text(context.l10n.kidsNextUp(item.label(context)),
+                style: kbText(16, kbC(ui.tileInk), weight: FontWeight.w700)),
+          ),
         ],
       ),
     );

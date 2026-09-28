@@ -8,6 +8,9 @@ import '../../core/theme.dart';
 import '../../data/letters.dart';
 import '../../data/makharij.dart';
 import '../../widgets/common.dart' show TapScale, starsForFraction;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_choice_card.dart';
 import 'kids_widgets.dart';
 
@@ -206,6 +209,7 @@ class KidsMouthDiagram extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The drawing's own colours: the zones are colour-coded content.
     final p = kidsPal(context);
     return AspectRatio(
       aspectRatio: 1.25,
@@ -267,6 +271,7 @@ class _ZoneDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The drawing's own colours: the zones are colour-coded content.
     final p = kidsPal(context);
     final c = kidsZoneColor(p, zone);
     return AnimatedContainer(
@@ -514,37 +519,38 @@ class _ExploreState extends State<_Explore> {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final zone = _zone;
     final ready = _seen.length == kidsZoneIds.length;
-    return SingleChildScrollView(
+    return KidsCentered(
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            context.l10n.kidsMouthMapIntro,
-            style: kidsStyle(context, size: 15, weight: FontWeight.w700),
-          ),
+          KidsLessonTitle(context.l10n.kidsMouthMapIntro, fontSize: 24),
           const SizedBox(height: Geo.gapSm),
           // Capped: on a tablet or a desktop window the head would otherwise
           // grow to fill the width and push everything else off the screen.
           Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
-              child: KidsMouthDiagram(
-                selected: zone,
-                seen: _seen,
-                onSelect: (z) => setState(() {
-                  _zone = z;
-                  _seen.add(z);
-                }),
+              // A drawing sits on a card, not the sky.
+              child: KidsLessonCard(
+                padding: const EdgeInsets.all(10),
+                child: KidsMouthDiagram(
+                  selected: zone,
+                  seen: _seen,
+                  onSelect: (z) => setState(() {
+                    _zone = z;
+                    _seen.add(z);
+                  }),
+                ),
               ),
             ),
           ),
           const SizedBox(height: Geo.gapSm),
-          Container(
-            padding: const EdgeInsets.all(Geo.gapMd),
-            decoration: kidsCard(context),
+          KidsLessonCard(
+            padding: const EdgeInsets.all(16),
             child: zone == null
                 ? const SizedBox(height: 92)
                 : Column(
@@ -560,12 +566,10 @@ class _ExploreState extends State<_Explore> {
                           Expanded(
                             child: Text(
                               kidsZoneName(context, zone),
-                              style: kidsStyle(
-                                context,
-                                size: 17,
-                                weight: FontWeight.w800,
-                                color: kidsZoneColor(p, zone),
-                              ),
+                              // The zone's own colour, as on the drawing.
+                              style: kbText(22,
+                                  kidsZoneColor(kidsPal(context), zone),
+                                  height: 1.15),
                             ),
                           ),
                         ],
@@ -577,13 +581,13 @@ class _ExploreState extends State<_Explore> {
                         textDirection: TextDirection.rtl,
                         children: [
                           for (final l in kidsZoneLetters(zone))
-                            Text(l, style: quranicStyle(context, size: 28)),
+                            Text(l, style: kbText(28, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9)),
                         ],
                       ),
                       const SizedBox(height: Geo.gapSm),
                       Text(
                         kidsZoneTip(context, zone),
-                        style: kidsStyle(context, size: 13, color: p.textDim),
+                        style: kbText(16, kbC(ui.inkSoft), weight: FontWeight.w600, height: 1.35),
                       ),
                     ],
                   ),
@@ -594,27 +598,21 @@ class _ExploreState extends State<_Explore> {
             children: [
               for (final z in kidsZoneIds)
                 Container(
-                  width: 10,
-                  height: 10,
+                  width: 14,
+                  height: 14,
                   margin: const EdgeInsets.symmetric(horizontal: 3),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _seen.contains(z)
-                        ? kidsZoneColor(p, z)
-                        : p.textDim.withValues(alpha: .25),
+                        ? kidsZoneColor(kidsPal(context), z)
+                        : kbC(ui.surface),
+                    border: Border.all(color: kbC(ui.edge), width: 2),
                   ),
                 ),
             ],
           ),
           const SizedBox(height: Geo.gapSm),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: p.accent,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            onPressed: ready ? widget.onNext : null,
-            child: Text(context.l10n.kidsNextCard),
-          ),
+          KidsNextButton(context.l10n.kidsNextCard, onTap: ready ? widget.onNext : null),
         ],
       ),
     );
@@ -636,11 +634,11 @@ class _Check extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ui = kbUi(context);
     final q = question;
     // Capped like the map: on a wide window the option tiles would otherwise
     // grow taller than the screen.
-    return Align(
-      alignment: Alignment.topCenter,
+    return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
         child: KidsChoiceCard(
@@ -649,19 +647,27 @@ class _Check extends StatelessWidget {
               : context.l10n.kidsWhereMade,
           display: q.isNose
               ? null
-              : Container(
-                  padding: const EdgeInsets.symmetric(vertical: Geo.gapMd),
-                  decoration: kidsCard(context),
-                  alignment: Alignment.center,
-                  child: Text(
-                    q.letter!,
-                    style: quranicStyle(context, size: 64),
+              // The design's quiz word card.
+              : Center(
+                  child: KbSurface(
+                    color: ui.surface,
+                    edge: ui.edge,
+                    elev: KbElev.big,
+                    radius: 28,
+                    padding: const EdgeInsets.fromLTRB(40, 4, 40, 0),
+                    child: Text(
+                      q.letter!,
+                      style: kbText(64, kbC(ui.ink),
+                          family: kbFontQuran,
+                          weight: FontWeight.w400,
+                          height: 1.9),
+                    ),
                   ),
                 ),
           options: [
             for (final option in q.options)
               q.isNose
-                  ? Text(option, style: quranicStyle(context, size: 40))
+                  ? Text(option, style: kbText(40, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9))
                   // Scaled down rather than wrapped: a translated name or a
                   // large font must shrink to fit its tile, never spill out.
                   : FittedBox(
@@ -677,11 +683,7 @@ class _Check extends StatelessWidget {
                           Text(
                             kidsZoneName(context, option),
                             textAlign: TextAlign.center,
-                            style: kidsStyle(
-                              context,
-                              size: 13,
-                              weight: FontWeight.w800,
-                            ),
+                            style: kbText(16, kbC(ui.ink)),
                           ),
                         ],
                       ),

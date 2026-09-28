@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
-import '../../core/theme.dart';
 import '../../data/waqf.dart';
 import '../../screens/lessons/script_lessons.dart'
     show actionLabel, stopMarkIds;
 import '../../widgets/common.dart'
     show MediaRow, buildOptions, pickN, starsForFraction;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_ui.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC, kbMix;
 import 'kids_choice_card.dart';
 import 'kids_widgets.dart';
 
@@ -49,15 +52,17 @@ String _waqfWhy(BuildContext context, WaqfMark m) => switch (m.action) {
   _ => m.note,
 };
 
-/// Emoji and color for a stop mark's action — the "traffic light" a child
-/// already knows, standing in for the six classical actions.
-(String, Color) _waqfVisual(String action, Palette p) => switch (action) {
-  'must_stop' => ('🛑', AppColors.bad),
-  'must_not_stop' => ('🚫', AppColors.bad),
-  'either' => ('🟢', AppColors.ok),
-  'preferred_continue' => ('🟡', p.amber),
-  'preferred_stop' => ('🟠', p.amber),
-  _ => ('🔗', p.accent), // either_not_both
+/// Emoji and colours for a stop mark's action — the "traffic light" a child
+/// already knows, standing in for the six classical actions — in the design's
+/// feedback tokens: red is its "bad", green its "good", amber its reward.
+/// Returns (emoji, ink, solid pill face).
+(String, int, int) _waqfVisual(String action, KbUi ui) => switch (action) {
+  'must_stop' => ('🛑', KbUi.badEdge, ui.badBg),
+  'must_not_stop' => ('🚫', KbUi.badEdge, ui.badBg),
+  'either' => ('🟢', KbUi.goodEdge, ui.goodBg),
+  'preferred_continue' => ('🟡', ui.rewardInk, kbMix(ui.reward, ui.surface, .55)),
+  'preferred_stop' => ('🟠', ui.rewardInk, kbMix(ui.reward, ui.surface, .55)),
+  _ => ('🔗', ui.linkInk, ui.tile), // either_not_both
 };
 
 /// Waqf & Stopping, one sign at a time, read through the traffic light a
@@ -195,15 +200,13 @@ class _IntroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.all(Geo.gapLg),
-              decoration: kidsCard(context),
+          child: KidsCentered(
+            child: KidsLessonCard(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -211,17 +214,13 @@ class _IntroCard extends StatelessWidget {
                   const SizedBox(height: Geo.gapMd),
                   Text(
                     context.l10n.unitWaqfStopping,
-                    style: kidsStyle(
-                      context,
-                      size: 19,
-                      weight: FontWeight.w800,
-                    ),
+                    style: kbText(24, kbC(ui.ink)),
                   ),
                   const SizedBox(height: Geo.gapSm),
                   Text(
                     context.l10n.kidsWaqfIntro,
                     textAlign: TextAlign.center,
-                    style: kidsStyle(context, size: 14, color: p.textDim),
+                    style: kbText(18, kbC(ui.inkSoft), weight: FontWeight.w600, height: 1.35),
                   ),
                 ],
               ),
@@ -229,14 +228,7 @@ class _IntroCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Geo.gapLg),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: p.accent,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: onNext,
-          child: Text(context.l10n.kidsNextCard),
-        ),
+        KidsNextButton(context.l10n.kidsNextCard, onTap: onNext),
       ],
     );
   }
@@ -249,33 +241,27 @@ class _MarkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    final (emoji, color) = _waqfVisual(mark.action, p);
+    final ui = kbUi(context);
+    final (emoji, ink, face) = _waqfVisual(mark.action, ui);
     final symbol = mark.arabicName.split(' — ').first;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: SingleChildScrollView(
-            child: Container(
-              padding: const EdgeInsets.all(Geo.gapLg),
-              decoration: kidsCard(context),
+          child: KidsCentered(
+            child: KidsLessonCard(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     symbol,
                     textDirection: TextDirection.rtl,
-                    style: quranicStyle(context, size: 36, color: color),
+                    style: kbText(40, kbC(ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
                   ),
                   const SizedBox(height: Geo.gapSm),
                   Text(
                     mark.name,
-                    style: kidsStyle(
-                      context,
-                      size: 18,
-                      weight: FontWeight.w800,
-                    ),
+                    style: kbText(21, kbC(ui.ink)),
                   ),
                   const SizedBox(height: Geo.gapSm),
                   Container(
@@ -284,7 +270,7 @@ class _MarkCard extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: .16),
+                      color: kbC(face),
                       borderRadius: BorderRadius.circular(Geo.radiusPill),
                     ),
                     child: Row(
@@ -299,12 +285,7 @@ class _MarkCard extends StatelessWidget {
                           child: Text(
                             actionLabel(context, mark.action),
                             textAlign: TextAlign.center,
-                            style: kidsStyle(
-                              context,
-                              size: 13,
-                              weight: FontWeight.w700,
-                              color: color,
-                            ),
+                            style: kbText(16, kbC(ink), weight: FontWeight.w700),
                           ),
                         ),
                       ],
@@ -314,14 +295,14 @@ class _MarkCard extends StatelessWidget {
                   Text(
                     _waqfWhy(context, mark),
                     textAlign: TextAlign.center,
-                    style: kidsStyle(context, size: 13, color: p.textDim),
+                    style: kbText(16, kbC(ui.inkSoft), weight: FontWeight.w600, height: 1.35),
                   ),
                   const SizedBox(height: Geo.gapMd),
                   Text(
                     mark.example,
                     textDirection: TextDirection.rtl,
                     textAlign: TextAlign.center,
-                    style: quranicStyle(context, size: 22),
+                    style: kbText(22, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
                   ),
                   const SizedBox(height: Geo.gapSm),
                   MediaRow(ref: mark.ref),
@@ -331,14 +312,7 @@ class _MarkCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Geo.gapLg),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: p.accent,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: onNext,
-          child: Text(context.l10n.kidsNextCard),
-        ),
+        KidsNextButton(context.l10n.kidsNextCard, onTap: onNext),
       ],
     );
   }
@@ -388,21 +362,20 @@ class _CheckCardState extends State<_CheckCard> {
 
   @override
   Widget build(BuildContext context) {
+    final ui = kbUi(context);
     final options = _options!;
     return KidsChoiceCard(
       prompt: context.l10n.kidsWhatDoesMarkMean,
       // The verse is scrollable inside the card: most marks' examples are a
       // single word, but muʼānaqah's is a full āyah (two linked stop points
       // need a whole sentence to show both).
-      display: Container(
-        padding: const EdgeInsets.all(Geo.gapMd),
-        decoration: kidsCard(context),
-        alignment: Alignment.center,
+      display: KidsLessonCard(
+        padding: const EdgeInsets.all(16),
         child: Text(
           widget.verse,
           textDirection: TextDirection.rtl,
           textAlign: TextAlign.center,
-          style: quranicStyle(context, size: 22),
+          style: kbText(22, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
         ),
       ),
       options: [
@@ -410,7 +383,7 @@ class _CheckCardState extends State<_CheckCard> {
           Text(
             label,
             textAlign: TextAlign.center,
-            style: kidsStyle(context, size: 13, weight: FontWeight.w700),
+            style: kbText(16, kbC(ui.ink), weight: FontWeight.w700),
           ),
       ],
       correct: options.indexOf(_correctLabel!),

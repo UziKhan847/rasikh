@@ -130,7 +130,7 @@ void main() {
         )));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.volume_up_rounded));
+    await tester.tap(kidsListenIcon());
     await tester.pump();
     expect(played, ['ت']);
   });
@@ -161,7 +161,7 @@ void main() {
         )));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.volume_up_rounded));
+    await tester.tap(kidsListenIcon());
     await tester.pump();
     expect(find.textContaining('coming soon'), findsOneWidget);
   });

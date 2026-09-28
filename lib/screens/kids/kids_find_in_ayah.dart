@@ -5,16 +5,21 @@ import 'package:flutter/material.dart';
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
 import '../../core/settings.dart' show ProgressScope;
-import '../../core/theme.dart';
 import '../../data/glyph_names.dart' show letterName;
 import '../../data/letters.dart';
 import '../../data/quran.dart';
-import '../../widgets/common.dart' show TapScale, starsForFraction;
+import '../../widgets/common.dart' show starsForFraction;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_widgets.dart';
 
-/// Short sūrahs a child already meets in the reading stages, in the order
-/// they are most familiar. Lines here are short and are real muṣḥaf text.
-const kidsFindSurahs = [1, 112, 108, 103, 110, 109, 105, 106, 107, 111, 113, 114];
+/// The sūrahs of the reading stages, the most familiar first. Lines here are short and are real muṣḥaf text.
+const kidsFindSurahs = [
+  1, 112, 108, 103, 110, 109, 105, 106, 107, 111, 113, 114, //
+  // ...and the rest of the reading ladder (az-Zalzalah to al-Humazah).
+  99, 100, 101, 102, 104,
+];
 
 /// How many hunts (one letter, one line) make a round.
 const kidsFindRound = 3;
@@ -192,22 +197,12 @@ class _KidsFindInAyahState extends State<KidsFindInAyah> {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
     final hunts = _hunts;
     if (hunts == null) {
-      return Center(child: CircularProgressIndicator(color: p.accent));
+      return const KidsLoadingScreen();
     }
     if (hunts.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(Geo.gapXl),
-        child: Center(
-          child: Text(
-            context.l10n.kidsReadingUnavailable,
-            textAlign: TextAlign.center,
-            style: kidsStyle(context, size: 15, color: p.textDim),
-          ),
-        ),
-      );
+      return KidsMessageScreen(context.l10n.kidsReadingUnavailable);
     }
     if (_done && !_reported) {
       _reported = true;
@@ -230,46 +225,35 @@ class _KidsFindInAyahState extends State<KidsFindInAyah> {
   }
 
   Widget _huntView(BuildContext context, KidsHunt h) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final complete = _huntComplete;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          context.l10n.kidsFindEvery(letterName(context, h.letter)),
-          style: kidsStyle(context, size: 17, weight: FontWeight.w800),
-        ),
+        KidsLessonTitle(context.l10n.kidsFindEvery(letterName(context, h.letter)), fontSize: 26),
         const SizedBox(height: Geo.gapMd),
         Expanded(
-          child: SingleChildScrollView(
+          child: KidsCentered(
             child: Wrap(
               textDirection: TextDirection.rtl,
               alignment: WrapAlignment.center,
-              spacing: Geo.gapSm,
-              runSpacing: Geo.gapSm,
+              spacing: 10,
+              runSpacing: 14,
               children: [
                 for (var i = 0; i < h.words.length; i++)
-                  TapScale(
+                  KbGlyphCell(
+                    ui: ui,
+                    square: false,
+                    radius: 18,
+                    elev: KbElev.option,
+                    state: _found.contains(i)
+                        ? KbCellState.good
+                        : _flashWrong.contains(i)
+                            ? KbCellState.bad
+                            : KbCellState.idle,
                     onTap: () => _tap(i),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: Geo.gapMd,
-                        vertical: Geo.gapSm,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _found.contains(i)
-                            ? AppColors.ok.withValues(alpha: .18)
-                            : _flashWrong.contains(i)
-                            ? AppColors.bad.withValues(alpha: .16)
-                            : p.surface,
-                        borderRadius: BorderRadius.circular(Geo.radiusLg),
-                        border: Border.all(
-                          color: _found.contains(i)
-                              ? AppColors.ok
-                              : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 4),
                       child: _WordText(
                         word: h.words[i],
                         letter: h.letter.char,
@@ -285,14 +269,7 @@ class _KidsFindInAyahState extends State<KidsFindInAyah> {
         ),
         if (complete) ...[
           const SizedBox(height: Geo.gapMd),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: p.accent,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            onPressed: _next,
-            child: Text(context.l10n.kidsNextCard),
-          ),
+          KidsNextButton(context.l10n.kidsNextCard, onTap: _next),
         ],
       ],
     );
@@ -314,8 +291,8 @@ class _WordText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
-    final base = quranicStyle(context, size: 30);
+    final ui = kbUi(context);
+    final base = kbText(30, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9);
     if (!reveal) {
       return Text(word, textDirection: TextDirection.rtl, style: base);
     }
@@ -335,7 +312,7 @@ class _WordText extends StatelessWidget {
       spans.add(
         TextSpan(
           text: cluster,
-          style: match ? base.copyWith(color: p.accent) : base,
+          style: match ? base.copyWith(color: kbC(ui.linkInk)) : base,
         ),
       );
     }

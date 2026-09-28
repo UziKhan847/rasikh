@@ -4,9 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
+import 'package:qiraah_arabiyyah/data/kids_glosses.dart' show kidsShapeTitle;
 import 'package:qiraah_arabiyyah/data/special_shapes.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_special_shapes_lesson.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -46,7 +46,7 @@ Future<void> _finishLesson(WidgetTester tester) async {
       await tester.tap(next.first);
       continue;
     }
-    final options = find.byType(TapScale);
+    final options = kidsTappables();
     if (options.evaluate().isNotEmpty) {
       await tester.tap(options.first);
       await tester.pump(const Duration(milliseconds: 1000));
@@ -64,13 +64,19 @@ void main() {
   ) async {
     useReducedMotion(tester);
     final (settings, prog) = await _boot();
+    late BuildContext ctx;
     await tester.pumpWidget(
       _harness(
         settings,
         prog,
-        const KidsSpecialShapesLesson(
-          group: 'ligature',
-          progressId: 'test.special.ligature',
+        Builder(
+          builder: (c) {
+            ctx = c;
+            return const KidsSpecialShapesLesson(
+              group: 'ligature',
+              progressId: 'test.special.ligature',
+            );
+          },
         ),
       ),
     );
@@ -78,7 +84,7 @@ void main() {
 
     expect(find.byType(Material), findsWidgets);
     final first = specialShapes.firstWhere((s) => s.group == 'ligature');
-    expect(find.text(first.title), findsOneWidget);
+    expect(find.text(kidsShapeTitle(ctx, first)), findsOneWidget);
   });
 
   testWidgets('a single-shape group still reaches a real, graded result', (
@@ -127,6 +133,6 @@ void main() {
       await tester.pump();
     }
     expect(find.textContaining('Which one is'), findsOneWidget);
-    expect(find.byType(TapScale), findsNWidgets(4));
+    expect(kidsTappables(), findsNWidgets(4));
   });
 }

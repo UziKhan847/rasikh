@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
-import '../../core/theme.dart';
 import '../../data/glyph_names.dart' show tashkilName, tashkilNote;
+import '../../data/kids_glosses.dart' show kidsSmallLetterName, kidsSmallLetterNote;
 import '../../data/small_letters.dart';
 import '../../data/tashkeel.dart';
-import '../../widgets/common.dart'
-    show MediaRow, highlightSpans, pickN, starsForFraction;
+import '../../widgets/common.dart' show MediaRow, pickN, starsForFraction;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_choice_card.dart';
 import 'kids_desktop_nav.dart' show closeKidsOverlayOrPop;
 import 'kids_widgets.dart';
@@ -248,20 +250,16 @@ class _MaddCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          tashkilName(context, item),
-          style: kidsStyle(context, size: 19, weight: FontWeight.w800),
-        ),
+        KidsLessonTitle(tashkilName(context, item)),
         const SizedBox(height: Geo.gapSm),
         Expanded(
-          child: SingleChildScrollView(
-            child: Container(
-              padding: const EdgeInsets.all(Geo.gapMd),
-              decoration: kidsCard(context),
+          child: KidsCentered(
+            child: KidsLessonCard(
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -269,29 +267,18 @@ class _MaddCard extends StatelessWidget {
                     child: Text(
                       item.mark,
                       textDirection: TextDirection.rtl,
-                      style: quranicStyle(context, size: 44, color: p.accent),
+                      style: kbText(44, kbC(ui.linkInk), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
                     ),
                   ),
                   const SizedBox(height: Geo.gapSm),
                   Text(
                     tashkilNote(context, item),
                     textAlign: TextAlign.center,
-                    style: kidsStyle(context, size: 13, color: p.textDim),
+                    style: kbText(16, kbC(ui.inkSoft), weight: FontWeight.w600, height: 1.35),
                   ),
                   const SizedBox(height: Geo.gapMd),
                   Center(
-                    child: RichText(
-                      textDirection: TextDirection.rtl,
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        children: highlightSpans(
-                          item.example,
-                          item.highlight,
-                          quranicStyle(context, size: 26),
-                          quranicStyle(context, size: 26, color: p.accent),
-                        ),
-                      ),
-                    ),
+                    child: KidsQuranWord(item.example, highlight: item.highlight, size: 26, block: false),
                   ),
                   const SizedBox(height: Geo.gapMd),
                   Center(child: KidsBeatRing(counts: item.counts)),
@@ -303,16 +290,7 @@ class _MaddCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Geo.gapLg),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: p.accent,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: onNext,
-          child: Text(
-            isLast ? context.l10n.continueLabel : context.l10n.kidsNextCard,
-          ),
-        ),
+        KidsNextButton(isLast ? context.l10n.continueLabel : context.l10n.kidsNextCard, onTap: onNext),
       ],
     );
   }
@@ -335,43 +313,28 @@ class _SmallLetterCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final isDagger = letter.id == 'dagger_alif';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          letter.name,
-          style: kidsStyle(context, size: 19, weight: FontWeight.w800),
-        ),
+        KidsLessonTitle(kidsSmallLetterName(context, letter.id)),
         const SizedBox(height: Geo.gapSm),
         Expanded(
-          child: SingleChildScrollView(
-            child: Container(
-              padding: const EdgeInsets.all(Geo.gapMd),
-              decoration: kidsCard(context),
+          child: KidsCentered(
+            child: KidsLessonCard(
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Center(
-                    child: RichText(
-                      textDirection: TextDirection.rtl,
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        children: highlightSpans(
-                          letter.example,
-                          letter.highlight,
-                          quranicStyle(context, size: 40),
-                          quranicStyle(context, size: 40, color: p.accent),
-                        ),
-                      ),
-                    ),
+                    child: KidsQuranWord(letter.example, highlight: letter.highlight, size: 40, block: false),
                   ),
                   const SizedBox(height: Geo.gapSm),
                   Text(
-                    letter.note,
+                    kidsSmallLetterNote(context, letter.id),
                     textAlign: TextAlign.center,
-                    style: kidsStyle(context, size: 13, color: p.textDim),
+                    style: kbText(16, kbC(ui.inkSoft), weight: FontWeight.w600, height: 1.35),
                   ),
                   if (isDagger) ...[
                     const SizedBox(height: Geo.gapMd),
@@ -385,16 +348,7 @@ class _SmallLetterCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Geo.gapLg),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: p.accent,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: onNext,
-          child: Text(
-            isLast ? context.l10n.continueLabel : context.l10n.kidsNextCard,
-          ),
-        ),
+        KidsNextButton(isLast ? context.l10n.continueLabel : context.l10n.kidsNextCard, onTap: onNext),
       ],
     );
   }
@@ -428,28 +382,16 @@ class _MaddCheck extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final item = this.item;
     return KidsChoiceCard(
       prompt: prompt,
       display: item == null
           ? null
-          : Container(
-              padding: const EdgeInsets.all(Geo.gapMd),
-              decoration: kidsCard(context),
-              alignment: Alignment.center,
-              child: RichText(
-                textDirection: TextDirection.rtl,
-                textAlign: TextAlign.center,
-                text: TextSpan(
-                  children: highlightSpans(
-                    item.example,
-                    item.highlight,
-                    quranicStyle(context, size: 32),
-                    quranicStyle(context, size: 32, color: p.accent),
-                  ),
-                ),
-              ),
+          : KidsLessonCard(
+              padding: const EdgeInsets.all(16),
+              child: KidsQuranWord(item.example,
+                  highlight: item.highlight, size: 32, block: false),
             ),
       options: [
         for (final o in options)
@@ -460,12 +402,12 @@ class _MaddCheck extends StatelessWidget {
                     o,
                     textDirection: TextDirection.rtl,
                     textAlign: TextAlign.center,
-                    style: quranicStyle(context, size: 26),
+                    style: kbText(26, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
                   ),
                 )
               : Text(
                   o,
-                  style: kidsStyle(context, size: 30, weight: FontWeight.w800),
+                  style: kbText(30, kbC(ui.ink)),
                 ),
       ],
       correct: options.indexOf(correct),

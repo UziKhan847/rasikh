@@ -110,6 +110,16 @@ void main() {
       'tajwid_raa_cleared': (p) => p.report('kids.tajwid.raa.test', 1),
       'path_finished': (p) => p.report('kids.review.test', 1),
       'read_a_surah': (p) => p.report('kids.capstone.read', 1),
+      for (final (id, n) in [
+        ('read_five_surahs', 5),
+        ('read_ten_surahs', 10),
+        ('read_all_surahs', kidsReadingSurahs.length),
+      ])
+        id: (p) {
+          for (final s in kidsReadingSurahs.take(n)) {
+            p.report(kidsReadingProgressId(s.n), 1);
+          }
+        },
       // ── habit ──
       for (final id in ['streak_3', 'streak_7', 'streak_14', 'streak_30'])
         id: (p) => p.streakDays = 30,

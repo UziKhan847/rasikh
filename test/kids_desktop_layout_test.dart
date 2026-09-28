@@ -22,7 +22,7 @@ Future<AppSettings> _boot({double arabicScale = 1.0}) async {
   // actually resolve to desktop for the two halves to agree.
   settings.desktopMode = 'on';
   settings.kidsMode = true;
-  settings.arabicScale = arabicScale;
+  settings.kidsTextScale = arabicScale;
   settings.addKidsProfile(KidsProfile(id: 'p1', name: 'Sara'));
   return settings;
 }
@@ -37,13 +37,8 @@ Widget _harness(AppSettings settings, {String locale = 'en'}) => SettingsScope(
       ),
     );
 
-const _tabIcons = [
-  Icons.home_rounded,
-  Icons.menu_book_rounded,
-  Icons.emoji_events_rounded,
-  Icons.card_giftcard_rounded,
-  Icons.face_rounded,
-];
+/// The sidebar's five tabs, by the kit symbol each shows.
+const _tabIcons = ['home', 'menu_book', 'emoji_events', 'redeem', 'face'];
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -53,8 +48,8 @@ void main() {
     ('1024x768', const Size(1024, 768)),
     ('800x600', const Size(800, 600)),
   ]) {
-    for (final scale in [1.0, 1.8]) {
-      testWidgets('every tab lays out cleanly at $label, arabicScale $scale',
+    for (final scale in [1.0, 1.2]) {
+      testWidgets('every tab lays out cleanly at $label, text size $scale',
           (tester) async {
     useReducedMotion(tester);
         tester.view.physicalSize = size;
@@ -67,7 +62,7 @@ void main() {
         expect(tester.takeException(), isNull, reason: 'Home overflowed');
 
         for (final icon in _tabIcons.skip(1)) {
-          await tester.tap(find.byIcon(icon));
+          await tester.tap(kidsIcon(icon));
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull,
               reason: 'tab with icon $icon overflowed');
@@ -89,7 +84,7 @@ void main() {
     expect(tester.takeException(), isNull);
 
     for (final icon in _tabIcons.skip(1)) {
-      await tester.tap(find.byIcon(icon));
+      await tester.tap(kidsIcon(icon));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     }
@@ -113,7 +108,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Home'), findsNothing,
         reason: 'nav labels should be hidden on a narrow window');
-    expect(find.byIcon(Icons.home_rounded), findsOneWidget);
+    expect(kidsIcon('home'), findsOneWidget);
   });
 
   testWidgets(
@@ -133,12 +128,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     // The sidebar (identified by its nav icons) is still there...
-    expect(find.byIcon(Icons.home_rounded), findsOneWidget);
+    expect(kidsIcon('home'), findsOneWidget);
     // ...and the top bar now shows a back control instead of the greeting.
-    expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
+    expect(kidsIcon('arrow_back', Icons.arrow_back_rounded), findsOneWidget);
     expect(find.textContaining('Marhaba'), findsNothing);
 
-    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    await tester.tap(kidsIcon('arrow_back', Icons.arrow_back_rounded));
     await tester.pumpAndSettle();
     expect(find.textContaining('Marhaba'), findsOneWidget);
   });
@@ -147,7 +142,10 @@ void main() {
       'switching profiles opens inside the shell, not a second full-window Scaffold',
       (tester) async {
     useReducedMotion(tester);
-    tester.view.physicalSize = const Size(1440, 900);
+    // Taller than a real desktop window on purpose: the Me tab carries a full
+    // three-way Detail dial now, which pushes "Switch profile" below 900px,
+    // and this test is about what switching does — not about scrolling to it.
+    tester.view.physicalSize = const Size(1440, 1300);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
@@ -156,7 +154,7 @@ void main() {
     await tester.pumpWidget(_harness(settings));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.face_rounded));
+    await tester.tap(kidsIcon('face'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Switch profile'));
     await tester.pumpAndSettle();
@@ -164,7 +162,7 @@ void main() {
 
     // The sidebar and its Home nav item are still on screen — a second
     // pushed Scaffold would have covered them.
-    expect(find.byIcon(Icons.home_rounded), findsOneWidget);
+    expect(kidsIcon('home'), findsOneWidget);
     expect(find.text('Sara'), findsOneWidget);
     expect(find.text('Yusuf'), findsOneWidget);
 

@@ -118,7 +118,7 @@ void main() {
     for (var i = 0; i < ayahs.length; i++) {
       // Always the FIRST arrow: lines are read in order, so the current one
       // is the only tappable target.
-      await tester.tap(find.byIcon(Icons.arrow_forward_rounded).first);
+      await tester.tap(kidsIcon('arrow_forward', Icons.arrow_forward_rounded).first);
       await tester.pumpAndSettle();
     }
 
@@ -145,7 +145,7 @@ void main() {
 
     // The second line's arrow — skipping the first would let a child mark a
     // whole sūrah read by tapping the last line once.
-    final arrows = find.byIcon(Icons.arrow_forward_rounded);
+    final arrows = kidsIcon('arrow_forward', Icons.arrow_forward_rounded);
     await tester.tap(arrows.at(1));
     await tester.pumpAndSettle();
     expect(find.text('0 / 4'), findsOneWidget);
@@ -202,7 +202,7 @@ void main() {
         (tester) async {
       await open(tester);
       // The first card is āyah 1, words 1-2 (قُلۡ هُوَ).
-      await tester.tap(find.byIcon(Icons.record_voice_over_rounded).first);
+      await tester.tap(kidsIcon('record_voice_over', Icons.record_voice_over_rounded).first);
       await tester.pump();
       expect(asked, [(112, 1, 1, 2)]);
       expect(lit(tester), 0, reason: 'nothing lit until a word is said');
@@ -222,7 +222,7 @@ void main() {
         'the āyah', (tester) async {
       await open(tester);
       // The second card: words 3-4 of āyah 1 (ٱللَّهُ أَحَدٌ).
-      await tester.tap(find.byIcon(Icons.record_voice_over_rounded).at(1));
+      await tester.tap(kidsIcon('record_voice_over', Icons.record_voice_over_rounded).at(1));
       await tester.pump();
       expect(asked, [(112, 1, 3, 4)]);
       onWord(2); // word 3 of the āyah is the first of this line
@@ -233,7 +233,7 @@ void main() {
     testWidgets('tapping the speaker again while it plays stops it',
         (tester) async {
       await open(tester);
-      final speaker = find.byIcon(Icons.record_voice_over_rounded).first;
+      final speaker = kidsIcon('record_voice_over', Icons.record_voice_over_rounded).first;
       await tester.tap(speaker);
       await tester.pump();
       onWord(0);
@@ -249,10 +249,10 @@ void main() {
 
     testWidgets('starting another line cancels the first', (tester) async {
       await open(tester);
-      await tester.tap(find.byIcon(Icons.record_voice_over_rounded).first);
+      await tester.tap(kidsIcon('record_voice_over', Icons.record_voice_over_rounded).first);
       await tester.pump();
       final first = handle;
-      await tester.tap(find.byIcon(Icons.record_voice_over_rounded).at(1));
+      await tester.tap(kidsIcon('record_voice_over', Icons.record_voice_over_rounded).at(1));
       await tester.pump();
       expect(first.cancelled, isTrue);
       expect(asked, hasLength(2));
@@ -293,7 +293,7 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.pump(const Duration(milliseconds: 1300)); // the light fades
       // Reading in order still works.
-      await tester.tap(find.byIcon(Icons.arrow_forward_rounded).first);
+      await tester.tap(kidsIcon('arrow_forward', Icons.arrow_forward_rounded).first);
       await tester.pump();
       expect(find.textContaining('1 /'), findsOneWidget);
     });
@@ -315,10 +315,10 @@ void main() {
             playWord: fakeWord),
       ));
       await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.volume_up_rounded), findsWidgets);
-      expect(find.byIcon(Icons.record_voice_over_rounded), findsWidgets);
+      expect(kidsListenIcon(), findsWidgets);
+      expect(kidsIcon('record_voice_over', Icons.record_voice_over_rounded), findsWidgets);
       // Word by word over a whole āyah asks for every word of it.
-      await tester.tap(find.byIcon(Icons.record_voice_over_rounded).first);
+      await tester.tap(kidsIcon('record_voice_over', Icons.record_voice_over_rounded).first);
       await tester.pump();
       expect(asked, [(112, 1, 1, 4)]);
     });
@@ -326,7 +326,7 @@ void main() {
     testWidgets('the two-word stage has no flowing button — it would say the '
         'whole āyah over a two-word card', (tester) async {
       await open(tester);
-      expect(find.byIcon(Icons.volume_up_rounded), findsNothing);
+      expect(kidsListenIcon(), findsNothing);
     });
 
     testWidgets('a line still fits a 320×568 phone at the largest Arabic size',
@@ -336,7 +336,7 @@ void main() {
       addTearDown(tester.view.reset);
       useReducedMotion(tester);
       final (settings, prog) = await _boot();
-      settings.arabicScale = 1.35;
+      settings.kidsTextScale = 1.35;
       await _warm(tester, 112);
       await tester.pumpWidget(_harness(
         settings,
@@ -354,7 +354,7 @@ void main() {
       // The five-word last āyah, mid-recitation.
       await tester.drag(find.byType(ListView), const Offset(0, -600));
       await tester.pump();
-      await tester.tap(find.byIcon(Icons.record_voice_over_rounded).last);
+      await tester.tap(kidsIcon('record_voice_over', Icons.record_voice_over_rounded).last);
       await tester.pump();
       onWord(2);
       await tester.pump(const Duration(milliseconds: 200));
@@ -383,10 +383,33 @@ void main() {
       // two distinct words. This one pulls in `moreExamples` as well.
       expect(qs.map((q) => q.arabic).toSet().length, greaterThan(2));
       for (final q in qs) {
-        expect(q.options, hasLength(2));
-        expect(q.options.toSet(), {'ه', 'ة'});
+        // Three options — ة, ه and the open ت — so a round is not a coin flip.
+        expect(q.options, hasLength(3));
+        expect(q.options.toSet(), {'ه', 'ة', 'ت'});
         expect(q.arabic!.contains(q.highlight!), isTrue);
+        expect(q.options[q.correct], q.highlight!.substring(0, 1),
+            reason: q.arabic);
       }
+    });
+
+    testWidgets('a wide pool: many rounds ask many different words',
+        (tester) async {
+      late BuildContext ctx;
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+        home: Builder(builder: (c) {
+          ctx = c;
+          return const SizedBox();
+        }),
+      ));
+      final words = <String>{};
+      for (var round = 0; round < 40; round++) {
+        words.addAll(taMarbutaQuestions(ctx, count: 6).map((q) => q.arabic!));
+      }
+      // It used to be six drawn from ten, forever.
+      expect(words.length, greaterThan(20));
     });
   });
 }

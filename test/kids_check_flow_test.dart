@@ -12,7 +12,6 @@ import 'package:qiraah_arabiyyah/screens/kids/kids_waqf_lesson.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_widgets.dart'
     show kidsQuizLength;
 import 'package:qiraah_arabiyyah/screens/kids/kids_words_lesson.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show TapScale;
 
 import 'kids_test_support.dart';
 
@@ -54,7 +53,7 @@ void _phone(WidgetTester tester) {
 List<String> _tiles(WidgetTester tester) => [
   for (final e
       in find
-          .descendant(of: find.byType(TapScale), matching: find.byType(Text))
+          .descendant(of: kidsTappables(), matching: find.byType(Text))
           .evaluate())
     (e.widget as Text).data!,
 ];
@@ -97,7 +96,7 @@ void main() {
     for (var i = 0; i < kidsQuizLength; i++) {
       final word = _rightWord(tester);
       await tester.tap(
-        find.descendant(of: find.byType(TapScale), matching: find.text(word)),
+        find.descendant(of: kidsTappables(), matching: find.text(word)),
       );
       await tester.pump();
       expect(find.text('Yes!'), findsOneWidget, reason: 'question $i');
@@ -123,7 +122,7 @@ void main() {
       final right = _rightWord(tester);
       final wrong = _tiles(tester).firstWhere((t) => t != right);
       await tester.tap(
-        find.descendant(of: find.byType(TapScale), matching: find.text(wrong)),
+        find.descendant(of: kidsTappables(), matching: find.text(wrong)),
       );
       await tester.pump();
 
@@ -137,7 +136,7 @@ void main() {
 
       // The second try lands: it is right, but not FIRST-try right.
       await tester.tap(
-        find.descendant(of: find.byType(TapScale), matching: find.text(right)),
+        find.descendant(of: kidsTappables(), matching: find.text(right)),
       );
       await tester.pump();
       // Got there: "Yes!", not the reveal shown after two misses.
@@ -164,7 +163,7 @@ void main() {
     for (var n = 0; n < 2; n++) {
       final wrong = _tiles(tester).firstWhere((t) => t != right);
       await tester.tap(
-        find.descendant(of: find.byType(TapScale), matching: find.text(wrong)),
+        find.descendant(of: kidsTappables(), matching: find.text(wrong)),
       );
       await tester.pump();
     }
@@ -188,8 +187,9 @@ void main() {
     await tester.pump();
     // Tap tiles until the check resolves (right first time, or two misses).
     for (var i = 0; i < 2; i++) {
-      final tiles = find.byType(TapScale);
+      final tiles = kidsTappables();
       if (tiles.evaluate().isEmpty) break;
+      await tester.ensureVisible(tiles.first);
       await tester.tap(tiles.first);
       await tester.pump();
     }
@@ -216,7 +216,7 @@ void main() {
     );
     await tester.pump();
     for (var i = 0; i < 5; i++) {
-      await tester.tap(find.byType(TapScale).at(i));
+      await tester.tap(kidsTappables().at(i));
       await tester.pump();
     }
     await tester.ensureVisible(find.text('Next'));

@@ -63,6 +63,6 @@ void main() {
     await tester.pump();
 
     expect(find.text('Tā’ Marbūṭah'), findsOneWidget);
-    expect(find.textContaining('silent'), findsOneWidget);
+    expect(find.textContaining('soft'), findsOneWidget);
   });
 }

@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
-import '../../core/theme.dart';
 import '../../data/glyph_names.dart' show tashkilName, tashkilNote;
 import '../../data/tashkeel.dart' show tashkil;
 import '../../data/wasl.dart';
 import '../../widgets/common.dart' show MediaRow, pickN, starsForFraction;
+import '../../kids_backdrops/kb_app.dart';
+import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import 'kids_choice_card.dart';
 import 'kids_widgets.dart';
 
@@ -154,28 +156,18 @@ class _ConceptShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: SingleChildScrollView(
-            child: Container(
-              padding: const EdgeInsets.all(Geo.gapLg),
-              decoration: kidsCard(context),
+          child: KidsCentered(
+            child: KidsLessonCard(
               child: child,
             ),
           ),
         ),
         const SizedBox(height: Geo.gapLg),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: p.accent,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          onPressed: onNext,
-          child: Text(context.l10n.kidsNextCard),
-        ),
+        KidsNextButton(context.l10n.kidsNextCard, onTap: onNext),
       ],
     );
   }
@@ -187,7 +179,7 @@ class _RuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final mark = tashkil.firstWhere((t) => t.id == 'wasl');
     final concept = waslOfKind('wasl').first;
     return _ConceptShell(
@@ -198,24 +190,24 @@ class _RuleCard extends StatelessWidget {
           Text(
             mark.mark,
             textDirection: TextDirection.rtl,
-            style: quranicStyle(context, size: 40, color: p.accent),
+            style: kbText(40, kbC(ui.linkInk), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
           ),
           const SizedBox(height: Geo.gapSm),
           Text(
             tashkilName(context, mark),
-            style: kidsStyle(context, size: 18, weight: FontWeight.w800),
+            style: kbText(21, kbC(ui.ink)),
           ),
           const SizedBox(height: Geo.gapSm),
           Text(
             tashkilNote(context, mark),
             textAlign: TextAlign.center,
-            style: kidsStyle(context, size: 14, color: p.textDim),
+            style: kbText(18, kbC(ui.inkSoft), weight: FontWeight.w600, height: 1.35),
           ),
           const SizedBox(height: Geo.gapMd),
           Text(
             concept.example,
             textDirection: TextDirection.rtl,
-            style: quranicStyle(context, size: 26),
+            style: kbText(26, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
           ),
           const SizedBox(height: Geo.gapSm),
           MediaRow(ref: concept.ref),
@@ -232,7 +224,7 @@ class _ZeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = kidsPal(context);
+    final ui = kbUi(context);
     final items = waslOfKind(kind);
     final title = kind == 'zero_rect'
         ? context.l10n.zeroRectTitle
@@ -248,25 +240,25 @@ class _ZeroCard extends StatelessWidget {
           Text(
             items.first.highlight,
             textDirection: TextDirection.rtl,
-            style: quranicStyle(context, size: 36, color: p.accent),
+            style: kbText(36, kbC(ui.linkInk), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
           ),
           const SizedBox(height: Geo.gapSm),
           Text(
             title,
-            style: kidsStyle(context, size: 18, weight: FontWeight.w800),
+            style: kbText(21, kbC(ui.ink)),
           ),
           const SizedBox(height: Geo.gapSm),
           Text(
             note,
             textAlign: TextAlign.center,
-            style: kidsStyle(context, size: 14, color: p.textDim),
+            style: kbText(18, kbC(ui.inkSoft), weight: FontWeight.w600, height: 1.35),
           ),
           const SizedBox(height: Geo.gapMd),
           for (final w in items) ...[
             Text(
               w.example,
               textDirection: TextDirection.rtl,
-              style: quranicStyle(context, size: 24),
+              style: kbText(24, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
             ),
             const SizedBox(height: 2),
             MediaRow(ref: w.ref),
@@ -284,6 +276,7 @@ class _TanwinCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ui = kbUi(context);
     final concept = waslOfKind('tanwin_wasl').first;
     return _ConceptShell(
       onNext: onNext,
@@ -292,19 +285,19 @@ class _TanwinCard extends StatelessWidget {
         children: [
           Text(
             context.l10n.tanwinMeetsWaslTitle,
-            style: kidsStyle(context, size: 18, weight: FontWeight.w800),
+            style: kbText(21, kbC(ui.ink)),
           ),
           const SizedBox(height: Geo.gapSm),
           Text(
             context.l10n.tanwinMeetsWaslNote,
             textAlign: TextAlign.center,
-            style: kidsStyle(context, size: 14),
+            style: kbText(18, kbC(ui.ink), weight: FontWeight.w600, height: 1.35),
           ),
           const SizedBox(height: Geo.gapMd),
           Text(
             concept.example,
             textDirection: TextDirection.rtl,
-            style: quranicStyle(context, size: 24),
+            style: kbText(24, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
           ),
           const SizedBox(height: Geo.gapSm),
           MediaRow(ref: concept.ref),
@@ -321,20 +314,19 @@ class _CheckCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ui = kbUi(context);
     final rect = item.kind == 'zero_rect';
     // Two options, so no second try — the pick would be a guess — but the
     // answer always comes with why: what each zero does.
     return KidsChoiceCard(
       prompt: context.l10n.kidsWaslZeroCheckPrompt,
-      display: Container(
-        padding: const EdgeInsets.all(Geo.gapMd),
-        decoration: kidsCard(context),
-        alignment: Alignment.center,
+      display: KidsLessonCard(
+        padding: const EdgeInsets.all(16),
         child: Text(
           item.example,
           textDirection: TextDirection.rtl,
           textAlign: TextAlign.center,
-          style: quranicStyle(context, size: 26),
+          style: kbText(26, kbC(ui.ink), family: kbFontQuran, weight: FontWeight.w400, height: 1.9),
         ),
       ),
       options: [
@@ -345,7 +337,7 @@ class _CheckCard extends StatelessWidget {
           Text(
             label,
             textAlign: TextAlign.center,
-            style: kidsStyle(context, size: 14, weight: FontWeight.w700),
+            style: kbText(18, kbC(ui.ink), weight: FontWeight.w700),
           ),
       ],
       correct: rect ? 0 : 1,

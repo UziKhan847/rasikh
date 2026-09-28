@@ -79,12 +79,36 @@ List<ArabicLetter> kidsLearnedLetters(ProgressStore prog) => [
 bool kidsLookalikeAvailable(List<ArabicLetter> known) =>
     known.any((l) => kidsConfusablesIn(l, known).isNotEmpty);
 
-/// The "Look-alikes" drill: a mixed round of three formats, over letters the
+/// Questions in one Look-alikes round.
+const _lookalikeRound = 9;
+
+/// Takes [n] questions from [groups] one group at a time in turn — so a round
+/// is a spread of the formats, not nine of whichever had the most to offer.
+List<QuizQuestion> _mix(List<List<QuizQuestion>> groups, int n) {
+  final out = <QuizQuestion>[];
+  for (var i = 0; out.length < n; i++) {
+    var any = false;
+    for (final g in groups) {
+      if (i < g.length && out.length < n) {
+        out.add(g[i]);
+        any = true;
+      }
+    }
+    if (!any) break;
+  }
+  return out;
+}
+
+/// The "Look-alikes" drill: a mixed round of four formats, over letters the
 /// child has met, that all train telling near-identical shapes apart.
 ///
 ///  * **Which one is X?** — the answer's own look-alikes are the options.
 ///  * **Which one is different?** — three from one family, one intruder.
-///  * **Dot Hunter** — "tap every letter with 2 dots below" (multi-select).
+///  * **Which looks like this one?** — a letter, and its twin among strangers.
+///    Most look-alike families are PAIRS (س ش, ص ض, ط ظ …), which can never
+///    supply "three alike and one different"; this is the format they can.
+///  * **Dot Hunter** — "tap every letter with 2 dots below", "…with 3 dots",
+///    "…with dots above" (multi-select).
 ///
 /// None of it needs audio. Each question that has a real single answer files
 /// its own miss into the shared review queue (`reviewId`), so a confusion
@@ -96,11 +120,12 @@ QuizScreen kidsLookalikeQuiz(
   math.Random? rng,
 }) {
   final r = rng ?? math.Random();
-  final qs = <QuizQuestion>[
-    ..._whichOneQuestions(context, known, r),
-    ..._oddOneOutQuestions(context, known, r),
-    ..._dotHunterQuestions(context, known, r),
-  ]..shuffle(r);
+  final qs = _mix([
+    _whichOneQuestions(context, known, r),
+    _oddOneOutQuestions(context, known, r),
+    _twinQuestions(context, known, r),
+    _dotHunterQuestions(context, known, r),
+  ], _lookalikeRound)..shuffle(r);
   return QuizScreen(
     title: context.l10n.kidsLookalikes,
     progressId: progressId,
@@ -108,6 +133,8 @@ QuizScreen kidsLookalikeQuiz(
   );
 }
 
+/// Every "which one is X?" the letters allow — one per letter that has a
+/// look-alike among [known] — in random order.
 List<QuizQuestion> _whichOneQuestions(
   BuildContext context,
   List<ArabicLetter> known,
@@ -118,7 +145,7 @@ List<QuizQuestion> _whichOneQuestions(
       if (kidsConfusablesIn(l, known).isNotEmpty) l,
   ]..shuffle(r);
   return [
-    for (final l in withNear.take(3))
+    for (final l in withNear)
       () {
         final o = kidsConfusableOptions(
           answer: l,
@@ -139,6 +166,9 @@ List<QuizQuestion> _whichOneQuestions(
   ];
 }
 
+/// "Which one is different?" — one per family with three or more letters among
+/// [known] (of the families, only the five-letter and the three-letter one ever
+/// do; the rest are pairs, and [_twinQuestions] serves those).
 List<QuizQuestion> _oddOneOutQuestions(
   BuildContext context,
   List<ArabicLetter> known,
@@ -147,7 +177,6 @@ List<QuizQuestion> _oddOneOutQuestions(
   final out = <QuizQuestion>[];
   final families = [..._lookalikeFamilies]..shuffle(r);
   for (final fam in families) {
-    if (out.length >= 3) break;
     final inFam = [
       for (final l in known)
         if (fam.contains(l.char)) l,
@@ -175,6 +204,54 @@ List<QuizQuestion> _oddOneOutQuestions(
   return out;
 }
 
+/// "Which letter looks like this one?" — a letter shown big, its look-alike
+/// among three letters that do not resemble it. Asked of every letter that has
+/// a look-alike among [known] and at least three strangers to hide it among.
+List<QuizQuestion> _twinQuestions(
+  BuildContext context,
+  List<ArabicLetter> known,
+  math.Random r,
+) {
+  final out = <QuizQuestion>[];
+  for (final l in [...known]..shuffle(r)) {
+    final twins = kidsConfusablesIn(l, known);
+    if (twins.isEmpty) continue;
+    final twin = twins[r.nextInt(twins.length)];
+    // Strangers: nothing in the option list but the twin may look like [l].
+    final strangers = [
+      for (final x in known)
+        if (x != l && !twins.contains(x)) x,
+    ]..shuffle(r);
+    if (strangers.length < 3) continue;
+    final options = [twin, ...strangers.take(3)].map((x) => x.char).toList()
+      ..shuffle(r);
+    out.add(
+      QuizQuestion(
+        prompt: context.l10n.kidsFindTwin,
+        arabic: l.char,
+        reviewId: 'letter.twin.${l.char}',
+        options: options,
+        correct: options.indexOf(twin.char),
+        optionsAreArabic: true,
+        optionColumns: 4,
+        optionAspect: 1.0,
+      ),
+    );
+  }
+  return out;
+}
+
+/// One thing a Dot Hunter question can ask for: which letters qualify, and how
+/// to say it.
+typedef _DotRule = ({
+  bool Function(ArabicLetter) test,
+  String Function(BuildContext) desc,
+});
+
+/// "Tap every letter with …" — over the dots' count and position together
+/// ("2 dots below"), over their count alone ("3 dots") and over their position
+/// alone ("dots above"). It used to be only the first, of which the whole
+/// alphabet has five, so a round was three of the same five forever.
 List<QuizQuestion> _dotHunterQuestions(
   BuildContext context,
   List<ArabicLetter> known,
@@ -183,27 +260,50 @@ List<QuizQuestion> _dotHunterQuestions(
   // ي is drawn dotless when isolated in the muṣḥaf font (see
   // `dotsDescForLetter`), so asking a child to find it by its dots would
   // contradict the glyph on screen.
-  final candidates = [
+  final usable = [
     for (final l in known)
-      if (l.dotCount > 0 && l.char != 'ي') l,
+      if (l.char != 'ي') l,
   ];
-  final bySignature = <String, List<ArabicLetter>>{};
-  for (final l in candidates) {
-    bySignature.putIfAbsent('${l.dotCount}.${l.dotPos}', () => []).add(l);
-  }
-  final signatures = bySignature.keys.toList()..shuffle(r);
+  final dotted = [
+    for (final l in usable)
+      if (l.dotCount > 0) l,
+  ];
+  final rules = <_DotRule>[
+    for (final sig in {for (final l in dotted) (l.dotCount, l.dotPos)})
+      (
+        test: (l) => l.dotCount == sig.$1 && l.dotPos == sig.$2,
+        desc: (c) => dotsDesc(c, sig.$1, sig.$2),
+      ),
+    for (final n in {for (final l in dotted) l.dotCount})
+      (
+        test: (l) => l.dotCount == n,
+        desc: (c) => c.l10n.kidsDotsCountAny(n),
+      ),
+    for (final pos in {for (final l in dotted) l.dotPos})
+      (
+        test: (l) => l.dotCount > 0 && l.dotPos == pos,
+        desc: (c) => c.l10n.kidsDotsPosAny(dotPosLabel(c, pos)),
+      ),
+  ]..shuffle(r);
+
   final out = <QuizQuestion>[];
-  for (final sig in signatures) {
-    if (out.length >= 3) break;
-    final targets = bySignature[sig]!..shuffle(r);
-    final t = targets.first;
-    // Distractors: every known letter with a DIFFERENT dot signature,
-    // look-alikes of a target first — the hard ones are the ones that share
-    // a body and differ only in the dots.
+  final seen = <String>{};
+  for (final rule in rules) {
+    final targets = [
+      for (final l in usable)
+        if (rule.test(l)) l,
+    ];
+    // The same set of letters asked two ways ("3 dots" and "3 dots above",
+    // when only one letter has them) is one question.
+    if (!seen.add(([for (final l in targets) l.char]..sort()).join())) continue;
     final others = [
-      for (final l in known)
-        if (l.char != 'ي' && '${l.dotCount}.${l.dotPos}' != sig) l,
+      for (final l in usable)
+        if (!rule.test(l)) l,
     ]..shuffle(r);
+    if (targets.isEmpty || others.isEmpty) continue;
+    targets.shuffle(r);
+    // Distractors: look-alikes of a target first — the hard ones are the ones
+    // that share a body and differ only in the dots.
     final near = [
       for (final l in others)
         if (targets.any((x) => kidsConfusablesIn(x, [l]).isNotEmpty)) l,
@@ -219,9 +319,7 @@ List<QuizQuestion> _dotHunterQuestions(
     final all = [...picked, ...distractors]..shuffle(r);
     out.add(
       QuizQuestion(
-        prompt: context.l10n.kidsDotHunterPrompt(
-          dotsDesc(context, t.dotCount, t.dotPos),
-        ),
+        prompt: context.l10n.kidsDotHunterPrompt(rule.desc(context)),
         options: [for (final l in all) l.char],
         correctSet: {
           for (var i = 0; i < all.length; i++)

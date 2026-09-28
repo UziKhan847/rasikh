@@ -7,28 +7,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/letter_audio.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
+import 'package:qiraah_arabiyyah/core/theme.dart' show kKidsShopThemeFamilies;
 import 'package:qiraah_arabiyyah/data/letters.dart';
-import 'package:qiraah_arabiyyah/data/tashkeel.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_checkpoint_quiz.dart'
     show kidsFormsCheckpoint, kidsWarmUpQuiz;
 import 'package:qiraah_arabiyyah/screens/kids/kids_extra_letter_lesson.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_find_in_ayah.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_home_screen.dart';
-import 'package:qiraah_arabiyyah/screens/kids/kids_lookalike_quiz.dart';
-import 'package:qiraah_arabiyyah/screens/kids/kids_madd_lesson.dart';
-import 'package:qiraah_arabiyyah/screens/kids/kids_muqattaat_lesson.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_parent_report.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_review_recap.dart';
-import 'package:qiraah_arabiyyah/screens/kids/kids_solar_lunar_lesson.dart';
-import 'package:qiraah_arabiyyah/screens/kids/kids_stage_quizzes.dart';
-import 'package:qiraah_arabiyyah/screens/kids/kids_special_shapes_lesson.dart';
-import 'package:qiraah_arabiyyah/screens/kids/kids_syllable_drill.dart';
-import 'package:qiraah_arabiyyah/screens/kids/kids_tajwid_rule_lesson.dart';
-import 'package:qiraah_arabiyyah/screens/kids/kids_waqf_lesson.dart';
-import 'package:qiraah_arabiyyah/screens/kids/kids_wasl_lesson.dart';
-import 'package:qiraah_arabiyyah/screens/kids/kids_words_lesson.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart' show QuizScreen, TapScale;
+import 'package:qiraah_arabiyyah/screens/kids/kids_shell.dart';
+import 'package:qiraah_arabiyyah/widgets/common.dart' show QuizScreen;
 
+import 'kids_lesson_walk_support.dart';
 import 'kids_test_support.dart';
 
 /// Children use phones. Every other widget test runs in the default 800×600
@@ -46,7 +37,7 @@ Future<(AppSettings, ProgressStore)> _boot() async {
   await progress.load();
   settings.kidsMode = true;
   settings.desktopMode = 'off';
-  settings.arabicScale = 1.35; // the Reading Coach comfort preset
+  settings.kidsTextScale = 1.2; // Large — the biggest size Me ▸ Appearance offers
   settings.addKidsProfile(KidsProfile(id: 'p1', name: 'Amina'));
   return (settings, progress);
 }
@@ -80,117 +71,12 @@ Future<void> _pump(
   await tester.pump();
 }
 
-/// Steps through whatever the screen asks for until its result screen (or the
-/// end of a lesson that has none), failing on any framework exception.
-Future<void> _walk(WidgetTester tester) async {
-  for (var i = 0; i < 200; i++) {
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(tester.takeException(), isNull, reason: 'step $i');
-    if (find.text('Continue').evaluate().isNotEmpty) return;
-
-    for (final label in ['I said it!', 'Next']) {
-      final b = find.text(label);
-      if (b.evaluate().isNotEmpty) {
-        await tester.ensureVisible(b.first);
-        await tester.tap(b.first, warnIfMissed: false);
-        continue;
-      }
-    }
-    final check = find.text('Check');
-    if (check.evaluate().isNotEmpty) {
-      final tile = find.byType(TapScale);
-      if (tile.evaluate().isNotEmpty) {
-        await tester.tap(tile.first, warnIfMissed: false);
-        await tester.pump();
-      }
-      await tester.tap(check, warnIfMissed: false);
-      await tester.pump(const Duration(milliseconds: 1000));
-      continue;
-    }
-    final options = find.byType(TapScale);
-    if (options.evaluate().isNotEmpty) {
-      await tester.tap(options.first, warnIfMissed: false);
-      await tester.pump(const Duration(milliseconds: 1000));
-    }
-  }
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => LetterAudio.log = []);
   tearDown(() => LetterAudio.log = null);
 
-  final lessons = <String, Widget Function()>{
-    'madd': () => const KidsMaddLesson(),
-    'waṣl': () => const KidsWaslLesson(progressId: 'smoke.wasl'),
-    'waqf': () => const KidsWaqfLesson(progressId: 'smoke.waqf'),
-    'words': () => const KidsWordsLesson(progressId: 'smoke.words'),
-    'muqaṭṭaʿāt': () =>
-        const KidsMuqattaatLesson(progressId: 'smoke.muqattaat'),
-    'sun and moon': () => const KidsSolarLunarLesson(progressId: 'smoke.solar'),
-    'tajwīd (nūn, 5 rules)': () => KidsTajwidRuleLesson(
-      ruleIds: const ['izhar', 'idgham_g', 'idgham_ng', 'iqlab', 'ikhfa'],
-      progressId: 'smoke.nun',
-      icon: Icons.record_voice_over_rounded,
-      title: (c) => 'Nūn Sākinah',
-      subtitle: (c) => 'Iẓhār, idghām, iqlāb, ikhfā',
-    ),
-    'special shapes (stacking)': () => const KidsSpecialShapesLesson(
-      group: 'stacking',
-      progressId: 'smoke.stacking',
-    ),
-    'special shapes (heights)': () => const KidsSpecialShapesLesson(
-      group: 'tails',
-      progressId: 'smoke.tails',
-    ),
-    'ḥarakāt drill (last session)': () => KidsSyllableDrill(
-      mark: tashkil.firstWhere((t) => t.id == 'dammatan'),
-      progressId: 'smoke.drill',
-      start: kidsDrillRanges().last.$1,
-      end: kidsDrillRanges().last.$2,
-    ),
-    'waqf quiz': () => const KidsWaqfLesson(progressId: 'smoke.wq', quiz: true),
-    'waṣl quiz': () => const KidsWaslLesson(progressId: 'smoke.wl', quiz: true),
-    'words quiz': () =>
-        const KidsWordsLesson(progressId: 'smoke.wd', quiz: true),
-    'muqaṭṭaʿāt quiz': () =>
-        const KidsMuqattaatLesson(progressId: 'smoke.mq', quiz: true),
-    'sun and moon quiz': () =>
-        const KidsSolarLunarLesson(progressId: 'smoke.sl', quiz: true),
-    'madd quiz': () => const KidsMaddLesson(progressId: 'smoke.md', quiz: true),
-    'tajwīd (nūn) quiz': () => KidsTajwidRuleLesson(
-      ruleIds: const ['izhar', 'idgham_g', 'idgham_ng', 'iqlab', 'ikhfa'],
-      progressId: 'smoke.nq',
-      icon: Icons.record_voice_over_rounded,
-      title: (c) => 'Nūn Sākinah',
-      subtitle: (c) => 'x',
-      quiz: true,
-    ),
-    'ḥarakāt quiz': () => Builder(
-      builder: (c) => kidsSyllableQuiz(
-        c,
-        title: 'Ḥarakāt',
-        progressId: 'smoke.hq',
-        markIds: const ['fatha', 'kasra', 'damma'],
-      ),
-    ),
-    'shaddah quiz': () => Builder(
-      builder: (c) => kidsMarkSpotQuiz(
-        c,
-        title: 'Shaddah',
-        progressId: 'smoke.sq',
-        markId: 'shadda',
-      ),
-    ),
-    'review quiz': () => Builder(
-      builder: (c) =>
-          kidsReviewQuiz(c, title: 'Review', progressId: 'smoke.rq'),
-    ),
-    'look-alikes': () => Builder(
-      builder: (c) =>
-          kidsLookalikeQuiz(c, known: letters, progressId: 'smoke.lookalike'),
-    ),
-  };
+  final lessons = kidsWalkLessons();
 
   for (final e in lessons.entries) {
     testWidgets('${e.key}: every step fits a 320×568 phone', (tester) async {
@@ -198,7 +84,7 @@ void main() {
       _smallPhone(tester);
       final (settings, prog) = await _boot();
       await _pump(tester, settings, prog, e.value());
-      await _walk(tester);
+      await kidsWalk(tester);
       expect(tester.takeException(), isNull);
     });
   }
@@ -245,11 +131,11 @@ void main() {
     expect(find.textContaining('Tap every word with'), findsOneWidget);
     // Tap every word once: found ones light up (spans), wrong ones flash.
     for (var i = 0; i < line.length; i++) {
-      await tester.tap(find.byType(TapScale).at(i), warnIfMissed: false);
+      await tester.tap(kidsTappables().at(i), warnIfMissed: false);
       await tester.pump(const Duration(milliseconds: 50));
       expect(tester.takeException(), isNull, reason: 'word $i');
     }
-    await _walk(tester);
+    await kidsWalk(tester);
     expect(tester.takeException(), isNull);
   });
 
@@ -293,7 +179,7 @@ void main() {
       prog,
       Builder(builder: (c) => kidsWarmUpQuiz(c, prog)),
     );
-    await _walk(tester);
+    await kidsWalk(tester);
     expect(tester.takeException(), isNull);
   });
 
@@ -398,7 +284,49 @@ void main() {
       expect(find.text('Mouth map'), findsOneWidget);
       expect(find.text('Memorise'), findsOneWidget);
       expect(find.text('Build the word'), findsOneWidget);
+      expect(find.text('Three in a Row'), findsOneWidget);
+      expect(find.text('Memory Match'), findsOneWidget);
+      expect(find.text('Letter Bingo'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  // Every shop theme paints its own scene with its own motes, and the vivid
+  // scene puts white outlined headings on top of it. None of that may cost the
+  // layout anything on the smallest phone — and a new family is exactly where a
+  // scene-specific painter bug (a NaN in a ridge, an unbounded blur) would hide.
+  testWidgets(
+    'every shop theme lays out on a 320×568 phone, vivid, in every appearance',
+    (tester) async {
+      useReducedMotion(tester);
+      _smallPhone(tester);
+      for (final family in ['kids', ...kKidsShopThemeFamilies]) {
+        for (final mode in ['light', 'dark', 'oled']) {
+          final (settings, prog) = await _boot();
+          settings.kidsDetail = KidsDetail.high;
+          settings.kidsThemeMode = mode;
+          settings.activeKidsProfile!.theme = family;
+          await tester.pumpWidget(
+            SettingsScope(
+              settings: settings,
+              child: MaterialApp(
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                locale: const Locale('en'),
+                home: const KidsShell(),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: '$family.$mode threw while painting or laying out',
+          );
+          expect(find.text('Hello, Amina!'), findsOneWidget, reason: '$family.$mode');
+          prog.dispose();
+        }
+      }
     },
   );
 }

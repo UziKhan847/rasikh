@@ -7,4 +7,6 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # The design handoff: reference copies of code already installed in lib/.
+    - design_handoff_flutter/**
 include: package:flutter_lints/flutter.yaml
