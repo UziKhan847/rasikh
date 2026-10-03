@@ -1,88 +1,103 @@
-# Kids Backdrops → Flutter
+> **Already built in the app:** v1 plus most of v2. Only apply what's missing: diff each file before replacing, and keep any app-side changes.
 
-This folder replaces the earlier handoffs for implementation purposes. It covers **both the backdrops and the whole UI restyle**: cards, buttons, tiles, nav, headings and all 13 screens. The Dart files in `lib/kids_backdrops/` are ported from the working prototype in `source/Kids Backdrops.dc.html`. Your job is to wire them into the app and verify them. Do not re-derive the design.
+# Kids Backdrops: v2 update (the app already has v1)
 
-Read `UI_SPEC.md` before touching any screen.
+v1 (backdrops, UI kit, screens, theme shop) is already in the app. This update only changes what's listed below. The source of truth is `source/Kids Backdrops.dc.html`.
 
-## Rules
+# Rules
+1. **Replace files. Don't merge by hand.** The Dart in `lib/kids_backdrops/` is ported line by line from the prototype. Don't redesign or simplify it. If something looks wrong, diff it against the JS function of the same name.
+2. **Leave v1 alone** apart from the files and widgets listed here. Don't touch app logic, navigation or screens not mentioned.
+3. Work one step at a time, and check each step before starting the next.
 
-1. **Do not redesign, simplify or "clean up" the painter.** Every constant (ridge heights, alpha values, blur radii, hash seeds) is tuned. If something looks wrong, compare against the JS function of the same name in `source/Kids Backdrops.dc.html` and fix the translation, not the numbers.
-2. **Colours come only from `KbTheme` + `KbUi`.** No `Colors.xxx`, no hard-coded hex in screens.
-3. **Avatars are already done.** Keep the app's existing avatar SVGs and loading code. Don't re-export, redraw or convert them. Only the frames around them (circle, ring, lock badge, shadows) are part of this restyle.
-4. **One step at a time.** Finish and verify each step below before starting the next. Stop and report if a step fails.
-5. `kb_themes.dart` is generated from the HTML. If a theme value must change, change it in both places.
+## 1. Replace these files
+Copy these over the v1 versions in the app's `lib/kids_backdrops/`:
+- `kb_themes.dart`: new theme flags, a parallax and blur table, and 50 avatars as PNGs.
+- `kb_scene.dart`: the new lighting, suns, silhouettes and clouds, the fix for seams while swiping, and new layer painters.
+- `kb_widgets.dart`, `kb_components.dart`, `kb_screens.dart`: the only change is that avatars now load as `Image.asset` PNGs instead of SVGs.
 
-## What's here
+Add a new file: `kb_parallax.dart`.
 
-```
-lib/kids_backdrops/
-  kb_themes.dart   12 themes, avatar list + prices (generated)
-  kb_scene.dart    palette(), yAt(), drawScene() → kbPaintScene(), drawMotes() → kbPaintMotes(), painters
-  kb_ui.dart       UI colour tokens (surface, edge, tile, ink, heading outline shadows…)
-  kb_widgets.dart  KbBackdrop, KbThemeIcon, KbThemeShopTile, KbAvatar, KbAvatarPickerTile, KbHeading
-  kb_components.dart  UI kit: KbSurface + KbElev (the 3D edge look), pills, big button, cards, tiles, cells, nav…
-  kb_screens.dart  all 13 screens built from the kit + KbGallery debug switcher
-UI_SPEC.md         rules, tokens, elevation table, element → widget map
-reference/
-  backdrops/{vivid,original}/{light,dark,oled}/{theme}.png   390×844 @1x, rendered by the JS painter
-  theme_icons/{light,dark,oled}/{theme}-3x.png                96 pt icons @3x
-test/kb_backdrop_compare_test.dart   Dart painter vs reference PNGs
-source/            the HTML prototype (open Kids Backdrops.dc.html in a browser)
-```
+Replace the app's avatar images with `assets/avatars/` (1x, `2.0x/`, `3.0x/`). Remove the old avatar SVGs and any `flutter_svg` avatar code. The new avatars' soft shadows use SVG blur filters, which `flutter_svg` can't draw.
 
-## Steps
+Then run `flutter analyze`. It must be clean.
 
-### 1. Install
-- Copy `lib/kids_backdrops/` into the app's `lib/`.
-- `KbAvatarInfo.asset` in `kb_themes.dart` points to `assets/avatars/<id>.svg`. Change the path to wherever the app's existing avatar SVGs live. Nothing else about avatars needs to change.
-- Fonts: **Baloo Bhaijaan 2** (500–800), **Noto Naskh Arabic** (500–600), **Amiri Quran**, **Material Symbols Rounded** (variable, FILL 1, wght 600). Bundle them as assets (preferred for a kids app used offline), or use `google_fonts`. The widget code references them by these family names.
-- Remove the old backdrop painter. Don't keep two implementations. Leave the existing avatar code alone.
-- `flutter analyze` must be clean.
+## 2. Re-verify the painter
+- Replace `reference/` in the app with the new one. The v1 images are no longer valid.
+- Run `flutter test test/kb_backdrop_compare_test.dart`. All 72 cases must pass.
+- If a case fails, compare `test/_out/…png` and its `.diff.png` with the reference. Fix the translation, not the thresholds.
 
-### 2. Verify the painter before touching any screen
-- Copy `reference/` and `test/` into the app root, and replace `YOUR_APP` in the test imports.
-- Run `flutter test test/kb_backdrop_compare_test.dart`. All 72 cases should pass.
-- On failure, open `test/_out/<style>/<mode>/<theme>.png` next to the reference and the `.diff.png` heat-map. Red blocks show where the difference is. Fix the Dart translation by diffing it against the JS.
-- Small anti-aliasing and blur differences are expected, which is why the thresholds aren't zero. Don't loosen them to make a test pass.
+What the painter now does:
+- **Light-mode lighting** (all themes except Night and Rain): richer sky, a warm side facing the sun and a cool shaded side on each ridge, a bright rim on slopes facing the sun, and a stronger edge on the near ridge.
+- **Suns:** in light modes there's no hard disc. A white-hot core fades straight into the glow, with a wide wash across the sky. Sunrise keeps its soft disc. Sunset has a big low sun on the horizon in every mode, and Sunrise gets a glowing horizon sun in Dark and OLED. The sun rays and the thin ring around the sun and moon are gone.
+- **Sunset:** the ridges are near-black silhouettes.
+- **Rain clouds:** soft blurred puffs, 8 blobs each.
+- **Removed:** the blossom flowers, the cave crystals, and the light shafts in Forest and Cave. Forest now has a normal sun and Cave has none.
 
-### 3. Backdrop behind every screen
+## 3. Parallax on the 5 tab screens
+Wrap the tab shell like this. Keep the app's existing tab state and nav bar:
 ```dart
-KbBackdrop(
-  theme: kbThemes.firstWhere((t) => t.id == settings.themeId),
-  mode: settings.mode,          // KbMode.light / dark / oled
-  style: KbStyle.vivid,
+final camX = ValueNotifier<double>(0);    // owned by the tab shell
+final scrollY = ValueNotifier<double>(0);      // = current page's ScrollController.offset; reset to 0 on tab change
+final scrollExtent = ValueNotifier<double>(0); // = current page's position.maxScrollExtent (update on scroll + after layout)
+
+KbParallaxBackdrop(
+  theme: theme, mode: mode, style: style,
+  cameraX: camX, scrollY: scrollY, scrollExtent: scrollExtent,
+  strength: 1.0,   // Off 0 · Subtle .6 · Normal 1 · Strong 1.6
+  depthBlur: true,
   motion: settings.motion,
-  child: SafeArea(child: page),
+  child: KbSwipeTabs(
+    index: tab, onChanged: (i) => setState(() => tab = i), camera: camX,
+    child: KeyedSubtree(key: ValueKey(tab), child: pages[tab]),
+  ),
 )
 ```
-- The design is authored at 390×844. The painter scales horizontally by `width/390`, and ridges sit at fixed fractions of the height. Pass the full screen size, not a padded box.
-- Headings sit on the upper sky and cards scroll over the ridges. Compare layouts with the HTML (see step 6).
+- Each layer is painted once and only translated when the user scrolls or swipes. Never repaint on scroll.
+- Swiping sideways moves only the backdrop. The page content stays still, and after the release the new tab fades in over 220 ms. Past the first and last tab the drag rubber-bands at 0.3×. It takes 70 px to change tab. Nav-bar taps animate the camera the same way.
+- Vertical parallax runs for the whole page: progress = offset / maxScrollExtent, travel = progress × min(400, maxScrollExtent). The layers reach full travel exactly at the bottom, so no empty space shows and they never go still mid-scroll. Pass `scrollExtent`; without it the old 400 px stop is used.
+- Parallax, depth blur and bokeh are all off in the Original style and when `MediaQuery.disableAnimations` is on.
+- Non-tab screens (lessons, games, profile) keep the v1 `KbBackdrop`.
 
-### 4. Theme shop (Rewards screen, above "Looks")
-- A 3-column grid of `KbThemeShopTile`, gap 12. `ui` is the `KbUi` of the **current** theme.
-- Tap on a locked tile → purchase flow (price = `theme.price` gems). Tap on an owned tile → apply the theme.
-- The original 7 themes are free. Rain 80, Sunrise 80, Cave 100, Frozen 120, Snowy 120.
-- `reference/theme_icons/` shows what each icon must look like.
+## 4. Depth blur
+- The far ridge gets σ 2.6, the mid ridge σ 1.1, the near ridge stays sharp, and the foreground bokeh gets σ 9, all multiplied by `width / 390`. The values are in `kbDepthBlur`.
+- `KbParallaxBackdrop` already handles this. Check on a real device that scrolling stays at 60 fps.
 
-### 5. Avatar frames
-- The avatar images stay as they are. Only restyle what surrounds them.
-- New Profile: a 6-column grid of `KbAvatarPickerTile`, gap 10 horizontal × 8 vertical. Selected: tile bg + 4 px accent ring. Locked: small lock badge at bottom-right.
-- Elsewhere (leaderboard, Me), use `KbAvatar(avatar:, size:, background: kbC(ui.surface))`, or wrap the app's existing avatar widget in the same circle.
+## 5. Avatars (50: 31 animals + 19 objects)
+- 13 free and 30 locked, with prices in `kbAvatars`.
+- Added after the first v2 drop: **Lion Cub** (free), **Goat** (60), **Buffalo** (90), **Whale** (120), **Wolf** (100).
+- **Objects** (all locked, listed after the animals in `kbAvatars`): Shield 60, Sword 80, Helmet 100, Tasbeeh 40, Prayer Mat 40, Topi 40, Dates 30, Qahwa 60, Chai 30, Flask 50, Lantern 80, Crescent 100, Palm Tree 40, Mosque 120, Quran Stand 100, Miswak 30, Zamzam 50, Attar 60.
+- **Ice Cube** is reward-only: it unlocks from the existing **Streak Freeze** reward and can't be bought. It's in `kbAvatars` with no price; hide it from the shop and grant it when the Streak Freeze reward is claimed. They use the same PNG pipeline and avatar tile, so nothing else changes. Use `flutter analyze` and check the picker scrolls cleanly with 50 tiles.
+- New in this update: **Grizzly** (free), **Kangaroo** (free), **Hippo** (60), **Crocodile** (90), **Rhino** (90) and **Shark** (120).
+- Every avatar is redrawn in the new style (plain shapes, soft shadows, light from the top left). The picker grid and tiles are the same as in v1. Only the images and the list change.
 
-### 6. Run the gallery first
-- Temporarily set `home: const KbGallery()` (in `kb_screens.dart`). Long-press to switch screen, theme and mode.
-- Open `source/Kids Backdrops.dc.html` in Chrome at the same screen, theme and mode. Check them side by side at 390 wide. Fix the components until they match. This is the only step where you edit `kb_components.dart`.
+## 6. Sun glow, bloom and saturation (light modes)
+- `kb_scene.dart`: the light-mode sun glow is 1.3× stronger and wider, and the sky wash is stronger (.6 / .24).
+- New `kbPaintBloom`: light from the sun bleeds over the hills in front of it. `KbParallaxBackdrop` paints it above the ridges with `BlendMode.screen`, moving at the `orn` parallax speed. `bloom:` Off 0 · Soft .6 · Medium 1 · Strong 1.5 (**default**, the chosen value). Light modes and sun themes only; dark/OLED are unchanged.
+- The bloom layer must NOT sit inside its own `RepaintBoundary`, or the screen blend has nothing to blend with. If it renders as a flat wash on device, wrap the sky/orn/ridges/bloom group in one `RepaintBoundary` instead.
+- New `saturation:` (default **1.3**, the chosen value; options 1 / 1.15 / 1.3 / 1.5) wraps the backdrop (not the UI) in `ColorFiltered(ColorFilter.matrix(kbSaturation(x)))`.
+- The bloom's lens flare is a short oval through the sun that fades out sideways. Don't use a full-width band; it reads as a hard line.
+- Expose both as settings next to Parallax and Depth blur.
 
-### 7. Restyle the real screens
-- Go screen by screen through the app. Replace the existing cards, buttons, tiles, list rows, nav bar and headings with the kit widgets, using the matching `kb_screens.dart` screen as the layout template (same widget order, same `_gap` values).
-- **Remove all old styling.** That means Material `Card`, `ElevatedButton`, `ListTile`, `NavigationBar`, theme-based `ColorScheme` colours and translucent containers. Anything the kit doesn't cover must be built from `KbSurface` + `KbElev` following the rules in `UI_SPEC.md` §1.
-- Keep the app's own logic, data and navigation. Only the presentation changes.
-- After each screen, compare a screenshot with the HTML at the same theme and mode, in Light and in Dark, before moving on.
-- Search for leftovers at the end: `grep -rn "Colors\.\|Card(\|ElevatedButton\|ListTile\|withOpacity" lib/`. Anything left in a restyled screen is a bug.
+## 7. Fidelity: Standard / High / Ultra (new)
+New file `kb_hifi.dart`. `kb_parallax.dart` and `kb_themes.dart` are updated to use it. Add `sensors_plus` to pubspec.yaml (used for tilt).
+- `KbParallaxBackdrop(fidelity: KbFidelity.high)` is the default. Add a setting next to Parallax and Depth blur: **Standard / High / Ultra**. Suggest Ultra on newer phones and drop to Standard in battery saver.
+- **High:** film grain (`KbGrain`, overlay blend, so pure black stays black on OLED), per-theme specks (`kbFxRecipe`: bubbles, fireflies + leaves, petals, sand, stars + shooting star, snowflakes, rain, cave motes, warm dust, plus lens hexes and sparkles) at 3 depths, mist (`mist0`/`mist1` layers in front of far and mid, drifting), and phone tilt (`KbTilt`, per-layer px in `kbTiltPx`). High replaces the old motes layer; bokeh stays.
+- **Ultra:** god rays, glow on fireflies/sparkles/cave motes, water glints (wave themes), clouds and birds (light modes), specks that brighten near the sun and swirl away from the finger (a `Listener` around the backdrop; translucent, so taps still reach the UI), rim light on ridge tops (`_RidgePainter.rim`), a slow hue/brightness shimmer, extra blur on far layers as the page scrolls (`kbScrollBlur`), and a vignette.
+- `KbFxLightPainter` and `KbGrain` must not sit inside their own `RepaintBoundary`, because their screen/overlay blends need the scene underneath. Same rule as bloom.
+- Check on a mid-range Android: Ultra scroll blur rebuilds an `ImageFiltered` per frame while scrolling. If it drops frames, remove `kbScrollBlur` first.
+- **Tilt (High + Ultra)** has two inputs, both handled in `KbTilt` (`kb_hifi.dart`):
+  - **Phone / tablet:** the accelerometer through `sensors_plus`. Tilting the device shifts each layer by `kbTiltPx[role]` × tilt (-1..1), so the front layers move most. It's smoothed with a ~140 ms ease.
+  - **Desktop / web with a mouse:** pointer hover over the backdrop, the same as the prototype demo. Centre = 0, edges = ±1. `KbParallaxBackdrop` wraps itself in a `MouseRegion` + `Listener`; `onPointerHover` calls `KbTilt.pointer`, and leaving the window eases back to centre.
+  - Once a real sensor reading arrives, mouse input is ignored. Touch drags never drive tilt; they keep scrolling and swiping tabs.
+  - Desktop builds skip the sensor entirely. On web the sensor is tried first (phones), then it falls back to the mouse.
+  - iOS needs no permission prompt for the accelerometer in a native app. (The prototype asks because Safari on the web requires it.)
+  - If it moves the wrong way on a device, flip the sign of x in `KbTilt.start`. Tilt is off when the system "reduce motion" setting is on.
+- **UI tilt** (`uiTilt:` 0 off · 1 subtle (default) · 1.6 strong): the whole `child` (the app UI passed into `KbParallaxBackdrop`) turns slightly to face the tilt, up to 2.5° × k, and floats up to 5 px × k, using the same `KbTilt` value. It works through a `Transform` with perspective, so taps still land correctly. Expose it as a setting next to Fidelity.
+  - If you only want the page content to tilt and the bottom nav to stay put, wrap just the page body in the same `Transform` instead of the whole `child`.
+  - Rotation is kept small on purpose so text stays sharp. Don't go above 1.6.
+  - Flip the sign of `rotateX` if the UI tips the wrong way vertically on device.
 
-## Things that commonly go wrong
-- **Wrong radial gradients**: canvas `createRadialGradient(x,y,r0, x,y,r1)` means the colour stops start at `r0/r1`, not 0 (`_radial()` handles this). Off-centre gradients (sun disc, moon) need `focal:`.
-- **Blur**: CSS/canvas `blur(N)` is a Gaussian σ of N → `MaskFilter.blur(BlurStyle.normal, N)`. For `BoxShadow`/`Shadow`, convert with `kbCssBlur()`.
-- **Moon**: needs `saveLayer` + `BlendMode.dstOut`. Painting a circle in the sky colour over it looks wrong on gradients.
-- **Motes**: they belong on a separate `RepaintBoundary` so the static scene isn't repainted every frame. Honour `MediaQuery.disableAnimations`.
-- **Deprecated Color APIs**: colours stay as `0xRRGGBB` ints until `kbC()`. Don't convert to `Color` early or use `.red`/`.withOpacity`.
+## Watch out for
+- **Vertical seams while swiping:** ridge gradients must use the fixed top `(base − amp) × H` and the sun's global position (`lx × W − x0`). The sun's glow must fill the whole widened canvas. The v2 code already does this, so don't "optimise" it back.
+- **Blur:** canvas `blur(N)` maps to `ImageFilter.blur(sigmaX: N)`.
+- **Colours:** keep them as `0xRRGGBB` ints until `kbC()` is called. No `.withOpacity`.

@@ -14,7 +14,6 @@
 //    Noto Naskh Arabic 600. Quranic words: Amiri Quran.
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'kb_icons.dart';
 import 'kb_scene.dart';
 import 'kb_themes.dart';
@@ -440,7 +439,7 @@ class KbRankRow extends StatelessWidget {
         Container(width: 36, height: 36, alignment: Alignment.center, decoration: BoxDecoration(color: kbC(me ? ui.cardDeep : ui.reward), shape: BoxShape.circle),
             child: Text('$rank', style: kbText(18, kbC(me ? kWhite : ui.rewardInk), height: 1))),
         const SizedBox(width: 14),
-        face != null ? SizedBox(width: 46, height: 46, child: Center(child: face!(46))) : SvgPicture.asset(avatar!.asset, width: 46, height: 46),
+        face != null ? SizedBox(width: 46, height: 46, child: Center(child: face!(46))) : Image.asset(avatar!.asset, width: 46, height: 46),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: kbText(21, ink, height: 1.1)),
@@ -482,11 +481,13 @@ class KbBadgeTile extends StatelessWidget {
   final String emoji, label;
   final bool earned;
   const KbBadgeTile({super.key, required this.ui, required this.emoji, required this.label, this.earned = false});
-  static const _grey = ColorFilter.matrix([.2126, .7152, .0722, 0, 0, .2126, .7152, .0722, 0, 0, .2126, .7152, .0722, 0, 0, 0, 0, 0, 1, 0]);
+  // APP ADAPTATION: grey AND the 40% fade in one matrix — one offscreen pass per
+  // locked badge instead of two (was Opacity(.4) around a grey ColorFiltered).
+  static const _grey = ColorFilter.matrix([.2126, .7152, .0722, 0, 0, .2126, .7152, .0722, 0, 0, .2126, .7152, .0722, 0, 0, 0, 0, 0, .4, 0]);
   @override
   Widget build(BuildContext context) {
     Widget e = Text(emoji, style: const TextStyle(fontSize: 34, height: 1));
-    if (!earned) e = Opacity(opacity: .4, child: ColorFiltered(colorFilter: _grey, child: e));
+    if (!earned) e = ColorFiltered(colorFilter: _grey, child: e);
     return AspectRatio(
       aspectRatio: 1 / 1.05,
       child: KbSurface(
@@ -762,7 +763,7 @@ class KbLooksRow extends StatelessWidget {
   Widget build(BuildContext context) => KbSurface(
         color: ui.surface, edge: ui.edge, elev: KbElev.card, radius: 22, padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Row(children: [
-          SvgPicture.asset(avatar.asset, width: 50, height: 50),
+          Image.asset(avatar.asset, width: 50, height: 50),
           const SizedBox(width: 14),
           Expanded(
             child: owned

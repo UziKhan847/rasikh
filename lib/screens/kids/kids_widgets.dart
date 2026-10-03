@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
@@ -15,6 +16,8 @@ import 'kids_avatar_face.dart';
 import 'kids_desktop_nav.dart' show closeKidsOverlayOrPop;
 import '../../kids_backdrops/kb_app.dart';
 import '../../kids_backdrops/kb_components.dart';
+import '../../kids_backdrops/kb_hifi.dart' show KbFidelity;
+import '../../kids_backdrops/kb_parallax.dart' show KbParallaxBackdrop;
 import '../../kids_backdrops/kb_ui.dart' show KbUi;
 import '../../kids_backdrops/kb_scene.dart' show KbStyle, kBlack, kWhite, kbC;
 import '../../kids_backdrops/kb_widgets.dart'
@@ -33,6 +36,13 @@ import '../../kids_backdrops/kb_widgets.dart'
 /// hidden one, so nothing ticks.
 ///
 /// [calm] keeps a screen on the soft scene even at high detail.
+/// The design's chosen sun bloom (Strong) and backdrop saturation for the vivid
+/// scene — fixed values, not settings: the Detail dial is the one control.
+const kKidsBloom = 1.5, kKidsSaturation = 1.3;
+
+/// Whether [d] paints the vivid scene: High and Ultra do; Medium is the soft one.
+bool kidsVivid(KidsDetail d) => d == KidsDetail.high || d == KidsDetail.ultra;
+
 class KidsBackdrop extends StatelessWidget {
   final Widget child;
   final bool calm;
@@ -42,7 +52,7 @@ class KidsBackdrop extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = SettingsScope.of(context);
     if (s.kidsDetail == KidsDetail.plain) return child;
-    final vivid = s.kidsDetail == KidsDetail.high && !calm;
+    final vivid = kidsVivid(s.kidsDetail) && !calm;
     final style = vivid ? KbStyle.vivid : KbStyle.original;
     return KbSceneScope(
       style: style,
@@ -51,6 +61,58 @@ class KidsBackdrop extends StatelessWidget {
         mode: kbModeFor(s.kidsThemeMode),
         style: style,
         motion: vivid && !kidsReduceMotion(context),
+        bloom: kKidsBloom,
+        saturation: kKidsSaturation,
+        child: child,
+      ),
+    );
+  }
+}
+
+/// The scene behind the five tabs: [KidsBackdrop]'s rules, plus the design's
+/// parallax — each layer slides at its own speed as the child scrolls a page
+/// ([scrollY]) or swipes between tabs ([cameraX]), the far ridges go soft for
+/// depth, and a few out-of-focus specks drift in front.
+///
+/// All of that belongs to the vivid scene (high detail) and never runs under
+/// reduce-motion, as the design specifies; plain and medium are exactly
+/// [KidsBackdrop]. Each layer is painted once — a scroll or swipe only moves it.
+class KidsTabBackdrop extends StatelessWidget {
+  final ValueListenable<double> cameraX;
+  final ValueListenable<double> scrollY;
+
+  /// The current page's maxScrollExtent — the vertical travel is spread over
+  /// the whole page (see [KbParallaxBackdrop.scrollExtent]).
+  final ValueListenable<double>? scrollExtent;
+  final Widget child;
+  const KidsTabBackdrop({
+    super.key,
+    required this.cameraX,
+    required this.scrollY,
+    this.scrollExtent,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final s = SettingsScope.of(context);
+    if (!kidsVivid(s.kidsDetail)) return KidsBackdrop(child: child);
+    return KbSceneScope(
+      style: KbStyle.vivid,
+      child: KbParallaxBackdrop(
+        theme: kbThemeFor(s.activeKidsProfile?.theme),
+        mode: kbModeFor(s.kidsThemeMode),
+        style: KbStyle.vivid,
+        cameraX: cameraX,
+        scrollY: scrollY,
+        scrollExtent: scrollExtent,
+        motion: !kidsReduceMotion(context),
+        bloom: kKidsBloom,
+        saturation: kKidsSaturation,
+        // High is the design's Standard fidelity (with its bloom and saturation);
+        // Ultra is the design's High + Ultra: grain, effects, mist, tilt, light.
+        fidelity: s.kidsDetail == KidsDetail.ultra ? KbFidelity.ultra : KbFidelity.standard,
+        uiTilt: s.kidsUiTilt,
         child: child,
       ),
     );
@@ -152,7 +214,9 @@ class _RingPainter extends CustomPainter {
 /// hanging forever in the widget tests (a repeating controller never lets it
 /// return; see `kids_shell_navigation_test.dart` on `TracingBoard`'s pulse).
 bool kidsReduceMotion(BuildContext context) =>
-    MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    // Only the one flag: MediaQuery.maybeOf would rebuild every animated kids
+    // widget on any MediaQuery change — each frame of the keyboard sliding.
+    MediaQuery.maybeDisableAnimationsOf(context) ?? false;
 
 /// The code that opens every Kids Mode stage for testing. Deliberately a
 /// fixed string and not a setting: it exists so the developer can walk the
@@ -166,10 +230,24 @@ const kKidsUnlockCode = 'unlock123';
 const _unlockTaps = 10;
 const _unlockWindow = Duration(seconds: 2);
 
+/// Turns the testing unlock ([ProgressStore.unlockAll]) on or off. On, it
+/// lifts every stage and tile lock and lets every theme, frame and avatar be
+/// tried on without buying it — nothing is marked done or owned. Off, anything
+/// worn only thanks to it comes back off ([kidsTakeOffUnowned]).
+void kidsSetTestUnlock(BuildContext context, bool on) {
+  final s = SettingsScope.of(context);
+  final prog = ProgressScope.of(context);
+  prog.setUnlockAll(on);
+  final profile = s.activeKidsProfile;
+  if (!on && profile != null) {
+    final items = kidsShopItems(context);
+    s.update(() => kidsTakeOffUnowned(profile, prog.shopOwned, items));
+  }
+}
+
 /// Wraps [child] in the developer gesture: [_unlockTaps] taps in a row, then a
-/// box asking for [kKidsUnlockCode]. Entering it flips
-/// [ProgressStore.unlockAll], which lifts every stage and tile lock without
-/// marking anything done; entering it again turns that back off.
+/// box asking for [kKidsUnlockCode]. Entering it flips the testing unlock
+/// ([kidsSetTestUnlock]); entering it again turns that back off.
 ///
 /// Two things wear this — the mascot (which is what the celebration screen
 /// puts in front of you after any lesson) and the Me tab's avatar (which is
@@ -204,7 +282,11 @@ class _KidsSecretUnlockState extends State<KidsSecretUnlock> {
     final entered = await _ask(context);
     if (entered == null || entered.trim() != kKidsUnlockCode) return;
     final on = !prog.unlockAll;
-    prog.setUnlockAll(on);
+    if (mounted) {
+      kidsSetTestUnlock(context, on);
+    } else {
+      prog.setUnlockAll(on);
+    }
     messenger
       ..clearSnackBars()
       ..showSnackBar(
@@ -848,48 +930,111 @@ class KidsTextSizePicker extends StatelessWidget {
   }
 }
 
-/// The Me tab's **Detail** dial: plain / medium / high, as three tiles — the
-/// same option tiles as [KidsTextSizePicker], so the two read as one family of
-/// controls.
+/// The Me tab's **Detail** dial: plain / medium / high / ultra, as option tiles —
+/// the same tiles as [KidsTextSizePicker], so the two read as one family of
+/// controls. Four in a row where they fit, two by two on a narrow phone.
 ///
-/// It replaced a single on/off switch. The middle stop is the point: a phone
-/// that cannot afford the drifting motes should still get a scene.
+/// It replaced a single on/off switch. The middle stops are the point: a phone
+/// that cannot afford the drifting motes should still get a scene, and Ultra's
+/// extra effects are for phones that can.
 class KidsDetailPicker extends StatelessWidget {
   const KidsDetailPicker({super.key});
 
   @override
   Widget build(BuildContext context) {
     final s = SettingsScope.of(context);
-    final ui = kbUi(context);
-    final options = [
-      (KidsDetail.plain, context.l10n.kidsDetailPlain, 'crop_square'),
-      (KidsDetail.medium, context.l10n.kidsDetailMedium, 'landscape'),
-      (KidsDetail.high, context.l10n.kidsDetailHigh, 'auto_awesome'),
-    ];
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        for (final (i, (level, label, icon)) in options.indexed) ...[
-          if (i > 0) const SizedBox(width: 12),
-          Expanded(
-            child: Semantics(
-              selected: s.kidsDetail == level,
-              label: '${context.l10n.kidsDetailLevel}: $label',
-              child: KbOptionTile(
-                key: ValueKey('kidsDetail.${level.name}'),
-                ui: ui,
-                selected: s.kidsDetail == level,
-                label: label,
-                onTap: () => s.update(() => s.kidsDetail = level),
-                top: KbIcon(icon,
-                    size: 28,
-                    color: KbOptionTile.inkOf(ui, s.kidsDetail == level)),
-              ),
-            ),
-          ),
-        ],
+    return _OptionGrid(
+      label: context.l10n.kidsDetailLevel,
+      options: [
+        (KidsDetail.plain, context.l10n.kidsDetailPlain, 'crop_square'),
+        (KidsDetail.medium, context.l10n.kidsDetailMedium, 'landscape'),
+        (KidsDetail.high, context.l10n.kidsDetailHigh, 'auto_awesome'),
+        (KidsDetail.ultra, context.l10n.kidsDetailUltra, 'stars'),
       ],
+      selected: s.kidsDetail,
+      keyOf: (d) => 'kidsDetail.${d.name}',
+      onSelect: (d) => s.update(() => s.kidsDetail = d),
     );
+  }
+}
+
+/// The Me tab's **Screen tilt** choice (Off / Subtle / Strong), shown only while
+/// Detail is Ultra — the one level where the pages lean with the phone.
+class KidsUiTiltPicker extends StatelessWidget {
+  const KidsUiTiltPicker({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = SettingsScope.of(context);
+    return _OptionGrid(
+      label: context.l10n.kidsUiTilt,
+      options: [
+        (0.0, context.l10n.kidsUiTiltOff, 'close'),
+        (1.0, context.l10n.kidsUiTiltSubtle, 'swap_horiz'),
+        (1.6, context.l10n.kidsUiTiltStrong, 'sync_alt'),
+      ],
+      selected: s.kidsUiTilt,
+      keyOf: (v) => 'kidsUiTilt.$v',
+      onSelect: (v) => s.update(() => s.kidsUiTilt = v),
+    );
+  }
+}
+
+/// A row of option tiles; two by two when four would be too narrow to read.
+class _OptionGrid<T> extends StatelessWidget {
+  final String label;
+  final List<(T, String, String)> options;
+  final T selected;
+  final String Function(T) keyOf;
+  final ValueChanged<T> onSelect;
+  const _OptionGrid({
+    required this.label,
+    required this.options,
+    required this.selected,
+    required this.keyOf,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ui = kbUi(context);
+    Widget tile((T, String, String) o) {
+      final (value, text, icon) = o;
+      final on = value == selected;
+      return Semantics(
+        selected: on,
+        label: '$label: $text',
+        child: KbOptionTile(
+          key: ValueKey(keyOf(value)),
+          ui: ui,
+          selected: on,
+          label: text,
+          onTap: () => onSelect(value),
+          top: KbIcon(icon, size: 28, color: KbOptionTile.inkOf(ui, on)),
+        ),
+      );
+    }
+
+    Widget row(List<(T, String, String)> os) => Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (final (i, o) in os.indexed) ...[
+              if (i > 0) const SizedBox(width: 12),
+              Expanded(child: tile(o)),
+            ],
+          ],
+        );
+
+    return LayoutBuilder(builder: (context, c) {
+      final perTile = (c.maxWidth - 12 * (options.length - 1)) / options.length;
+      if (options.length < 4 || perTile >= 80) return row(options);
+      final half = (options.length / 2).ceil();
+      return Column(children: [
+        row(options.sublist(0, half)),
+        const SizedBox(height: 12),
+        row(options.sublist(half)),
+      ]);
+    });
   }
 }
 
@@ -1250,6 +1395,8 @@ void kidsFinishLesson(
   required String progressId,
   required int stars,
 }) {
+  // Called from post-frame callbacks: the lesson may already be closed.
+  if (!context.mounted) return;
   final shown = stars == 0 ? 1 : stars;
   final prog = ProgressScope.of(context);
   prog.report(progressId, shown);

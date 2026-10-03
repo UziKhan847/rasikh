@@ -44,6 +44,10 @@ Future<void> _savePng(ByteData rgba, String path) async {
 }
 
 void main() {
+  // The app softens one hard edge the design draws (kbSoftHazeEdge); compare the
+  // port against the design exactly as drawn.
+  setUpAll(() => kbSoftHazeEdge = false);
+  tearDownAll(() => kbSoftHazeEdge = true);
   for (final style in KbStyle.values) {
     for (final mode in KbMode.values) {
       for (final th in kbThemes) {

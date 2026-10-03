@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../core/l10n.dart';
 import '../core/settings.dart';
+import 'kids_avatars.dart' show kidsAnimals;
 import 'letters.dart';
 
 /// The curated letter path Kids Mode teaches, in order. This is the same
@@ -378,7 +379,16 @@ void kidsSyncBadges(ProgressStore prog) {
 }
 
 /// Which shelf a [KidsShopItem] sits on in Rewards' Shop.
-enum KidsShopShelf { looks, colours }
+enum KidsShopShelf {
+  /// Avatar cosmetics: frames and unlockable animal avatars.
+  looks,
+
+  /// Object avatars — a lantern, dates, a tasbīḥ… (and the Ice Cube reward).
+  things,
+
+  /// Whole palettes for Kids Mode.
+  colours,
+}
 
 class KidsShopItem {
   final String id;
@@ -386,12 +396,22 @@ class KidsShopItem {
   final int cost;
   final KidsShopShelf shelf;
   final String Function(BuildContext) title;
+
+  /// No longer sold: listed only for a child who already owns it, so nothing
+  /// bought is ever lost.
+  final bool retired;
+
+  /// Never sold — earned (the Ice Cube, for a streak freeze saving the
+  /// streak). Listed only once owned, and never with a price or a Buy button.
+  final bool rewardOnly;
   const KidsShopItem(
       {required this.id,
       required this.emoji,
       required this.cost,
       required this.shelf,
-      required this.title});
+      required this.title,
+      this.retired = false,
+      this.rewardOnly = false});
 }
 
 /// The one-time cosmetic purchases. Every one renders somewhere the child
@@ -451,12 +471,16 @@ List<KidsShopItem> kidsShopItems(BuildContext context) => [
           cost: 70,
           shelf: KidsShopShelf.looks,
           title: (c) => c.l10n.kidsShopSpiderAvatar),
+      // Retired: the horse is a free choice in the New Profile picker, so selling
+      // it as well offered the same animal twice. Those who bought it keep it,
+      // and it now shows the drawn horse (see `kidsAnimals`).
       KidsShopItem(
           id: 'horse_avatar', // al-ʿĀdiyāt, sūrah 100
           emoji: '🐎',
           cost: 90,
           shelf: KidsShopShelf.looks,
-          title: (c) => c.l10n.kidsShopHorseAvatar),
+          title: (c) => c.l10n.kidsShopHorseAvatar,
+          retired: true),
       KidsShopItem(
           id: 'cow_avatar', // al-Baqarah, sūrah 2
           emoji: '🐄',
@@ -470,9 +494,10 @@ List<KidsShopItem> kidsShopItems(BuildContext context) => [
           shelf: KidsShopShelf.looks,
           title: (c) => c.l10n.kidsShopWhaleAvatar),
       // The two the design's avatar set adds that the Qurʼān also names. The
-      // design draws four more (cat, bunny, penguin, owl) that it does not, so
-      // they are NOT sold — see `kidsAnimals` — and they are priced as the
-      // design prices these two, the eight above keeping what they always cost.
+      // design draws more that it does not (cat, bunny, penguin, owl, hippo,
+      // crocodile, rhino, shark), so they are NOT sold — see `kidsAnimals` —
+      // and these two are priced as the design prices them, the eight above
+      // keeping what they always cost.
       KidsShopItem(
           id: 'monkey_avatar', // al-Baqarah 2:65, al-Aʿrāf 7:166
           emoji: '🐵',
@@ -485,6 +510,121 @@ List<KidsShopItem> kidsShopItems(BuildContext context) => [
           cost: 120,
           shelf: KidsShopShelf.looks,
           title: (c) => c.l10n.kidsShopSheepAvatar),
+      KidsShopItem(
+          id: 'goat_avatar', // al-Anʿām 6:143
+          emoji: '🐐',
+          cost: 60,
+          shelf: KidsShopShelf.looks,
+          title: (c) => c.l10n.kidsShopGoatAvatar),
+      KidsShopItem(
+          id: 'wolf_avatar', // Yūsuf 12:13–17
+          emoji: '🐺',
+          cost: 100,
+          shelf: KidsShopShelf.looks,
+          title: (c) => c.l10n.kidsShopWolfAvatar),
+      // ── things: object avatars ──
+      // The design's objects, at its prices — all but the Qurʼān stand, the
+      // mosque and the prayer mat, which ship as art but are not sold (a child
+      // "wearing" a sacred thing as an avatar is not for every family).
+      KidsShopItem(
+          id: 'shield_avatar',
+          emoji: 'avatar:shield',
+          cost: 60,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopShield),
+      KidsShopItem(
+          id: 'sword_avatar',
+          emoji: 'avatar:sword',
+          cost: 80,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopSword),
+      KidsShopItem(
+          id: 'helmet_avatar',
+          emoji: 'avatar:helmet',
+          cost: 100,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopHelmet),
+      KidsShopItem(
+          id: 'tasbeeh_avatar',
+          emoji: 'avatar:tasbeeh',
+          cost: 40,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopTasbeeh),
+      KidsShopItem(
+          id: 'topi_avatar',
+          emoji: 'avatar:topi',
+          cost: 40,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopTopi),
+      KidsShopItem(
+          id: 'dates_avatar',
+          emoji: 'avatar:dates',
+          cost: 30,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopDates),
+      KidsShopItem(
+          id: 'dallah_avatar',
+          emoji: 'avatar:dallah',
+          cost: 60,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopQahwa),
+      KidsShopItem(
+          id: 'tea_avatar',
+          emoji: 'avatar:tea',
+          cost: 30,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopChai),
+      KidsShopItem(
+          id: 'flask_avatar',
+          emoji: 'avatar:flask',
+          cost: 50,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopFlask),
+      KidsShopItem(
+          id: 'lantern_avatar',
+          emoji: 'avatar:lantern',
+          cost: 80,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopLantern),
+      KidsShopItem(
+          id: 'crescent_avatar',
+          emoji: 'avatar:crescent',
+          cost: 100,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopCrescent),
+      KidsShopItem(
+          id: 'palm_avatar',
+          emoji: 'avatar:palm',
+          cost: 40,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopPalmTree),
+      KidsShopItem(
+          id: 'miswak_avatar',
+          emoji: 'avatar:miswak',
+          cost: 30,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopMiswak),
+      KidsShopItem(
+          id: 'zamzam_avatar',
+          emoji: 'avatar:zamzam',
+          cost: 50,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopZamzam),
+      KidsShopItem(
+          id: 'attar_avatar',
+          emoji: 'avatar:attar',
+          cost: 60,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopAttar),
+      // The Ice Cube: never for sale — the reward for a streak freeze saving
+      // the streak (ProgressStore.iceCubeItem).
+      KidsShopItem(
+          id: 'icecube_avatar',
+          emoji: 'avatar:icecube',
+          cost: 0,
+          shelf: KidsShopShelf.things,
+          title: (c) => c.l10n.kidsShopIceCube,
+          rewardOnly: true),
       // ── looks: frames ──
       // Four frames that differ by TECHNIQUE, not just by colour: a plain ring,
       // a ring of beads, a soft halo, a sweeping two-tone ring. They were once
@@ -642,8 +782,19 @@ String? kidsAvatarUnlock(String itemId) => switch (itemId) {
       'whale_avatar' => '🐋',
       'monkey_avatar' => '🐵',
       'sheep_avatar' => '🐑',
+      'goat_avatar' => '🐐',
+      'wolf_avatar' => '🐺',
+      'icecube_avatar' => 'avatar:icecube',
+      final id when id.endsWith('_avatar') && _objectAvatars.contains(id.substring(0, id.length - 7)) =>
+        'avatar:${id.substring(0, id.length - 7)}',
       _ => null,
     };
+
+/// The object avatars the shop sells, by art id.
+const _objectAvatars = {
+  'shield', 'sword', 'helmet', 'tasbeeh', 'topi', 'dates', 'dallah', 'tea', //
+  'flask', 'lantern', 'crescent', 'palm', 'miswak', 'zamzam', 'attar',
+};
 
 /// Which of [profile]'s equip slots [item] would occupy, and whether it is
 /// currently worn there. Colours set `theme`; of the Looks items, a frame
@@ -685,9 +836,11 @@ void kidsEquipItem(KidsShopItem item, KidsProfile profile) {
 }
 
 /// Every emoji an avatar unlock can swap to.
-const kidsAvatarUnlockEmojis = {
+final kidsAvatarUnlockEmojis = {
   '🐪', '🐝', '🐘', '🐜', '🕷️', '🐎', '🐄', '🐋', //
-  '🐵', '🐑', //
+  '🐵', '🐑', '🐐', '🐺', //
+  'avatar:icecube',
+  for (final o in _objectAvatars) 'avatar:$o',
 };
 
 /// Takes [item] off [profile], back to what was there before: no frame, the
@@ -716,6 +869,44 @@ void kidsUnequipItem(KidsShopItem item, KidsProfile profile) {
     }
   }
 }
+
+/// Takes off whatever [profile] is wearing that is not really theirs — the
+/// themes, frames and avatar unlocks the testing unlock let them try on for
+/// free — back to what [kidsUnequipItem] would give. Run when that unlock is
+/// turned off, so no profile is left wearing something it never bought.
+/// [owned] is `ProgressStore.shopOwned`; [items] the shop.
+void kidsTakeOffUnowned(
+    KidsProfile profile, Set<String> owned, List<KidsShopItem> items) {
+  bool has(String id) =>
+      owned.contains(id) ||
+      owned.contains(kLegacyFrameIds[id]) ||
+      owned.any((o) => kLegacyFrameIds[o] == id);
+  for (final item in items) {
+    if (!has(item.id) && kidsItemEquipped(item, profile)) {
+      kidsUnequipItem(item, profile);
+    }
+  }
+  // A retired frame id is worn under its old name, which no shop item has.
+  if (profile.frame.isNotEmpty && !has(profile.frame)) profile.frame = '';
+  // A drawn animal that is never offered (only the testing unlock's picker
+  // shows it) — and the same check for the avatar a child falls back to, which
+  // a profile created under the unlock may hold. An emoji this does not
+  // recognise is left alone: it may be an avatar an older version offered.
+  bool wearable(String a) =>
+      !_heldEmojis.contains(a) &&
+      !(kidsAvatarUnlockEmojis.contains(a) &&
+          !items.any((i) => kidsAvatarUnlock(i.id) == a && has(i.id)));
+  if (!wearable(profile.baseAvatar)) profile.baseAvatar = kKidsDefaultAvatar;
+  if (!wearable(profile.avatar)) {
+    profile.avatar =
+        profile.baseAvatar.isEmpty ? kKidsDefaultAvatar : profile.baseAvatar;
+  }
+}
+
+final _heldEmojis = {
+  for (final a in kidsAnimals)
+    if (a.held) a.emoji,
+};
 
 /// One purchase that is spent rather than owned — a count on `ProgressStore`
 /// (`streakFreezes`), not a `shopOwned` membership, since buying another is

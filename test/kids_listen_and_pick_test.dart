@@ -290,10 +290,12 @@ void main() {
       prog.report('kids.letter.${l.char}', 3);
     }
     await tester.pump();
+    await kidsHomeToPractice(tester);
     expect(find.text('Listen & pick'), findsNothing, reason: 'nine is not ten');
 
     prog.report('kids.letter.${letters[9].char}', 3);
     await tester.pump();
+    await kidsHomeToPractice(tester);
     expect(find.text('Listen & pick'), findsOneWidget);
   });
 }

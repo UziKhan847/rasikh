@@ -18,7 +18,8 @@ import 'kb_ui.dart';
 /// without looking like one of the themes they could buy.
 const kbDefaultTheme = KbTheme(
   id: 'kids', name: 'Kids', bg: 0xFFF8F0, text: 0x3B2E22, accent: 0xEC6A4B, bright: 0xF2917A, deep: 0xD1502F, accent2: 0x1FA89B, reward: 0xF4B23E, dark: 0x231911,
-  orn: KbOrnament('sun', x: 0.76, y: 0.14, r: 0.1),
+  // Lit like every sun-and-hills theme (all but Night and Rain are).
+  lit: true, orn: KbOrnament('sun', x: 0.76, y: 0.14, r: 0.1),
   ridges: [KbRidge('hill', 0.6, 0.07, 1), KbRidge('hill', 0.77, 0.085, 0.75), KbRidge('hill', 0.92, 0.08, 0.55)],
   moteType: 'dust', moteCount: 14,
 );
@@ -47,7 +48,7 @@ KbMode kbModeFor(String kidsThemeMode) => switch (kidsThemeMode) {
 /// Which look the Detail dial asks for. Plain paints no scene at all (the flat
 /// background it always was); medium is the design's soft `original` scene with no
 /// moving layer; high is the `vivid` scene with motes.
-KbStyle kbStyleFor(KidsDetail d) => d == KidsDetail.high ? KbStyle.vivid : KbStyle.original;
+KbStyle kbStyleFor(KidsDetail d) => d == KidsDetail.high || d == KidsDetail.ultra ? KbStyle.vivid : KbStyle.original;
 
 /// The design tokens for whatever Kids Mode is showing right now.
 KbUi kbUiFor(AppSettings s) => KbUi(

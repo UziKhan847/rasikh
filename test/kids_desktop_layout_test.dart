@@ -143,9 +143,9 @@ void main() {
       (tester) async {
     useReducedMotion(tester);
     // Taller than a real desktop window on purpose: the Me tab carries a full
-    // three-way Detail dial now, which pushes "Switch profile" below 900px,
+    // four-way Detail dial now, which pushes "Switch profile" below 900px,
     // and this test is about what switching does — not about scrolling to it.
-    tester.view.physicalSize = const Size(1440, 1300);
+    tester.view.physicalSize = const Size(1440, 1500);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
@@ -170,5 +170,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(settings.activeKidsProfileId, 'p2');
+  });
+
+  testWidgets('in Arabic the trail fills from the right, where it starts', (
+    tester,
+  ) async {
+    useReducedMotion(tester);
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final settings = await _boot();
+    await tester.pumpWidget(_harness(settings, locale: 'ar'));
+    await tester.pumpAndSettle();
+    final line = find.byWidgetPredicate((w) =>
+        w is CustomPaint &&
+        w.painter.runtimeType.toString() == '_TrailLinePainter' &&
+        // ignore: avoid_dynamic_calls
+        (w.painter as dynamic).axis == Axis.horizontal);
+    expect(line, findsOneWidget);
+    // ignore: avoid_dynamic_calls
+    expect((tester.widget<CustomPaint>(line).painter as dynamic).direction,
+        TextDirection.rtl);
   });
 }

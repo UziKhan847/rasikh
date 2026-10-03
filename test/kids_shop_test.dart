@@ -10,6 +10,8 @@ import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/core/theme.dart';
 import 'package:qiraah_arabiyyah/data/kids_content.dart';
+import 'package:qiraah_arabiyyah/kids_backdrops/kb_screens.dart' show KbBleed;
+import 'package:qiraah_arabiyyah/kids_backdrops/kb_widgets.dart' show KbThemeShopTile;
 import 'package:qiraah_arabiyyah/screens/kids/kids_rewards_screen.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_shell.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_widgets.dart';
@@ -170,7 +172,7 @@ void main() {
     });
 
     test('every avatar unlock is listed in kidsAvatarUnlockEmojis', () {
-      const ids = [
+      final ids = [
         'camel_avatar',
         'bee_avatar',
         'elephant_avatar',
@@ -183,6 +185,17 @@ void main() {
         // animals that the Qurʼān also names (see `kidsAnimals`).
         'monkey_avatar',
         'sheep_avatar',
+        // Handoff v2.1: two more Qurʼānic animals, the objects, and the Ice
+        // Cube reward.
+        'goat_avatar',
+        'wolf_avatar',
+        'icecube_avatar',
+        for (final o in [
+          'shield', 'sword', 'helmet', 'tasbeeh', 'topi', 'dates', 'dallah', //
+          'tea', 'flask', 'lantern', 'crescent', 'palm', 'miswak', 'zamzam',
+          'attar',
+        ])
+          '${o}_avatar',
       ];
       expect({for (final id in ids) kidsAvatarUnlock(id)!}, kidsAvatarUnlockEmojis);
     });
@@ -631,13 +644,100 @@ void main() {
       // The badge wall is capped at three rows and spills sideways, so the
       // Shop stays reachable however many badges exist. Both scroll axes
       // have to work without throwing.
-      await tester.drag(find.byType(GridView), const Offset(-600, 0));
+      await tester.drag(find.byType(GridView).first, const Offset(-600, 0));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull,
           reason: 'the badge wall overflowed once scrolled');
       expect(find.text('Shop'), findsOneWidget,
           reason: 'the Shop heading should be on-screen with the badges, '
               'not buried below a dozen rows of them');
+
+      // The Themes shelf spills sideways the same way, and lays out every
+      // tile it builds without overflowing.
+      final themes = find.byType(GridView).last;
+      await tester.ensureVisible(themes);
+      await tester.pumpAndSettle();
+      await tester.drag(themes, const Offset(-600, 0));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull,
+          reason: 'the Themes shelf overflowed once scrolled');
+    });
+
+    testWidgets('the Themes shelf is three across, two tall, scrolls sideways '
+        'and builds its tiles lazily', (tester) async {
+      useReducedMotion(tester);
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues({});
+      final settings = AppSettings();
+      await settings.load();
+      settings.kidsMode = true;
+      settings.desktopMode = 'off';
+      settings.addKidsProfile(KidsProfile(id: 'p1', name: 'Sara'));
+      final prog = ProgressStore(profileId: 'p1');
+      await prog.load();
+      await tester.pumpWidget(SettingsScope(
+        settings: settings,
+        child: ProgressScope(
+          progress: prog,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+            home: const Scaffold(body: KidsRewardsScreen()),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      final shelf = find.byType(GridView).last;
+      await tester.ensureVisible(shelf);
+      await tester.pumpAndSettle();
+      expect(tester.widget<GridView>(shelf).scrollDirection, Axis.horizontal);
+
+      Finder tile(String family) => find.descendant(
+          of: shelf, matching: find.byKey(ValueKey('kidsThemeTile.$family')));
+      // Column-major: Classic and the first theme share a column; the second
+      // theme starts the next one, a tile's width along.
+      final classic = tester.getRect(tile('kids'));
+      final first = tester.getRect(tile('kids_ocean'));
+      final next = tester.getRect(tile('kids_desert'));
+      expect(first.left, classic.left);
+      expect(first.top, greaterThan(classic.top));
+      expect(next.left, greaterThan(classic.left));
+      expect(next.top, classic.top);
+      // Three across, whatever the screen. The shelf runs to the screen's
+      // edges; its tiles span that less the page's gutter either side, and
+      // three columns take three column steps less one gap.
+      final box = tester.getRect(shelf);
+      expect(box.width, 390, reason: 'the shelf runs edge to edge');
+      final across =
+          (box.width - 2 * KbBleed.gutter + 12) / (next.left - classic.left);
+      expect(across, moreOrLessEquals(3, epsilon: .02));
+      expect(classic.left - box.left, KbBleed.gutter,
+          reason: 'at rest it lines up with the page');
+      // The fade mask covers everything a tile paints — its ring above, its
+      // edge and shadow below. One that stopped at the tiles' box left what
+      // spilled past it drawn at full strength: a hard line where the fade
+      // should have ended.
+      final mask = tester.getRect(find
+          .ancestor(of: shelf, matching: find.byType(ShaderMask))
+          .first);
+      expect(classic.top - mask.top, greaterThanOrEqualTo(16));
+      expect(mask.bottom - first.bottom, greaterThanOrEqualTo(48));
+      expect(mask.width, 390);
+
+      // Lazy: a tile far along the shelf is not built until scrolled to.
+      final built = find
+          .descendant(of: shelf, matching: find.byType(KbThemeShopTile))
+          .evaluate()
+          .length;
+      expect(built, lessThan(13), reason: 'every tile was built up front');
+      expect(tile('kids_snowy'), findsNothing);
+      await tester.drag(shelf, const Offset(-2000, 0));
+      await tester.pumpAndSettle();
+      expect(tile('kids_snowy'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 
@@ -682,10 +782,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Your streak was saved!'), findsOneWidget);
+      // The first freeze to save the streak also earns the Ice Cube avatar.
+      expect(find.text('You unlocked the Ice Cube avatar!'), findsOneWidget);
 
       // And it goes away on its own after a few seconds, rather than
       // sitting there forever.
-      await tester.pump(const Duration(seconds: 5));
+      await tester.pump(const Duration(seconds: 7));
       expect(find.text('Your streak was saved!'), findsNothing);
     });
   });

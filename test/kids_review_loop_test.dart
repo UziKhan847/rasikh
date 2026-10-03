@@ -209,11 +209,9 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.scrollUntilVisible(
-      find.text('Warm-up'),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
+    await kidsHomeToPractice(tester);
+    await tester.ensureVisible(find.text('Warm-up'));
+    await tester.pump();
     await tester.tap(find.text('Warm-up'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));

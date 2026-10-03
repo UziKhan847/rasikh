@@ -57,7 +57,7 @@ void main() {
     // ensureVisible only knows about its own Scrollable, not the bottom nav
     // bar sitting outside it, so a cramped default test window can still
     // leave the "revealed" widget's tap point under that fixed chrome.
-    tester.view.physicalSize = const Size(360, 2000);
+    tester.view.physicalSize = const Size(360, 2300);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     final settings = await _boot();
@@ -90,7 +90,7 @@ void main() {
 
   testWidgets('following real progress again clears the pin', (tester) async {
     useReducedMotion(tester);
-    tester.view.physicalSize = const Size(360, 2000);
+    tester.view.physicalSize = const Size(360, 2300);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     final settings = await _boot();
@@ -105,6 +105,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Pinned to:'), findsOneWidget);
+    await tester.ensureVisible(find.textContaining('Pinned to:'));
+    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('Pinned to:'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Follow real progress'));

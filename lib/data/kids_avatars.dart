@@ -1,46 +1,57 @@
-/// The drawn animal faces that stand in for Kids Mode's emoji avatars.
+/// The drawn avatars — animals and a few objects — that stand in for Kids
+/// Mode's emoji avatars.
 ///
-/// A profile still stores an **emoji** in `KidsProfile.avatar` — that string is
-/// the avatar's identity everywhere: it is what the shop's avatar unlocks match
-/// by value (`kidsAvatarUnlock`), what `baseAvatar` remembers, and what every
-/// saved profile already holds. This catalogue only says which emoji have
-/// drawn art. Rendering swaps the emoji for the face
-/// (`KidsAvatarFace`), so no saved profile needs migrating, nothing a child
-/// bought moves, and an avatar with no art (the ant, the spider, the cow, the
-/// whale) simply keeps showing its emoji.
+/// A profile stores a **string** in `KidsProfile.avatar`, and that string is the
+/// avatar's identity everywhere: it is what the shop's avatar unlocks match by
+/// value (`kidsAvatarUnlock`), what `baseAvatar` remembers, and what every saved
+/// profile already holds. For an animal it is the animal's emoji; for anything
+/// with no fitting emoji of its own (the objects, the lion cub) it is
+/// `avatar:<id>` — never an emoji that already means something else in the app
+/// (🧊 is the Frozen theme and the streak freeze, 🌙 the Night theme…).
+/// Rendering swaps the string for the drawing (`KidsAvatarFace`), so no saved
+/// profile needs migrating and nothing a child bought moves.
 ///
-/// The art is the design handoff's: 17 front-facing faces on a 120×120 box,
-/// drawn so that every platform — including Linux, which has no colour emoji
-/// font — renders them the same. They live in `assets/avatars/`, with the
-/// design's C2PA provenance metadata stripped (179 KB down to 50 KB).
+/// The art is the design handoff's: 50 drawings, so that every platform —
+/// including Linux, which has no colour emoji font — renders them the same.
+/// They ship as PNGs at 1x/2x/3x in `assets/avatars/`, because their soft
+/// shadows are SVG blur filters that `flutter_svg` cannot draw; the design's
+/// C2PA provenance chunks are stripped (the pixels are untouched).
 class KidsAnimal {
-  /// The asset's file name, `assets/avatars/<id>.svg`.
+  /// The asset's file name, `assets/avatars/<id>.png`.
   final String id;
 
-  /// The emoji a profile stores when it wears this animal.
+  /// The value a profile stores when it wears this: an emoji, or
+  /// `avatar:<id>` (see the class doc).
   final String emoji;
 
   /// Art that ships but is **not offered**: no picker tile and no shop item, so
-  /// no child can wear it. The shop's avatar shelf is animals the Qurʼān names
-  /// (see `kidsShopItems`), and these four are not — but selling an avatar is
-  /// irreversible (a child spends gems and owns it), so the decision to offer
-  /// one is made deliberately, in one line of `kidsShopItems`, not by default.
+  /// no child can wear it (only the testing unlock's picker shows it). Selling
+  /// an avatar is irreversible — a child spends gems and owns it — so the
+  /// decision to offer one is made deliberately, in `kidsShopItems`, not by
+  /// default.
   final bool held;
-  const KidsAnimal(this.id, this.emoji, {this.held = false});
 
-  String get asset => 'assets/avatars/$id.svg';
+  /// Other values a profile may hold that draw this — the retired shop
+  /// racehorse 🐎 draws the horse.
+  final List<String> also;
+  const KidsAnimal(this.id, this.emoji, {this.held = false, this.also = const []});
+
+  String get asset => 'assets/avatars/$id.png';
 }
 
-/// Every animal with drawn art. Order is the design's: the nine it makes free,
-/// then the eight it sells.
+/// Every drawn avatar. Order is the design's: animals (the free ones first),
+/// then objects.
 ///
-/// **Who owns what is not decided here.** The design prices camel and horse
-/// free and elephant at 120; this app already sells camel (60), horse (90) and
-/// elephant (80) as shop unlocks, and nothing a child has bought becomes free
-/// or changes price — the design's art is adopted, its price list is not. The
-/// picker's free choices stay the eight it always offered. Of the six the
-/// design adds, monkey and sheep are sold (the Qurʼān names both); cat, bunny,
-/// penguin and owl are [KidsAnimal.held].
+/// **Who owns what is not decided here.** The design's art is adopted, its
+/// price list is not: nothing a child has bought becomes free or changes price.
+/// The free picker is the eight it always offered plus the three the design
+/// adds as free (grizzly, kangaroo, lion cub). Animals are sold only when the
+/// Qurʼān names them (goat and wolf join camel, bee, ant, spider, cow, whale,
+/// monkey, sheep); cat, bunny, penguin, owl, hippo, crocodile, rhino, shark and
+/// buffalo are [KidsAnimal.held]. The objects are sold — except the Qurʼān
+/// stand, the mosque and the prayer mat, held because a child "wearing" a
+/// sacred thing as an avatar is not something every family will want. The Ice
+/// Cube is never sold: it is the reward for a streak freeze saving the streak.
 const kidsAnimals = <KidsAnimal>[
   KidsAnimal('fox', '🦊'),
   KidsAnimal('panda', '🐼'),
@@ -48,10 +59,15 @@ const kidsAnimals = <KidsAnimal>[
   KidsAnimal('lion', '🦁'),
   KidsAnimal('koala', '🐨'),
   KidsAnimal('frog', '🐸'),
-  KidsAnimal('horse', '🐴'),
+  KidsAnimal('horse', '🐴', also: ['🐎']),
   KidsAnimal('dolphin', '🐬'),
   KidsAnimal('camel', '🐪'),
+  KidsAnimal('cow', '🐄'),
+  KidsAnimal('bear', '🐻'),
+  KidsAnimal('kangaroo', '🦘'),
+  KidsAnimal('lioncub', 'avatar:lioncub'),
   KidsAnimal('bee', '🐝'),
+  KidsAnimal('ant', '🐜'),
   KidsAnimal('cat', '🐱', held: true),
   KidsAnimal('bunny', '🐰', held: true),
   KidsAnimal('penguin', '🐧', held: true),
@@ -59,17 +75,49 @@ const kidsAnimals = <KidsAnimal>[
   KidsAnimal('monkey', '🐵'),
   KidsAnimal('elephant', '🐘'),
   KidsAnimal('sheep', '🐑'),
+  KidsAnimal('spider', '🕷️'),
+  KidsAnimal('hippo', '🦛', held: true),
+  KidsAnimal('crocodile', '🐊', held: true),
+  KidsAnimal('rhino', '🦏', held: true),
+  KidsAnimal('shark', '🦈', held: true),
+  KidsAnimal('goat', '🐐'),
+  KidsAnimal('buffalo', '🐃', held: true),
+  KidsAnimal('whale', '🐋'),
+  KidsAnimal('wolf', '🐺'),
+  // objects
+  KidsAnimal('shield', 'avatar:shield'),
+  KidsAnimal('sword', 'avatar:sword'),
+  KidsAnimal('helmet', 'avatar:helmet'),
+  KidsAnimal('tasbeeh', 'avatar:tasbeeh'),
+  KidsAnimal('prayermat', 'avatar:prayermat', held: true),
+  KidsAnimal('topi', 'avatar:topi'),
+  KidsAnimal('dates', 'avatar:dates'),
+  KidsAnimal('dallah', 'avatar:dallah'),
+  KidsAnimal('tea', 'avatar:tea'),
+  KidsAnimal('flask', 'avatar:flask'),
+  KidsAnimal('lantern', 'avatar:lantern'),
+  KidsAnimal('crescent', 'avatar:crescent'),
+  KidsAnimal('palm', 'avatar:palm'),
+  KidsAnimal('mosque', 'avatar:mosque', held: true),
+  KidsAnimal('quran', 'avatar:quran', held: true),
+  KidsAnimal('miswak', 'avatar:miswak'),
+  KidsAnimal('zamzam', 'avatar:zamzam'),
+  KidsAnimal('attar', 'avatar:attar'),
+  KidsAnimal('icecube', 'avatar:icecube'),
 ];
 
-/// The drawn animal for [avatar], or null when it has none and should keep
-/// showing as an emoji.
+/// Whether [avatar] names drawn art by id (`avatar:<id>`) rather than an emoji.
+bool kidsIsArtKey(String avatar) => avatar.startsWith('avatar:');
+
+/// The drawing for [avatar], or null when it has none and should keep showing
+/// as an emoji.
 ///
-/// Matched by exact emoji, on purpose. The shop's 🐎 is a *different emoji*
-/// from the picker's free 🐴, and it stays an emoji: giving it the horse's art
-/// would let a child spend 90 gems on an avatar identical to the free one.
+/// Matched by exact value. The shop's 🐎 was once a separate, paid horse; it is
+/// no longer sold (the horse is a free choice), so those who own it simply get
+/// the drawn horse too.
 KidsAnimal? kidsAnimalFor(String avatar) {
   for (final a in kidsAnimals) {
-    if (a.emoji == avatar) return a;
+    if (a.emoji == avatar || a.also.contains(avatar)) return a;
   }
   return null;
 }

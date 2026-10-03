@@ -1,8 +1,8 @@
 // Drop-in widgets. Sizes/radii/shadows copied from the HTML template.
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'kb_components.dart' show KbIcon, kbFontQuran, kbFontUi, kbText;
+import 'kb_raster.dart';
 import 'kb_scene.dart';
 import 'kb_themes.dart';
 import 'kb_ui.dart';
@@ -19,7 +19,10 @@ class KbBackdrop extends StatefulWidget {
   final KbStyle style;
   final bool motion;
   final Widget? child;
-  const KbBackdrop({super.key, required this.theme, required this.mode, this.style = KbStyle.vivid, this.motion = true, this.child});
+  // APP ADAPTATION: the tab backdrop's bloom and saturation, so a lesson looks like
+  // its tab. Baked into the scene image (no per-frame cost); vivid only.
+  final double bloom, saturation;
+  const KbBackdrop({super.key, required this.theme, required this.mode, this.style = KbStyle.vivid, this.motion = true, this.bloom = 0, this.saturation = 1, this.child});
   @override
   State<KbBackdrop> createState() => _KbBackdropState();
 }
@@ -56,9 +59,38 @@ class _KbBackdropState extends State<KbBackdrop> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final reduce = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    // APP ADAPTATION: the scene keeps the height it has without the keyboard (see
+    // KbParallaxBackdrop) — otherwise it is re-drawn every frame the keyboard slides.
+    final inset = MediaQuery.viewInsetsOf(context).bottom;
+    final screenH = MediaQuery.sizeOf(context).height;
+    final vivid = widget.style == KbStyle.vivid;
+    final bloom = vivid ? widget.bloom : 0.0, sat = vivid ? widget.saturation : 1.0;
     return Stack(fit: StackFit.expand, children: [
-      RepaintBoundary(child: CustomPaint(painter: KbScenePainter(widget.theme, widget.mode, widget.style))),
-      if (!reduce) RepaintBoundary(child: CustomPaint(painter: KbMotesPainter(widget.theme, widget.mode, widget.style, _t))),
+      // APP ADAPTATION: the static scene as an image drawn once (kb_raster.dart) — its
+      // blurs are then never re-run per frame while the motes move over it.
+      LayoutBuilder(builder: (context, c) {
+        final h = inset > 0 && c.maxHeight + inset <= screenH + .5 ? c.maxHeight + inset : c.maxHeight;
+        return OverflowBox(
+          alignment: Alignment.topCenter,
+          maxHeight: h,
+          minHeight: h,
+          child: RepaintBoundary(
+            child: KbRaster(
+              size: Size(c.maxWidth, h),
+              cacheKey: (widget.theme.id, widget.mode, widget.style, bloom),
+              colorFilter: sat == 1 ? null : ColorFilter.matrix(kbSaturation(sat)),
+              paint: (c, size) {
+                final p = kbPaintScene(c, size, widget.theme, widget.mode, widget.style);
+                // Bloom screens over the finished scene, as on the tabs.
+                if (bloom > 0 && kbHasBloom(widget.theme, p)) {
+                  kbPaintBloom(c, size, widget.theme, size.width, size.height, bloom);
+                }
+              },
+            ),
+          ),
+        );
+      }),
+      if (!reduce) RepaintBoundary(child: CustomPaint(painter: KbMotesPainter(widget.theme, widget.mode, widget.style, _t, saturation: sat))),
       if (widget.child != null) widget.child!,
     ]);
   }
@@ -76,7 +108,11 @@ class KbThemeIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final icon = ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child: AspectRatio(aspectRatio: 1, child: RepaintBoundary(child: CustomPaint(painter: KbScenePainter(theme, mode, style)))),
+      // APP ADAPTATION: drawn once into an image (kb_raster.dart), like the backdrop.
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: RepaintBoundary(child: KbRaster(cacheKey: (theme.id, mode, style), paint: (c, size) => kbPaintScene(c, size, theme, mode, style))),
+      ),
     );
     return size == null ? icon : SizedBox.square(dimension: size, child: icon);
   }
@@ -156,7 +192,7 @@ class KbAvatar extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: size, height: size, alignment: Alignment.center,
         decoration: BoxDecoration(color: background, shape: BoxShape.circle),
-        child: face != null ? face!(size * .82) : SvgPicture.asset(avatar!.asset, width: size * .82, height: size * .82, semanticsLabel: avatar!.name),
+        child: face != null ? face!(size * .82) : Image.asset(avatar!.asset, width: size * .82, height: size * .82, semanticLabel: avatar!.name),
       );
 }
 

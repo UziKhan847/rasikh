@@ -64,6 +64,15 @@ void main() {
           p.theme = theme == 'kids' ? 'kids' : 'kids_$theme';
         }
         settings.activeKidsProfileId = screen == 'who' ? null : 'p1';
+        // The equipped theme is one the child bought — recorded before the
+        // shell loads, which takes off anything a profile does not own.
+        if (theme != 'kids') {
+          for (final id in ['p1', 'p2']) {
+            final store = ProgressStore(profileId: id);
+            await store.load();
+            store.buyShopItem('kids_$theme', 0);
+          }
+        }
       }
 
       final key = GlobalKey();

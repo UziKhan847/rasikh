@@ -48,7 +48,7 @@ const kLegacyFrameIds = {
 ///    layer at all**. This is the setting a slower phone picks, so it must
 ///    cost nothing per frame.
 ///  * [high] — the vivid scene, with drifting motes.
-enum KidsDetail { plain, medium, high }
+enum KidsDetail { plain, medium, high, ultra }
 
 class KidsProfile {
   final String id;
@@ -170,6 +170,11 @@ class AppSettings extends ChangeNotifier {
   /// Replaces a `bool kidsHighDetail`, which is why [load] still reads that
   /// key: an install that turned detail off must not get it switched back on.
   KidsDetail kidsDetail = KidsDetail.high;
+
+  /// How much the tab pages lean with the phone on [KidsDetail.ultra]: 0 off,
+  /// 1 subtle (default), 1.6 strong. Moving UI is a comfort matter, so it is a
+  /// choice of its own, shown only while Ultra is on.
+  double kidsUiTilt = 1.0;
 
   /// Whether cards get the raised gradient look — every level but plain.
   /// (Medium and high differ only in the backdrop and its motion.)
@@ -342,6 +347,7 @@ class AppSettings extends ChangeNotifier {
     kidsThemeMode = m['kidsThemeMode'] ?? 'light';
     kidsTextScale = ((m['kidsTextScale'] ?? 1.0) as num).toDouble().clamp(0.8, 1.2);
     kidsDetail = _loadKidsDetail(m);
+    kidsUiTilt = ((m['kidsUiTilt'] ?? 1.0) as num).toDouble().clamp(0.0, 1.6);
     kidsSessionMinutes = (m['kidsSessionMinutes'] as num?)?.toInt() ?? 0;
     kidsProfiles = ((m['kidsProfiles'] as List?) ?? const [])
         .map((e) => KidsProfile.fromJson(Map<String, dynamic>.from(e as Map)))
@@ -392,6 +398,7 @@ class AppSettings extends ChangeNotifier {
         'kidsThemeMode': kidsThemeMode,
         'kidsTextScale': kidsTextScale,
         'kidsDetail': kidsDetail.name,
+        'kidsUiTilt': kidsUiTilt,
         'kidsSessionMinutes': kidsSessionMinutes,
         'kidsProfiles': [for (final p in kidsProfiles) p.toJson()],
         'activeKidsProfileId': activeKidsProfileId,
@@ -578,6 +585,8 @@ class ProgressStore extends ChangeNotifier {
   /// balance is short. There is no path that adds gems except being earned,
   /// so this can never be a real-money purchase.
   bool buyShopItem(String id, int cost) {
+    // The Ice Cube is earned, never bought.
+    if (id == iceCubeItem) return false;
     if (shopOwned.contains(id) || gems < cost) return false;
     gems -= cost;
     shopOwned.add(id);
@@ -733,6 +742,25 @@ class ProgressStore extends ChangeNotifier {
   /// to the next rebuild, not across app restarts.
   bool justUsedFreeze = false;
 
+  /// The Ice Cube avatar's shop id: never sold, granted the first time a
+  /// streak freeze saves the streak (see [_spendFreeze]).
+  static const iceCubeItem = 'icecube_avatar';
+
+  /// Set alongside [justUsedFreeze] when that freeze was the one that earned
+  /// the Ice Cube, so Home can say so. Not persisted, like [justUsedFreeze].
+  bool justUnlockedIceCube = false;
+
+  /// Spends one freeze on a missed day — and, the first time, rewards it with
+  /// the Ice Cube avatar.
+  void _spendFreeze() {
+    streakFreezes--;
+    justUsedFreeze = true;
+    if (shopOwned.add(iceCubeItem)) {
+      justUnlockedIceCube = true;
+      _saveXp(); // persists shopOwned
+    }
+  }
+
   /// Test seam for setting the last-active day without waiting on the real
   /// clock — [_lastDay] is otherwise only ever reached through real activity
   /// or a `load()` round-trip. Mirrors [dayIndexFor]'s own
@@ -776,8 +804,7 @@ class ProgressStore extends ChangeNotifier {
     } else if (_lastDay >= 0 && t - _lastDay == 2 && streakFreezes > 0) {
       // Exactly one day skipped, and a freeze is in hand: the streak
       // continues as if that day had happened.
-      streakFreezes--;
-      justUsedFreeze = true;
+      _spendFreeze();
       streakDays++;
     } else {
       streakDays = 1;
@@ -803,8 +830,7 @@ class ProgressStore extends ChangeNotifier {
   void refreshStreak() {
     final t = _today();
     if (_lastDay >= 0 && t - _lastDay == 2 && streakFreezes > 0) {
-      streakFreezes--;
-      justUsedFreeze = true;
+      _spendFreeze();
       _lastDay = t - 1; // the frozen day now reads as if it had activity
       _saveStreak();
     } else if (_lastDay >= 0 && t - _lastDay > 1) {
@@ -818,14 +844,17 @@ class ProgressStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Clears [justUsedFreeze] (and [justUnlockedIceCube]) once the Home screen
+  /// has shown its one-time "streak saved" banner. Deliberately does not
+  /// notify — nothing else needs to react to this being acknowledged.
+  void acknowledgeFreezeUsed() {
+    justUsedFreeze = false;
+    justUnlockedIceCube = false;
+  }
+
   /// Spends [cost] gems on one streak freeze. Unlike [buyShopItem] there is
   /// no ownership set to check — freezes are consumed, so buying another one
   /// is always allowed once the balance covers it.
-  /// Clears [justUsedFreeze] once the Home screen has shown its one-time
-  /// "streak saved" banner. Deliberately does not notify — nothing else
-  /// needs to react to this being acknowledged.
-  void acknowledgeFreezeUsed() => justUsedFreeze = false;
-
   bool buyStreakFreeze(int cost) {
     if (gems < cost) return false;
     gems -= cost;
@@ -1063,6 +1092,10 @@ class ProgressScope extends InheritedNotifier<ProgressStore> {
       : super(notifier: progress);
   static ProgressStore of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<ProgressScope>()!.notifier!;
+
+  /// The store, or null where there is none yet (first-run profile creation).
+  static ProgressStore? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ProgressScope>()?.notifier;
 }
 
 /// One-file backup of everything the learner has earned (settings, stars,

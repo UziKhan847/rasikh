@@ -8,6 +8,7 @@ import 'package:qiraah_arabiyyah/screens/kids/kids_shell.dart';
 
 import 'package:qiraah_arabiyyah/kids_backdrops/kb_components.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_alphabet_screen.dart';
+import 'package:qiraah_arabiyyah/screens/kids/kids_home_screen.dart';
 
 import 'kids_test_support.dart';
 
@@ -136,130 +137,116 @@ void main() {
         findsOneWidget);
   });
 
-  testWidgets('the Home trail keeps cleared letters reachable', (tester) async {
+  /// The mobile trail is the whole stage, inline: ONE scroll on Home, the
+  /// page's own. It used to scroll inside a window of its own, which made two
+  /// scrolls fight over one gesture (the trail's won until it ran out) and cut
+  /// the last node's edge off at the window's foot. Its rows are built lazily:
+  /// only those near the screen exist.
+  testWidgets('the Home trail is the whole stage, in the page\'s one scroll', (
+    tester,
+  ) async {
     useReducedMotion(tester);
-    // Taller than a real phone on purpose: this test is about the trail's
-    // OWN internal scroll, and a real-height window would need the Home
-    // list to scroll first to bring the trail into view (the gentle-stop
-    // banner alone can push it there once the daily goal is met) — nesting
-    // that scroll under the trail's is a real interaction, but a different
-    // one than this test means to exercise.
-    tester.view.physicalSize = const Size(360, 1400);
+    tester.view.physicalSize = const Size(360, 760);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
     final settings = await _boot();
     final progress = ProgressStore(profileId: 'p1');
     await progress.load();
-    for (final char in ['ا', 'ب', 'ت', 'ث', 'ج']) {
+    for (final char in ['ا', 'ب', 'ت', 'ث']) {
       progress.report('kids.letter.$char', 3);
     }
-    await tester.pumpWidget(SettingsScope(
-      settings: settings,
-      child: ProgressScope(
-        progress: progress,
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          locale: const Locale('en'),
-          home: const KidsShell(),
-        ),
-      ),
-    ));
+    await tester.pumpWidget(_harnessWith(settings, progress));
     await tester.pumpAndSettle();
 
-    // The trail used to be a fixed six-node slice with no way to move it, so
-    // by the sixth letter alif had left the Home screen for good. It holds
-    // the whole stage now and scrolls within itself.
-    final alif = find.byKey(const ValueKey('kids.trail.kids.letter.ا'));
-    final current = find.byKey(const ValueKey('kids.trail.kids.letter.ح'));
-    expect(alif, findsOneWidget);
-    expect(current, findsOneWidget);
+    final home = find.byType(KidsHomeScreen);
+    final scrolls = find.descendant(
+        of: home,
+        matching: find.byWidgetPredicate((w) =>
+            w is Scrollable &&
+            axisDirectionToAxis(w.axisDirection) == Axis.vertical));
+    expect(scrolls, findsOneWidget, reason: 'one scroll: the page\'s');
 
-    // It opens on where the child is, not at the very top...
-    final trail = find.byKey(const ValueKey('kids.trail'));
-    final trailTop = tester.getTopLeft(trail).dy;
-    expect(tester.getBottomLeft(alif).dy, lessThan(trailTop),
-        reason: 'the trail should open near the current letter, not at ا');
+    // Home opens with the node the child is on in view, above the nav bar.
+    final current = find.byWidgetPredicate(
+        (w) => w is KbPathNode && w.state == KbNodeState.current);
+    final navTop = tester.getTopLeft(find.byType(KbNavBar)).dy;
+    expect(tester.getRect(current).top, greaterThanOrEqualTo(0));
+    expect(tester.getRect(current).bottom, lessThanOrEqualTo(navTop));
 
-    // ...and dragging inside it scrolls the trail itself back to the start,
-    // rather than the Home list underneath it.
-    await tester.drag(trail, const Offset(0, 500));
+    // Lazy: the stage's last node is not built until it is near the screen...
+    final last = find.byKey(const ValueKey('kids.trail.kids.letter.ي'));
+    expect(last, findsNothing);
+    // ...and one drag moves the trail with the page, to it.
+    final before = tester.getTopLeft(current).dy;
+    await tester.dragFrom(tester.getCenter(current), const Offset(0, -300));
     await tester.pumpAndSettle();
-    expect(tester.getTopLeft(trail).dy, trailTop,
-        reason: 'the drag scrolled the Home list instead of the trail');
-    expect(tester.getTopLeft(alif).dy, greaterThanOrEqualTo(trailTop));
+    expect(tester.getTopLeft(current).dy, lessThan(before));
+    final page = tester.state<ScrollableState>(scrolls).position;
+    page.jumpTo(page.maxScrollExtent);
+    await tester.pumpAndSettle();
+    expect(last, findsOneWidget);
   });
 
-  testWidgets(
-      'the trail never fades an edge with nothing hidden beyond it',
-      (tester) async {
+  testWidgets('a child at the start of a stage finds Home at the top', (
+    tester,
+  ) async {
     useReducedMotion(tester);
-    // Taller than a real phone on purpose — see the same note in "the Home
-    // trail keeps cleared letters reachable": this test is about the
-    // trail's own scroll and fades, not about the Home list's scroll
-    // nesting under it.
     tester.view.physicalSize = const Size(360, 1400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
+    final settings = await _boot();
+    await tester.pumpWidget(_harness(settings));
+    await tester.pumpAndSettle();
+    // The first node is already in view, so nothing moves the page for it.
+    final page = find
+        .ancestor(
+            of: find.byKey(const ValueKey('kids.trail.kids.letter.ا')),
+            matching: find.byType(Scrollable))
+        .first;
+    expect(_positionOf(tester, page).pixels, 0);
+  });
+
+  testWidgets('the line down the trail is filled up to the current node', (
+    tester,
+  ) async {
+    useReducedMotion(tester);
+    tester.view.physicalSize = const Size(360, 3600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final line = find.byWidgetPredicate((w) =>
+        w is CustomPaint &&
+        w.painter.runtimeType.toString() == '_ScrollingTrailLine');
+    double fill() =>
+        ((tester.widget<CustomPaint>(line).painter as dynamic).fill as num)
+            .toDouble();
 
     final settings = await _boot();
     final progress = ProgressStore(profileId: 'p1');
     await progress.load();
-    for (final char in ['ا', 'ب', 'ت', 'ث', 'ج']) {
-      progress.report('kids.letter.$char', 3);
-    }
-    await tester.pumpWidget(SettingsScope(
-      settings: settings,
-      child: ProgressScope(
-        progress: progress,
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          locale: const Locale('en'),
-          home: const KidsShell(),
-        ),
-      ),
-    ));
+    await tester.pumpWidget(_harnessWith(settings, progress));
     await tester.pumpAndSettle();
+    expect(fill(), 0, reason: 'nothing cleared yet, nothing filled');
 
-    // Opened mid-stage (current is the checkpoint after five letters, well
-    // short of either end of a 33-node stage): both fades wash an edge that
-    // really does hide more content, so both are there.
-    final trail = find.byKey(const ValueKey('kids.trail'));
-    expect(find.byKey(const ValueKey('kids.trail.fadeTop')), findsOneWidget);
-    expect(
-        find.byKey(const ValueKey('kids.trail.fadeBottom')), findsOneWidget);
-
-    // Drag well past the stage's real content height — the fix under test:
-    // once there is truly nothing left below, the bottom fade must be gone,
-    // not just faintly still claiming there is.
-    for (var i = 0; i < 20; i++) {
-      await tester.drag(trail, const Offset(0, -400));
-      await tester.pump();
+    // The shell loads the profile's own store, so seed before mounting.
+    await tester.pumpWidget(const SizedBox());
+    final settings2 = await _boot();
+    final progress2 = ProgressStore(profileId: 'p1');
+    await progress2.load();
+    for (final char in ['ا', 'ب', 'ت']) {
+      progress2.report('kids.letter.$char', 3);
     }
+    await tester.pumpWidget(_harnessWith(settings2, progress2));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('kids.trail.fadeBottom')), findsNothing,
-        reason: 'ي is the stage\'s real last node — nothing is hidden below '
-            'it, so nothing should look like it is');
-    // The true last node is fully on screen, not clipped by a fade that
-    // shouldn't be there.
-    expect(find.byKey(const ValueKey('kids.trail.kids.letter.ي')),
-        findsOneWidget);
-    // Scrolled well away from the top, so that edge still honestly hides
-    // everything before the checkpoint.
-    expect(find.byKey(const ValueKey('kids.trail.fadeTop')), findsOneWidget);
-
-    // And back at the top, the same holds in the other direction.
-    for (var i = 0; i < 20; i++) {
-      await tester.drag(trail, const Offset(0, 400));
-      await tester.pump();
-    }
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('kids.trail.fadeTop')), findsNothing,
-        reason: 'ا is the stage\'s real first node — nothing precedes it');
-    expect(find.byKey(const ValueKey('kids.trail.kids.letter.ا')),
-        findsOneWidget);
+    // Filled to the current node's centre, measured from the line's top: 30
+    // px into the first row, which ends at the first node's foot.
+    final current = find.byWidgetPredicate(
+        (w) => w is KbPathNode && w.state == KbNodeState.current);
+    final first = find.byKey(const ValueKey('kids.trail.kids.letter.ا'));
+    final lineTop = tester.getRect(first).bottom - 74 + 30;
+    final circleCentre = tester.getRect(current).bottom - 42;
+    expect(fill(), moreOrLessEquals(circleCentre - lineTop, epsilon: 2));
   });
 
   testWidgets('finishing a letter while Home is mounted does not throw',
@@ -314,113 +301,24 @@ void main() {
     expect(find.byType(KidsBlockScreen), findsNothing);
   });
 
-  /// The trail is a scrollable inside Home's own scrollable. Reaching the end
-  /// of the inner one used to end the gesture outright: the child had to lift
-  /// off and start again in the page margin to get to the practice tiles.
-  /// These two pin the chaining that fixes it, at a REAL phone height (the two
-  /// tests above deliberately use a taller-than-real window to isolate the
-  /// trail; this one needs the outer list to genuinely have somewhere to go).
-  testWidgets('a drag that exhausts the trail carries on into the Home page', (
+  testWidgets('the current node fits at the largest system and kids text size', (
     tester,
   ) async {
     useReducedMotion(tester);
     tester.view.physicalSize = const Size(360, 760);
     tester.view.devicePixelRatio = 1.0;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.2;
     addTearDown(tester.view.reset);
-
-    final settings = await _boot();
-    final progress = ProgressStore(profileId: 'p1');
-    await progress.load();
-    // Four, not five: five meets kidsDailyGoal and adds the gentle-stop
-    // banner, which changes how far down the page the trail starts.
-    for (final char in ['ا', 'ب', 'ت', 'ث']) {
-      progress.report('kids.letter.$char', 3);
-    }
-    await tester.pumpWidget(_harnessWith(settings, progress));
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final settings = await _boot(arabicScale: 1.2);
+    await tester.pumpWidget(_harness(settings));
     await tester.pumpAndSettle();
-
-    final trail = find.byKey(const ValueKey('kids.trail'));
-    final inner = _positionOf(
-      tester,
-      find.descendant(of: trail, matching: find.byType(Scrollable)).first,
-    );
-    final outer = _positionOf(
-      tester,
-      find.ancestor(of: trail, matching: find.byType(Scrollable)).first,
-    );
-    expect(inner.maxScrollExtent, greaterThan(0),
-        reason: 'the stage must be longer than the trail window');
-    expect(outer.maxScrollExtent, greaterThan(0),
-        reason: 'Home must be longer than one screen for chaining to show');
-
-    // Park the trail at its top, and Home where the trail is fully in view.
-    inner.jumpTo(0);
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(trail);
-    await tester.pumpAndSettle();
-    final outerBefore = outer.pixels;
-
-    // One gesture, begun inside the trail, asking for far more than the trail
-    // has left to give.
-    await tester.dragFrom(
-      _grabPoint(tester, trail),
-      Offset(0, -(inner.maxScrollExtent + 300)),
-    );
-    await tester.pumpAndSettle();
-
-    expect(inner.pixels, moreOrLessEquals(inner.maxScrollExtent, epsilon: 1));
-    expect(outer.pixels, greaterThan(outerBefore),
-        reason: 'the leftover drag should have scrolled the Home page');
-  });
-
-  testWidgets('chaining works upward too, from the top of the trail', (
-    tester,
-  ) async {
-    useReducedMotion(tester);
-    tester.view.physicalSize = const Size(360, 760);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
-    final settings = await _boot();
-    final progress = ProgressStore(profileId: 'p1');
-    await progress.load();
-    for (final char in ['ا', 'ب', 'ت', 'ث']) {
-      progress.report('kids.letter.$char', 3);
-    }
-    await tester.pumpWidget(_harnessWith(settings, progress));
-    await tester.pumpAndSettle();
-
-    final trail = find.byKey(const ValueKey('kids.trail'));
-    final inner = _positionOf(
-      tester,
-      find.descendant(of: trail, matching: find.byType(Scrollable)).first,
-    );
-    final outer = _positionOf(
-      tester,
-      find.ancestor(of: trail, matching: find.byType(Scrollable)).first,
-    );
-
-    // Home scrolled down far enough to bring the trail into view, trail
-    // already parked at its own top: a downward drag inside the trail has
-    // nothing left to give there, so it must move the page back up rather
-    // than doing nothing.
-    await tester.ensureVisible(trail);
-    await tester.pumpAndSettle();
-    inner.jumpTo(0);
-    await tester.pumpAndSettle();
-    final outerBefore = outer.pixels;
-    expect(outerBefore, greaterThan(0),
-        reason: 'the trail must sit below the fold for this to mean anything');
-
-    await tester.dragFrom(_grabPoint(tester, trail), const Offset(0, 220));
-    await tester.pumpAndSettle();
-
-    expect(inner.pixels, 0);
-    expect(outer.pixels, lessThan(outerBefore));
+    expect(tester.takeException(), isNull,
+        reason: 'the Start tag pushed the current node out of its row');
   });
 }
 
-/// The [_harness] above builds its own ProgressStore; the chaining tests need
+/// The [_harness] above builds its own ProgressStore; the trail tests need
 /// to seed one first.
 Widget _harnessWith(AppSettings settings, ProgressStore progress) =>
     SettingsScope(
@@ -438,14 +336,3 @@ Widget _harnessWith(AppSettings settings, ProgressStore progress) =>
 
 ScrollPosition _positionOf(WidgetTester tester, Finder scrollable) =>
     tester.state<ScrollableState>(scrollable).position;
-
-/// A point guaranteed to be both inside [finder] and on screen. `getCenter`
-/// is not: the trail is 410px of a 760px window, so once the Home list has
-/// scrolled at all, part of it — sometimes its centre — is off the top or
-/// bottom edge, and a drag started there lands on nothing.
-Offset _grabPoint(WidgetTester tester, Finder finder) {
-  final screen = Offset.zero & tester.view.physicalSize / tester.view.devicePixelRatio;
-  final visible = tester.getRect(finder).intersect(screen);
-  expect(visible.height, greaterThan(20), reason: 'nothing of it is on screen');
-  return visible.center;
-}

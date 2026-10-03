@@ -330,9 +330,11 @@ void main() {
       prog.report('kids.letter.${l.char}', 3);
     }
     await tester.pump();
+    await kidsHomeToPractice(tester);
     expect(find.text('Mouth map'), findsNothing, reason: 'five is not six');
     prog.report('kids.letter.${letters[5].char}', 3);
     await tester.pump();
+    await kidsHomeToPractice(tester);
     expect(find.text('Mouth map'), findsOneWidget);
   });
 

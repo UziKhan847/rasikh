@@ -273,9 +273,11 @@ void main() {
       prog.report('kids.letter.${l.char}', 3);
     }
     await tester.pump();
+    await kidsHomeToPractice(tester);
     expect(find.text('Build the word'), findsNothing, reason: '19 is not 20');
     prog.report('kids.letter.${letters[19].char}', 3);
     await tester.pump();
+    await kidsHomeToPractice(tester);
     expect(find.text('Build the word'), findsOneWidget);
   });
 }

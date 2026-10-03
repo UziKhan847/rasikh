@@ -18,7 +18,11 @@ Future<void> main() async {
   final settings = AppSettings();
   final progress = ProgressStore();
   await Future.wait([settings.load(), progress.load()]);
-  WidgetsBinding.instance.addPostFrameCallback((_) => _warmUpFonts());
+  // Kids Mode never uses these faces; warming them would only compete with its
+  // own first frames (all five tabs build at once).
+  if (!settings.kidsMode) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _warmUpFonts());
+  }
   runApp(QiraahArabiyyahApp(settings: settings, progress: progress));
 }
 
@@ -166,7 +170,7 @@ void _warmUpFonts() {
     )..layout();
     final rec = ui.PictureRecorder();
     tp.paint(Canvas(rec), Offset.zero);
-    rec.endRecording();
+    rec.endRecording().dispose();
     tp.dispose();
   }
 }

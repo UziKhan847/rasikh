@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../data/kids_avatars.dart';
+
+/// The face an unknown `avatar:` key falls back to (the default avatar's).
+const kKidsDefaultAvatarFace = '🦊';
 
 /// An avatar's face: the drawn animal when it has one (see [kidsAnimals]), the
 /// plain emoji when it does not.
@@ -20,7 +22,10 @@ class KidsAvatarFace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final animal = kidsAnimalFor(avatar);
+    // An `avatar:<id>` with no art (one a newer version added, say) shows the
+    // default face — never the key itself as text.
+    final animal = kidsAnimalFor(avatar) ??
+        (kidsIsArtKey(avatar) ? kidsAnimalFor(kKidsDefaultAvatarFace) : null);
     if (animal == null) return Text(avatar, style: TextStyle(fontSize: size));
     final box = size * 1.15;
     return SizedBox(
@@ -29,7 +34,16 @@ class KidsAvatarFace extends StatelessWidget {
       height: box,
       // The emoji it replaces is read aloud as an animal; the drawing is
       // decoration next to whatever labels it, so it stays out of the tree.
-      child: SvgPicture.asset(animal.asset, excludeFromSemantics: true),
+      // Decoded at the size it is shown (a 17 px nav face used to decode the
+      // whole 256 or 384 px image), then fitted to the box.
+      child: Image.asset(
+        animal.asset,
+        excludeFromSemantics: true,
+        width: box,
+        height: box,
+        fit: BoxFit.contain,
+        cacheWidth: (box * MediaQuery.devicePixelRatioOf(context)).ceil(),
+      ),
     );
   }
 }

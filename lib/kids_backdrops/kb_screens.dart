@@ -4,7 +4,6 @@
 // Spacing values are the CSS margin-top / gap values from Kids Backdrops.dc.html.
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'kb_components.dart';
 import 'kb_scene.dart';
 import 'kb_themes.dart';
@@ -23,11 +22,33 @@ class KbPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final safeTop = MediaQuery.paddingOf(context).top;
+    // APP ADAPTATION: the 20 px side padding goes on each child rather than the
+    // whole page, so a KbBleed child can run edge to edge.
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, top > safeTop + 8 ? top : safeTop + 8, 20, bottom),
-      child: Column(crossAxisAlignment: cross, children: children),
+      padding: EdgeInsets.fromLTRB(0, top > safeTop + 8 ? top : safeTop + 8, 0, bottom),
+      // APP ADAPTATION: the page's own layer. Without it every scroll frame
+      // re-recorded the whole page — every card, shadow and line of text — to
+      // move it a few pixels; with it, a scroll only moves what was drawn.
+      child: RepaintBoundary(
+        child: Column(crossAxisAlignment: cross, children: [
+          for (final c in children)
+            c is KbBleed ? c : Padding(padding: const EdgeInsets.symmetric(horizontal: KbBleed.gutter), child: c),
+        ]),
+      ),
     );
   }
+}
+
+/// APP ADAPTATION: a KbPage child that ignores the page's side padding and runs
+/// edge to edge — a sideways shelf that should scroll off the screen's edge, not
+/// stop short of it. It lines its own content up with the page by [gutter].
+class KbBleed extends StatelessWidget {
+  /// KbPage's side padding.
+  static const gutter = 20.0;
+  final Widget child;
+  const KbBleed({super.key, required this.child});
+  @override
+  Widget build(BuildContext context) => child;
 }
 
 /// Fixed-height game page (bingo, ttt, memory, lesson, write): content fills the screen height.
@@ -177,7 +198,7 @@ class KbMeScreen extends StatelessWidget {
     const modes = [(KbMode.light, 'light_mode', 'Light'), (KbMode.dark, 'dark_mode', 'Dark'), (KbMode.oled, 'bedtime', 'OLED')];
     const sizes = [('small', 'Small', 20.0), ('medium', 'Medium', 28.0), ('large', 'Large', 38.0)];
     return KbPage(top: 50, cross: CrossAxisAlignment.stretch, children: [
-      Center(child: KbSurface(color: ui.surface, edge: ui.edge, elev: KbElev.cardHi, circle: true, width: 112, height: 112, alignment: Alignment.center, child: SvgPicture.asset(_av('camel').asset, width: 96, height: 96))),
+      Center(child: KbSurface(color: ui.surface, edge: ui.edge, elev: KbElev.cardHi, circle: true, width: 112, height: 112, alignment: Alignment.center, child: Image.asset(_av('camel').asset, width: 96, height: 96))),
       _gap(14),
       Center(child: KbHeading('Wazzup', ui: ui, fontSize: 32)),
       _gap(6),
@@ -226,7 +247,7 @@ class _KbProfileScreenState extends State<KbProfileScreen> {
       Align(alignment: Alignment.centerLeft, child: KbHeading('New Profile', ui: ui, fontSize: 30)),
       _gap(22),
       Row(children: [
-        KbSurface(color: ui.surface, edge: ui.edge, elev: KbElev.big, circle: true, width: 128, height: 128, alignment: Alignment.center, child: SvgPicture.asset(cur.asset, width: 108, height: 108)),
+        KbSurface(color: ui.surface, edge: ui.edge, elev: KbElev.big, circle: true, width: 128, height: 128, alignment: Alignment.center, child: Image.asset(cur.asset, width: 108, height: 108)),
         const SizedBox(width: 18),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(cur.name, style: kbText(24, kbC(ui.headInk), height: 1.1, shadows: ui.headShadows)),

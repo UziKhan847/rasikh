@@ -55,6 +55,25 @@ class _KidsProfileGateState extends State<KidsProfileGate> {
     // profile restored from a backup, or progress from before this sync
     // existed at all.
     _onProgressChanged();
+    // Without the testing unlock a child wears only what they own. The unlock
+    // takes things back off when it is turned off, but a profile can also pick
+    // up an unowned look while ANOTHER profile's unlock is on (the New Profile
+    // picker offers every avatar then), so every profile is checked as it
+    // loads. After this frame: this runs from build, and changing the profile
+    // notifies settings.
+    if (!store.unlockAll) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _progress != store) return;
+        final s = SettingsScope.of(context);
+        final profile = s.activeKidsProfile;
+        if (profile == null || profile.id != store.profileId) return;
+        final before = (profile.theme, profile.frame, profile.avatar, profile.baseAvatar);
+        final items = kidsShopItems(context);
+        kidsTakeOffUnowned(profile, store.shopOwned, items);
+        final after = (profile.theme, profile.frame, profile.avatar, profile.baseAvatar);
+        if (before != after) s.update(() {});
+      });
+    }
   }
 
   @override

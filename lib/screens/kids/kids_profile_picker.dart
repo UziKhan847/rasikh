@@ -4,6 +4,7 @@ import '../../core/geometry.dart';
 import '../../core/l10n.dart';
 import '../../core/settings.dart';
 import '../../data/kids_avatars.dart';
+import '../../data/kids_content.dart' show kidsAvatarUnlockEmojis;
 import '../../kids_backdrops/kb_app.dart';
 import '../../kids_backdrops/kb_components.dart';
 import '../../kids_backdrops/kb_scene.dart' show kbC;
@@ -22,7 +23,7 @@ import 'kids_widgets.dart';
 ///
 /// These are the avatars a new profile can pick for free. Each has drawn art
 /// (`kids_avatars.dart`); the shop sells the rest.
-const kidsAvatarChoices = ['🦊', '🐼', '🐯', '🦁', '🐨', '🐸', '🐴', '🐬'];
+const kidsAvatarChoices = ['🦊', '🐼', '🐯', '🦁', '🐨', '🐸', '🐴', '🐬', '🐻', '🦘', 'avatar:lioncub'];
 
 /// "Who's learning?" — the family-profile picker Kids Mode opens with. With
 /// no profile yet (a brand-new install) it goes straight to the creation
@@ -225,8 +226,22 @@ class _CreateProfileFormState extends State<_CreateProfileForm> {
     widget.onCreated();
   }
 
-  /// The animal's name, for the preview — the free choices, which are the only
-  /// avatars this form offers.
+  /// The avatars this form offers: the free choices — or, while the testing
+  /// unlock is on, every avatar there is (the shop's, and the drawn ones it
+  /// does not sell), so each can be seen.
+  List<String> _choices(BuildContext context) {
+    if (!(ProgressScope.maybeOf(context)?.unlockAll ?? false)) {
+      return kidsAvatarChoices;
+    }
+    return {
+      ...kidsAvatarChoices,
+      for (final a in kidsAnimals) a.emoji,
+      ...kidsAvatarUnlockEmojis,
+    }.toList();
+  }
+
+  /// The animal's name, for the preview — the free choices'. Anything else
+  /// (only offered by the testing unlock) shows without one.
   String? _animalName(BuildContext context) => switch (kidsAnimalFor(_avatar)?.id) {
     'fox' => context.l10n.kidsAnimalFox,
     'panda' => context.l10n.kidsAnimalPanda,
@@ -236,6 +251,9 @@ class _CreateProfileFormState extends State<_CreateProfileForm> {
     'frog' => context.l10n.kidsAnimalFrog,
     'horse' => context.l10n.kidsAnimalHorse,
     'dolphin' => context.l10n.kidsAnimalDolphin,
+    'bear' => context.l10n.kidsAnimalBear,
+    'kangaroo' => context.l10n.kidsAnimalKangaroo,
+    'lioncub' => context.l10n.kidsAnimalLionCub,
     _ => null,
   };
 
@@ -266,7 +284,7 @@ class _CreateProfileFormState extends State<_CreateProfileForm> {
         const gapX = 8.0, gapY = 10.0, cols = 6;
         final w = (c.maxWidth - gapX * (cols - 1)) / cols;
         return Wrap(spacing: gapX, runSpacing: gapY, children: [
-          for (final a in kidsAvatarChoices)
+          for (final a in _choices(context))
             SizedBox(
               width: w,
               child: KbAvatarPickerTile(

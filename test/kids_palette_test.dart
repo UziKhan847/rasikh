@@ -109,13 +109,14 @@ void main() {
         s.ridges.map((r) => r.kind).join(','),
         // What drifts.
         s.moteType,
-        // The extras: stars, flowers, snow caps, snow ground, crystals.
+        // The extras: stars, snow caps, snow ground, silhouetted ridges, a
+        // horizon sun in the dark.
         [
           s.stars,
-          s.flowers,
           s.snowcap,
           s.ground == 'snow',
-          s.crystals,
+          s.sil,
+          s.dusk,
         ].map((f) => f ? '1' : '0').join(),
       ];
     }

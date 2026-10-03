@@ -276,6 +276,7 @@ void main() {
       // lay everything out without scrolling.
       tester.view.physicalSize = const Size(640, 3600);
       await _pump(tester, settings, prog, KidsHomeScreen(onGoLearn: () {}));
+      await kidsHomeToPractice(tester);
       expect(find.text('Warm-up'), findsOneWidget);
       expect(find.text('Look-alikes'), findsOneWidget);
       expect(find.text('Write it'), findsOneWidget);

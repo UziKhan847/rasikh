@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderSliver;
 
 import '../../core/l10n.dart';
 import '../../core/responsive.dart';
@@ -6,11 +7,11 @@ import '../../core/settings.dart';
 import '../../data/kids_content.dart';
 import '../../kids_backdrops/kb_app.dart';
 import '../../kids_backdrops/kb_components.dart';
-import '../../kids_backdrops/kb_scene.dart' show kWhite, kbC;
-import '../../kids_backdrops/kb_screens.dart' show KbPage;
+import '../../kids_backdrops/kb_scene.dart' show kbC;
 import '../../kids_backdrops/kb_widgets.dart';
 import 'kids_checkpoint_quiz.dart' show kidsWarmUpQuiz;
 import 'kids_desktop_nav.dart';
+import 'kids_avatar_face.dart';
 import 'kids_build_word.dart';
 import 'kids_find_in_ayah.dart';
 import 'kids_game_bingo.dart';
@@ -30,16 +31,20 @@ import 'kids_widgets.dart';
 /// bordered card, so it stays a short stretch around where the child is now.
 const _pathWindow = 6;
 
-/// The mobile trail scrolls instead: it holds the whole stage, in a window
-/// this many nodes tall.
-const _trailVisibleRows = 5;
-
 /// One row of the vertical trail: the design's 68 px node under a 6 px gap.
 /// The current node is taller (84 px, with its "Start" tag above) and gets
-/// [_trailCurrentRowHeight]. Load-bearing — [_ScrollingTrail] scrolls by these
-/// to bring the current node into view.
+/// [_trailCurrentRowHeight]. Load-bearing — the progress line is filled to
+/// the current node's centre by these.
 const _trailRowHeight = 74.0;
 const _trailCurrentRowHeight = 126.0;
+
+/// The current row at the ambient text size: the node (84), a 6 px gap and
+/// the "Start" tag above it, whose line grows with the text scale — at the
+/// largest system × kids text size 126 was 2 px short.
+double _currentRowHeight(BuildContext context) {
+  final tag = 1 + MediaQuery.textScalerOf(context).scale(15) * kbNormalHeight[kbFontUi]!;
+  return (84 + 6 + tag + 2).ceilToDouble().clamp(_trailCurrentRowHeight, 400.0);
+}
 
 /// The Home tab, laid out to the Kids Mode design: greeting + streak pill,
 /// a filled coral daily-goal card, a "keep going" resume card, the letter
@@ -71,7 +76,11 @@ class KidsHomeScreen extends StatelessWidget {
     // The design's Home (kb_screens.dart `KbHomeScreen`): headings on the sky,
     // everything else on solid cards, the same order and gaps — with the app's
     // own greeting, daily goal and practice shortcuts in their places.
-    return KbPage(cross: CrossAxisAlignment.stretch, children: [
+    return _MobileHome(
+      items: items,
+      doneCount: doneCount,
+      unlocked: prog.unlockAll,
+      above: [
       _Header(
           name: profile.name,
           streakDays: prog.streakDays,
@@ -93,11 +102,8 @@ class KidsHomeScreen extends StatelessWidget {
       const SizedBox(height: 30),
       _StageHeading(title: block.title(context), arabic: block.badge),
       const SizedBox(height: 14),
-      _LetterTrail(
-          items: items,
-          doneCount: doneCount,
-          axis: Axis.vertical,
-          unlocked: prog.unlockAll),
+      ],
+      below: [
       const SizedBox(height: 22),
       Center(child: KbPill(context.l10n.kidsSeeWholePath, ui: ui, onTap: onGoLearn)),
       const SizedBox(height: 28),
@@ -107,7 +113,8 @@ class KidsHomeScreen extends StatelessWidget {
       const SizedBox(height: 14),
       _WarmUpBanner(prog: prog),
       _PracticeRows(cards: _practiceCards(context, prog)),
-    ]);
+      ],
+    );
   }
 
   Widget _desktopBuild(BuildContext context) {
@@ -141,7 +148,6 @@ class KidsHomeScreen extends StatelessWidget {
             child: _LetterTrail(
                 items: items,
                 doneCount: doneCount,
-                axis: Axis.horizontal,
                 unlocked: prog.unlockAll),
           );
         }),
@@ -308,11 +314,15 @@ class _FreezeBanner extends StatefulWidget {
 class _FreezeBannerState extends State<_FreezeBanner> {
   bool _show = false;
 
+  /// This freeze was the one that earned the Ice Cube avatar.
+  bool _iceCube = false;
+
   @override
   void initState() {
     super.initState();
     if (widget.prog.justUsedFreeze) {
       _show = true;
+      _iceCube = widget.prog.justUnlockedIceCube;
       widget.prog.acknowledgeFreezeUsed();
       _scheduleHide();
     }
@@ -322,14 +332,19 @@ class _FreezeBannerState extends State<_FreezeBanner> {
   void didUpdateWidget(_FreezeBanner old) {
     super.didUpdateWidget(old);
     if (widget.prog.justUsedFreeze) {
+      final ice = widget.prog.justUnlockedIceCube;
       widget.prog.acknowledgeFreezeUsed();
-      setState(() => _show = true);
+      setState(() {
+        _show = true;
+        _iceCube = ice;
+      });
       _scheduleHide();
     }
   }
 
   void _scheduleHide() {
-    Future.delayed(const Duration(seconds: 4), () {
+    // Longer when there is a reward to read about too.
+    Future.delayed(Duration(seconds: _iceCube ? 6 : 4), () {
       if (mounted) setState(() => _show = false);
     });
   }
@@ -349,11 +364,22 @@ class _FreezeBannerState extends State<_FreezeBanner> {
           radius: 999,
           padding: const EdgeInsets.fromLTRB(14, 7, 18, 5),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Text('🧊', style: TextStyle(fontSize: 16)),
+            _iceCube
+                ? const KidsAvatarFace('avatar:icecube', size: 22)
+                : const Text('🧊', style: TextStyle(fontSize: 16)),
             const SizedBox(width: 6),
             Flexible(
-              child: Text(context.l10n.kidsStreakSaved,
-                  style: kbText(17, kbC(ui.ink))),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(context.l10n.kidsStreakSaved,
+                      style: kbText(17, kbC(ui.ink))),
+                  if (_iceCube)
+                    Text(context.l10n.kidsIceCubeUnlocked,
+                        style: kbText(15, kbC(ui.linkInk))),
+                ],
+              ),
             ),
           ]),
         ),
@@ -499,14 +525,12 @@ class _ResumeCard extends StatelessWidget {
 /// without it having been cleared — never a padlock, never a checkmark.
 enum _LetterState { done, open, current, locked }
 
-/// The letter trail — nodes threaded along a dashed spine, the design's
-/// centrepiece for the Home screen. Vertical (a zig-zag either side of the
-/// spine) on mobile; horizontal (a single row, matching the desktop design's
-/// bordered card) on desktop — see [axis].
+/// The desktop letter trail — a single row of nodes along a dashed spine,
+/// matching the desktop design's bordered card. (On a phone the trail is part
+/// of [_MobileHome]'s scroll.)
 class _LetterTrail extends StatelessWidget {
   final List<KidsItem> items;
   final int doneCount;
-  final Axis axis;
 
   /// [ProgressStore.unlockAll] — passed down rather than looked up here so
   /// the two trail layouts and the Learn tab all read the same answer.
@@ -514,7 +538,6 @@ class _LetterTrail extends StatelessWidget {
   const _LetterTrail(
       {required this.items,
       required this.doneCount,
-      required this.axis,
       required this.unlocked});
 
   _LetterState _stateAt(int i) => i < doneCount
@@ -528,8 +551,8 @@ class _LetterTrail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ui = kbUi(context);
+    final currentRow = _currentRowHeight(context);
 
-    if (axis == Axis.horizontal) {
       // Desktop keeps a fixed window: the trail is one row inside a card, and
       // the whole stage sits beside it on the Learn tab anyway. Start a step
       // behind where the child is, so a cleared node stays in view, and never
@@ -544,7 +567,7 @@ class _LetterTrail extends StatelessWidget {
       return LayoutBuilder(builder: (context, c) {
         final row = SizedBox(
         width: c.maxWidth < natural ? natural : c.maxWidth,
-        height: _trailCurrentRowHeight,
+        height: currentRow,
         child: Stack(
           alignment: Alignment.bottomCenter,
           children: [
@@ -553,8 +576,29 @@ class _LetterTrail extends StatelessWidget {
               right: 30,
               bottom: 34 - 2.5,
               height: 5,
-              child: CustomPaint(
-                  painter: _TrailLinePainter(ui.pathLine, Axis.horizontal)),
+              child: LayoutBuilder(builder: (context, lc) {
+                // Nodes are spread evenly (spaceBetween), so node k's centre
+                // sits k/(n-1) of the way along — the line spans them, less
+                // the 30 px insets either side.
+                final n = end - start;
+                final k = (doneCount - start).clamp(0, n - 1);
+                final fill = doneCount <= start
+                    ? 0.0
+                    : doneCount >= end
+                        ? lc.maxWidth
+                        : n <= 1
+                            ? 0.0
+                            // A 68 px node's centre is 34 in from the row's
+                            // end, 4 in from the line's (inset 30).
+                            : 4 + k * (lc.maxWidth - 8) / (n - 1);
+                return CustomPaint(
+                    painter: _TrailLinePainter(ui.pathLine, Axis.horizontal,
+                        // The nodes run in reading order, so in Arabic and
+                        // Urdu the cleared stretch starts at the right.
+                        direction: Directionality.of(context),
+                        fill: fill, fillColor: kbC(ui.reward),
+                        edgeColor: kbC(ui.rewardEdge)));
+              }),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -571,121 +615,67 @@ class _LetterTrail extends StatelessWidget {
             ? FittedBox(fit: BoxFit.scaleDown, child: row)
             : row;
       });
-    }
-
-    // Mobile holds the *whole* stage and scrolls within itself. The design's
-    // zig-zag (kb_components.dart `KbLessonPath`): nodes alternate sides
-    // inside 34 px of padding, over a dashed line down the middle.
-    return _ScrollingTrail(
-      length: items.length,
-      current: doneCount,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 34),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              top: 30,
-              bottom: 30,
-              child: CustomPaint(
-                painter: _TrailLinePainter(ui.pathLine, Axis.vertical),
-              ),
-            ),
-            Column(
-              children: [
-                for (var i = 0; i < items.length; i++)
-                  SizedBox(
-                    height: i == doneCount
-                        ? _trailCurrentRowHeight
-                        : _trailRowHeight,
-                    child: Align(
-                      alignment: i.isEven
-                          ? AlignmentDirectional.bottomStart
-                          : AlignmentDirectional.bottomEnd,
-                      child: _TrailNode(item: items[i], state: _stateAt(i)),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
-/// The mobile trail's own scroll area: a few nodes tall, opened on the one
-/// the child is up to, and holding the whole stage behind and ahead of it.
+/// Home on a phone: one scroll — the page's own — with the whole stage's trail
+/// in the middle of it.
 ///
-/// It used to be a fixed six-node slice of the stage with no way to move it,
-/// so the moment a letter was two steps behind it left the Home screen for
-/// good — a child who had just finished bāʾ could no longer see the alif they
-/// cleared yesterday. Scrolling inside a fixed height rather than growing the
-/// Home list is deliberate: a stage is 28 letters, which inline would be some
-/// four screens of trail with the practice shortcuts stranded underneath.
-class _ScrollingTrail extends StatefulWidget {
-  final int length;
-
-  /// Index of the current node — the trail opens with this one near the top.
-  final int current;
-  final Widget child;
-  const _ScrollingTrail(
-      {required this.length, required this.current, required this.child});
+/// The trail's rows are built lazily (a sliver list; the cards above and below
+/// it are built whole): only the rows on screen,
+/// and about half a screen either side, exist at any moment. They are built in
+/// the frame they come near the screen, before they show, so nothing ever
+/// looks like it is loading — but a long stage (Joining Shapes is 79 nodes) no
+/// longer costs 79 nodes every time Home rebuilds or lays out.
+///
+/// The line down the middle is painted as one piece behind the list, following
+/// the scroll, rather than a slice per row: the slices of a translucent line
+/// would show faint seams where the rows meet on a high-density screen.
+class _MobileHome extends StatefulWidget {
+  final List<KidsItem> items;
+  final int doneCount;
+  final bool unlocked;
+  final List<Widget> above;
+  final List<Widget> below;
+  const _MobileHome({
+    required this.items,
+    required this.doneCount,
+    required this.unlocked,
+    required this.above,
+    required this.below,
+  });
 
   @override
-  State<_ScrollingTrail> createState() => _ScrollingTrailState();
+  State<_MobileHome> createState() => _MobileHomeState();
 }
 
-class _ScrollingTrailState extends State<_ScrollingTrail> {
-  late final ScrollController _c =
-      ScrollController(initialScrollOffset: _offsetFor(widget.current));
+class _MobileHomeState extends State<_MobileHome> {
+  final _c = ScrollController();
 
-  /// Every row is [_trailRowHeight] except the current one's.
-  bool get _hasCurrent => widget.current < widget.length;
+  /// On the trail's sliver: where the trail starts in the scroll comes from it.
+  final _trailKey = GlobalKey();
 
-  double get _contentHeight =>
-      widget.length * _trailRowHeight +
-      (_hasCurrent ? _trailCurrentRowHeight - _trailRowHeight : 0);
+  /// KbPage's top and bottom padding and side gutter, matched here.
+  static const _top = 58.0, _bottom = 130.0, _gutter = 20.0;
 
-  double get _height => _scrolls
-      ? (_trailVisibleRows - 1) * _trailRowHeight + _trailCurrentRowHeight
-      : _contentHeight;
+  /// The trail's own side padding: the design's nodes sit 34 px in.
+  static const _inset = 34.0;
 
-  bool get _scrolls => widget.length > _trailVisibleRows;
+  /// The line runs from 30 px into the first row to 30 px short of the end.
+  static const _lineInset = 30.0;
 
-  /// Puts node [i] one row down from the top, so the step just cleared is
-  /// still visible above it.
-  double _offsetFor(int i) {
-    final max = (_contentHeight - _height).clamp(0.0, 1e6);
-    // Rows above the current one are all the standard height.
-    return ((i - 1) * _trailRowHeight).clamp(0.0, max);
+  @override
+  void initState() {
+    super.initState();
+    _reveal(animate: false);
   }
 
   @override
-  void didUpdateWidget(_ScrollingTrail old) {
+  void didUpdateWidget(_MobileHome old) {
     super.didUpdateWidget(old);
-    // Coming back from a finished lesson advances the current node; follow it
-    // rather than leaving the child looking at where they used to be.
-    if (old.current == widget.current) return;
-
-    // AFTER this frame, never during it. didUpdateWidget runs inside the
-    // parent's build, and driving a scroll position from there notifies its
-    // listeners synchronously — a scroll notification and the position's own
-    // listeners — which can mark other elements dirty mid-build. Finishing a
-    // lesson arrives exactly that way: ProgressStore notifies, Home rebuilds,
-    // and this widget's `current` moves on. Deferring costs a frame and
-    // removes the whole class of hazard.
-    final target = _offsetFor(widget.current);
-    final reduced = kidsReduceMotion(context);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_c.hasClients) return;
-      if (reduced) {
-        _c.jumpTo(target);
-      } else {
-        _c.animateTo(target,
-            duration: const Duration(milliseconds: 420),
-            curve: Curves.easeOutCubic);
-      }
-    });
+    // Finishing a lesson moves the current node on — follow it if it has
+    // gone off screen. After this frame: this runs inside a build.
+    if (old.doneCount != widget.doneCount) _reveal(animate: true);
   }
 
   @override
@@ -694,130 +684,174 @@ class _ScrollingTrailState extends State<_ScrollingTrail> {
     super.dispose();
   }
 
-  /// The trail itself fades out over the last 22 px at a cut edge, so it reads
-  /// as a window on to something longer instead of a list that stops there.
-  /// A mask, not a wash of colour: the scene shows through it.
-  ///
-  /// One mask, always there, whose gradient changes — never a mask that comes
-  /// and goes around the scroll view, which would move the scroll view in the
-  /// tree, rebuild its scroll position and cancel a drag in progress.
-  static Shader _mask(Rect r, {required bool top, required bool bottom}) {
-    final edge = (22 / r.height).clamp(0.0, .5);
-    final clear = kbC(kWhite, 0), solid = kbC(kWhite);
-    return LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      stops: [0, edge, 1 - edge, 1],
-      colors: [top ? clear : solid, solid, solid, bottom ? clear : solid],
-    ).createShader(r);
+  _LetterState _stateAt(int i) => i < widget.doneCount
+      ? _LetterState.done
+      : i == widget.doneCount
+          ? _LetterState.current
+          : widget.unlocked
+              ? _LetterState.open
+              : _LetterState.locked;
+
+  /// Where the trail starts in the page's scroll, once laid out.
+  double? _trailStart() {
+    final r = _trailKey.currentContext?.findRenderObject();
+    return r is RenderSliver && r.attached
+        ? r.constraints.precedingScrollExtent
+        : null;
   }
 
-  /// The band a fade covers. Keyed so a test can tell it apart from the true
-  /// edge of the stage — see the caller: it must only appear on a side that
-  /// actually hides content.
-  Widget _fadeBand({required bool top}) => Positioned(
-        key: ValueKey(top ? 'kids.trail.fadeTop' : 'kids.trail.fadeBottom'),
-        top: top ? 0 : null,
-        bottom: top ? null : 0,
-        left: 0,
-        right: 0,
-        height: 22,
-        child: const IgnorePointer(child: SizedBox.expand()),
-      );
+  /// Keeps the node the child is up to in view — when Home first opens, and
+  /// when a finished lesson moves it on — but only when it is not already on
+  /// screen, so a child reading the top of Home is not pulled away for nothing.
+  /// Worked out from the row heights: the node itself may not be built yet.
+  void _reveal({required bool animate}) {
+    final current = widget.doneCount;
+    if (current >= widget.items.length) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_c.hasClients) return;
+      final start = _trailStart();
+      final pos = _c.position;
+      if (start == null || !pos.hasContentDimensions) return;
+      final top = start + current * _trailRowHeight;
+      final bottom = top + _currentRowHeight(context);
+      // The nav bar floats over the page's foot.
+      final shown = pos.viewportDimension - MediaQuery.paddingOf(context).bottom;
+      if (top >= pos.pixels && bottom <= pos.pixels + shown) return;
+      final to = ((top + bottom) / 2 - pos.viewportDimension * .45)
+          .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+      if (animate && !kidsReduceMotion(context)) {
+        pos.animateTo(to,
+            duration: const Duration(milliseconds: 420),
+            curve: Curves.easeOutCubic);
+      } else {
+        pos.jumpTo(to);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final scroller = NotificationListener<OverscrollNotification>(
-        // Hands the leftover drag to the Home list underneath. Without
-        // this the trail is a dead end: a finger that scrolls to the
-        // stage's last node just stops, and the child has to lift off
-        // and start a new drag in the page margin to reach the practice
-        // tiles below — which is not discoverable and reads as the
-        // scroll being broken.
-        //
-        // ClampingScrollPhysics (above) is what makes this possible:
-        // unlike BouncingScrollPhysics, which absorbs the excess into a
-        // stretch, it reports whatever it could not consume as an
-        // OverscrollNotification — during a drag AND during a fling, so
-        // momentum carries through too. Forwarding the delta by hand
-        // also sidesteps the gesture arena entirely: the inner
-        // scrollable keeps the gesture from first touch to last, so
-        // there is never a contest for the outer list to win.
-        //
-        // It works in both directions — overscroll at the top is
-        // negative, so dragging down on a top-parked trail scrolls the
-        // page back up.
-        onNotification: (n) {
-          if (n.depth != 0) return false; // our own scroll view only
-          // Resolved from THIS context, which sits above the
-          // SingleChildScrollView below — so it finds the Home
-          // page scroll, not the trail itself.
-          final outer = Scrollable.maybeOf(context)?.position;
-          if (outer == null || !outer.hasContentDimensions) return false;
-          final to = (outer.pixels + n.overscroll)
-              .clamp(outer.minScrollExtent, outer.maxScrollExtent);
-          if (to != outer.pixels) outer.jumpTo(to);
-          return true;
-        },
-        child: SingleChildScrollView(
-          controller: _c,
-          physics: const ClampingScrollPhysics(),
-          child: widget.child,
-        ),
-    );
-    return SizedBox(
-      key: const ValueKey('kids.trail'),
-      height: _height,
-      child: NotificationListener<ScrollMetricsNotification>(
-        // ScrollController only notifies its own listeners (what the
-        // AnimatedBuilder below is watching) when the scroll OFFSET changes —
-        // not when its extents are first established with no offset change
-        // of their own, which is exactly the trail's opening frame: it starts
-        // already positioned at `_offsetFor(current)`, so nothing here would
-        // otherwise prompt a rebuild to notice that position now has real
-        // content dimensions to check against. ScrollMetricsNotification
-        // exists precisely for that gap — it fires on first layout too — so
-        // this just asks for one more rebuild when it does.
-        onNotification: (n) {
-          if (mounted) setState(() {});
-          return false;
-        },
-        // Reactive to the actual scroll position, not just "is this stage
-        // long enough to scroll at all": a fade at an edge that has nothing
-        // beyond it claims there is more to see when there isn't — which on
-        // a stage's true last node (nothing below it, and
-        // ClampingScrollPhysics gives no bounce to say so either) reads as
-        // the scroll being stuck rather than having reached the end.
-        child: !_scrolls
-            ? scroller
-            : AnimatedBuilder(
-                animation: _c,
-                child: scroller,
-                builder: (context, child) {
-                  // hasClients alone isn't enough — the position exists
-                  // before its first layout pass, and maxScrollExtent is null
-                  // until hasContentDimensions is true.
-                  final hasDims =
-                      _c.hasClients && _c.position.hasContentDimensions;
-                  final atTop =
-                      !hasDims || _c.offset <= _c.position.minScrollExtent;
-                  final atBottom =
-                      !hasDims || _c.offset >= _c.position.maxScrollExtent;
-                  return Stack(children: [
-                    ShaderMask(
-                      blendMode: BlendMode.dstIn,
-                      shaderCallback: (r) =>
-                          _mask(r, top: !atTop, bottom: !atBottom),
-                      child: child,
-                    ),
-                    if (!atTop) _fadeBand(top: true),
-                    if (!atBottom) _fadeBand(top: false),
-                  ]);
-                },
+    final ui = kbUi(context);
+    final items = widget.items, done = widget.doneCount;
+    final currentRow = _currentRowHeight(context);
+    double rowHeight(int i) => i == done ? currentRow : _trailRowHeight;
+    final total = items.length * _trailRowHeight +
+        (done < items.length ? currentRow - _trailRowHeight : 0);
+    // Filled to the current node's centre (it sits at the foot of its row);
+    // to the end once the stage is finished.
+    final fillTo = done <= 0
+        ? 0.0
+        : done >= items.length
+            ? double.infinity
+            : done * _trailRowHeight + currentRow - 42 - _lineInset;
+    final safeTop = MediaQuery.paddingOf(context).top;
+
+    return Stack(children: [
+      Positioned.fill(
+        child: IgnorePointer(
+          child: RepaintBoundary(
+            child: CustomPaint(
+              painter: _ScrollingTrailLine(
+                scroll: _c,
+                trailStart: _trailStart,
+                length: total - 2 * _lineInset,
+                inset: _lineInset,
+                line: _TrailLinePainter(ui.pathLine, Axis.vertical,
+                    fill: fillTo,
+                    fillColor: kbC(ui.reward),
+                    edgeColor: kbC(ui.rewardEdge)),
               ),
+            ),
+          ),
+        ),
       ),
-    );
+      CustomScrollView(
+        controller: _c,
+        slivers: [
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+                _gutter, _top > safeTop + 8 ? _top : safeTop + 8, _gutter, 0),
+            // Built whole, not lazily: these hold state (the streak banner)
+            // that must survive being scrolled away from, and their exact
+            // height keeps the page's length — and so the parallax — exact.
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: widget.above,
+              ),
+            ),
+          ),
+          SliverPadding(
+            key: _trailKey,
+            padding: const EdgeInsets.symmetric(horizontal: _gutter + _inset),
+            sliver: SliverVariedExtentList.builder(
+              itemCount: items.length,
+              itemExtentBuilder: (i, _) => rowHeight(i),
+              itemBuilder: (context, i) => Align(
+                // The design's zig-zag (kb_components.dart `KbLessonPath`).
+                alignment: i.isEven
+                    ? AlignmentDirectional.bottomStart
+                    : AlignmentDirectional.bottomEnd,
+                child: _TrailNode(item: items[i], state: _stateAt(i)),
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(_gutter, 0, _gutter, _bottom),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: widget.below,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ]);
   }
+}
+
+/// The trail's line, painted behind the page's scroll view at wherever the
+/// trail has scrolled to: the [line] painter, drawn [length] long, its top
+/// [inset] below the trail's start. Repaints as the page scrolls — only these
+/// few strokes, in their own layer.
+class _ScrollingTrailLine extends CustomPainter {
+  final ScrollController scroll;
+  final double? Function() trailStart;
+  final double length;
+  final double inset;
+  final _TrailLinePainter line;
+  _ScrollingTrailLine({
+    required this.scroll,
+    required this.trailStart,
+    required this.length,
+    required this.inset,
+    required this.line,
+  }) : super(repaint: scroll);
+
+  /// The fill, for tests: px from the line's top.
+  double get fill => line.fill;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final start = trailStart();
+    if (start == null || !scroll.hasClients || length <= 0) return;
+    final y = start + inset - scroll.offset;
+    // Nothing of it on screen: skip.
+    if (y > size.height || y + length < 0) return;
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    canvas.translate(size.width / 2 - 2.5, y);
+    line.paint(canvas, Size(5, length));
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_ScrollingTrailLine o) =>
+      o.length != length ||
+      o.inset != inset ||
+      o.scroll != scroll ||
+      line.shouldRepaint(o.line);
 }
 
 /// One trail circle — the design's path node (kb_components.dart
@@ -922,47 +956,82 @@ class _MaybePulseState extends State<_MaybePulse>
   @override
   Widget build(BuildContext context) {
     if (!_running) return widget.child;
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, child) => Transform.scale(
-        scale: 1 + .08 * Curves.easeInOut.transform(_c.value),
-        child: child,
+    // Its own layer: without this boundary every frame of the breath marked the
+    // whole Home page for repaint — every node, card and shadow re-recorded 60
+    // times a second, which is what made High jank on a slow phone.
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, child) => Transform.scale(
+          scale: 1 + .08 * Curves.easeInOut.transform(_c.value),
+          child: child,
+        ),
+        child: widget.child,
       ),
-      child: widget.child,
     );
   }
 }
 
-/// The dashed line the trail nodes hang off: the design's 5 px dashes, 15 on
-/// and 10 off, in the palette's path colour.
+/// The line the trail nodes hang off: the design's 5 px dashes, 15 on and 10
+/// off, in the palette's path colour — and, up to [fill] (px along the line),
+/// a solid bar in the done nodes' own reward colour with their darker edge
+/// under it, so the stretch already cleared reads as a path laid down.
 class _TrailLinePainter extends CustomPainter {
   final Color color;
   final Axis axis;
-  _TrailLinePainter(this.color, this.axis);
+  final double fill;
+  final Color? fillColor;
+  final Color? edgeColor;
+
+  /// Which end a horizontal line fills from; a vertical one fills downwards.
+  final TextDirection direction;
+  _TrailLinePainter(this.color, this.axis,
+      {this.fill = 0,
+      this.fillColor,
+      this.edgeColor,
+      this.direction = TextDirection.ltr});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
+    final vertical = axis == Axis.vertical;
+    final length = vertical ? size.height : size.width;
+    final solid = fill.clamp(0.0, length);
+    final flip = !vertical && direction == TextDirection.rtl;
+    Offset at(double t) => vertical
+        ? Offset(size.width / 2, t)
+        : Offset(flip ? size.width - t : t, size.height / 2);
+
+    final dash = Paint()
       ..color = color
       ..strokeWidth = 5;
-    if (axis == Axis.vertical) {
-      final x = size.width / 2;
-      for (var y = 0.0; y < size.height; y += 25) {
-        canvas.drawLine(
-            Offset(x, y), Offset(x, (y + 15).clamp(0, size.height)), paint);
-      }
-    } else {
-      final y = size.height / 2;
-      for (var x = 0.0; x < size.width; x += 25) {
-        canvas.drawLine(
-            Offset(x, y), Offset((x + 15).clamp(0, size.width), y), paint);
-      }
+    // Dashes only where the bar is not; start on the dash grid so they don't
+    // shift as the bar grows.
+    for (var t = 0.0; t < length; t += 25) {
+      final a = t, b = (t + 15).clamp(0.0, length);
+      if (b <= solid) continue;
+      canvas.drawLine(at(a < solid ? solid : a), at(b), dash);
     }
+    if (solid <= 0 || fillColor == null) return;
+    final cap = Paint()..strokeCap = StrokeCap.round;
+    // Cased in the dashes' own colour, so the bar reads on every sky — a gold
+    // core alone all but vanishes on the warm themes.
+    canvas.drawLine(at(0), at(solid), cap..color = color..strokeWidth = 14);
+    // The 3D edge: a darker copy of the bar, 3 px lower (UI_SPEC §1).
+    if (edgeColor != null) {
+      canvas.drawLine(at(0) + const Offset(0, 3), at(solid) + const Offset(0, 3),
+          cap..color = edgeColor!..strokeWidth = 8);
+    }
+    canvas.drawLine(at(0), at(solid), cap..color = fillColor!..strokeWidth = 8);
   }
 
   @override
   bool shouldRepaint(_TrailLinePainter old) =>
-      old.color != color || old.axis != axis;
+      old.color != color ||
+      old.axis != axis ||
+      old.fill != fill ||
+      old.fillColor != fillColor ||
+      old.edgeColor != edgeColor ||
+      old.direction != direction;
 }
 
 /// The Warm-up entry: a full-width banner above the practice shortcuts,

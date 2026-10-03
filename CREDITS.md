@@ -97,8 +97,8 @@ The 15-line page/line text is a separate dataset — see the section above.
 - Tajwīd rules, letter data, drills: original to this app.
 
 ## Flutter packages
-audioplayers (MIT) · http (BSD-3) · path_provider (BSD-3) ·
-shared_preferences (BSD-3).
+audioplayers (MIT) · flutter_svg (MIT) · http (BSD-3) · path_provider (BSD-3) ·
+sensors_plus (BSD-3, Kids Mode's Ultra tilt) · shared_preferences (BSD-3).
 All compatible with Play Store & F-Droid; licences surface in-app via
 About → Open-source licences.
 

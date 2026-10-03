@@ -69,6 +69,13 @@ Future<void> seedAndOpen(WidgetTester tester, String screen) async {
       await tab('Rank');
     case 'rewards':
       await tab('Rewards');
+    case 'rewardsscrolled':
+      // Both sideways shelves part-scrolled, so both of each one's fades show.
+      await tab('Rewards');
+      for (final g in [find.byType(GridView).first, find.byType(GridView).last]) {
+        await tester.drag(g, const Offset(-160, 0));
+        await tester.pumpAndSettle();
+      }
     case 'me':
       await tab('Me');
     case 'stage':

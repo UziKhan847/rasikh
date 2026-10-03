@@ -104,7 +104,7 @@ void main() {
 
     await _enter(tester, kKidsUnlockCode);
     expect(prog.unlockAll, isTrue);
-    expect(find.text('Every stage unlocked for testing.'), findsOneWidget);
+    expect(find.text('Every stage, theme and avatar unlocked for testing.'), findsOneWidget);
   });
 
   testWidgets('a locked stage opens once the unlock is on', (tester) async {

@@ -14,7 +14,6 @@
 //    Noto Naskh Arabic 600. Quranic words: Amiri Quran.
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'kb_scene.dart';
 import 'kb_themes.dart';
 import 'kb_ui.dart';
@@ -395,7 +394,7 @@ class KbRankRow extends StatelessWidget {
         Container(width: 36, height: 36, alignment: Alignment.center, decoration: BoxDecoration(color: kbC(me ? ui.cardDeep : ui.reward), shape: BoxShape.circle),
             child: Text('$rank', style: kbText(18, kbC(me ? kWhite : ui.rewardInk), height: 1))),
         const SizedBox(width: 14),
-        SvgPicture.asset(avatar.asset, width: 46, height: 46),
+        Image.asset(avatar.asset, width: 46, height: 46),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(name, style: kbText(21, ink, height: 1.1)),
@@ -682,7 +681,7 @@ class KbLooksRow extends StatelessWidget {
   Widget build(BuildContext context) => KbSurface(
         color: ui.surface, edge: ui.edge, elev: KbElev.card, radius: 22, padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Row(children: [
-          SvgPicture.asset(avatar.asset, width: 50, height: 50),
+          Image.asset(avatar.asset, width: 50, height: 50),
           const SizedBox(width: 14),
           Expanded(
             child: owned

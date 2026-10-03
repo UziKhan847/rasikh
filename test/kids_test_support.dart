@@ -97,3 +97,18 @@ Finder kidsListenIcon() => find.byWidgetPredicate((w) =>
 /// on a screen not yet on the kit, the old Material [legacy] icon.
 Finder kidsIcon(String name, [IconData? legacy]) => find.byWidgetPredicate(
     (w) => (w is KbIcon && w.name == name) || (legacy != null && w is Icon && w.icon == legacy));
+
+/// Scrolls the Kids Home page to its foot — the Practice section. Home is a
+/// sliver list (its trail is built lazily), so a practice tile far below the
+/// screen is not on stage for a finder until scrolled to, and a progress change
+/// can move the page back up to the child's current node.
+Future<void> kidsHomeToPractice(WidgetTester tester) async {
+  final page = find
+      .byWidgetPredicate((w) =>
+          w is Scrollable &&
+          axisDirectionToAxis(w.axisDirection) == Axis.vertical)
+      .first;
+  final pos = tester.state<ScrollableState>(page).position;
+  pos.jumpTo(pos.maxScrollExtent);
+  await tester.pump();
+}

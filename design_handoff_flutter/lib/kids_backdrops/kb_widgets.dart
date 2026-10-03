@@ -1,7 +1,6 @@
 // Drop-in widgets. Sizes/radii/shadows copied from the HTML template.
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'kb_scene.dart';
 import 'kb_themes.dart';
 import 'kb_ui.dart';
@@ -133,8 +132,7 @@ class KbThemeShopTile extends StatelessWidget {
   }
 }
 
-/// Circular avatar. Uses the app's existing avatar SVGs. If the app already has an avatar widget,
-/// swap it in here; only the circle, background and 82% inset belong to the redesign.
+/// Circular avatar (PNG 1x/2x/3x from assets/avatars). Do not load the SVGs with flutter_svg: it drops the blur-filter shadows.
 class KbAvatar extends StatelessWidget {
   final KbAvatarInfo avatar;
   final double size;
@@ -144,7 +142,7 @@ class KbAvatar extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: size, height: size, alignment: Alignment.center,
         decoration: BoxDecoration(color: background, shape: BoxShape.circle),
-        child: SvgPicture.asset(avatar.asset, width: size * .82, height: size * .82, semanticsLabel: avatar.name),
+        child: Image.asset(avatar.asset, width: size * .82, height: size * .82, semanticLabel: avatar.name),
       );
 }
 

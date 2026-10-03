@@ -147,9 +147,42 @@ class KidsMeScreen extends StatelessWidget {
                             weight: FontWeight.w600, height: 1.35)),
                     const SizedBox(height: 16),
                     const KidsDetailPicker(),
+                    // Ultra is the one level where the pages lean with the
+                    // phone; how much is a comfort matter, so it is a choice.
+                    if (s.kidsDetail == KidsDetail.ultra) ...[
+                      const SizedBox(height: 20),
+                      Text(context.l10n.kidsUiTilt,
+                          style: kbText(18, kbC(ui.ink))),
+                      const SizedBox(height: 4),
+                      Text(context.l10n.kidsUiTiltSub,
+                          style: kbText(16, kbC(ui.inkSoft),
+                              weight: FontWeight.w600, height: 1.35)),
+                      const SizedBox(height: 12),
+                      const KidsUiTiltPicker(),
+                    ],
                   ],
                 ),
               ),
+              // Full screen: the app-wide immersive mode (`settings.immersive`,
+              // applied by main.dart's _SystemUiSync), so the choice is the same
+              // one the grown-up app's toggle makes. Phones and tablets only —
+              // a desktop window has no system bars to hide.
+              if (!isDesktopPlatform()) ...[
+                const SizedBox(height: 14),
+                MergeSemantics(
+                  child: KbSettingCard(
+                    key: const ValueKey('kids.immersive'),
+                    ui: ui,
+                    title: context.l10n.kidsImmersive,
+                    desc: context.l10n.kidsImmersiveSub,
+                    trailing: KbToggle(
+                      value: s.immersive,
+                      ui: ui,
+                      onChanged: (v) => s.update(() => s.immersive = v),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               _ActionRow(
                 icon: 'group',
@@ -203,7 +236,7 @@ class KidsMeScreen extends StatelessWidget {
                 _ActionRow(
                   icon: 'lock_open',
                   label: context.l10n.kidsDevUnlockBanner,
-                  onTap: () => prog.setUnlockAll(false),
+                  onTap: () => kidsSetTestUnlock(context, false),
                 ),
                 const SizedBox(height: 14),
                 _ActionRow(

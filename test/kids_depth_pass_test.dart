@@ -7,6 +7,7 @@ import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_me_screen.dart';
 import 'package:qiraah_arabiyyah/kids_backdrops/kb_app.dart';
+import 'package:qiraah_arabiyyah/kids_backdrops/kb_raster.dart';
 import 'package:qiraah_arabiyyah/kids_backdrops/kb_scene.dart';
 import 'package:qiraah_arabiyyah/kids_backdrops/kb_widgets.dart';
 import 'package:qiraah_arabiyyah/screens/kids/kids_widgets.dart';
@@ -104,7 +105,7 @@ void main() {
 
     test('an unknown level name falls back rather than throwing', () async {
       SharedPreferences.setMockInitialValues({
-        'noor.settings.v1': '{"kidsMode": true, "kidsDetail": "ultra"}',
+        'noor.settings.v1': '{"kidsMode": true, "kidsDetail": "ludicrous"}',
       });
       final s = AppSettings();
       await s.load();
@@ -183,9 +184,11 @@ void main() {
       );
       await tester.pump();
       expect(find.byType(KbBackdrop), findsOneWidget);
+      // The static scene, drawn once into an image.
       expect(
-        find.byWidgetPredicate(
-          (w) => w is CustomPaint && w.painter is KbScenePainter,
+        find.descendant(
+          of: find.byType(KbBackdrop),
+          matching: find.byType(KbRaster),
         ),
         findsOneWidget,
       );
