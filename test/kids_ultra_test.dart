@@ -1,8 +1,10 @@
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:qiraah_arabiyyah/core/display_rate.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/kids_backdrops/kb_hifi.dart';
@@ -23,6 +25,7 @@ Widget _backdrop({
   bool motion = true,
   double uiTilt = 1,
   bool reduce = false,
+  bool grain = true,
   Widget? child,
 }) => MediaQuery(
   data: MediaQueryData(size: const Size(800, 600), disableAnimations: reduce),
@@ -36,6 +39,7 @@ Widget _backdrop({
       fidelity: fidelity,
       motion: motion,
       uiTilt: uiTilt,
+      grain: grain,
       child: child,
     ),
   ),
@@ -102,12 +106,29 @@ void main() {
       expect(find.byKey(const ValueKey('kb.vignette')), findsOneWidget);
       expect(find.byKey(const ValueKey('kb.mist0')), findsOneWidget);
       expect(
+        find.byType(ColorFiltered),
+        findsNothing,
+        reason: 'the shimmer is filtered per layer, not over the whole screen',
+      );
+      expect(
         find.byKey(const ValueKey('kb.motes')),
         findsNothing,
         reason: 'the effects replace the motes',
       );
       expect(tester.binding.hasScheduledFrame, isTrue);
       expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('the grain can be switched off', (tester) async {
+      await tester.pumpWidget(_backdrop(grain: false));
+      await _frames(tester, 3);
+      expect(find.byKey(const ValueKey('kb.grain')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('kb.fx')),
+        findsOneWidget,
+        reason: 'only the grain goes',
+      );
       await tester.pumpWidget(const SizedBox());
     });
 
@@ -209,11 +230,18 @@ void main() {
       await tester.tap(kidsTab('Me'));
       await tester.pumpAndSettle();
       expect(find.text('Screen tilt'), findsNothing);
+      expect(find.text('Film grain'), findsNothing);
 
       await tester.tap(find.byKey(const ValueKey('kidsDetail.ultra')));
       await tester.pumpAndSettle();
       expect(settings.kidsDetail, KidsDetail.ultra);
       expect(find.text('Screen tilt'), findsOneWidget);
+      expect(find.text('Film grain'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const ValueKey('kids.grain')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('kids.grain')));
+      await tester.pumpAndSettle();
+      expect(settings.kidsGrain, isFalse);
 
       await tester.tap(find.byKey(const ValueKey('kidsUiTilt.1.6')));
       await tester.pumpAndSettle();
@@ -223,6 +251,7 @@ void main() {
       await tester.runAsync(again.load);
       expect(again.kidsDetail, KidsDetail.ultra);
       expect(again.kidsUiTilt, 1.6);
+      expect(again.kidsGrain, isFalse);
     });
 
     testWidgets('switching to Ultra keeps the page where it was', (
@@ -269,6 +298,59 @@ void main() {
         await _frames(tester);
         expect(tester.takeException(), isNull, reason: tab);
       }
+      await tester.pumpWidget(const SizedBox());
+    });
+  });
+
+  group('the refresh rate', () {
+    late List<Object?> asked;
+    setUp(() {
+      asked = [];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(const MethodChannel('qiraah/display'), (call) async {
+        asked.add(call.arguments);
+        return call.arguments == '60' ? 60.0 : 120.0;
+      });
+    });
+    tearDown(() => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(const MethodChannel('qiraah/display'), null));
+
+    testWidgets('Ultra holds an even 60; High, a lesson on top and leaving '
+        'Kids Mode go back to the fastest', (tester) async {
+      final settings = await _boot(KidsDetail.ultra);
+      await tester.pumpWidget(_shell(settings));
+      await _frames(tester, 3);
+      expect(asked.last, '60');
+      expect(DisplayRate.hz.value, 60);
+
+      settings.update(() => settings.kidsDetail = KidsDetail.high);
+      await _frames(tester, 3);
+      expect(asked.last, 'max');
+      expect(DisplayRate.holding60, isFalse);
+
+      settings.update(() => settings.kidsDetail = KidsDetail.ultra);
+      await _frames(tester, 3);
+      expect(asked.last, '60');
+
+      final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
+      nav.push(MaterialPageRoute<void>(builder: (_) => const SizedBox()));
+      await _frames(tester, 30);
+      expect(asked.last, 'max', reason: 'a lesson covers the scene');
+      nav.pop();
+      await _frames(tester, 30);
+      expect(asked.last, '60');
+
+      await tester.pumpWidget(const SizedBox());
+      expect(asked.last, 'max');
+      expect(DisplayRate.holding60, isFalse);
+    });
+
+    testWidgets('nothing holds 60 under reduce-motion', (tester) async {
+      useReducedMotion(tester);
+      final settings = await _boot(KidsDetail.ultra);
+      await tester.pumpWidget(_shell(settings));
+      await _frames(tester, 3);
+      expect(asked, isNot(contains('60')));
       await tester.pumpWidget(const SizedBox());
     });
   });

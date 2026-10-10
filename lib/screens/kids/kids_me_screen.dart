@@ -159,6 +159,31 @@ class KidsMeScreen extends StatelessWidget {
                               weight: FontWeight.w600, height: 1.35)),
                       const SizedBox(height: 12),
                       const KidsUiTiltPicker(),
+                      const SizedBox(height: 20),
+                      MergeSemantics(
+                        child: Row(children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(context.l10n.kidsGrain,
+                                    style: kbText(18, kbC(ui.ink))),
+                                const SizedBox(height: 4),
+                                Text(context.l10n.kidsGrainSub,
+                                    style: kbText(16, kbC(ui.inkSoft),
+                                        weight: FontWeight.w600, height: 1.35)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          KbToggle(
+                            key: const ValueKey('kids.grain'),
+                            value: s.kidsGrain,
+                            ui: ui,
+                            onChanged: (v) => s.update(() => s.kidsGrain = v),
+                          ),
+                        ]),
+                      ),
                     ],
                   ],
                 ),

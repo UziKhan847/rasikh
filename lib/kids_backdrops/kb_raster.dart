@@ -47,12 +47,23 @@ class KbRaster extends StatefulWidget {
   /// How the finished image is drawn onto what is beneath it — `screen` for
   /// the sun's bloom. A layer with a blend mode must not have a repaint
   /// boundary of its own, or it would blend with nothing.
+  ///
+  /// `screen` is not drawn as one `screen` draw: see [KbLight]. The image is
+  /// stored opaque (its premultiplied colour on black) for that.
   final BlendMode blendMode;
 
   /// How opaque the image is drawn, live: changing it repaints only this
   /// image's quad (used to cross-fade a layer into a more blurred copy as the
   /// page scrolls). Null = fully opaque.
   final ValueListenable<double>? opacity;
+
+  /// A colour matrix (as for [ColorFilter.matrix], with no offset column)
+  /// applied live as the image is drawn — Ultra's slow sky shimmer. Changing
+  /// it repaints only this image's quad: no offscreen pass. A `screen` layer
+  /// cannot carry a colour filter on its draws (see [KbLight]), so it bakes
+  /// the matrix into its light instead, again each time it has moved by more
+  /// than a shade.
+  final ValueListenable<List<double>?>? liveMatrix;
   const KbRaster({
     super.key,
     this.size,
@@ -63,6 +74,7 @@ class KbRaster extends StatefulWidget {
     this.colorFilter,
     this.blendMode = BlendMode.srcOver,
     this.opacity,
+    this.liveMatrix,
   });
 
   /// No image side goes past this: larger textures fail to upload on many
@@ -83,6 +95,37 @@ class _Entry {
   final Rect content;
   int refs = 0;
   _Entry(this.image, this.scale, this.content);
+
+  // A screen layer's light: as stored, and with the last live matrix baked in.
+  KbLight? _plain, _tinted;
+  List<double>? _tint;
+
+  KbLight light(List<double>? m) {
+    if (m == null) return _plain ??= KbLight.of(image);
+    final t = _tint;
+    if (_tinted == null || t == null || !_close(t, m)) {
+      _tinted?.dispose();
+      _tinted = KbLight.of(image, m);
+      _tint = m;
+    }
+    return _tinted!;
+  }
+
+  /// Whether colour matrices [a] and [b] differ by under a shade on any
+  /// channel — the shimmer moves its matrix by about this every tenth of a
+  /// second at its fastest.
+  static bool _close(List<double> a, List<double> b) {
+    for (final i in const [0, 1, 2, 5, 6, 7, 10, 11, 12]) {
+      if ((a[i] - b[i]).abs() > .006) return false;
+    }
+    return true;
+  }
+
+  void dispose() {
+    image.dispose();
+    _plain?.dispose();
+    _tinted?.dispose();
+  }
 }
 
 final _shared = <Object, _Entry>{};
@@ -106,7 +149,7 @@ class _KbRasterState extends State<KbRaster> {
     final e = _entry, k = _key;
     if (e == null) return;
     if (--e.refs == 0) {
-      e.image.dispose();
+      e.dispose();
       if (identical(_shared[k], e)) _shared.remove(k);
     }
     _entry = null;
@@ -123,7 +166,8 @@ class _KbRasterState extends State<KbRaster> {
       KbRaster.maxTexture / area.width,
       KbRaster.maxTexture / area.height,
     ].reduce(math.min);
-    final key = (widget.cacheKey, size, scale, area, widget.colorFilter);
+    final opaque = widget.blendMode == BlendMode.screen;
+    final key = (widget.cacheKey, size, scale, area, widget.colorFilter, opaque);
     if (_entry != null && key == _key) return _entry!;
     _release();
     final e = _shared[key] ??= () {
@@ -131,6 +175,8 @@ class _KbRasterState extends State<KbRaster> {
       final c = Canvas(rec)
         ..scale(scale)
         ..translate(-area.left, -area.top);
+      // A screen layer is stored on black: see [KbRaster.blendMode].
+      if (opaque) c.drawRect(area, Paint()..color = const Color(0xFF000000));
       final cf = widget.colorFilter;
       if (cf != null) c.saveLayer(area, Paint()..colorFilter = cf);
       widget.paint(c, size);
@@ -164,11 +210,11 @@ class _KbRasterState extends State<KbRaster> {
       final e = _entry!;
       return CustomPaint(
         size: size,
-        painter: _ImagePainter(e, Size(size.width / held.width, size.height / held.height), widget.blendMode, widget.opacity),
+        painter: _ImagePainter(e, Size(size.width / held.width, size.height / held.height), widget.blendMode, widget.opacity, widget.liveMatrix),
       );
     }
     final e = _acquire(size, dpr);
-    return CustomPaint(size: size, painter: _ImagePainter(e, const Size(1, 1), widget.blendMode, widget.opacity));
+    return CustomPaint(size: size, painter: _ImagePainter(e, const Size(1, 1), widget.blendMode, widget.opacity, widget.liveMatrix));
   }
 
   @override
@@ -186,7 +232,9 @@ class _ImagePainter extends CustomPainter {
   final Size stretch;
   final BlendMode blendMode;
   final ValueListenable<double>? opacity;
-  _ImagePainter(this.e, this.stretch, this.blendMode, this.opacity) : super(repaint: opacity);
+  final ValueListenable<List<double>?>? liveMatrix;
+  _ImagePainter(this.e, this.stretch, this.blendMode, this.opacity, this.liveMatrix)
+      : super(repaint: Listenable.merge([opacity, liveMatrix]));
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -194,20 +242,109 @@ class _ImagePainter extends CustomPainter {
     if (a <= 0) return;
     final img = e.image, s = e.scale, r = e.content;
     final w = img.width.toDouble(), h = img.height.toDouble();
+    final src = Rect.fromLTWH(0, 0, w, h),
+        dst = Rect.fromLTWH(r.left * stretch.width, r.top * stretch.height,
+            w / s * stretch.width, h / s * stretch.height);
+    final m = liveMatrix?.value;
+    if (blendMode == BlendMode.screen) {
+      e.light(m).screen(canvas, dst, a);
+      return;
+    }
     canvas.drawImageRect(
-      img,
-      Rect.fromLTWH(0, 0, w, h),
-      Rect.fromLTWH(r.left * stretch.width, r.top * stretch.height,
-          w / s * stretch.width, h / s * stretch.height),
-      // Bilinear: only ever scaling a soft layer up, or showing 1:1.
-      Paint()
-        ..filterQuality = FilterQuality.low
-        ..blendMode = blendMode
-        ..color = Color.fromRGBO(255, 255, 255, a),
-    );
+        img,
+        src,
+        dst,
+        // Bilinear: only ever scaling a soft layer up, or showing 1:1.
+        Paint()
+          ..filterQuality = FilterQuality.low
+          ..blendMode = blendMode
+          ..color = Color.fromRGBO(255, 255, 255, a)
+          ..colorFilter = m == null ? null : ColorFilter.matrix(m));
   }
 
   @override
   bool shouldRepaint(_ImagePainter o) =>
-      o.e != e || o.stretch != stretch || o.blendMode != blendMode || o.opacity != opacity;
+      o.e != e || o.stretch != stretch || o.blendMode != blendMode || o.opacity != opacity || o.liveMatrix != liveMatrix;
 }
+
+/// APP ADAPTATION: a light screened onto the scene — the sun's bloom, the god
+/// rays, the water glints, the glow halos — without a `screen` draw.
+///
+/// `screen` is an "advanced" blend: each draw has to read what is already on
+/// screen, which on many phones means a copy of the frame per draw. Screen is
+/// `s + d·(1 − s)`, so it is two cheap blends instead: `modulate` by
+/// `1 − s` ([inverse]), then `plus` `s` ([light]). Same pixels, give or take
+/// rounding, over an opaque scene (which a backdrop always is).
+///
+/// Neither draw may carry a colour filter: Impeller draws an image with a
+/// colour matrix through a fast path that ignores the paint's blend mode, so
+/// the inverse is baked into its own image, and an alpha below 1 goes through
+/// the paint (for `plus`) or a `drawAtlas` colour (for `modulate`), both of
+/// which keep their blend.
+class KbLight {
+  /// The light's premultiplied colour, opaque on black; and `1 − light`.
+  final ui.Image light, inverse;
+  KbLight._(this.light, this.inverse);
+
+  /// From [onBlack] (the light's colour on black, opaque), with colour matrix
+  /// [m] baked in when given. [onBlack] stays the caller's.
+  factory KbLight.of(ui.Image onBlack, [List<double>? m]) => KbLight._(
+        m == null ? onBlack.clone() : _bake(onBlack, kbScreenMatrix(m, 1, 0)),
+        _bake(onBlack, kbScreenMatrix(m, -1, 255)),
+      );
+
+  static ui.Image _bake(ui.Image src, List<double> matrix) {
+    final rec = ui.PictureRecorder();
+    Canvas(rec).drawImage(src, Offset.zero, Paint()..colorFilter = ColorFilter.matrix(matrix));
+    final pic = rec.endRecording();
+    final img = pic.toImageSync(src.width, src.height);
+    pic.dispose();
+    return img;
+  }
+
+  /// Screens the light onto [c] at [dst], at alpha [a]. With [a] below 1,
+  /// [dst] must have the image's proportions.
+  void screen(Canvas c, Rect dst, [double a = 1]) {
+    final src = Rect.fromLTWH(0, 0, light.width.toDouble(), light.height.toDouble());
+    // Bilinear: only ever scaling a soft light up, or showing it 1:1.
+    final mod = Paint()
+      ..filterQuality = FilterQuality.low
+      ..blendMode = BlendMode.modulate;
+    if (a >= 1) {
+      c.drawImageRect(inverse, src, dst, mod);
+    } else {
+      // 1 − a·x = screen(1 − a, 1 − x): the colour blend is worked out
+      // between the colour and the texture, in the shader.
+      final g = 1 - a, k = dst.width / src.width;
+      c.drawAtlas(inverse, [RSTransform(k, 0, dst.left, dst.top)], [src],
+          [Color.from(alpha: 1, red: g, green: g, blue: g)], BlendMode.screen, null, mod);
+    }
+    c.drawImageRect(
+        light,
+        src,
+        dst,
+        Paint()
+          ..filterQuality = FilterQuality.low
+          ..blendMode = BlendMode.plus
+          ..color = Color.fromRGBO(255, 255, 255, a));
+  }
+
+  void dispose() {
+    light.dispose();
+    inverse.dispose();
+  }
+}
+
+/// The colour matrix that draws an opaque image's colour `x` as
+/// `offset + k·M·x` in each colour channel, alpha 1 — [M] a 3×3 colour matrix
+/// in [ColorFilter.matrix] form with no offsets (null = identity), [offset] in
+/// 0…255. Used only to bake [KbLight]s, never on a draw with a blend mode.
+List<double> kbScreenMatrix(List<double>? m, double k, double offset) => [
+      for (var row = 0; row < 3; row++) ...[
+        for (var col = 0; col < 3; col++)
+          k * (m == null ? (row == col ? 1.0 : 0.0) : m[row * 5 + col]),
+        0,
+        offset,
+      ],
+      0, 0, 0, 0, 255,
+    ];

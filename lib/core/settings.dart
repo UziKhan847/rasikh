@@ -176,6 +176,9 @@ class AppSettings extends ChangeNotifier {
   /// choice of its own, shown only while Ultra is on.
   double kidsUiTilt = 1.0;
 
+  /// Ultra's fine film grain over the scenery — on by default, as designed.
+  bool kidsGrain = true;
+
   /// Whether cards get the raised gradient look — every level but plain.
   /// (Medium and high differ only in the backdrop and its motion.)
   bool get kidsRaised => kidsDetail != KidsDetail.plain;
@@ -348,6 +351,7 @@ class AppSettings extends ChangeNotifier {
     kidsTextScale = ((m['kidsTextScale'] ?? 1.0) as num).toDouble().clamp(0.8, 1.2);
     kidsDetail = _loadKidsDetail(m);
     kidsUiTilt = ((m['kidsUiTilt'] ?? 1.0) as num).toDouble().clamp(0.0, 1.6);
+    kidsGrain = (m['kidsGrain'] ?? true) as bool;
     kidsSessionMinutes = (m['kidsSessionMinutes'] as num?)?.toInt() ?? 0;
     kidsProfiles = ((m['kidsProfiles'] as List?) ?? const [])
         .map((e) => KidsProfile.fromJson(Map<String, dynamic>.from(e as Map)))
@@ -399,6 +403,7 @@ class AppSettings extends ChangeNotifier {
         'kidsTextScale': kidsTextScale,
         'kidsDetail': kidsDetail.name,
         'kidsUiTilt': kidsUiTilt,
+        'kidsGrain': kidsGrain,
         'kidsSessionMinutes': kidsSessionMinutes,
         'kidsProfiles': [for (final p in kidsProfiles) p.toJson()],
         'activeKidsProfileId': activeKidsProfileId,

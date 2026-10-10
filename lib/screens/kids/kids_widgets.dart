@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
+import '../../core/display_rate.dart';
 import '../../core/geometry.dart';
 import '../../core/l10n.dart';
 import '../../core/responsive.dart';
@@ -63,6 +64,8 @@ class KidsBackdrop extends StatelessWidget {
         motion: vivid && !kidsReduceMotion(context),
         bloom: kKidsBloom,
         saturation: kKidsSaturation,
+        // Lessons stay calm on Ultra: its look, none of its motion.
+        ultraStill: vivid && s.kidsDetail == KidsDetail.ultra,
         child: child,
       ),
     );
@@ -97,26 +100,75 @@ class KidsTabBackdrop extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = SettingsScope.of(context);
     if (!kidsVivid(s.kidsDetail)) return KidsBackdrop(child: child);
-    return KbSceneScope(
-      style: KbStyle.vivid,
-      child: KbParallaxBackdrop(
-        theme: kbThemeFor(s.activeKidsProfile?.theme),
-        mode: kbModeFor(s.kidsThemeMode),
+    final ultra = s.kidsDetail == KidsDetail.ultra, motion = !kidsReduceMotion(context);
+    // Ultra's effects take longer than a 120 Hz frame on most phones: hold the
+    // screen at an even 60 while they run — not under a pushed lesson (its
+    // ticker mode is off there) nor with nothing moving.
+    return _HoldSixty(
+      active: ultra && motion && TickerMode.valuesOf(context).enabled,
+      child: KbSceneScope(
         style: KbStyle.vivid,
-        cameraX: cameraX,
-        scrollY: scrollY,
-        scrollExtent: scrollExtent,
-        motion: !kidsReduceMotion(context),
-        bloom: kKidsBloom,
-        saturation: kKidsSaturation,
-        // High is the design's Standard fidelity (with its bloom and saturation);
-        // Ultra is the design's High + Ultra: grain, effects, mist, tilt, light.
-        fidelity: s.kidsDetail == KidsDetail.ultra ? KbFidelity.ultra : KbFidelity.standard,
-        uiTilt: s.kidsUiTilt,
-        child: child,
+        child: KbParallaxBackdrop(
+          theme: kbThemeFor(s.activeKidsProfile?.theme),
+          mode: kbModeFor(s.kidsThemeMode),
+          style: KbStyle.vivid,
+          cameraX: cameraX,
+          scrollY: scrollY,
+          scrollExtent: scrollExtent,
+          motion: motion,
+          bloom: kKidsBloom,
+          saturation: kKidsSaturation,
+          // High is the design's Standard fidelity (with its bloom and saturation);
+          // Ultra is the design's High + Ultra: grain, effects, mist, tilt, light.
+          fidelity: ultra ? KbFidelity.ultra : KbFidelity.standard,
+          uiTilt: s.kidsUiTilt,
+          grain: s.kidsGrain,
+          child: child,
+        ),
       ),
     );
   }
+}
+
+/// Holds the screen at 60 Hz ([DisplayRate.hold60]) while [active].
+class _HoldSixty extends StatefulWidget {
+  final bool active;
+  final Widget child;
+  const _HoldSixty({required this.active, required this.child});
+
+  @override
+  State<_HoldSixty> createState() => _HoldSixtyState();
+}
+
+class _HoldSixtyState extends State<_HoldSixty> {
+  bool _held = false;
+
+  void _sync(bool want) {
+    if (want == _held) return;
+    _held = want;
+    want ? DisplayRate.hold60() : DisplayRate.release60();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _sync(widget.active);
+  }
+
+  @override
+  void didUpdateWidget(_HoldSixty old) {
+    super.didUpdateWidget(old);
+    _sync(widget.active);
+  }
+
+  @override
+  void dispose() {
+    _sync(false);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// The Home screen's daily-goal ring — Kids Mode's own amber-toned variant

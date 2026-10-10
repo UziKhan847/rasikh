@@ -1,6 +1,7 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
+import '../../core/display_rate.dart';
 import '../../kids_backdrops/kb_components.dart' show kbText;
 import '../../kids_backdrops/kb_scene.dart' show kBlack, kWhite, kbC;
 
@@ -26,6 +27,7 @@ class _KidsFrameReadoutState extends State<KidsFrameReadout> {
   void initState() {
     super.initState();
     SchedulerBinding.instance.addTimingsCallback(_onTimings);
+    DisplayRate.refresh();
   }
 
   @override
@@ -43,7 +45,10 @@ class _KidsFrameReadoutState extends State<KidsFrameReadout> {
       return;
     }
     _last = now;
-    final hz = View.of(context).display.refreshRate;
+    // The rate in use: what was last asked of Android (Ultra holds 60), else
+    // what the engine reports.
+    final asked = DisplayRate.hz.value,
+        hz = asked > 0 ? asked : View.of(context).display.refreshRate;
     final budget = 1000 / (hz > 0 ? hz : 60);
     double ms(Duration d) => d.inMicroseconds / 1000;
     final ui = _window.map((t) => ms(t.buildDuration)).toList();
@@ -56,15 +61,16 @@ class _KidsFrameReadoutState extends State<KidsFrameReadout> {
     final text =
         'UI ${avg(ui).toStringAsFixed(1)} · GPU ${avg(gpu).toStringAsFixed(1)} ms'
         ' · ${(100 * slow / _window.length).round()}% slow'
-        ' · ${_window.length} f';
+        ' · ${_window.length} f · ${hz.round()} Hz';
     _window.clear();
     if (text != _text) setState(() => _text = text);
   }
 
   @override
   Widget build(BuildContext context) {
-    final text = _text;
-    if (text == null) return const SizedBox.shrink();
+    // A placeholder until the first second of timings is in, so it is plain
+    // the readout is there even on a screen that has not drawn a frame yet.
+    final text = _text ?? 'UI – · GPU – ms';
     return IgnorePointer(
       child: DecoratedBox(
         decoration: BoxDecoration(

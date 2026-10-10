@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'kb_components.dart' show KbIcon, kbFontQuran, kbFontUi, kbText;
+import 'kb_hifi.dart' show kbPaintSceneStill;
 import 'kb_raster.dart';
 import 'kb_scene.dart';
 import 'kb_themes.dart';
@@ -22,7 +23,11 @@ class KbBackdrop extends StatefulWidget {
   // APP ADAPTATION: the tab backdrop's bloom and saturation, so a lesson looks like
   // its tab. Baked into the scene image (no per-frame cost); vivid only.
   final double bloom, saturation;
-  const KbBackdrop({super.key, required this.theme, required this.mode, this.style = KbStyle.vivid, this.motion = true, this.bloom = 0, this.saturation = 1, this.child});
+  // APP ADAPTATION: on Ultra a lesson's scene also gets Ultra's still touches
+  // (rim light, standing mist, vignette — see kbPaintSceneStill), baked into the
+  // same image; nothing that moves.
+  final bool ultraStill;
+  const KbBackdrop({super.key, required this.theme, required this.mode, this.style = KbStyle.vivid, this.motion = true, this.bloom = 0, this.saturation = 1, this.ultraStill = false, this.child});
   @override
   State<KbBackdrop> createState() => _KbBackdropState();
 }
@@ -77,10 +82,12 @@ class _KbBackdropState extends State<KbBackdrop> with SingleTickerProviderStateM
           child: RepaintBoundary(
             child: KbRaster(
               size: Size(c.maxWidth, h),
-              cacheKey: (widget.theme.id, widget.mode, widget.style, bloom),
+              cacheKey: (widget.theme.id, widget.mode, widget.style, bloom, widget.ultraStill),
               colorFilter: sat == 1 ? null : ColorFilter.matrix(kbSaturation(sat)),
               paint: (c, size) {
-                final p = kbPaintScene(c, size, widget.theme, widget.mode, widget.style);
+                final p = widget.ultraStill
+                    ? kbPaintSceneStill(c, size, widget.theme, widget.mode, widget.style)
+                    : kbPaintScene(c, size, widget.theme, widget.mode, widget.style);
                 // Bloom screens over the finished scene, as on the tabs.
                 if (bloom > 0 && kbHasBloom(widget.theme, p)) {
                   kbPaintBloom(c, size, widget.theme, size.width, size.height, bloom);

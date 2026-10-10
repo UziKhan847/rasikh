@@ -20,6 +20,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'kb_raster.dart' show KbLight;
 import 'kb_scene.dart';
 import 'kb_themes.dart';
 
@@ -561,6 +562,14 @@ const _pf = [.35, .6, .9],
 
 /// Speck simulation + Ultra scene life. Owned by KbParallaxBackdrop's state.
 class KbFxSystem extends ChangeNotifier {
+  final _rays = _RayCache();
+
+  @override
+  void dispose() {
+    _rays.dispose();
+    super.dispose();
+  }
+
   final _rnd = math.Random();
   List<KbFxSpeck> parts = [];
   String _key = '';
@@ -660,6 +669,11 @@ class KbFxSystem extends ChangeNotifier {
 // stored at 2× for crisp edges on dense screens.
 final Map<String, ui.Image> _sprites = {};
 const double _spriteN = 64;
+
+/// A speck sprite (see [_sprite]) — exposed for tests.
+@visibleForTesting
+ui.Image kbFxSprite(String shape, int col, double blur) =>
+    _sprite(shape, col, blur);
 
 ui.Image _sprite(String shape, int col, double blur) {
   final key = '$shape|$col|$blur';
@@ -942,48 +956,191 @@ class KbFxPainter extends CustomPainter {
   bool shouldRepaint(KbFxPainter o) => o.th.id != th.id || o.P != P;
 }
 
-/// Screen-blend layer (Ultra): god rays, water glints, halos. Must NOT be inside its own RepaintBoundary.
+/// APP ADAPTATION: the god rays, drawn into an image at half the screen's
+/// resolution (they are soft gradients), instead of 14 near-full-screen
+/// gradient fills every frame. Their common slow turn ([_raySpin] rad/s) is
+/// applied each frame by rotating the image about the sun; the image is
+/// re-drawn only for each ray's own slow pulse and sway, 4 times a second —
+/// in 250 ms those move a ray's far end about a pixel and its brightness about
+/// 1/255. It is padded past the screen so small moves of the sun (tilt,
+/// parallax) are a translation of the same image until the next refresh.
+class _RayCache {
+  KbLight? _img;
+  double _t = -1, _scale = 0;
+  Offset _sun = Offset.zero;
+  Size _size = Size.zero;
+  String _theme = '';
+  static const _every = .25, _margin = 24.0;
+
+  /// The cached rays, where the sun sat when they were drawn, their scale and
+  /// padding, and how far they have turned since.
+  (KbLight, Offset, double, double, double) get(
+    KbTheme th,
+    Size size,
+    Offset sun,
+    double t,
+    double dpr,
+  ) {
+    final scale = dpr * .5;
+    final moved = (sun - _sun).distance;
+    if (_img == null ||
+        th.id != _theme ||
+        size != _size ||
+        scale != _scale ||
+        (t - _t).abs() >= _every ||
+        moved > _margin * .5) {
+      _img?.dispose();
+      final rec = ui.PictureRecorder();
+      // On black, so the image is the rays' premultiplied colour, opaque:
+      // what a [KbLight] needs.
+      final c = Canvas(rec)
+        ..drawPaint(Paint()..color = const Color(0xFF000000))
+        ..scale(scale)
+        ..translate(_margin, _margin);
+      _paintRays(c, size, th, sun, t);
+      final pic = rec.endRecording();
+      final img = pic.toImageSync(
+        ((size.width + 2 * _margin) * scale).ceil(),
+        ((size.height + 2 * _margin) * scale).ceil(),
+      );
+      pic.dispose();
+      _img = KbLight.of(img);
+      img.dispose();
+      _t = t;
+      _sun = sun;
+      _size = size;
+      _scale = scale;
+      _theme = th.id;
+    }
+    return (_img!, _sun, _scale, _margin, (t - _t) * _raySpin);
+  }
+
+  void dispose() {
+    _img?.dispose();
+    _img = null;
+  }
+}
+
+/// How fast the god rays turn together, in radians a second.
+const _raySpin = .012;
+
+/// The 14 god-ray wedges (port of fxLife's rays), into the cached image.
+void _paintRays(Canvas c, Size size, KbTheme th, Offset sun, double t) {
+  final W = size.width, H = size.height;
+  final col = kbMix(th.reward, 0xFFF3D4, .6), len = H * 1.15;
+  for (var i = 0; i < 14; i++) {
+    final a0 =
+            i * math.pi * 2 / 14 + t * _raySpin + math.sin(t * .07 + i * 1.7) * .06,
+        w = .045 + .05 * kbHash(i + 3);
+    final al = .13 * (.55 + .45 * math.sin(t * .35 + i * 2.1));
+    final path = Path()
+      ..moveTo(sun.dx, sun.dy)
+      ..arcTo(Rect.fromCircle(center: sun, radius: len), a0 - w, w * 2, false)
+      ..close();
+    c.drawPath(
+      path,
+      Paint()
+        ..shader = ui.Gradient.radial(
+          sun,
+          len,
+          [kbC(col, al), kbC(col, al * .4), kbC(col, 0)],
+          [W * .04 / len, .5, 1],
+        ),
+    );
+  }
+}
+
+/// Each glow sprite as a [KbLight]: redrawn on black (opaque), with its inverse.
+final Map<ui.Image, KbLight> _lights = {};
+KbLight _light(ui.Image sprite) => _lights[sprite] ??= () {
+  final rec = ui.PictureRecorder();
+  Canvas(rec)
+    ..drawPaint(Paint()..color = const Color(0xFF000000))
+    ..drawImage(sprite, Offset.zero, Paint());
+  final pic = rec.endRecording();
+  final img = pic.toImageSync(sprite.width, sprite.height);
+  pic.dispose();
+  final light = KbLight.of(img);
+  img.dispose();
+  return light;
+}();
+
+/// The 22 water glints' sizes: each glint's depth is fixed by its index, so
+/// its oval never changes size — only where it sits and how bright it is.
+Size _glintSize(int i) {
+  final dep = kbHash(i * 5 + 1);
+  return Size((6 + dep * 12) * 2, (1 + dep * 1.4) * 2);
+}
+
+const _glintPad = 2.0;
+
+/// Each glint's oval as a [KbLight]: solid in the glint colour, on black, and
+/// drawn at its exact size in device pixels, so it shows 1:1.
+final Map<double, List<KbLight>> _glints = {};
+List<KbLight> _glintSprites(double dpr) => _glints[dpr] ??= [
+  for (var i = 0; i < 22; i++)
+    () {
+      final sz = _glintSize(i);
+      final rec = ui.PictureRecorder();
+      Canvas(rec)
+        ..drawPaint(Paint()..color = const Color(0xFF000000))
+        ..scale(dpr)
+        ..drawOval(
+          Rect.fromLTWH(_glintPad, _glintPad, sz.width, sz.height),
+          Paint()..color = kbC(0xFFF6DC),
+        );
+      final pic = rec.endRecording();
+      final img = pic.toImageSync(
+        ((sz.width + 2 * _glintPad) * dpr).ceil(),
+        ((sz.height + 2 * _glintPad) * dpr).ceil(),
+      );
+      pic.dispose();
+      final light = KbLight.of(img);
+      img.dispose();
+      return light;
+    }(),
+];
+
+/// Screen-blend light (Ultra): god rays, water glints, halos. Must NOT be inside its own RepaintBoundary.
+///
+/// APP ADAPTATION: `screen` is an "advanced" blend — each draw has to read what
+/// is already on screen, which on many phones means a copy of the frame per
+/// draw — and this used to issue ~37 of them a frame (14 rays, 22 glints, the
+/// halos), which is why light modes cost so much more than dark ones. Now each
+/// piece is screened exactly with two cheap draws ([KbLight.screen]): no
+/// advanced blend and no offscreen layer. Screen is associative and commutative, so
+/// screening the pieces one after another is the prototype's look.
 class KbFxLightPainter extends CustomPainter {
   final KbFxSystem fx;
   final KbTheme th;
-  KbFxLightPainter(this.fx, this.th) : super(repaint: fx);
+  final double dpr;
+  KbFxLightPainter(this.fx, this.th, {this.dpr = 1}) : super(repaint: fx);
   @override
   void paint(Canvas c, Size size) {
     if (!fx.ultra) return;
-    final W = size.width, H = size.height, t = fx.t, sun = fx.sun;
-    Paint scr() => Paint()..blendMode = BlendMode.screen;
+    final W = size.width, t = fx.t, sun = fx.sun;
     if (sun != null) {
-      final col = kbMix(th.reward, 0xFFF3D4, .6), len = H * 1.15;
-      for (var i = 0; i < 14; i++) {
-        final a0 =
-                i * math.pi * 2 / 14 +
-                t * .012 +
-                math.sin(t * .07 + i * 1.7) * .06,
-            w = .045 + .05 * kbHash(i + 3);
-        final al = .13 * (.55 + .45 * math.sin(t * .35 + i * 2.1));
-        final path = Path()
-          ..moveTo(sun.dx, sun.dy)
-          ..arcTo(
-            Rect.fromCircle(center: sun, radius: len),
-            a0 - w,
-            w * 2,
-            false,
-          )
-          ..close();
-        c.drawPath(
-          path,
-          scr()
-            ..shader = ui.Gradient.radial(
-              sun,
-              len,
-              [kbC(col, al), kbC(col, al * .4), kbC(col, 0)],
-              [W * .04 / len, .5, 1],
-            ),
-        );
-      }
+      final (rays, at, scale, m, turn) = fx._rays.get(th, size, sun, t, dpr);
+      final o = sun - at; // the sun's drift since the image was drawn
+      c
+        ..save()
+        ..translate(sun.dx, sun.dy)
+        ..rotate(turn)
+        ..translate(-sun.dx, -sun.dy);
+      rays.screen(
+        c,
+        Rect.fromLTWH(
+          o.dx - m,
+          o.dy - m,
+          rays.light.width / scale,
+          rays.light.height / scale,
+        ),
+      );
+      c.restore();
       final wi = th.ridges.indexWhere((r) => r.kind == 'wave');
       if (wi >= 0) {
-        final yr = th.ridges[wi].base * H;
+        final yr = th.ridges[wi].base * size.height;
+        final sprites = _glintSprites(dpr);
         for (var i = 0; i < 22; i++) {
           final dep = kbHash(i * 5 + 1),
               y = yr + 10 + dep * 110,
@@ -996,36 +1153,101 @@ class KbFxLightPainter extends CustomPainter {
               .75 *
               (1 - dep * .5);
           if (al <= .002) continue;
-          c.drawOval(
-            Rect.fromCenter(
-              center: Offset(gx, y),
-              width: (6 + dep * 12) * 2,
-              height: (1 + dep * 1.4) * 2,
+          final sz = _glintSize(i), glint = sprites[i];
+          glint.screen(
+            c,
+            Rect.fromLTWH(
+              gx - sz.width / 2 - _glintPad,
+              y - sz.height / 2 - _glintPad,
+              glint.light.width / dpr,
+              glint.light.height / dpr,
             ),
-            scr()..color = kbC(0xFFF6DC, al.toDouble()),
+            al.toDouble(),
           );
         }
       }
     }
     // halos on the glowing specks: the prototype's blurred dot sprite, 3.2× the speck
-    final batches = <ui.Image, _Batch>{};
     for (final p in fx.parts) {
       if (!p.g.glow) continue;
       final d = _spriteN * p.ds / (26 - p.blur * 1.2) * 3.2;
-      _queue(
-        batches,
-        _sprite('dot', p.g.col, 6),
-        Offset(p.sx, p.sy),
-        d,
-        0,
-        p.da * .5,
+      _light(_sprite('dot', p.g.col, 6)).screen(
+        c,
+        Rect.fromCenter(center: Offset(p.sx, p.sy), width: d, height: d),
+        (p.da * .5).clamp(0.0, 1.0),
       );
     }
-    _flush(c, batches, blend: BlendMode.screen);
   }
 
   @override
-  bool shouldRepaint(KbFxLightPainter o) => o.th.id != th.id;
+  bool shouldRepaint(KbFxLightPainter o) => o.th.id != th.id || o.dpr != dpr;
+}
+
+// ---------------------------------------------------------------- still Ultra
+/// APP ADAPTATION: Ultra's still touches for a static scene (a lesson's
+/// backdrop): rim light on each ridge, the two mist bands (not drifting) and the
+/// vignette, painted with the scene in one go so they cost nothing per frame.
+/// Nothing that moves — no grain, specks, birds, rays or tilt — so nothing
+/// competes with the lesson itself.
+KbPalette kbPaintSceneStill(
+  Canvas c,
+  Size size,
+  KbTheme th,
+  KbMode mode,
+  KbStyle style,
+) {
+  final P = kbPalette(th, mode, style);
+  final W = size.width, H = size.height, s = W / kbDesignWidth;
+  c.save();
+  c.clipRect(Offset.zero & size);
+  kbPaintSky(c, size, th, P);
+  kbPaintOrn(c, W, H, th, P);
+  final roles = kbRidgeRoles(th), n = th.ridges.length;
+  final rim = P.dark ? 0xBED2FF : 0xFFF0D6, rimA = P.dark ? .45 : .9;
+  for (var i = 0; i < n; i++) {
+    if (!P.orig && i >= n - 2) {
+      final j = i - (n - 2), sg = (kbDepthBlur['mist$j'] ?? 0) * s;
+      c.saveLayer(
+        Offset.zero & size,
+        Paint()
+          ..imageFilter = ui.ImageFilter.blur(
+            sigmaX: sg,
+            sigmaY: sg,
+            tileMode: TileMode.decal,
+          ),
+      );
+      KbMistPainter(th, P, j, W, H, 0).paint(c, size);
+      c.restore();
+    }
+    if (!P.orig) {
+      c.saveLayer(
+        null,
+        Paint()
+          ..colorFilter = ColorFilter.mode(kbC(rim, rimA), BlendMode.srcIn)
+          ..imageFilter = ui.ImageFilter.blur(sigmaX: 1.2, sigmaY: 1.2),
+      );
+      c.translate(0, -1.5 * s);
+      kbPaintRidge(c, W, H, th, th.ridges[i], i, roles[i], P);
+      c.restore();
+    }
+    kbPaintRidge(c, W, H, th, th.ridges[i], i, roles[i], P);
+  }
+  if (!P.orig) {
+    // KbVignette's gradient, baked in.
+    final rect = Offset.zero & size;
+    c.drawRect(
+      rect,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(0, -.16),
+          radius: 1.0,
+          colors: [Color(0x00000000), Color(0x00000000), Color(0x4D000000)],
+          stops: [0, .55, 1],
+        ).createShader(rect),
+    );
+  }
+  c.restore();
+  return P;
 }
 
 // ---------------------------------------------------------------- colour helpers

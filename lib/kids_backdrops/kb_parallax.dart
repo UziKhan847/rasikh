@@ -44,8 +44,10 @@ class KbParallaxBackdrop extends StatefulWidget {
   /// UI tilt (High/Ultra only): 0 off, 1 subtle (default), 1.6 strong. Turns the `child` slightly to
   /// face the tilt (max 2.5° × k) and floats it (max 5 px × k).
   final double uiTilt;
+  /// APP ADAPTATION: the film grain (High/Ultra) can be switched off.
+  final bool grain;
   final Widget? child;
-  const KbParallaxBackdrop({super.key, required this.theme, required this.mode, this.style = KbStyle.vivid, required this.cameraX, required this.scrollY, this.scrollExtent, this.tabCount = 5, this.strength = 1, this.depthBlur = true, this.motion = true, this.bloom = 1.5, this.saturation = 1.3, this.fidelity = KbFidelity.high, this.uiTilt = 1, this.child});
+  const KbParallaxBackdrop({super.key, required this.theme, required this.mode, this.style = KbStyle.vivid, required this.cameraX, required this.scrollY, this.scrollExtent, this.tabCount = 5, this.strength = 1, this.depthBlur = true, this.motion = true, this.bloom = 1.5, this.saturation = 1.3, this.fidelity = KbFidelity.high, this.uiTilt = 1, this.grain = true, this.child});
   @override
   State<KbParallaxBackdrop> createState() => _KbParallaxBackdropState();
 }
@@ -59,6 +61,11 @@ class _KbParallaxBackdropState extends State<KbParallaxBackdrop> with TickerProv
   final KbFxSystem _fx = KbFxSystem();
   final KbTilt _tilt = KbTilt();
   final _ptr = ValueNotifier<Offset?>(null);
+  // APP ADAPTATION: Ultra's slow sky shimmer, applied to each pre-drawn layer as
+  // it is drawn (KbRaster.liveMatrix) — not a ColorFiltered over the whole scene,
+  // which was a full-screen offscreen pass every frame. The prototype filters
+  // only the layers, too (not the specks).
+  final _shimmer = ValueNotifier<List<double>?>(null);
   Ticker? _fxTicker;
   Duration _fxLast = Duration.zero;
   double _lw = kbDesignWidth, _lh = 844, _cyNow = 0;
@@ -158,6 +165,10 @@ class _KbParallaxBackdropState extends State<KbParallaxBackdrop> with TickerProv
     }
     _fx.ensure(th, widget.mode, P, _lw, _lh);
     _fx.step(math.min(dt, .05), _lw, _lh, pointer: _ptr.value);
+    final ss = _fx.t;
+    _shimmer.value = widget.fidelity == KbFidelity.ultra
+        ? kbHueBright(math.sin(ss * math.pi * 2 / 9) * 4, 1 + math.sin(ss * math.pi * 2 / 7) * .025)
+        : null;
   }
 
   @override
@@ -167,6 +178,7 @@ class _KbParallaxBackdropState extends State<KbParallaxBackdrop> with TickerProv
     _tilt.stop();
     _fx.dispose();
     _ptr.dispose();
+    _shimmer.dispose();
     _scrollK.dispose();
     _motes.dispose();
     _bokeh.dispose();
@@ -249,6 +261,7 @@ class _KbParallaxBackdropState extends State<KbParallaxBackdrop> with TickerProv
               content: content,
               colorFilter: sat,
               opacity: opacity,
+              liveMatrix: ultra ? _shimmer : null,
               paint: (c, sz) {
                 if (sg > 0) c.saveLayer(Offset.zero & sz, Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: sg, sigmaY: sg, tileMode: TileMode.decal));
                 painter.paint(c, sz);
@@ -296,7 +309,7 @@ class _KbParallaxBackdropState extends State<KbParallaxBackdrop> with TickerProv
             child: P.orig
                 ? CustomPaint(painter: _SkyPainter(th, P))
                 // Pre-drawn too, so the saturation can be baked into it.
-                : KbRaster(size: Size(W, H), cacheKey: (th.id, widget.mode, widget.style, 'sky', W, H), colorFilter: sat, paint: (c, sz) => kbPaintSky(c, sz, th, P)),
+                : KbRaster(size: Size(W, H), cacheKey: (th.id, widget.mode, widget.style, 'sky', W, H), colorFilter: sat, liveMatrix: ultra ? _shimmer : null, paint: (c, sz) => kbPaintSky(c, sz, th, P)),
           ),
         ),
         layer('orn', _OrnPainter(th, P, W, H), maxScale: softOrn ? 1 : double.infinity),
@@ -326,8 +339,9 @@ class _KbParallaxBackdropState extends State<KbParallaxBackdrop> with TickerProv
         ],
         // Sun bloom: light bleeding over the ridges in front of the sun, screen-
         // blended above them and moving at the sun's parallax speed. Pre-drawn
-        // (soft, so 1 px per logical px) and drawn with `screen` each frame; NOT
-        // inside a RepaintBoundary of its own, or it would blend with nothing.
+        // (soft, so 1 px per logical px) and screened each frame — as two cheap
+        // draws, see KbRaster.blendMode; NOT inside a RepaintBoundary of its
+        // own, or it would blend with nothing.
         if (!P.orig && widget.bloom > 0 && kbHasBloom(th, P))
           () {
             final f = kbParallax['orn']!;
@@ -344,6 +358,7 @@ class _KbParallaxBackdropState extends State<KbParallaxBackdrop> with TickerProv
                     cacheKey: (th.id, widget.mode, widget.style, 'bloom', W, H, widget.bloom),
                     maxScale: 1,
                     colorFilter: sat,
+                    liveMatrix: ultra ? _shimmer : null,
                     blendMode: BlendMode.screen,
                     paint: (c, sz) => kbPaintBloom(c, sz, th, W, H, widget.bloom),
                   ),
@@ -373,21 +388,12 @@ class _KbParallaxBackdropState extends State<KbParallaxBackdrop> with TickerProv
         if (hf) ...[
           // No RepaintBoundary on these: the light layer screen-blends with the scene below.
           Positioned.fill(key: const ValueKey('kb.fx'), child: IgnorePointer(child: CustomPaint(painter: KbFxPainter(_fx, th, P)))),
-          if (ultra) Positioned.fill(key: const ValueKey('kb.fxLight'), child: IgnorePointer(child: CustomPaint(painter: KbFxLightPainter(_fx, th)))),
+          if (ultra) Positioned.fill(key: const ValueKey('kb.fxLight'), child: IgnorePointer(child: CustomPaint(painter: KbFxLightPainter(_fx, th, dpr: MediaQuery.devicePixelRatioOf(context))))),
         ],
       ]);
-      // Ultra: the slow sky shimmer (±4° hue, ±2.5% brightness) — the one filter
-      // that has to stay live, since it moves.
-      final backdrop = !ultra
-          ? scene
-          : AnimatedBuilder(
-              animation: _fx,
-              child: scene,
-              builder: (context, child) {
-                final ss = _fx.t;
-                return ColorFiltered(colorFilter: ColorFilter.matrix(kbHueBright(math.sin(ss * math.pi * 2 / 9) * 4, 1 + math.sin(ss * math.pi * 2 / 7) * .025)), child: child);
-              },
-            );
+      // Ultra's sky shimmer is applied per layer (see _shimmer), so the scene
+      // needs no filter around it.
+      final backdrop = scene;
       Widget? page = widget.child;
       if (page != null && hf && widget.uiTilt > 0) {
         // APP ADAPTATION: one Transform, always present (identity at rest). The
@@ -431,7 +437,7 @@ class _KbParallaxBackdropState extends State<KbParallaxBackdrop> with TickerProv
           },
           child: Stack(clipBehavior: Clip.hardEdge, children: [
             Positioned.fill(key: const ValueKey('kb.scene'), child: backdrop),
-            if (hf) Positioned.fill(key: const ValueKey('kb.grain'), child: KbGrain(opacity: P.dark ? .22 : .16, animate: widget.motion)),
+            if (hf && widget.grain) Positioned.fill(key: const ValueKey('kb.grain'), child: KbGrain(opacity: P.dark ? .22 : .16, animate: widget.motion)),
             if (ultra) const Positioned.fill(key: ValueKey('kb.vignette'), child: KbVignette()),
             if (page != null) Positioned.fill(key: const ValueKey('kb.page'), child: page),
           ]),
