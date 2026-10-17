@@ -128,6 +128,13 @@ class WbwAudio {
   final AudioPlayer _player = AudioPlayer();
   PlaybackHandle? _active;
 
+  /// Playback speed (Settings → Recitation), applied to every word played.
+  double rate = 1;
+  void setRate(double r) {
+    rate = r;
+    _player.setPlaybackRate(r).catchError((_) {});
+  }
+
   static String fileName(int s, int v, int w) =>
       '${s.toString().padLeft(3, '0')}_${v.toString().padLeft(3, '0')}_${w.toString().padLeft(3, '0')}.mp3';
 
@@ -159,6 +166,7 @@ class WbwAudio {
     final f = await localFile(s, v, w);
     await _player
         .play(f != null ? DeviceFileSource(f.path) : UrlSource(url(s, v, w)));
+    if (rate != 1) await _player.setPlaybackRate(rate);
   }
 
   Future<void> _playToEnd(int s, int v, int w) async {
@@ -175,6 +183,7 @@ class WbwAudio {
       final f = await localFile(s, v, w);
       await _player.play(
           f != null ? DeviceFileSource(f.path) : UrlSource(url(s, v, w)));
+      if (rate != 1) await _player.setPlaybackRate(rate);
       await done.future.timeout(const Duration(seconds: 20));
     } catch (_) {
       // skip unplayable word and continue the sequence
@@ -618,6 +627,7 @@ class AyahAudio {
       await _player.stop();
       final f = await _localFile(reciter, s, v);
       await _player.play(f != null ? DeviceFileSource(f.path) : UrlSource(url));
+      if (rate != 1) await _player.setPlaybackRate(rate);
       return null;
     } catch (e) {
       debugPrint('[AyahAudio] play error: $e');
@@ -627,6 +637,13 @@ class AyahAudio {
 
   Future<void> pause() => _player.pause();
   Future<void> resume() => _player.resume();
+
+  /// Playback speed (Settings → Recitation).
+  double rate = 1;
+  void setRate(double r) {
+    rate = r;
+    _player.setPlaybackRate(r).catchError((_) {});
+  }
 
   /// Seek within the verse now playing (verse-relative, same timeline as
   /// [segments]).
@@ -800,8 +817,12 @@ mixin RecitationPositionMixin<T extends StatefulWidget> on State<T> {
   void _onRecitePos() {
     if (!mounted || !isReciting) return;
     final w = AyahAudio.instance.wordAt(AyahAudio.instance.pos.value);
-    if (w != recitedWord) setState(() => recitedWord = w);
+    if (w != recitedWord) onRecitedWordChanged(w);
   }
+
+  /// The recited word moved on. Rebuilds the whole screen by default;
+  /// screens can narrow that to what shows the word.
+  void onRecitedWordChanged(int word) => setState(() => recitedWord = word);
 
   void initRecitationTracking() =>
       AyahAudio.instance.pos.addListener(_onRecitePos);

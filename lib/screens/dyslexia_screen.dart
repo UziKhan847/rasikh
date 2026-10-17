@@ -10,7 +10,9 @@ import '../core/settings.dart';
 import '../core/theme.dart';
 import '../data/glyph_names.dart';
 import '../data/letters.dart';
+import '../ui/kit.dart';
 import '../widgets/common.dart';
+import '../ui/app_icons.dart';
 
 /// 👁 Reading Coach — built for readers who find similar shapes and dots
 /// hard to tell apart. One-tap preset, fine-grained reading settings, and
@@ -19,90 +21,201 @@ class DyslexiaScreen extends StatelessWidget {
   const DyslexiaScreen({super.key, this.embedded = false});
   final bool embedded;
 
+  /// The look-alike families the coach drills. The letter groups are fixed;
+  /// the labels are localised.
+  List<(String, String, List<String>)> _sets(BuildContext context) => [
+        (context.l10n.dottedFamily, context.l10n.oneTwoThreeDots,
+            ['ب', 'ت', 'ث']),
+        (context.l10n.jimGroup, context.l10n.belowNoneAbove, ['ج', 'ح', 'خ']),
+        ('Dāl & Dhāl', context.l10n.plainVsOneDot, ['د', 'ذ']),
+        ('Rāʼ & Zāy', context.l10n.plainVsOneDot, ['ر', 'ز']),
+        ('Ṣād & Ḍād', context.l10n.plainVsOneDot, ['ص', 'ض']),
+        ('Sīn & Shīn', context.l10n.plainVsThreeDots, ['س', 'ش']),
+        (context.l10n.aynGhayn, context.l10n.plainVsOneDot, ['ع', 'غ']),
+        ('Fāʼ & Qāf', context.l10n.oneVsTwoDots, ['ف', 'ق']),
+      ];
+
   @override
   Widget build(BuildContext context) {
     final s = SettingsScope.of(context);
+    final p = pal(context);
+    final prog = ProgressScope.of(context);
+    final wide = MediaQuery.sizeOf(context).width >= 1100;
+    Widget cap(Widget w) => QColumn(child: w);
+    final drills = <Widget>[
+      _drill(context, context.l10n.spotTheLetter, context.l10n.spotTheLetterSub,
+          AppIcons.coach, 220, 'coach.spot', (_) => const SpotTheLetterDrill()),
+      _drill(context, context.l10n.dotDetective, context.l10n.dotDetectiveSub,
+          AppIcons.dots, 280, 'coach.dots', (_) => const DotDetectiveDrill()),
+      _drill(context, context.l10n.fluencySprint, context.l10n.fluencySprintSub,
+          AppIcons.bolt, 75, 'coach.sprint', (_) => const FluencySprint()),
+      if (prog.hasReviews)
+        _drill(
+            context,
+            context.l10n.mistakeReview,
+            _reviewSubtitle(context),
+            AppIcons.repeat,
+            50,
+            'coach.review',
+            (c) => mistakeReviewQuiz(c, prog, title: context.l10n.mistakeReview)),
+    ];
+    Widget grid(List<Widget> items, {double gap = 10}) => LayoutBuilder(
+          builder: (context, c) {
+            final cols = c.maxWidth >= 680 ? 2 : 1;
+            final w = (c.maxWidth - gap * (cols - 1)) / cols;
+            return Wrap(spacing: gap, runSpacing: gap, children: [
+              for (final i in items) SizedBox(width: w, child: i),
+            ]);
+          },
+        );
     return Scaffold(
-      appBar: embedded ? null : AppBar(title:  Text(context.l10n.readingCoach)),
+      appBar: embedded ? null : AppBar(title: Text(context.l10n.readingCoach)),
       body: SafeArea(
         top: false,
         child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+          padding: const EdgeInsets.fromLTRB(20, 6, 20, 28),
+          children: [
+            cap(Text(context.l10n.tellLookAlikesApart,
+                style: displayStyle(context, size: 28, height: 1.2))),
+            const SizedBox(height: 8),
+            cap(Text(context.l10n.coachIntroBlurb,
+                style: uiStyle(context, size: 14.5, color: p.ink2, height: 1.5))),
+            const SizedBox(height: 16),
+            cap(QHeroCard(
+              padding: const EdgeInsets.all(18),
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 14,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(AppIcons.comfort, color: kHeroGold, size: 26),
+                      const SizedBox(width: 14),
+                      Flexible(
+                        child: Text(
+                            s.dyslexiaMode
+                                ? context.l10n.comfortPresetFineTuneBelow
+                                : context.l10n.sameShapeDifferentDotsCoach,
+                            style: uiStyle(context,
+                                size: 14, color: kHeroInk, height: 1.45)),
+                      ),
+                    ]),
+                  ),
+                  if (!s.dyslexiaMode)
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                          backgroundColor: kHeroInk,
+                          foregroundColor: const Color(0xFF0F3B32)),
+                      onPressed: () {
+                        s.enableDyslexiaPreset();
+                        showQToast(context, context.l10n.comfortPresetOn);
+                      },
+                      child: Text(context.l10n.turnComfortPreset),
+                    ),
+                ],
+              ),
+            )),
+            cap(SectionHeader(context.l10n.drills,
+                subtitle: context.l10n.shortKindRepeatable)),
+            cap(grid(drills)),
+            cap(SectionHeader(context.l10n.confusableSets,
+                subtitle: context.l10n.sameSkeletonDotsDecide)),
+            cap(LayoutBuilder(builder: (context, c) {
+              final cols = c.maxWidth >= 680 ? 4 : 2;
+              final w = (c.maxWidth - 10 * (cols - 1)) / cols;
+              return Wrap(spacing: 10, runSpacing: 10, children: [
+                for (final set in _sets(context))
+                  SizedBox(width: w, child: _setCard(context, set)),
+              ]);
+            })),
+            if (wide)
+              cap(Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _setup(context)),
+                  const SizedBox(width: 20),
+                  Expanded(child: _sample(context)),
+                ],
+              ))
+            else ...[
+              cap(_setup(context)),
+              cap(_sample(context)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _setup(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [
-                pal(context).accent.withValues(alpha: .18),
-                AppColors.lilac.withValues(alpha: .14),
-              ]),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(context.l10n.coachIntroBlurb,
-                    style: uiStyle(context, size: 14, color: pal(context).textDim)),
-                const SizedBox(height: 12),
-                if (!s.dyslexiaMode)
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                        backgroundColor: pal(context).accent,
-                        foregroundColor: Colors.white),
-                    onPressed: () {
-                      s.enableDyslexiaPreset();
-                      ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-                          content: Text(
-                              context.l10n.comfortPresetOn)));
-                    },
-                    icon: const Icon(Icons.auto_fix_high_rounded),
-                    label:  Text(context.l10n.turnComfortPreset),
-                  )
-                else
-                  Text(context.l10n.comfortPresetFineTuneBelow,
-                      style: uiStyle(context, size: 13.5,
-                          color: pal(context).accent, weight: FontWeight.w600)),
-              ],
-            ),
-          ),
-           SectionHeader(context.l10n.readingSetup,
+          SectionHeader(context.l10n.readingSetup,
               subtitle: context.l10n.appliesEverywhereApp),
-          _SettingsPanel(),
-           SectionHeader(context.l10n.sample, subtitle: context.l10n.yourSettingsLive),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: s.paperMode ? pal(context).paper : pal(context).surface,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text('بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ',
-                textDirection: TextDirection.rtl,
-                textAlign: TextAlign.center,
-                style: quranicStyle(context, size: 30)),
-          ),
-           SectionHeader(context.l10n.drills, subtitle: context.l10n.shortKindRepeatable),
-          _drill(context, context.l10n.spotTheLetter, context.l10n.spotTheLetterSub,
-              Icons.visibility_rounded, pal(context).accent, 'coach.spot',
-              (_) => const SpotTheLetterDrill()),
-          _drill(context, context.l10n.dotDetective, context.l10n.dotDetectiveSub,
-              Icons.blur_on_rounded, AppColors.lilac, 'coach.dots',
-              (_) => const DotDetectiveDrill()),
-          _drill(context, context.l10n.fluencySprint, context.l10n.fluencySprintSub,
-              Icons.bolt_rounded, pal(context).accent, 'coach.sprint',
-              (_) => const FluencySprint()),
-          if (ProgressScope.of(context).hasReviews)
-            _drill(
-                context,
-                context.l10n.mistakeReview,
-                _reviewSubtitle(context),
-                Icons.refresh_rounded,
-                AppColors.star,
-                'coach.review',
-                (c) => mistakeReviewQuiz(c, ProgressScope.of(context),
-                    title: context.l10n.mistakeReview)),
+          const _SettingsPanel(),
         ],
-      )),
+      );
+
+  Widget _sample(BuildContext context) {
+    final s = SettingsScope.of(context);
+    final p = pal(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(context.l10n.sample,
+            subtitle: context.l10n.yourSettingsLive),
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: s.paperMode ? p.paper : p.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: p.line2),
+          ),
+          child: Text('بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ',
+              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.center,
+              style: quranicStyle(context, size: 30)),
+        ),
+      ],
+    );
+  }
+
+  Widget _setCard(BuildContext context, (String, String, List<String>) set) {
+    final p = pal(context);
+    final t = hueTint(context, 220);
+    return QCard(
+      padding: const EdgeInsets.all(14),
+      onTap: () => pushAdaptive(context, const SpotTheLetterDrill()),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Directionality(
+          textDirection: TextDirection.rtl,
+          child: Row(children: [
+            for (final ch in set.$3) ...[
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                    color: t.bg, borderRadius: BorderRadius.circular(11)),
+                child: Text(ch,
+                    style: arabicStyle(context, size: 20, height: 1.3, color: t.fg)),
+              ),
+              const SizedBox(width: 6),
+            ],
+          ]),
+        ),
+        const SizedBox(height: 10),
+        Text(set.$1,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: uiStyle(context, size: 14, weight: FontWeight.w700)),
+        Text(set.$2,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: uiStyle(context, size: 12, color: p.ink3)),
+      ]),
     );
   }
 
@@ -120,216 +233,93 @@ class DyslexiaScreen extends StatelessWidget {
   }
 
   Widget _drill(BuildContext context, String title, String sub, IconData icon,
-      Color color, String progressId, WidgetBuilder builder) {
+      double hue, String progressId, WidgetBuilder builder) {
+    final p = pal(context);
+    final t = hueTint(context, hue);
     final stars = ProgressScope.of(context).starsFor(progressId);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TapScale(
-        onTap: () =>
-            pushAdaptive(context, builder(context)),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: pal(context).surface,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(children: [
-            Container(
-              width: 48, height: 48,
-              decoration: BoxDecoration(
-                  color: color.withValues(alpha: .15),
-                  borderRadius: BorderRadius.circular(14)),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: uiStyle(context,
-                          size: 16, weight: FontWeight.w700)),
-                  Text(sub,
-                      style: uiStyle(context,
-                          size: 13, color: pal(context).textDim)),
-                ],
-              ),
-            ),
-            StarRow(stars),
-          ]),
+    return QCard(
+      padding: const EdgeInsets.all(14),
+      onTap: () => pushAdaptive(context, builder(context)),
+      child: Row(children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration:
+              BoxDecoration(color: t.bg, borderRadius: BorderRadius.circular(14)),
+          child: Icon(icon, color: t.fg, size: 22),
         ),
-      ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: uiStyle(context, size: 15, weight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text(sub,
+                  style: uiStyle(context, size: 12.5, color: p.ink3, height: 1.35)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        StarRow(stars, size: 14),
+      ]),
     );
   }
 }
 
 class _SettingsPanel extends StatelessWidget {
+  const _SettingsPanel();
+
   @override
   Widget build(BuildContext context) {
     final s = SettingsScope.of(context);
     Widget slider(String label, double value, double min, double max,
             void Function(double) set) =>
-        Row(children: [
-          SizedBox(
-              width: 110,
-              child: Text(label,
-                  style: uiStyle(context, size: 13.5,
-                      color: pal(context).textDim))),
-          Expanded(
-            child: Slider(
-                value: value, min: min, max: max,
-                onChanged: (v) => s.update(() => set(v))),
-          ),
-        ]);
-    Widget toggle(String label, bool value, void Function(bool) set) =>
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(label, style: uiStyle(context, size: 14.5)),
-          value: value,
-          onChanged: (v) => s.update(() => set(v)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 8, 2),
+          child: Row(children: [
+            SizedBox(
+                width: 110,
+                child: Text(label,
+                    style: uiStyle(context, size: 14, weight: FontWeight.w600))),
+            Expanded(
+              child: SettingsSlider(
+                  value: value,
+                  min: min,
+                  max: max,
+                  onCommit: (v) => s.update(() => set(v))),
+            ),
+          ]),
         );
-    return Material(
-      color: pal(context).surface,
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        child: Column(children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 4),
-          child: Row(children: [
-            SizedBox(
-                width: 110,
-                child: Text(context.l10n.language,
-                    style: uiStyle(context,
-                        size: 13.5, color: pal(context).textDim))),
-            Expanded(
-              child: Wrap(spacing: 6, runSpacing: 6, children: [
-                for (final (code, label) in L10n.supported)
-                  ChoiceChip(
-                    label: Text(label),
-                    selected: s.language == code,
-                    selectedColor: pal(context).accent,
-                    backgroundColor: pal(context).surfaceHigh,
-                    labelStyle: uiStyle(context,
-                        size: 12,
-                        weight: FontWeight.w700,
-                        color: s.language == code
-                            ? Colors.white
-                            : pal(context).text),
-                    onSelected: (_) => s.update(() => s.language = code),
-                  ),
-              ]),
-            ),
-          ]),
+    Widget toggle(String label, bool value, void Function(bool) set) => QRow(
+          title: label,
+          control: QSwitch(value: value, onChanged: (v) => s.update(() => set(v))),
+        );
+    return QGroup(children: [
+      QRow(
+        title: context.l10n.tashkilTermsLabel,
+        control: QSegmented<String>(
+          expand: false,
+          options: [
+            ('arabic', context.l10n.arabicTerms, null),
+            ('indopak', context.l10n.indopak, null),
+          ],
+          value: s.tashkilTerms,
+          onChanged: (v) => s.update(() => s.tashkilTerms = v),
         ),
-        Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 4),
-          child: Row(children: [
-            SizedBox(
-                width: 110,
-                child: Text(context.l10n.tashkilTermsLabel,
-                    style: uiStyle(context,
-                        size: 13.5, color: pal(context).textDim))),
-            Expanded(
-              child: Wrap(spacing: 6, runSpacing: 6, children: [
-                for (final (label, value) in [
-                  (context.l10n.arabicTerms, 'arabic'),
-                  (context.l10n.indopak, 'indopak'),
-                ])
-                  ChoiceChip(
-                    label: Text(label),
-                    selected: s.tashkilTerms == value,
-                    selectedColor: pal(context).accent,
-                    backgroundColor: pal(context).surfaceHigh,
-                    labelStyle: uiStyle(context,
-                        size: 12.5,
-                        weight: FontWeight.w700,
-                        color: s.tashkilTerms == value
-                            ? Colors.white
-                            : pal(context).text),
-                    onSelected: (_) => s.update(() => s.tashkilTerms = value),
-                  ),
-              ]),
-            ),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 4),
-          child: Row(children: [
-            SizedBox(
-                width: 110,
-                child: Text(context.l10n.style,
-                    style: uiStyle(context,
-                        size: 13.5, color: pal(context).textDim))),
-            Expanded(
-              child: Wrap(spacing: 6, runSpacing: 6, children: [
-                for (final (label, value) in [
-                  (context.l10n.themeFamilyMint, 'mint'),
-                  (context.l10n.themeFamilyNoor, 'noor')
-                ])
-                  ChoiceChip(
-                    label: Text(label),
-                    selected: s.themeFamily == value,
-                    selectedColor: pal(context).accent,
-                    backgroundColor: pal(context).surfaceHigh,
-                    labelStyle: uiStyle(context,
-                        size: 12.5,
-                        weight: FontWeight.w700,
-                        color: s.themeFamily == value
-                            ? Colors.white
-                            : pal(context).text),
-                    onSelected: (_) => s.update(() => s.themeFamily = value),
-                  ),
-              ]),
-            ),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 4),
-          child: Row(children: [
-            SizedBox(
-                width: 110,
-                child: Text(context.l10n.theme,
-                    style: uiStyle(context,
-                        size: 13.5, color: pal(context).textDim))),
-            Expanded(
-              child: Wrap(spacing: 6, runSpacing: 6, children: [
-                for (final (label, value) in const [
-                  ('Light', 'light'),
-                  ('Dark', 'dark'),
-                  ('OLED', 'oled')
-                ])
-                  ChoiceChip(
-                    label: Text(label),
-                    selected: s.themeMode == value,
-                    selectedColor: pal(context).accent,
-                    backgroundColor: pal(context).surfaceHigh,
-                    labelStyle: uiStyle(context,
-                        size: 12.5,
-                        weight: FontWeight.w700,
-                        color: s.themeMode == value
-                            ? Colors.white
-                            : pal(context).text),
-                    onSelected: (_) => s.update(() => s.themeMode = value),
-                  ),
-              ]),
-            ),
-          ]),
-        ),
-        slider(context.l10n.letterSize, s.arabicScale, 0.8, 1.8,
-            (v) => s.arabicScale = v),
-        slider(context.l10n.wordSpacing, s.wordSpacing, 0, 24, (v) => s.wordSpacing = v),
-        slider(context.l10n.glyphSpacing, s.letterTracking, 0, 10,
-            (v) => s.letterTracking = v),
-        toggle(context.l10n.warmPaperBackground, s.paperMode, (v) => s.paperMode = v),
-        toggle(context.l10n.colorCodedDots, s.dotEmphasis,
-            (v) => s.dotEmphasis = v),
-        toggle(context.l10n.focusWindow, s.focusWindow,
-            (v) => s.focusWindow = v),
-        toggle(context.l10n.hapticFeedback, s.haptics, (v) => s.haptics = v),
-      ]),
       ),
-    );
+      slider(context.l10n.letterSize, s.arabicScale, 0.8, 1.8,
+          (v) => s.arabicScale = v),
+      slider(context.l10n.wordSpacing, s.wordSpacing, 0, 24,
+          (v) => s.wordSpacing = v),
+      slider(context.l10n.glyphSpacing, s.letterTracking, 0, 10,
+          (v) => s.letterTracking = v),
+      toggle(context.l10n.warmPaperBackground, s.paperMode, (v) => s.paperMode = v),
+      toggle(context.l10n.colorCodedDots, s.dotEmphasis, (v) => s.dotEmphasis = v),
+      toggle(context.l10n.focusWindow, s.focusWindow, (v) => s.focusWindow = v),
+      toggle(context.l10n.hapticFeedback, s.haptics, (v) => s.haptics = v),
+    ]);
   }
 }
 
@@ -384,7 +374,7 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
       prog.reviewCorrect('letter.$target'); // reading it right promotes the card
       if (round + 1 >= totalRounds) {
         final stars = misses == 0 ? 3 : (misses <= 3 ? 2 : 1);
-        ProgressScope.of(context).report('coach.spot', stars);
+        ProgressScope.read(context).report('coach.spot', stars);
         await showDialog(
             context: context,
             builder: (_) => _doneDialog(context, stars,
@@ -416,12 +406,13 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
   /// Desktop: the reference layout — a sticky "Find every occurrence of…"
   /// target card on the left, the 3-column letter grid on the right.
   Widget _desktopBuild(BuildContext context, AppSettings s, ArabicLetter tl) {
-    const coral = Color(0xFFE45F52);
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final soft = dark ? const Color(0xFF2A1512) : const Color(0xFFFDF1EE);
+    final coral = pal(context).acc;
+    final soft = pal(context).accSoft;
     final dotInfo = dotsDesc(context, tl.dotCount, tl.dotPos);
     return Scaffold(
       backgroundColor: pal(context).bg,
+      appBar: AppBar(
+          title: Text(context.l10n.spotTheLetterRound(round + 1, totalRounds))),
       body: SafeArea(
         top: false,
         child: SingleChildScrollView(
@@ -438,11 +429,11 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
                   child: Container(
                     padding: const EdgeInsets.fromLTRB(32, 38, 32, 32),
                     decoration: BoxDecoration(
-                      color: pal(context).surface,
+                      color: pal(context).card,
                       borderRadius: BorderRadius.circular(26),
                       border: Border.all(
                           color: pal(context)
-                              .surfaceHigh
+                              .track
                               .withValues(alpha: .6)),
                       boxShadow: [
                         BoxShadow(
@@ -472,7 +463,7 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
                                 style: quranicStyle(context,
                                     size: 120,
                                     height: 1.85,
-                                    color: pal(context).text)),
+                                    color: pal(context).ink)),
                             const SizedBox(height: 18),
                             Text(context.l10n.letterDash(letterName(context, tl), tl.translit),
                                 style: uiStyle(context,
@@ -480,10 +471,7 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
                             const SizedBox(height: 6),
                             const SizedBox.shrink(),
                             Text(dotInfo,
-                                style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: coral)),
+                                style: uiStyle(context, size: 14, weight: FontWeight.w600, color: coral)),
                           ]),
                         ),
                         const SizedBox(height: 24),
@@ -492,7 +480,7 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
                           children: [
                             Text(context.l10n.roundProgress,
                                 style: uiStyle(context,
-                                    size: 13, color: pal(context).textDim)),
+                                    size: 13, color: pal(context).ink3)),
                             Text('${round + 1} / $totalRounds',
                                 style: uiStyle(context,
                                     size: 14, weight: FontWeight.w700)),
@@ -506,7 +494,7 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
                             minHeight: 7,
                             backgroundColor: soft,
                             valueColor:
-                                const AlwaysStoppedAnimation(coral),
+                                AlwaysStoppedAnimation(coral),
                           ),
                         ),
                       ],
@@ -545,12 +533,12 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: pal(context).surface,
+          color: pal(context).card,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
               color: isWrong
                   ? AppColors.bad
-                  : pal(context).surfaceHigh.withValues(alpha: .6),
+                  : pal(context).track.withValues(alpha: .6),
               width: isWrong ? 2 : 1),
           boxShadow: [
             BoxShadow(
@@ -563,7 +551,7 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
           Center(
             child: Text(grid[i],
                 style: quranicStyle(context,
-                    size: 64, height: 1.85, color: pal(context).text)),
+                    size: 64, height: 1.85, color: pal(context).ink)),
           ),
           if (s.dotEmphasis && l.dotCount > 0)
             Positioned(
@@ -577,9 +565,9 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
                     borderRadius: BorderRadius.circular(8)),
                 child: Text(
                     '${l.dotCount}${l.dotPos == 'below' ? '↓' : '↑'}',
-                    style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                    style: uiStyle(context,
+                        size: 11,
+                        weight: FontWeight.w800,
                         color: AppColors.lilac)),
               ),
             ),
@@ -606,14 +594,14 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
         padding: const EdgeInsets.all(20),
         child: Column(children: [
           Text(context.l10n.findEveryTimeSameLetter,
-              style: uiStyle(context, size: 15, color: pal(context).textDim)),
+              style: uiStyle(context, size: 15, color: pal(context).ink3)),
           const SizedBox(height: 6),
           Text(context.l10n.letterDash(letterName(context, tl), tl.translit),
               style: uiStyle(context, size: 19, weight: FontWeight.w700)),
           if (s.dotEmphasis)
             Text(
                 dotsDesc(context, tl.dotCount, tl.dotPos),
-                style: uiStyle(context, size: 13.5, color: pal(context).accent)),
+                style: uiStyle(context, size: 13.5, color: pal(context).acc)),
           const SizedBox(height: 14),
           Expanded(
             child: GridView.builder(
@@ -628,7 +616,7 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     decoration: BoxDecoration(
-                      color: s.paperMode ? pal(context).paper : pal(context).surface,
+                      color: s.paperMode ? pal(context).paper : pal(context).card,
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
                           color:
@@ -648,7 +636,7 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
                                 horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: (l.dotPos == 'below'
-                                      ? pal(context).accent
+                                      ? pal(context).acc
                                       : AppColors.lilac)
                                   .withValues(alpha: .85),
                               borderRadius: BorderRadius.circular(8),
@@ -752,7 +740,7 @@ class _FluencySprintState extends State<FluencySprint> {
       final d = DateTime.now().difference(start);
       final wpm = _sprintWords.length / (d.inMilliseconds / 60000);
       final stars = wpm >= 30 ? 3 : (wpm >= 18 ? 2 : 1);
-      ProgressScope.of(context).report('coach.sprint', stars);
+      ProgressScope.read(context).report('coach.sprint', stars);
       setState(() {
         elapsed = d;
         index = -1;
@@ -776,14 +764,14 @@ class _FluencySprintState extends State<FluencySprint> {
   /// Desktop: the reference sprint — an intro hero card with a watermark and
   /// coral CTA, then a large tap-card with word count + live timer above it.
   Widget _desktopBuild(BuildContext context, bool running, double secs) {
-    const coral = Color(0xFFE45F52);
+    final coral = pal(context).acc;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final softIcon = dark ? const Color(0xFF2A1512) : const Color(0xFFFDE9E4);
     final card = BoxDecoration(
-      color: pal(context).surface,
+      color: pal(context).card,
       borderRadius: BorderRadius.circular(28),
       border:
-          Border.all(color: pal(context).surfaceHigh.withValues(alpha: .6)),
+          Border.all(color: pal(context).track.withValues(alpha: .6)),
       boxShadow: [
         BoxShadow(
             color: pal(context).shadow,
@@ -793,6 +781,7 @@ class _FluencySprintState extends State<FluencySprint> {
     );
     if (!running) {
       return Scaffold(
+      appBar: AppBar(title: Text(context.l10n.fluencySprint)),
         backgroundColor: pal(context).bg,
         body: SafeArea(
         top: false,
@@ -825,8 +814,7 @@ class _FluencySprintState extends State<FluencySprint> {
                       decoration: BoxDecoration(
                           color: softIcon,
                           borderRadius: BorderRadius.circular(22)),
-                      child: const Icon(Icons.bolt_rounded,
-                          size: 36, color: coral),
+                      child: Icon(AppIcons.bolt, size: 36, color: coral),
                     ),
                     const SizedBox(height: 26),
                     Text(context.l10n.fluencySprint,
@@ -839,7 +827,7 @@ class _FluencySprintState extends State<FluencySprint> {
                         context.l10n.readEachWordAloudThen,
                         textAlign: TextAlign.center,
                         style: uiStyle(context,
-                                size: 16, color: pal(context).textDim)
+                                size: 16, color: pal(context).ink3)
                             .copyWith(height: 1.6),
                       ),
                     ),
@@ -850,10 +838,9 @@ class _FluencySprintState extends State<FluencySprint> {
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 46, vertical: 18),
-                          textStyle: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
+                          ),
                       onPressed: _start,
-                      icon: const Icon(Icons.bolt_rounded),
+                      icon: const Icon(AppIcons.bolt),
                       label:  Text(context.l10n.startSprint),
                     ),
                   ]),
@@ -865,6 +852,7 @@ class _FluencySprintState extends State<FluencySprint> {
       );
     }
     return Scaffold(
+      appBar: AppBar(title: Text(context.l10n.fluencySprint)),
       backgroundColor: pal(context).bg,
       body: SafeArea(
         top: false,
@@ -883,13 +871,10 @@ class _FluencySprintState extends State<FluencySprint> {
                   height: 4,
                   margin: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
-                      color: pal(context).textDim, shape: BoxShape.circle),
+                      color: pal(context).ink3, shape: BoxShape.circle),
                 ),
                 Text('${secs.toStringAsFixed(1)}s',
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: coral)),
+                    style: uiStyle(context, size: 14, weight: FontWeight.w600, color: coral)),
               ]),
               const SizedBox(height: 26),
               GestureDetector(
@@ -916,7 +901,7 @@ class _FluencySprintState extends State<FluencySprint> {
               const SizedBox(height: 26),
               Text(context.l10n.tapCardAfterReadingWord,
                   style:
-                      uiStyle(context, size: 15, color: pal(context).textDim)),
+                      uiStyle(context, size: 15, color: pal(context).ink3)),
             ],
           ),
         ),
@@ -949,7 +934,7 @@ class _FluencySprintState extends State<FluencySprint> {
                 ? context.l10n.wordXofYTime(
                         index + 1, _sprintWords.length, secs.toStringAsFixed(1))
                 : context.l10n.readEachWordAloudShort,
-            style: uiStyle(context, size: 14.5, color: pal(context).textDim),
+            style: uiStyle(context, size: 14.5, color: pal(context).ink3),
             textAlign: TextAlign.center,
           ),
           Expanded(
@@ -957,12 +942,12 @@ class _FluencySprintState extends State<FluencySprint> {
               child: !running
                   ? FilledButton.icon(
                       style: FilledButton.styleFrom(
-                          backgroundColor: pal(context).accent,
+                          backgroundColor: pal(context).acc,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 28, vertical: 18)),
                       onPressed: _start,
-                      icon: const Icon(Icons.bolt_rounded),
+                      icon: const Icon(AppIcons.bolt),
                       label:  Text(context.l10n.startSprint),
                     )
                   : GestureDetector(
@@ -974,7 +959,7 @@ class _FluencySprintState extends State<FluencySprint> {
                         decoration: BoxDecoration(
                           color: s.paperMode
                               ? pal(context).paper
-                              : pal(context).surface,
+                              : pal(context).card,
                           borderRadius: BorderRadius.circular(26),
                         ),
                         child: AnimatedSwitcher(
@@ -1000,10 +985,10 @@ class _FluencySprintState extends State<FluencySprint> {
                                         text: '${_sprintWords[i]} ',
                                         style: quranicStyle(context, size: 28,
                                             color: i == index
-                                                ? pal(context).accent
+                                                ? pal(context).acc
                                                 : (s.paperMode
                                                         ? pal(context).paperInk
-                                                        : pal(context).text)
+                                                        : pal(context).ink)
                                                     .withValues(alpha: .45)),
                                       ),
                                   ]),
@@ -1015,7 +1000,7 @@ class _FluencySprintState extends State<FluencySprint> {
           ),
           if (running)
             Text(context.l10n.tapCardAfterReadingWord,
-                style: uiStyle(context, size: 13, color: pal(context).textDim)),
+                style: uiStyle(context, size: 13, color: pal(context).ink3)),
         ]),
           ),
         ),
@@ -1026,12 +1011,12 @@ class _FluencySprintState extends State<FluencySprint> {
 
 Widget _doneDialog(BuildContext context, int stars, String message) =>
     AlertDialog(
-      backgroundColor: pal(context).surface,
+      backgroundColor: pal(context).card,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       title: Center(child: StarRow(stars, size: 34)),
       content: Text(message,
           textAlign: TextAlign.center,
-          style: uiStyle(context, size: 15, color: pal(context).textDim)),
+          style: uiStyle(context, size: 15, color: pal(context).ink3)),
       actions: [
         Center(
           child: FilledButton.tonal(

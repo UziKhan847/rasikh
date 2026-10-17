@@ -22,7 +22,8 @@ flutter run
 Requires Flutter 3.27+ (Material 3 `WidgetState*` APIs, `Color.withValues`).
 Dependencies: `flutter_localizations` + `intl` (localization), `flutter_svg`,
 `shared_preferences` (settings + progress), `audioplayers` (recitation),
-`http` + `path_provider` (offline downloads). All typefaces (Qur'an script,
+`http` + `path_provider` (offline downloads), `flutter_local_notifications` +
+`timezone` + `flutter_timezone` (the optional daily reminder). All typefaces (Qur'an script,
 UI, Arabic body text) are bundled assets — no font is ever fetched over the
 network.
 
@@ -30,30 +31,58 @@ network.
 
 | Module | What it covers |
 |---|---|
-| **Qur'an Reader** | The whole Qur'an offline (114 sūrahs / 6,236 āyahs bundled in assets), in both **Madani (Uthmani)** and **IndoPak** script, plus a true **15-line muṣḥaf** page (see Credits). Both scripts render with a DigitalKhatt face — DigitalKhattIndoPak for IndoPak, DigitalKhattV2 (also the 15-line muṣḥaf's own) for Madani, chosen over UthmanicHafs for how much more carefully it stacks marks (276 GPOS lookups against 21 — visible on a dagger alif crowded against a fatḥah). Each script's text is transcoded at load time to the codepoints its face actually has glyphs for, plus one data fix applied to every Uthmani load regardless of face: a written-but-silent letter (the farqa alif after وا, e.g.) now carries the correct Unicode mark for that, not a sukūn (see *Credits & licensing* below). Word-by-word tap-to-hear recitation, courtesy of Markaz Tafsir via QuranCDN; verse-by-verse recitation by Shaykh Khalīfah Al-Tunaiji, Mishary Al-ʿAfāsī, or Maḥmūd Al-Ḥuṣarī (the latter two also word-timed, for read-along highlighting). Per-surah offline download, plus a dedicated **Downloads manager** (About → Manage downloads) for bulk-downloading/deleting recitation and word-by-word audio across all 114 sūrahs with per-category storage totals — see *Data, downloads & privacy* below. Char-accurate Tajwīd coloring, adjustable font size/spacing, RTL-correct page header and navigation pinned regardless of UI language. **No word-by-word English translation is shown** — see *Design decisions* below. |
+| **Qur'an Reader** | The whole Qur'an offline (114 sūrahs / 6,236 āyahs bundled in assets), in both **Madani (Uthmani)** and **IndoPak** script, plus a true **15-line muṣḥaf** page (see Credits). Both scripts render with a DigitalKhatt face — DigitalKhattIndoPak for IndoPak, DigitalKhattV2 (also the 15-line muṣḥaf's own) for Madani, chosen over UthmanicHafs for how much more carefully it stacks marks (276 GPOS lookups against 21 — visible on a dagger alif crowded against a fatḥah). Each script's text is transcoded at load time to the codepoints its face actually has glyphs for, plus one data fix applied to every Uthmani load regardless of face: a written-but-silent letter (the farqa alif after وا, e.g.) now carries the correct Unicode mark for that, not a sukūn (see *Credits & licensing* below). Word-by-word tap-to-hear recitation, courtesy of Markaz Tafsir via QuranCDN; verse-by-verse recitation by Shaykh Khalīfah Al-Tunaiji, Mishary Al-ʿAfāsī, or Maḥmūd Al-Ḥuṣarī (the latter two also word-timed, for read-along highlighting). Per-surah offline download, plus a dedicated **Downloads manager** (Settings → Downloads) for bulk-downloading/deleting recitation and word-by-word audio across all 114 sūrahs with per-category storage totals — see *Data, downloads & privacy* below. Char-accurate Tajwīd coloring, adjustable font size/spacing, RTL-correct page header and navigation pinned regardless of UI language. **No word-by-word English translation is shown** — see *Design decisions* below. |
 | **Qaidah Path** | The classical Qaidah sequence in eleven units: 28 letters + 8 extra letters (hamzah's seated forms, ة, ى, ٱ) and the 3 small letters (dagger alif, small wāw/yāʾ) → joining forms, including a **Special Shapes** section of hand-drawn muṣḥaf ligatures (kāf wrapping alif/lām, lām-alif, letter-stacking) for forms a font can't render correctly in isolation → ḥarakāt → tanwīn (with its two written shapes — see *Script & Symbols*) → sukūn & qalqalah → shaddah → madd & līn → reading real Qur'anic words → **waṣl** (hamzat al-waṣl, sun/moon letters) → **ḥurūf muqaṭṭaʿāt** (the disjointed letters opening 29 sūrahs, with their per-letter madd counts) → review. Every unit ends in a starred quiz. Each of the 28 letters' own detail page carries **Listen** (the letter's own sound via `letter_audio.dart`, never a verse — an honest "coming soon" until real clips are bundled) and **Watch**, a real stroke-by-stroke replay built from the Tracing Studio's own stroke data (`TracingBoard`'s `watch` mode) rather than a video stub. |
 | **Tracing Studio** | A strict, progressive stroke engine with **three modes**: **Guided** (a comet leads, the ideal stroke inks itself in), **Outline** (the letterform is shown but you form every stroke — no comet, nothing fills in for you), and **Memory** (a blank board, from memory). All three grade real stroke direction, not just shape, with a per-stroke tolerance and look-ahead window — wrong direction never progresses. Dots are placed by tap afterwards. |
 | **Tashkīl Lab** | Every mark — fatḥah/kasrah/ḍammah, sukūn, shaddah, all three tanwīn, madd ṭabī'ī (2), līn, maddah, muttaṣil (4–5), munfaṣil (4–5), lāzim (6), 'āriḍ (2/4/6), hamzat al-waṣl — each with a highlighted Qur'anic example and a **Counts Studio**: an animated, haptic metronome for 1/2/4/6-count timing at adjustable tempo. |
 | **Tajwīd Academy** | Restructured as nine units, each a Learn → Letters/Test → Practice → Recite hub (mirroring the Qaidah Path's pattern): **Makhārij** (the 17-point/5-zone articulation scheme), **Ṣifāt** (all 15 classical letter qualities, both opposed pairs and standalone), then the rule families — **Nūn Sākinah & Tanwīn**, **Mīm Sākinah & Ghunnah**, **Madd**, **Lām Rules** (shamsiyyah/qamariyyah + lām al-jalālah), **Rules of Rā'** (tafkhīm/tarqīq), **Qalqalah** — and **Special Cases** (saktah, sīn-written-over-ṣād, *al-ān*'s ishmām, tashīl, imālah, and the compressed doubled-nūn spelling), each tied to exact muṣḥaf spots found programmatically, not hand-picked. Every rule is color-coded inside a real verse with a spot-the-rule quiz. **Recite is present but always "coming soon"** on every unit — there's no voice-input pipeline in the app yet (see *Design decisions*). In Arabic and Urdu, rule names display as the actual **Arabic term** (إقلاب, غُنَّة…), not a transliteration — see *Localization*. |
 | **Script & Symbols** | A reference module, not a beginner path — every unit is Learn → Test → Practice, nothing locked. **Script Families** contrasts the same āyah across the bundled Madani and IndoPak corpora (hamzat al-waṣl as ٱ vs plain ا, the two silent-alif marks IndoPak collapses into one, tanwīn-meets-waṣl spelling, the sajdah ۩ glyph, tanwīn's stacked-vs-parallel default shape, which waqf marks appear). **Marks & Signs** covers tanwīn's two allograph shapes, the small letters, and the "two zeros." **Waqf & Stopping** covers all six stop marks. **Page Marks** covers sajdah and rubʿ al-ḥizb. |
 | **Reading Coach** | A dyslexia-friendly mode: a one-tap comfort preset (larger glyphs, warm paper, word spacing, a focus window) plus fine-grained sliders that apply app-wide, including a toggle for **IndoPak tashkīl-mark names** (Zabar/Paish/Zair… in place of Fatḥah/Ḍammah/Kasrah…, defaulting on for Urdu on first run, overridable). Drills: *Spot the Letter* (look-alike families, optional color-coded dot badges), *Dot Detective*, a *Fluency Sprint* through al-Fātiḥah with a words-per-minute score, and spaced-repetition *Mistake Review*. |
+| **Hifz (listening marks)** | A listener marks a recitation word by word on the 15-line muṣḥaf or in the reader — **mistake**, **tajwīd**, **hesitation** (self-corrected), **doubt** (had to be told) or a **note** — with a pen bar: pick a pen, tap words, tap again to remove, undo. Marks are stored by (sūrah, āyah, word) in the muṣḥaf's own word numbering, which the Madani and Indo-Pak texts share word for word (77,432 words), so a mark shows on the **same word in either script** (the reader's differently-split Tanzil text maps through a generated table, `lib/core/marks/card_align.g.dart`). Each word shows a tint plus a per-type pattern line drawn below the kasrahs. Marks belong to **mark books** (one per reciter) and **sessions** (sabaq / sabqi / manzil); an earlier mistake can later be **marked fixed**. **Statistics** by type, sūrah, juzʼ and page (a heatmap per script — Madani 604, Indo-Pak 610 pages), per session and over time, plus words marked more than once. Optional **sync** to a self-hosted PocketBase (see `server/README.md`): share a book with a code, listeners mark live, a checker reads and comments. |
 | **Qirā'āt Hall** | Reader/transmitter data for all ten canonical readers is built and in place, but the hall itself is gated behind a "coming soon" panel on both layouts — it needs a qualified reviewer before it teaches anyone (see *Design decisions*). |
-| **Kids Mode** (`lib/screens/kids/`) | An optional, child-friendly presentation over the same engines above — its own coral/teal/amber design, a 5-tab shell (Home/Learn/Rank/Rewards/Me), a **full staged Qāʿidah path** — letters → quiz → joining shapes → quiz → special shapes → ḥarakāt → sukūn → shaddah → madd → tanwīn → muqaṭṭaʿāt → words → waṣl → sun/moon letters → tāʼ marbūṭah → stopping → two and three words → tajwīd → a sixteen-sūrah reading ladder (az-Zalzalah → an-Nās, one stage each) — where ḥarakāt, sukūn, shaddah and tanwīn are real Qāʿidah Nūrāniyyah drills (`kids_syllable_drill.dart`): بَ تَ ثَ … one mark walked letter by letter through the whole alphabet, said, heard, and checked every five letters, rather than a page of prose about the mark; sun/moon letters get their own step-by-step lesson (`kids_solar_lunar_lesson.dart`) built on the mnemonic the rule takes its name from (ٱلشَّمۡس/ٱلۡقَمَر), walking the real solar and lunar letters interleaved with a "tap every Sun Letter" sort check; madd & līn get a kid metronome dropped straight into each card (`kids_madd_lesson.dart`, `KidsBeatRing`: a fixed count for the mark being taught, a big beat numeral, and it stops itself after three rounds — no tempo slider or count chips to mistake for the lesson); the disjointed letters opening 29 sūrahs are spelled out one set at a time with each letter's own madd count beside it (`kids_muqattaat_lesson.dart`); real sentences are read one at a time from a dedicated beginner corpus written for exactly this and never rendered until now (`kids_words_lesson.dart`, `kids_sentences.dart`); the waṣl seam, its two silent "zero" signs, and tanwīn meeting a waṣl alif each get their own step with a "does this ever sound?" check (`kids_wasl_lesson.dart`); the six stopping signs are taught through a traffic-light a child already knows (`kids_waqf_lesson.dart`); all five Tajwīd rule families — mīm, nūn, qalqalah, rā', and madd — are walked rule by rule with a colored verse and a "spot the rule" check (`kids_tajwid_rule_lesson.dart`); and Review closes with a badge-by-badge recap of everything cleared, not a stale table of contents (`kids_review_recap.dart`) — so **no stage anywhere in the path is left as a straight reuse of a grown-up Learn page, and no Test asks a grown-up question** — a stage's Test is its own lesson's check-ups in the same kid words with the teaching cards taken away (`quiz: true` on the waqf, waṣl, words, muqaṭṭaʿāt, sun/moon, madd and tajwīd lessons), or, for the drills and the closing review, a short quiz over the same reviewed data (`kids_stage_quizzes.dart`: *how does this sound?*, *which word has the shaddah?*, *tap every word with a sukūn*), each reporting under its own `kids.<stage>.test` id — reusing the Tracing Studio, one lesson per letter and, separately, **one lesson per joining SHAPE** a letter actually has (start/middle/end for a connector, just the end shape for a non-connector — the isolated shape was already met in the Letters stage), each one meet-the-shape → say it aloud five times → write it in fewer, longer strokes five times over, with an optional, never-forced **"Show me" replay** of the shape being written stroke by stroke before tracing it — with **the letter said back on every repetition and every finished trace**, so sound and shape land together (`letter_audio.dart`: a bundled per-letter clip when one is present, kid and adult recordings side by side, and an honest "coming soon" message — never a substitute verse — until they are), a **cumulative check-up every five letters** of a long stage — after five letters a quiz on those five, after ten a quiz on all ten, drawing prompts and distractors only from letters already met (`kids_checkpoint_quiz.dart`), **a retrieval loop, not just a path** — every check-up in a lesson files its misses into the same spaced-repetition (Leitner) queue the grown-up quizzes use, and a **Warm-up** on Home (`kidsWarmUpQuiz`, only while something is due, never a path stage) is the way back to it, with every third card the mascot's own mistake for the child to fix; **Practice** shortcuts that need no audio — **Look-alikes** (`kids_lookalike_quiz.dart`: tell ب ت ث apart by their dots — *which one is different?*, *tap every letter with two dots below*, and check-up distractors that are a letter's own look-alikes) **Write it** (`kids_write_from_memory.dart`: the letter's name on a blank board, drawn from memory through the Tracing Studio's `memory` mode) **Find it** (`kids_find_in_ayah.dart`: "tap every word with Bāʼ" over real lines of the muṣḥaf — the transfer from a big isolated shape to a connected one inside a word, lighting the letter up once its word is found), **Build the word** (`kids_build_word.dart`: a real, joined word is shown and built from separate letters tapped in reading order — right to left — with look-alike letters among the tiles, the letters snapping together into the word when done; it waits for most of the alphabet, since the short sūrahs hold few words made of a small one), **Listen & pick** (`kids_listen_and_pick.dart`: a real word streams from the per-word recitations and the child picks how it is written from three — the one sound → symbol activity that works before our own letter recordings exist, always skippable, and earning nothing if nothing could be graded) **Memorise** (`kids_memorise.dart`: al-Ikhlāṣ in three short sittings the way hifz teachers work with young children — hear each āyah in two-to-three-word phrases, say it three times, say it again while its words vanish a few at a time (a fading cue, with a Peek), put its words back in order, then "what comes next?"; the ordering and next-āyah questions need only the text, and each "next" is a review-queue card so the Warm-up brings it back) and **Mouth map** (`kids_mouth_map.dart`: a drawn side-on head with five tappable places — open mouth, throat, tongue, lips, nose — each listing its letters, straight from the Makhārij table, and one thing to feel with your own hand; then "where is this letter made?", the one piece of pronunciation that needs no recording); ḥarakāt, sukūn, shaddah and tanwīn drills opened as three short sessions per mark rather than one 32-step sitting (progress migrated, nothing lost); the small alif/wāw/yāʾ folded into the madd lesson; Special Shapes and every extra character (ء أ إ ؤ ئ ى ة) as kid-native lessons — no Kids Mode tile opens a grown-up Learn page (`kids_no_adult_screens_test.dart` builds every one of the path's ~180 tiles and fails if any is a grown-up lesson, letter or metronome page); every kid screen is also walked step by step on a 320×568 phone at the largest Arabic size (`kids_layout_smoke_test.dart`) so an overflow cannot hide behind the desktop-sized test window; and a read-only **progress report** behind the parent gate (`kids_parent_report.dart`: stage reached, streak, the concepts the child is shakiest on, and one "try this together" prompt matched to the kind of stage — the strongest lever in the research on children's apps is a grown-up talking with the child, and the app now gives them something to say), "read it aloud, then tap" reading over the bundled corpus — with a **read-along**: each line can be heard word by word from the per-word recordings, each word lighting up as it is said, and any word can be tapped to hear it alone (every whole-āyah stage of the ladder also keeps the flowing āyah button), all optional and silent-safe when offline — XP/levels/gems, **41 badges spanning the whole path** (not just letters and streaks — a stage cleared, a quiz passed, a habit kept), shown three rows tall and scrolling sideways so the shop below stays reachable, a **shop** where gems buy things that actually show up somewhere — an avatar ring, an extra avatar drawn from the animals the Qur'an names, a whole extra palette for Kids Mode, or a streak-saving freeze (`kids_content.dart`) — and a **local, on-device household leaderboard** across family profiles — no accounts, no server, nothing networked (see *Data, downloads & privacy*). every check inside a lesson runs on one shared card (`kids_choice_card.dart`) built the way the research on young children says a check should behave — **a second try before it counts** (a wrong first pick dims that tile and shows a pointing hint, only a second miss reveals the answer; a two-option check has no second try), **a hint, then the teaching**, and **an explanation** the child reads at their own pace and dismisses (the mark's own note, the rule's own "how", the word's meaning, the place's tip), with stars counted from the FIRST try and a miss filed in the review queue the moment it happens; the joining-shapes check-ups also ask for **the shape that fills a gap in a real word**, and tajwīd rule cards for the rules that happen in one place (iẓhār, the ghunnah rules, the lip rules, madd) point at it on the Mouth map. Every drag-based activity — joining separate letters into a word (`kids_join_letters.dart`), dragging the right shape onto a gap in a real word, dragging tiles to build a word or an āyah in order, sorting sun/moon letters and the tanwīn allograph shapes into bins (`lib/widgets/drag_kit.dart`, `kids_sort_bins.dart`) — completes just as well by tapping, so a child who cannot yet drag accurately is never blocked; every checkpoint and Practice quiz now draws its questions without repeating one within a round or across a retake (`kidsLetterCheckpoint`, `kidsFormsCheckpoint`, `kidsSpecialShapesQuiz`, `kids_lookalike_quiz.dart`, `kids_stage_quizzes.dart`); a dedicated **Tanwīn's Two Looks** lesson teaches the muṣḥaf's three tanwīn allograph shapes as a sorting activity, not a prose paragraph (`kids_tanwin_shapes_lesson.dart`); prose written for the grown-up Qāʿidah — Special Shapes' notes, the extra letters, the small madd letters, and each Words sentence's meaning — gets its own plain-language, five-language kid wording rather than reaching a child as untranslated adult text (`lib/data/kids_glosses.dart`); a **text size** setting (Small/Medium/Large, Me tab) scales every kid screen's type on its own scale, independent of the grown-up Reading Coach slider; and lesson content is centred with a bigger type floor throughout (`KidsCentered`, the type ladder in `kids_widgets.dart`) rather than packed against the top of the screen. Turned on from About → Kids Mode; leaving it goes through a simple parent gate. For testing there is a **developer unlock** — ten taps on the mascot or the Me tab's avatar, then a code — that lifts every stage and tile lock without marking anything done, awarding anything, or hiding that it is on. Ships on both mobile (bottom-nav shell) and desktop (sidebar shell, `kids_desktop_shell.dart`) — a desktop-sized window with Kids Mode on gets its own sidebar shell instead of the grown-up one. |
 
-**Three theme modes** (Light / Dark / pure-black OLED) across three families
-(Mint, Noor, and Kids Mode's own), an app-wide **immersive mode** (hides
-system bars for reading), and a streak/star **progress system** that
-persists across launches.
+Around the modules: a **Today** screen (continue reading, streak and a daily
+goal in minutes, verse of the day, today's lesson), **bookmarks** and
+last-read position, a first-launch **welcome**, an optional **daily
+reminder** (a local notification), **four themes** (Light, Mono, Night,
+pure-black OLED) with optional ornate borders and gradients, an app-wide
+**immersive mode**, and a streak/star **progress system** that persists
+across launches.
+
+### The design
+
+The interface follows the design handoff in `design_handoff_qiraah_flutter/`
+(colour tokens, type, the QiraahIcons font, ornaments and the prototype). The
+handoff covered the main screens; the rest of the app was redesigned in the
+same language. Where the build departs from it on purpose:
+
+- The **15-line muṣḥaf keeps the DigitalKhatt fonts and the 604/610-page
+  line layout**; only the chrome around it follows the design. The line data
+  has no kashida, so lines are justified by widening the gaps between words.
+  To keep those gaps print-like, each page's text is sized to its width and
+  lines sit ~1.8 em apart (`MushafGeometry` in `lib/data/mushaf.dart`).
+- The **daily goal is in minutes** everywhere (the prototype mixed pages and
+  minutes).
+- Light `ink3`/`mut` are a shade darker than the handoff's 6.9 values so hint
+  text reaches 4.5:1 on the page background, not just on cards.
+- Icons the font doesn't cover yet use neutral stand-ins, listed for drawing
+  in [docs/icons_needed.md](docs/icons_needed.md).
 
 ## Data, downloads & privacy
 
-No accounts, no analytics, no ads, no tracking — the full policy is at
-[docs/privacy-policy.html](docs/privacy-policy.html). In short:
+No analytics, no ads, no tracking, and no account needed — the full policy is
+at [docs/privacy-policy.html](docs/privacy-policy.html). In short:
 
 - **Progress, settings, and downloaded audio stay on-device.** Everything is
   local storage (`SharedPreferences` for progress/settings, the app's own
   documents directory for downloaded audio) — nothing is uploaded anywhere.
-  About → Your Data offers a one-file local backup/restore (`BackupService`
+- **Hifz marks are local too, unless you opt in to sync.** They live in
+  `<app support>/marks/` (`lib/core/marks/`). Signing in to a marks account
+  (username + password; email optional, for password reset only) syncs only
+  the mark books you choose, to the project's own self-hosted PocketBase
+  server (`server/`). Accounts can be deleted in the app or on the server's
+  `delete-account.html` page.
+  Settings → Your data offers a one-file local backup/restore (`BackupService`
   in `lib/core/settings.dart`) that never leaves the device unless you move
   the file yourself.
 - **Recitation audio is fetched from its reciter's own host**, streamed or
@@ -71,17 +100,18 @@ No accounts, no analytics, no ads, no tracking — the full policy is at
   satisfies Quran Foundation's terms for offline-cached content. It's a
   local, timestamp-only log; nothing about it is sent anywhere beyond the
   ordinary re-download request.
+- **The daily reminder is local.** If turned on (Settings → Learning), the
+  device schedules one notification a day at the chosen time
+  (`lib/core/reminder.dart`); nothing is sent anywhere.
 - **Every typeface is bundled** — see *Run it*, below. No font is ever
   fetched over the network.
-- **Kids Mode makes no new network calls and creates no accounts.** A child
-  profile (name, avatar, optional gender for grammatically-correct praise) is
-  local settings data, backed up/restored the same way as everything else
-  above. The "family leaderboard" only ever compares profiles already on that
-  device.
 
 ## Responsive layout: phone, tablet, and desktop from one codebase
 
-`useDesktop(context)` (`lib/core/responsive.dart`) decides which shell renders:
+`useDesktop(context)` (`lib/core/responsive.dart`) decides which shell renders
+(`lib/screens/shell/app_shell.dart`): bottom tabs (Today · Reader · Muṣḥaf ·
+Learn · Trace) on a phone, a collapsible sidebar on desktop. Every screen is
+one responsive widget — there are no separate desktop copies.
 
 - **Desktop OS** (Linux/Windows/macOS) and **wide web** (≥1024px): the desktop
   shell always applies.
@@ -90,18 +120,18 @@ No accounts, no analytics, no ads, no tracking — the full policy is at
   desktop shell applies automatically in Auto mode.
 - **Phones**: always the mobile shell. This can't be overridden — even an
   explicit "Desktop" setting has no effect on a phone, and the settings picker
-  (About → Layout) doesn't offer that option there at all, since the desktop
+  (Settings → Layout) doesn't offer that option there at all, since the desktop
   shell's sidebar and multi-column layouts don't fit a phone screen regardless
   of what's requested.
 
 A manual override (Auto / Mobile / Desktop, with Desktop hidden on phones)
-lives in **About → Layout** and switches live.
+lives in **Settings → Layout** and switches live.
 
 ## Localization (en · ar · ur · fr · es)
 
 Strings live in `lib/l10n/app_<lang>.arb` — one file per language, `app_en.arb`
 is the template — turned into `lib/l10n/app_localizations.dart` (**generated**,
-not checked in) via `flutter gen-l10n`. **744 keys, 100% translated in all five
+not checked in) via `flutter gen-l10n`. **766 keys, 100% translated in all five
 languages.** Config lives in `l10n.yaml`.
 
 ```bash
@@ -179,17 +209,22 @@ being machine-translated into Arabic or Urdu religious/technical writing.
 assets/quran/         Qur'an text (Uthmani + IndoPak, both available in the
                        card reader and the 15-line muṣḥaf; see Credits) +
                        tajwīd spans + the 15-line muṣḥaf's own text/layout JSON
-assets/fonts/          UthmanicHafs, ScheherazadeNew, DigitalKhattV2/IndoPak,
-                       SurahNames, Bismillah, Outfit, NotoNastaliqUrdu — all
+assets/fonts/          Inter (UI), Source Serif 4 (display), Noto Naskh Arabic,
+                       NotoNastaliqUrdu, UthmanicHafs, DigitalKhattV2/IndoPak,
+                       SurahNames, Bismillah, QiraahIcons (the icon font) — all
                        bundled locally, no runtime font-fetching — see CREDITS.md
 assets/special_cases/  Hand-drawn SVGs for muṣḥaf ligatures/letter-stacking a
                        font can't render correctly in isolation (Joining
                        Forms' Special Shapes — see *What's inside*)
 lib/
-  core/      theme (2 families × 3 modes + tajwīd colors), settings, progress,
-             l10n facade, responsive (phone/tablet/desktop), audio services
+  core/      theme (four themes' tokens, muṣḥaf papers, gradients, type),
+             settings, progress (incl. bookmarks, last read, minutes), l10n
+             facade, responsive (phone/tablet/desktop), audio services
              (streaming + offline caching), downloads.dart (bulk offline
-             audio management — see *Data, downloads & privacy*)
+             audio), reminder.dart (daily notification), reader_size.dart
+  ui/        the design kit (cards, rows, buttons, segmented controls…),
+             app_icons.dart (every icon, by use), the QiraahIcons font class,
+             ornaments (rosette, āyah marker, sūrah header), brand
   data/      letters (+ extra/small letters), stroke polylines, tashkīl,
              tajwīd rules + muṣḥaf-specific cases, makhārij, ṣifāt,
              muqaṭṭaʿāt, script differences, tanwīn allographs, qirā'āt,
@@ -201,16 +236,19 @@ lib/
              detail page — now backing Qaidah's Joining Forms, the whole
              Tajwīd Academy, and Script & Symbols' Learn phases), common.dart
              (PhaseHub/UnitPhase — the shared Learn→Test→Practice→Recite hub)
-  screens/   home, quran reader, qaidah, tracing, tashkeel (+ CountsStudio),
-             tajweed, script, qiraat, dyslexia, search, about, downloads, mushaf
+  screens/   today, learn, settings, onboarding, quran list + reader, mushaf,
+             qaidah, tracing, tashkeel (+ CountsStudio), tajweed, script,
+             qiraat, dyslexia (Reading Coach), search, about, downloads
+  screens/shell/  app_shell.dart (tabs / sidebar), modules.dart (the seven
+             Learn modules)
   screens/lessons/  per-module lesson trees built on widgets/lesson.dart:
              qaidah_lessons.dart, forms_lessons.dart, tajwid_lessons.dart,
              script_lessons.dart; forms_quizzes.dart holds the joining-form
-             question shapes shared by the Qaidah unit and Kids Mode
-  screens/desktop/  sidebar shell + per-tab desktop layouts (grown-up app)
-  screens/kids/     Kids Mode's own mobile (bottom-nav) and desktop
-                    (sidebar) shells, screens, and widgets; kids_path.dart
-                    is the staged curriculum, as data
+             question shapes for the Qaidah unit
+tools/
+  recording_studio/  a browser page for recording the letter/syllable audio
+             and lesson videos, exporting a zip named for the app
+  icons/     make_launcher_icons.py (every platform's launcher icon)
 ```
 
 Content is deliberately separated from engines: the quiz engine, tracing
@@ -252,14 +290,3 @@ re-release this app, keep both.
       "coming soon" on every unit — see *Design decisions*).
 - [ ] Hand-drawn art for the remaining locked Special Shapes, and real
       Qur'anic examples for the newly added ones (see `special_shapes.dart`).
-- [ ] Arabic-literate review of Kids Mode's "read the sentence" content
-      (`lib/data/kids_sentences.dart`, one per letter) — original MSA text, not Qur'anic, and
-      deliberately outside the corpus-verbatim tests the rest of the app's
-      data is held to.
-- [ ] Native-speaker review of Kids Mode's kid-worded Arabic/Spanish/French/Urdu
-      strings (`lib/data/kids_glosses.dart` and its ~90 l10n keys per locale) —
-      Special Shapes' notes, the extra letters, the small madd letters and every
-      Words sentence's gloss — currently the developer's own non-native wording.
-- [ ] Real hand-drawn SVGs for the Mouth map's five places (open mouth, throat,
-      tongue, lips, nose); it draws a placeholder head today
-      (`_MouthPainter` in `kids_mouth_map.dart`).

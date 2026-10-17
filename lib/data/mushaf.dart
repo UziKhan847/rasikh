@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show compute;
+import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'quran.dart';
 
@@ -57,11 +59,14 @@ class _ScriptData {
   final List<int> tokAyah; // global ayah per token
   final List<int> tokWord; // real-word index per token (-1 marker)
   final List<int> realWordCount; // per global ayah
+  final List<int> ayahFirstTok; // first token of each global ayah (+ sentinel)
+  final Uint16List tokPage; // 1-based page each token is printed on
   final List<List<MushafLine>> pages;
   final List<int> pageFirstGlobal; // first global ayah shown on each page
   final List<int> surahFirstPage; // 1-based page a surah's header/text first appears on, by surah
   _ScriptData(this.tok, this.tokAyah, this.tokWord, this.realWordCount,
-      this.pages, this.pageFirstGlobal, this.surahFirstPage);
+      this.ayahFirstTok, this.tokPage, this.pages, this.pageFirstGlobal,
+      this.surahFirstPage);
 }
 
 /// The 15-line Madani and Indo-Pak mushaf: text, page/line layout, and the
@@ -112,6 +117,16 @@ class MushafRepo {
     [67, 1], [78, 1],
   ];
 
+  /// 1..30: the juzʼ [surah]:[ayah] is in. Needs no loaded data.
+  static int juzOfAyah(int surah, int ayah) {
+    var juz = 1;
+    for (var i = 0; i < _juzStarts.length; i++) {
+      final j = _juzStarts[i];
+      if (surah > j[0] || (surah == j[0] && ayah >= j[1])) juz = i + 1;
+    }
+    return juz;
+  }
+
   static Future<void> _ensureMeta() async {
     if (_surahCum != null) return;
     final metas = await QuranRepo.meta();
@@ -145,6 +160,8 @@ class MushafRepo {
     final tokAyah = (built['tokAyah'] as List).cast<int>();
     final tokWord = (built['tokWord'] as List).cast<int>();
     final rwc = (built['rwc'] as List).cast<int>();
+    final ayahFirstTok = (built['ayahFirstTok'] as List).cast<int>();
+    final tokPage = Uint16List.fromList((built['tokPage'] as List).cast<int>());
     final rawPages = built['pages'] as List;
     final pages = <List<MushafLine>>[];
     for (final p in rawPages) {
@@ -200,8 +217,8 @@ class MushafRepo {
         }
       }
     }
-    final data =
-        _ScriptData(tok, tokAyah, tokWord, rwc, pages, pageFirst, surahFirstPage);
+    final data = _ScriptData(tok, tokAyah, tokWord, rwc, ayahFirstTok,
+        tokPage, pages, pageFirst, surahFirstPage);
     _data[s] = data;
     return data;
   }
@@ -225,12 +242,42 @@ class MushafRepo {
     return d.pages[page - 1];
   }
 
-  static int realWordCount(String script, int globalAyah) {
+  /// Real words (ayah-end marker excluded) in [globalAyah]; -1 if the script
+  /// isn't loaded. Both scripts agree on every ayah (77,432 words in all), so
+  /// a word index is a script-independent key — see test/mushaf_word_index_test.
+  static int wordCount(String script, int globalAyah) {
     final d = _data[_norm(script)];
     if (d == null || globalAyah < 0 || globalAyah >= d.realWordCount.length) {
       return -1;
     }
     return d.realWordCount[globalAyah];
+  }
+
+  /// Token index of real word [word0] (0-based) of [globalAyah], or -1.
+  static int _tokOf(_ScriptData d, int globalAyah, int word0) {
+    if (globalAyah < 0 || globalAyah >= d.realWordCount.length) return -1;
+    if (word0 < 0 || word0 >= d.realWordCount[globalAyah]) return -1;
+    // Real words come first in each ayah; the ۝ marker is always its last
+    // token, so word w is simply the w-th token of the ayah.
+    return d.ayahFirstTok[globalAyah] + word0;
+  }
+
+  /// 1-based page (in [script]'s own numbering) that word [word0] of
+  /// [globalAyah] is printed on. Falls back to the ayah's page.
+  static int pageOfWord(String script, int globalAyah, int word0) {
+    final d = _data[_norm(script)];
+    if (d == null) return 1;
+    final t = _tokOf(d, globalAyah, word0 < 0 ? 0 : word0);
+    if (t < 0) return pageForGlobalAyah(script, globalAyah);
+    return d.tokPage[t];
+  }
+
+  /// The word's text as printed in [script], or '' if unknown.
+  static String wordText(String script, int globalAyah, int word0) {
+    final d = _data[_norm(script)];
+    if (d == null) return '';
+    final t = _tokOf(d, globalAyah, word0);
+    return t < 0 ? '' : d.tok[t];
   }
 
   /// global ayah index -> (surah 1-based, ayah-in-surah 1-based). Binary
@@ -365,7 +412,10 @@ Map<String, dynamic> _buildMushaf(Map<String, String> args) {
     var real = 0;
     for (final t in txt[a].split('\u200c')) {
       if (t.isEmpty) continue;
-      final marker = t.contains('\u06dd') || t.contains('\u06de');
+      // Only ۝ (U+06DD) ends an ayah. The Uthmani text also prefixes ۞
+      // (U+06DE, rub' al-hizb) onto the first word of 199 ayahs ('۞إِنَّ');
+      // that token is a real word and must keep its index.
+      final marker = t.startsWith('\u06dd');
       tok.add(t);
       tokAyah.add(a);
       tokWord.add(marker ? -1 : real);
@@ -405,12 +455,18 @@ Map<String, dynamic> _buildMushaf(Map<String, String> args) {
     encoded.add(ld);
   }
 
-  // Second pass: each text line ends where the next text line begins.
+  // Second pass: each text line ends where the next text line begins; record
+  // the page every token lands on while we're at it.
+  final tokPage = List<int>.filled(tok.length, 0);
   var k = 0;
   for (var pi = 0; pi < encoded.length; pi++) {
     for (var li = 0; li < encoded[pi].length; li++) {
       if (isText[pi][li]) {
-        encoded[pi][li][2] = (k + 1 < starts.length) ? starts[k + 1] : tok.length;
+        final end = (k + 1 < starts.length) ? starts[k + 1] : tok.length;
+        encoded[pi][li][2] = end;
+        for (var t = encoded[pi][li][1]; t < end; t++) {
+          tokPage[t] = pi + 1;
+        }
         k++;
       }
     }
@@ -421,6 +477,96 @@ Map<String, dynamic> _buildMushaf(Map<String, String> args) {
     'tokAyah': tokAyah,
     'tokWord': tokWord,
     'rwc': rwc,
+    'ayahFirstTok': ayahFirstTok,
+    'tokPage': tokPage,
     'pages': encoded,
   };
+}
+
+/// How big a muṣḥaf page is drawn, and how big its text.
+///
+/// The 15-line data comes without the kashida a printed muṣḥaf uses to make
+/// every line exactly full, so lines are justified by widening the gaps
+/// between words. To keep those gaps print-like, the text is sized by the
+/// page's WIDTH (its widest line fills the line) and lines sit [pitch] apart —
+/// tall marks overlap into the gap between lines, as in print, instead of
+/// every line reserving the font's full 2.3 em box.
+///
+/// [refEm] is the median page's widest line (in em), measured over every
+/// line of both muṣḥafs with HarfBuzz and the bundled fonts. Every page in a
+/// view shares one box sized for it, so turning a page never changes the
+/// book's shape; each page then fits its own text into that box (±10% size
+/// between pages; median extra gap 0.2 em, against 0.9 em when the font
+/// was limited by height).
+abstract final class MushafGeometry {
+  static const refEm = {'uthmani': 17.3, 'indopak': 18.0};
+
+  /// Line pitch the box is sized for, and the tightest a page may squeeze it
+  /// to make room for a larger font (in em).
+  static const pitch = 1.8;
+  static const minPitch = 1.6;
+  static const lines = 15;
+
+  static double refEmOf(String script) =>
+      refEm[script == 'indopak' ? 'indopak' : 'uthmani']!;
+
+  // ── chrome of _MushafPageView (keep in step with it) ──
+
+  /// Wider pages get roomier padding.
+  static const roomyWidth = 520.0;
+
+  static double chromeW({required bool roomy, required bool ornate}) =>
+      2 + (roomy ? 44 : 12) + (ornate ? 26 : 18);
+
+  static double chromeH(
+          {required bool roomy, required bool ornate, required bool header}) =>
+      2 + (roomy ? 28 : 10) + (ornate ? 18 : 10) + (header ? 30 + 19.5 : 0);
+
+  /// The page box that fits in [avail] with its text sized for the median
+  /// page. [heightBudget] replaces avail.height when the page may scroll
+  /// (zoomed single page); with [byWidthOnly] the height follows the width.
+  static Size pageBox(Size avail, String script,
+      {required bool ornate,
+      required bool header,
+      double? heightBudget,
+      bool byWidthOnly = false}) {
+    Size fit(bool roomy) {
+      final cw = chromeW(roomy: roomy, ornate: ornate);
+      final ch = chromeH(roomy: roomy, ornate: ornate, header: header);
+      final em = refEmOf(script);
+      final byW = (avail.width - cw) / em;
+      final byH = ((heightBudget ?? avail.height) - ch) / (lines * pitch);
+      final fs = (byWidthOnly ? byW : (byW < byH ? byW : byH)).clamp(6.0, 400.0);
+      return Size(em * fs + cw, lines * pitch * fs + ch);
+    }
+
+    final roomy = fit(true);
+    return roomy.width > roomyWidth ? roomy : fit(false);
+  }
+
+  static final Map<String, double> _widest44 = {};
+
+  /// The page's widest text line in em (measured once per page at 44 px; text
+  /// width scales with font size, so this holds for any viewport).
+  static double widestEm(String script, int page, List<MushafLine> lines) {
+    final key = '${MushafRepo._norm(script)}/$page';
+    final cached = _widest44[key];
+    if (cached != null) return cached;
+    const ref = 44.0;
+    final style = TextStyle(
+        fontFamily: MushafRepo.fontFamily(script), fontSize: ref, height: 1.0);
+    var widest = 1.0;
+    for (final l in lines) {
+      if (!l.isText) continue;
+      final tp = TextPainter(
+          text: TextSpan(
+              text: l.words.map((e) => e.text).join(' '), style: style),
+          textDirection: TextDirection.rtl,
+          maxLines: 1)
+        ..layout();
+      if (tp.width > widest) widest = tp.width;
+      tp.dispose();
+    }
+    return _widest44[key] = widest / ref;
+  }
 }

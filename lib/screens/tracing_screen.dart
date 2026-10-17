@@ -9,10 +9,9 @@ import '../core/theme.dart';
 import '../data/glyph_names.dart';
 import '../data/strokes.dart';
 import '../data/tracing_levels.dart';
+import '../ui/kit.dart';
 import '../widgets/common.dart';
-import '../kids_backdrops/kb_app.dart' show kbUi;
-import '../kids_backdrops/kb_components.dart';
-import '../kids_backdrops/kb_scene.dart' show kbC;
+import '../ui/app_icons.dart';
 
 /// ✍️ Tracing Studio — authentic Uthman-Taha letterforms in every position
 /// (alone · start · middle · end), whole-word tracing, and two modes:
@@ -153,7 +152,7 @@ class _TracingScreenState extends State<TracingScreen> {
 
   void _onStars(int s) {
     if (quiz && awaitingNext) return;
-    ProgressScope.of(context).report(progressId, s);
+    ProgressScope.read(context).report(progressId, s);
     if (!quiz) return;
     setState(() {
       lastStars = s;
@@ -197,7 +196,7 @@ class _TracingScreenState extends State<TracingScreen> {
             widget.embedded ? null : AppBar(title:  Text(context.l10n.tracingStudio)),
         body: SafeArea(
             child: Center(
-                child: CircularProgressIndicator(color: pal(context).accent))),
+                child: CircularProgressIndicator(color: pal(context).acc))),
       );
     }
     return Scaffold(
@@ -206,10 +205,13 @@ class _TracingScreenState extends State<TracingScreen> {
           : AppBar(
               title: Text(context.l10n.tracingStudio),
               actions: [
-                IconButton(
-                  tooltip: context.l10n.guidanceStrictness,
-                  onPressed: () => _openStrictnessSheet(context),
-                  icon: const Icon(Icons.tune_rounded),
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 16),
+                  child: QIconButton(
+                    icon: AppIcons.tune,
+                    tooltip: context.l10n.guidanceStrictness,
+                    onTap: () => _openStrictnessSheet(context),
+                  ),
                 ),
               ],
             ),
@@ -217,6 +219,59 @@ class _TracingScreenState extends State<TracingScreen> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
           child: LayoutBuilder(builder: (context, c) {
+            final board = _stage < 2
+                ? Container(
+                    decoration: BoxDecoration(
+                      color: pal(context).card,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: pal(context).line2),
+                    ),
+                    child: Center(
+                        child: CircularProgressIndicator(
+                            color: pal(context).acc)),
+                  )
+                : TracingBoard(
+                    key: ValueKey('${lvl.id}-${glyph.id}-$mode-$quiz-$attempt'),
+                    glyph: glyph,
+                    mode: mode,
+                    showOverlay: !quiz,
+                    onStars: _onStars,
+                  );
+            final wide = c.maxWidth >= 900;
+            final controls = <Widget>[
+              _levelBar(context),
+              const SizedBox(height: 10),
+              _modeBar(context),
+              const SizedBox(height: 10),
+              if (quiz) ..._quizControls(context) else ..._practiceControls(context, wide: wide),
+            ];
+            // Wide: the board on the left, the controls in a side panel.
+            if (wide) {
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1180),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: board),
+                      const SizedBox(width: 24),
+                      SizedBox(
+                        width: 380,
+                        child: QCard(
+                          padding: const EdgeInsets.all(18),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: controls,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -226,40 +281,12 @@ class _TracingScreenState extends State<TracingScreen> {
                   child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _levelBar(context),
-                        const SizedBox(height: 10),
-                        _modeBar(context),
-                        const SizedBox(height: 10),
-                        if (quiz)
-                          ..._quizControls(context)
-                        else
-                          ..._practiceControls(context),
-                      ],
+                      children: controls,
                     ),
                   ),
                 ),
                 const SizedBox(height: 8),
-                Expanded(
-                  child: _stage < 2
-                      ? Container(
-                          decoration: BoxDecoration(
-                            color: pal(context).surface,
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: Center(
-                              child: CircularProgressIndicator(
-                                  color: pal(context).accent)),
-                        )
-                      : TracingBoard(
-                          key: ValueKey(
-                              '${lvl.id}-${glyph.id}-$mode-$quiz-$attempt'),
-                          glyph: glyph,
-                          mode: mode,
-                          showOverlay: !quiz,
-                          onStars: _onStars,
-                        ),
-                ),
+                Expanded(child: board),
               ],
             );
           }),
@@ -272,9 +299,6 @@ class _TracingScreenState extends State<TracingScreen> {
   void _openStrictnessSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: pal(context).surface,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
       builder: (sheetCtx) => StatefulBuilder(builder: (sheetCtx, setSheet) {
         final s = SettingsScope.of(context);
         return Padding(
@@ -285,18 +309,18 @@ class _TracingScreenState extends State<TracingScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(context.l10n.guidanceStrictness,
-                  style: uiStyle(context, size: 18, weight: FontWeight.w800)),
+                  style: displayStyle(context, size: 24)),
               const SizedBox(height: 12),
               Row(children: [
                 Text(context.l10n.strict,
                     style:
-                        uiStyle(context, size: 12.5, color: pal(context).textDim)),
+                        uiStyle(context, size: 12.5, color: pal(context).ink3)),
                 Expanded(
-                  child: Slider(
+                  child: SettingsSlider(
                     min: 0.6,
                     max: 1.8,
                     value: s.traceTolerance,
-                    onChanged: (v) {
+                    onCommit: (v) {
                       s.update(() => s.traceTolerance = v);
                       setSheet(() {});
                     },
@@ -304,7 +328,7 @@ class _TracingScreenState extends State<TracingScreen> {
                 ),
                 Text(context.l10n.lenient,
                     style:
-                        uiStyle(context, size: 12.5, color: pal(context).textDim)),
+                        uiStyle(context, size: 12.5, color: pal(context).ink3)),
               ]),
             ],
           ),
@@ -323,38 +347,35 @@ class _TracingScreenState extends State<TracingScreen> {
           itemBuilder: (context, i) {
             final lv = tracingLevels[i];
             final sel = i == level;
-            return TapScale(
-              onTap: () => _setLevel(i),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
-                alignment: Alignment.centerLeft,
-                decoration: BoxDecoration(
-                  color: sel ? pal(context).accent : pal(context).surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                      color: sel ? pal(context).accent : Colors.transparent),
-                  boxShadow: [
-                    BoxShadow(
-                        color: pal(context).shadow,
-                        blurRadius: 6,
-                        offset: const Offset(0, 3)),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${i + 1} · ${levelNameOf(context, lv.id)}',
-                        style: uiStyle(context,
-                            size: 12.5,
-                            weight: FontWeight.w800,
-                            color: sel ? Colors.white : pal(context).text)),
-                    Text(tierLabelOf(context, lv.tier),
-                        style: uiStyle(context,
-                            size: 10,
-                            color:
-                                sel ? Colors.white70 : pal(context).textDim)),
-                  ],
+            final p = pal(context);
+            return Material(
+              color: sel ? p.accBg : p.card,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(color: sel ? p.accBg : p.line2),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => _setLevel(i),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${i + 1} · ${levelNameOf(context, lv.id)}',
+                          style: uiStyle(context,
+                              size: 12.5,
+                              weight: FontWeight.w700,
+                              color: sel ? Colors.white : p.ink)),
+                      Text(tierLabelOf(context, lv.tier),
+                          style: uiStyle(context,
+                              size: 10.5,
+                              color: sel ? Colors.white70 : p.ink3)),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -363,40 +384,39 @@ class _TracingScreenState extends State<TracingScreen> {
       );
 
   Widget _modeBar(BuildContext context) => Column(children: [
-        Row(children: [
-          for (final value in const [
-            'guided',
-            'outline',
-            'memory',
-          ]) ...[
-            Expanded(
-              child: _seg(context, modeLabelOf(context, value),
-                  mode == value, () {
-                setState(() {
-                  mode = value;
-                  attempt++;
-                });
-              }),
-            ),
-            if (value != 'memory') const SizedBox(width: 8),
+        QSegmented<String>(
+          options: [
+            for (final v in const ['guided', 'outline', 'memory'])
+              (v, modeLabelOf(context, v), null),
           ],
-        ]),
+          value: mode,
+          onChanged: (v) => setState(() {
+            mode = v;
+            attempt++;
+          }),
+        ),
         const SizedBox(height: 8),
         Row(children: [
-          _seg(context, context.l10n.practice, !quiz, () {
-            if (quiz) _exitQuiz();
-          }),
-          const SizedBox(width: 8),
-          _seg(context, context.l10n.quiz, quiz, () {
-            if (!quiz) _startQuiz();
-          }),
+          QSegmented<bool>(
+            expand: false,
+            height: 32,
+            options: [
+              (false, context.l10n.practice, null),
+              (true, context.l10n.quiz, null),
+            ],
+            value: quiz,
+            onChanged: (v) {
+              if (v && !quiz) _startQuiz();
+              if (!v && quiz) _exitQuiz();
+            },
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(_modeHint,
-                textAlign: TextAlign.right,
+                textAlign: TextAlign.end,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: uiStyle(context, size: 11, color: pal(context).textDim)),
+                style: uiStyle(context, size: 11.5, color: pal(context).ink3)),
           ),
         ]),
       ]);
@@ -407,13 +427,13 @@ class _TracingScreenState extends State<TracingScreen> {
         _ => context.l10n.hintGuided,
       };
 
-  List<Widget> _practiceControls(BuildContext context) {
+  List<Widget> _practiceControls(BuildContext context, {bool wide = false}) {
     final progress = ProgressScope.of(context);
     return [
       if (lvl.words)
         _wordStrip(context)
       else ...[
-        _letterStrip(context),
+        if (wide) _letterGrid(context) else _letterStrip(context),
         const SizedBox(height: 10),
         _formsRow(context),
       ],
@@ -434,7 +454,7 @@ class _TracingScreenState extends State<TracingScreen> {
           _ => context.l10n.traceInstrGuided,
         },
         textAlign: TextAlign.center,
-        style: uiStyle(context, size: 12.5, color: pal(context).textDim),
+        style: uiStyle(context, size: 12.5, color: pal(context).ink3),
       ),
     ];
   }
@@ -451,7 +471,7 @@ class _TracingScreenState extends State<TracingScreen> {
             style: uiStyle(context,
                 size: 12.5,
                 weight: FontWeight.w700,
-                color: pal(context).textDim)),
+                color: pal(context).ink3)),
         const SizedBox(width: 8),
         _seg(context, '5', quizTarget == 5,
             () => setState(() => quizTarget = 5)),
@@ -463,7 +483,7 @@ class _TracingScreenState extends State<TracingScreen> {
             style: uiStyle(context,
                 size: 12.5,
                 weight: FontWeight.w800,
-                color: pal(context).accentDeep)),
+                color: pal(context).accInk)),
       ]),
       const SizedBox(height: 12),
       if (quizComplete) ...[
@@ -473,9 +493,9 @@ class _TracingScreenState extends State<TracingScreen> {
         const SizedBox(height: 10),
         Center(
           child: FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: pal(context).accent),
+            style: FilledButton.styleFrom(backgroundColor: pal(context).acc),
             onPressed: _startQuiz,
-            icon: const Icon(Icons.refresh_rounded, size: 18),
+            icon: const Icon(AppIcons.reset, size: 18),
             label:  Text(context.l10n.restartQuiz),
           ),
         ),
@@ -487,7 +507,7 @@ class _TracingScreenState extends State<TracingScreen> {
                   fontFamily: 'UthmanicHafs',
                   fontSize: 30,
                   height: 1.3,
-                  color: pal(context).text)),
+                  color: pal(context).ink)),
           const SizedBox(width: 12),
           Expanded(
             child: Text(glyphNameOf(context, g),
@@ -510,18 +530,18 @@ class _TracingScreenState extends State<TracingScreen> {
                 style: uiStyle(context,
                     size: 13,
                     weight: FontWeight.w700,
-                    color: cleared ? AppColors.ok : pal(context).textDim)),
+                    color: cleared ? AppColors.ok : pal(context).ink3)),
           ]),
           const SizedBox(height: 10),
           Center(
             child: FilledButton.icon(
               style:
-                  FilledButton.styleFrom(backgroundColor: pal(context).accent),
+                  FilledButton.styleFrom(backgroundColor: pal(context).acc),
               onPressed: _quizNext,
               icon: Icon(
                   cleared
-                      ? Icons.arrow_forward_rounded
-                      : Icons.refresh_rounded,
+                      ? AppIcons.forward
+                      : AppIcons.reset,
                   size: 18),
               label: Text(cleared ? context.l10n.nextLetter : context.l10n.traceAgain),
             ),
@@ -534,7 +554,7 @@ class _TracingScreenState extends State<TracingScreen> {
               _ => context.l10n.quizInstrGuided(quizTarget),
             },
             textAlign: TextAlign.center,
-            style: uiStyle(context, size: 12.5, color: pal(context).textDim),
+            style: uiStyle(context, size: 12.5, color: pal(context).ink3),
           ),
       ],
     ];
@@ -550,10 +570,10 @@ class _TracingScreenState extends State<TracingScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: i < quizStreak
-                    ? pal(context).accent
-                    : pal(context).surfaceHigh,
+                    ? pal(context).acc
+                    : pal(context).track,
                 border: Border.all(
-                    color: pal(context).accent.withValues(alpha: .4)),
+                    color: pal(context).acc.withValues(alpha: .4)),
               ),
             ),
             if (i != quizTarget - 1) const SizedBox(width: 6),
@@ -561,39 +581,81 @@ class _TracingScreenState extends State<TracingScreen> {
         ],
       );
 
+  /// A selectable tile in the letter, form and word strips.
+  Widget _tile(BuildContext context,
+      {required bool sel,
+      required VoidCallback onTap,
+      required Widget child,
+      double? width,
+      bool soft = false}) {
+    final p = pal(context);
+    final fill = sel ? (soft ? p.accSoft : p.accBg) : p.card;
+    return Material(
+      color: fill,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: sel ? (soft ? p.acc : p.accBg) : p.line2),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          width: width,
+          padding: width == null
+              ? const EdgeInsets.symmetric(horizontal: 14)
+              : EdgeInsets.zero,
+          alignment: Alignment.center,
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  /// Wide layouts: every letter of the level at once, in a grid.
+  Widget _letterGrid(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final l in lvl.letters)
+            SizedBox(
+              height: 50,
+              child: _tile(context,
+                  sel: l.char == letter,
+                  width: 46,
+                  onTap: () => _setLetter(l.char),
+                  child: Text(l.char,
+                      style: arabicStyle(context,
+                          size: 23,
+                          height: 1.4,
+                          color: l.char == letter
+                              ? Colors.white
+                              : pal(context).ink))),
+            ),
+        ]),
+      );
+
+  // The strips read right to left, like the alphabet.
   Widget _letterStrip(BuildContext context) => SizedBox(
-        height: 54,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: lvl.letters.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemBuilder: (context, i) {
-            final l = lvl.letters[i];
-            final sel = l.char == letter;
-            return TapScale(
-              onTap: () => _setLetter(l.char),
-              child: Container(
-                width: 50,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: sel ? pal(context).accent : pal(context).surface,
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
-                    BoxShadow(
-                        color: pal(context).shadow,
-                        blurRadius: 8,
-                        offset: const Offset(0, 4)),
-                  ],
-                ),
-                child: Text(l.char,
-                    style: TextStyle(
-                        fontFamily: 'UthmanicHafs',
-                        fontSize: 24,
-                        height: 1.5,
-                        color: sel ? Colors.white : pal(context).text)),
-              ),
-            );
-          },
+        height: 56,
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: lvl.letters.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (context, i) {
+              final l = lvl.letters[i];
+              final sel = l.char == letter;
+              return _tile(context,
+                  sel: sel,
+                  width: 52,
+                  onTap: () => _setLetter(l.char),
+                  child: Text(l.char,
+                      style: arabicStyle(context,
+                          size: 26,
+                          height: 1.4,
+                          color: sel ? Colors.white : pal(context).ink)));
+            },
+          ),
         ),
       );
 
@@ -602,35 +664,23 @@ class _TracingScreenState extends State<TracingScreen> {
     return Row(children: [
       for (final f in forms) ...[
         Expanded(
-          child: TapScale(
-            onTap: () => setState(() {
-              form = f;
-              attempt++;
-            }),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              decoration: BoxDecoration(
-                color: form == f
-                    ? pal(context).accent.withValues(alpha: .14)
-                    : pal(context).surface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                    color: form == f
-                        ? pal(context).accent
-                        : Colors.transparent),
-              ),
-              child: Column(children: [
-                Text(lvl.glyphForIn(letter, f).char,
-                    style: TextStyle(
-                        fontFamily: 'UthmanicHafs',
-                        fontSize: 20,
-                        height: 1.4,
-                        color: pal(context).text)),
-                Text(formLabelOf(context, f),
-                    style: uiStyle(context,
-                        size: 10.5, color: pal(context).textDim)),
-              ]),
-            ),
+          child: SizedBox(
+            height: 58,
+            child: _tile(context,
+                sel: form == f,
+                soft: true,
+                onTap: () => setState(() {
+                      form = f;
+                      attempt++;
+                    }),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text(lvl.glyphForIn(letter, f).char,
+                      style: arabicStyle(context,
+                          size: 20, height: 1.4, color: pal(context).ink)),
+                  Text(formLabelOf(context, f),
+                      style: uiStyle(context,
+                          size: 10.5, color: pal(context).ink3)),
+                ])),
           ),
         ),
         if (f != forms.last) const SizedBox(width: 8),
@@ -639,60 +689,51 @@ class _TracingScreenState extends State<TracingScreen> {
   }
 
   Widget _wordStrip(BuildContext context) => SizedBox(
-        height: 50,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: lvl.glyphs.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemBuilder: (context, i) {
-            final sel = i == wordIdx;
-            return TapScale(
-              onTap: () => setState(() {
-                wordIdx = i;
-                attempt++;
-              }),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: sel ? pal(context).accent : pal(context).surface,
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
-                    BoxShadow(
-                        color: pal(context).shadow,
-                        blurRadius: 8,
-                        offset: const Offset(0, 4)),
-                  ],
-                ),
-                child: Text(lvl.glyphs[i].char,
-                    textDirection: TextDirection.rtl,
-                    style: TextStyle(
-                        fontFamily: 'UthmanicHafs',
-                        fontSize: 22,
-                        height: 1.5,
-                        color: sel ? Colors.white : pal(context).text)),
-              ),
-            );
-          },
+        height: 52,
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: lvl.glyphs.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (context, i) {
+              final sel = i == wordIdx;
+              return _tile(context,
+                  sel: sel,
+                  onTap: () => setState(() {
+                        wordIdx = i;
+                        attempt++;
+                      }),
+                  child: Text(lvl.glyphs[i].char,
+                      textDirection: TextDirection.rtl,
+                      style: quranicStyle(context,
+                          size: 22,
+                          height: 1.5,
+                          color: sel ? Colors.white : pal(context).ink)));
+            },
+          ),
         ),
       );
 
-  Widget _seg(BuildContext context, String label, bool sel, VoidCallback onTap) =>
-      TapScale(
+  Widget _seg(BuildContext context, String label, bool sel, VoidCallback onTap) {
+    final p = pal(context);
+    return Material(
+      color: sel ? p.accBg : p.track,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
         onTap: onTap,
-        child: Container(
+        child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: sel ? pal(context).accent : pal(context).surfaceHigh,
-            borderRadius: BorderRadius.circular(13),
-          ),
           child: Text(label,
               style: uiStyle(context,
                   size: 12.5,
                   weight: FontWeight.w700,
-                  color: sel ? Colors.white : pal(context).text)),
+                  color: sel ? Colors.white : p.ink)),
         ),
-      );
+      ),
+    );
+  }
 }
 
 // ═════════════════════════════ Board ═════════════════════════════
@@ -1024,14 +1065,19 @@ class _TracingBoardState extends State<TracingBoard>
     final p = pal(context);
     // Two independent axes: who forms the stroke, and whether the shape shows.
     final free = widget.mode != 'guided';
+    // Only the guided board pulses; don't tick (and repaint) for nothing.
+    if (free) {
+      if (_pulse.isAnimating) _pulse.stop();
+    } else if (!_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
+    }
     final showShape = widget.mode != 'memory';
-    final kids = SettingsScope.of(context).kidsMode;
     return Column(children: [
       Expanded(
         child: Center(
           child: AspectRatio(
             aspectRatio: aspect.toDouble(),
-            child: _kidsBoardCard(context, kids, LayoutBuilder(builder: (context, c) {
+            child: LayoutBuilder(builder: (context, c) {
           final u = c.maxHeight;
           final w = c.maxWidth;
           Offset norm(Offset local) => local / u;
@@ -1080,9 +1126,7 @@ class _TracingBoardState extends State<TracingBoard>
                 transform: Matrix4.identity()
                   ..translateByDouble(_pan.dx, _pan.dy, 0, 1)
                   ..scaleByDouble(_zoom, _zoom, 1, 1),
-                child: AnimatedBuilder(
-                  animation: _pulse,
-                  builder: (context, _) => CustomPaint(
+                child: CustomPaint(
                     painter: _BoardPainter(
                       glyph: g,
                       free: free,
@@ -1097,11 +1141,10 @@ class _TracingBoardState extends State<TracingBoard>
                       current: current,
                       userDots: userDots,
                       result: result,
-                      pulse: _pulse.value,
+                      pulseAnim: _pulse,
                       p: p,
                       u: u,
                     ),
-                  ),
                 ),
               ),
             ),
@@ -1119,7 +1162,7 @@ class _TracingBoardState extends State<TracingBoard>
                 top: 8,
                 right: 8,
                 child: Material(
-                  color: p.surface.withValues(alpha: .85),
+                  color: p.card.withValues(alpha: .85),
                   shape: const CircleBorder(),
                   elevation: 2,
                   child: IconButton(
@@ -1129,14 +1172,14 @@ class _TracingBoardState extends State<TracingBoard>
                       _zoom = 1.0;
                       _pan = Offset.zero;
                     }),
-                    icon: Icon(Icons.zoom_out_map_rounded, color: p.text),
+                    icon: Icon(AppIcons.zoom, color: p.ink),
                   ),
                 ),
               ),
             if (result != null && widget.showOverlay)
               _ResultOverlay(result: result!, onRetry: _reset),
           ]);
-            })),
+            }),
           ),
         ),
       ),
@@ -1144,9 +1187,6 @@ class _TracingBoardState extends State<TracingBoard>
       // A Wrap, not a Row: Clear + Check + the stroke counter are wider than a
       // phone (a Row overflowed the write-from-memory lesson by ~80px at 480
       // wide), and the counter is the part that can drop to a second line.
-      if (kids)
-        _kidsControls(context, free)
-      else
       Wrap(
         alignment: WrapAlignment.center,
         crossAxisAlignment: WrapCrossAlignment.center,
@@ -1155,21 +1195,21 @@ class _TracingBoardState extends State<TracingBoard>
         children: [
         OutlinedButton.icon(
           onPressed: _reset,
-          icon: const Icon(Icons.refresh_rounded, size: 18),
+          icon: const Icon(AppIcons.reset, size: 18),
           label:  Text(context.l10n.clear),
         ),
         if (free) ...[
           FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: p.accent),
+            style: FilledButton.styleFrom(backgroundColor: p.acc),
             onPressed: drawn.isNotEmpty && result == null ? _check : null,
-            icon: const Icon(Icons.check_rounded, size: 18),
+            icon: const Icon(AppIcons.check, size: 18),
             label:  Text(context.l10n.check),
           ),
           Text(
             context.l10n.strokesAndDots(drawn.length,
                 widget.glyph.strokes.length, userDots.length,
                 widget.glyph.dots.length),
-            style: uiStyle(context, size: 12, color: p.textDim),
+            style: uiStyle(context, size: 12, color: p.ink3),
           ),
         ] else
           Text(
@@ -1179,81 +1219,9 @@ class _TracingBoardState extends State<TracingBoard>
                     : context.l10n.tapTheDots(widget.glyph.dots.length))
                 : context.l10n.strokeXofY(
                     strokeIndex + 1, widget.glyph.strokes.length),
-            style: uiStyle(context, size: 12, color: p.textDim),
+            style: uiStyle(context, size: 12, color: p.ink3),
           ),
       ]),
-    ]);
-  }
-
-  /// Kids Mode: the board on the design's writing-board card (kb_screens.dart
-  /// `KbWriteScreen`: `KbElev.board`, radius 30).
-  Widget _kidsBoardCard(BuildContext context, bool kids, Widget board) {
-    if (!kids) return board;
-    final ui = kbUi(context);
-    return KbSurface(
-      color: ui.surface,
-      edge: ui.edge,
-      elev: KbElev.board,
-      radius: 30,
-      padding: const EdgeInsets.all(14),
-      child: board,
-    );
-  }
-
-  /// Kids Mode: the design's Clear / Check pills, and the counter on a small
-  /// surface capsule — it sits on the scene, not on a card.
-  Widget _kidsControls(BuildContext context, bool free) {
-    final ui = kbUi(context);
-    const pad = EdgeInsets.fromLTRB(26, 11, 26, 9);
-    final canCheck = drawn.isNotEmpty && result == null;
-    final status = free
-        ? context.l10n.strokesAndDots(drawn.length, widget.glyph.strokes.length,
-            userDots.length, widget.glyph.dots.length)
-        : strokesDone
-            ? (widget.glyph.dots.isEmpty
-                ? context.l10n.doneExclaim
-                : context.l10n.tapTheDots(widget.glyph.dots.length))
-            : context.l10n.strokeXofY(
-                strokeIndex + 1, widget.glyph.strokes.length);
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      const SizedBox(height: 10),
-      Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 14,
-        runSpacing: 10,
-        children: [
-          KbPill(context.l10n.clear,
-              ui: ui,
-              icon: 'refresh',
-              fontSize: 20,
-              iconSize: 22,
-              elev: KbElev.edge5,
-              padding: pad,
-              onTap: _reset),
-          if (free)
-            Opacity(
-              opacity: canCheck ? 1 : .5,
-              child: KbPill(context.l10n.check,
-                  ui: ui,
-                  kind: KbPillKind.deep,
-                  icon: 'check',
-                  fontSize: 20,
-                  iconSize: 22,
-                  elev: KbElev.edge5,
-                  padding: pad,
-                  onTap: canCheck ? _check : null),
-            ),
-        ],
-      ),
-      const SizedBox(height: 14),
-      Container(
-        padding: const EdgeInsets.fromLTRB(14, 3, 14, 1),
-        decoration: BoxDecoration(
-            color: kbC(ui.surface), borderRadius: BorderRadius.circular(999)),
-        child: Text(status,
-            textAlign: TextAlign.center,
-            style: kbText(16, kbC(ui.inkSoft), weight: FontWeight.w700)),
-      ),
     ]);
   }
 
@@ -1265,13 +1233,12 @@ class _TracingBoardState extends State<TracingBoard>
     final g = widget.glyph;
     final aspect = g.aspect.clamp(0.6, 3.4);
     final p = pal(context);
-    final kids = SettingsScope.of(context).kidsMode;
     return Column(children: [
       Expanded(
         child: Center(
           child: AspectRatio(
             aspectRatio: aspect.toDouble(),
-            child: _kidsBoardCard(context, kids, LayoutBuilder(builder: (context, c) {
+            child: LayoutBuilder(builder: (context, c) {
               final u = c.maxHeight;
               return ClipRRect(
                 borderRadius: BorderRadius.circular(22),
@@ -1292,27 +1259,21 @@ class _TracingBoardState extends State<TracingBoard>
                       current: current,
                       userDots: userDots,
                       result: null,
-                      pulse: _pulse.value,
+                      pulseAnim: _pulse,
                       p: p,
                       u: u,
                     ),
                   ),
                 ),
               );
-            })),
+            }),
           ),
         ),
       ),
       const SizedBox(height: 8),
-      if (kids)
-        KbPill(context.l10n.watch,
-            ui: kbUi(context),
-            icon: 'replay',
-            onTap: _replayWatch)
-      else
         OutlinedButton.icon(
           onPressed: _replayWatch,
-          icon: const Icon(Icons.replay_rounded, size: 18),
+          icon: const Icon(AppIcons.repeat, size: 18),
           label: Text(context.l10n.watch),
         ),
     ]);
@@ -1509,7 +1470,11 @@ class _BoardPainter extends CustomPainter {
   final List<Offset> current;
   final List<Offset> userDots;
   final _MemoryResult? result;
-  final double pulse;
+
+  /// The guide's pulse, read at paint time: it repaints the board without
+  /// rebuilding the widget every frame.
+  final Animation<double> pulseAnim;
+  double get pulse => pulseAnim.value;
   final Palette p;
   final double u;
 
@@ -1527,25 +1492,25 @@ class _BoardPainter extends CustomPainter {
     required this.current,
     required this.userDots,
     required this.result,
-    required this.pulse,
+    required this.pulseAnim,
     required this.p,
     required this.u,
-  });
+  }) : super(repaint: pulseAnim);
 
   Path _scaled(List<Offset> pts) => smoothPathScaled(pts, u);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final bg = Paint()..color = p.surface;
+    final bg = Paint()..color = p.card;
     final rrect = RRect.fromRectAndRadius(
-        Offset.zero & size, const Radius.circular(22));
+        Offset.zero & size, const Radius.circular(24));
     canvas.drawRRect(rrect, bg);
     canvas.drawRRect(
         rrect,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.4
-          ..color = p.surfaceHigh);
+          ..strokeWidth = 1
+          ..color = p.line2);
     canvas.save();
     canvas.clipRRect(rrect);
 
@@ -1568,9 +1533,14 @@ class _BoardPainter extends CustomPainter {
       for (final s in glyph.strokes) {
         canvas.drawPath(
             _scaled(s),
+            // The ghost letter in the `ghost` token, deepened a little so
+            // it still reads on the card.
             stroke(
-                result == null ? p.textDim : AppColors.ok, ghostW,
-                result == null ? .18 : .28));
+                result == null
+                    ? Color.lerp(p.ghost, p.ink3, .35)!
+                    : AppColors.ok,
+                ghostW,
+                result == null ? 1 : .28));
       }
       for (var i = 0; i < glyph.dots.length; i++) {
         final c = glyph.dots[i] * u;
@@ -1578,7 +1548,7 @@ class _BoardPainter extends CustomPainter {
             c,
             u * .035,
             Paint()
-              ..color = (dotsHit.contains(i) ? p.accent : p.textDim)
+              ..color = (dotsHit.contains(i) ? p.acc : p.ink3)
                   .withValues(alpha: dotsHit.contains(i) ? .9 : .25));
       }
     }
@@ -1586,7 +1556,7 @@ class _BoardPainter extends CustomPainter {
     if (!free) {
       // completed strokes
       for (var i = 0; i < strokeIndex && i < glyph.strokes.length; i++) {
-        canvas.drawPath(_scaled(glyph.strokes[i]), stroke(p.accent, inkW));
+        canvas.drawPath(_scaled(glyph.strokes[i]), stroke(p.acc, inkW));
       }
       // current stroke progress + comet
       if (strokeIndex < glyph.strokes.length && samples.isNotEmpty) {
@@ -1598,13 +1568,13 @@ class _BoardPainter extends CustomPainter {
           for (var i = 1; i <= upto; i++) {
             part.lineTo(samples[i].dx * u, samples[i].dy * u);
           }
-          canvas.drawPath(part, stroke(p.accent, inkW));
+          canvas.drawPath(part, stroke(p.acc, inkW));
         }
         final target = samples[math.min(upto + 4, n - 1)] * u;
         final glow = u * (.05 + .015 * pulse);
         canvas.drawCircle(
-            target, glow, Paint()..color = p.accent2.withValues(alpha: .30));
-        canvas.drawCircle(target, u * .026, Paint()..color = p.accent2);
+            target, glow, Paint()..color = p.gold.withValues(alpha: .30));
+        canvas.drawCircle(target, u * .026, Paint()..color = p.gold);
         // arrowhead pointing ahead
         final aheadI = math.min(upto + 10, n - 1);
         final dir = (samples[aheadI] - samples[math.max(aheadI - 3, 0)]);
@@ -1619,7 +1589,7 @@ class _BoardPainter extends CustomPainter {
                 ..lineTo(left.dx, left.dy)
                 ..lineTo(right.dx, right.dy)
                 ..close(),
-              Paint()..color = p.accent2.withValues(alpha: .85));
+              Paint()..color = p.gold.withValues(alpha: .85));
         }
         // start marker
         if (progress == 0 && !tracking) {
@@ -1659,7 +1629,7 @@ class _BoardPainter extends CustomPainter {
           finger! * u,
           u * .055,
           Paint()
-            ..color = (tracking || free ? p.accent : p.accent2)
+            ..color = (tracking || free ? p.acc : p.gold)
                 .withValues(alpha: .22));
     }
     canvas.restore();
@@ -1684,8 +1654,9 @@ class _ResultOverlay extends StatelessWidget {
         margin: const EdgeInsets.all(18),
         padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
         decoration: BoxDecoration(
-          color: p.surface.withValues(alpha: .96),
+          color: p.card.withValues(alpha: .97),
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: p.line2),
           boxShadow: [
             BoxShadow(
                 color: Colors.black.withValues(alpha: .18),
@@ -1752,7 +1723,7 @@ class _ResultOverlay extends StatelessWidget {
           ],
           const SizedBox(height: 10),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: p.accent),
+            style: FilledButton.styleFrom(backgroundColor: p.acc),
             onPressed: onRetry,
             child:  Text(context.l10n.traceAgain),
           ),
