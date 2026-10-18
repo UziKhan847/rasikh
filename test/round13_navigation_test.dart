@@ -3,6 +3,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:qiraah_arabiyyah/core/theme.dart';
+import 'package:qiraah_arabiyyah/ui/qiraah_icons.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/screens/qaidah_screen.dart';
@@ -31,6 +33,7 @@ Widget _harness(AppSettings settings, ProgressStore progress, Widget child) {
     child: ProgressScope(
       progress: progress,
       child: MaterialApp(
+        theme: buildTheme(settings),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         locale: const Locale('en'),
@@ -69,7 +72,7 @@ void main() {
 
     // The reported dead end: on desktop, a route two pushes deep must still
     // show a way back — not the mobile AppBar, not nothing.
-    final back = find.byIcon(Icons.arrow_back_rounded);
+    final back = find.byIcon(QiraahIcons.back);
     expect(back, findsOneWidget);
     await tester.tap(back);
     await tester.pumpAndSettle();
@@ -77,8 +80,8 @@ void main() {
     expect(find.text('Parallel Shape'), findsOneWidget);
 
     // And the index screen one level up ALSO has a working back control.
-    expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    expect(find.byIcon(QiraahIcons.back), findsOneWidget);
+    await tester.tap(find.byIcon(QiraahIcons.back));
     await tester.pumpAndSettle();
     expect(find.text('Ḍammatān'), findsWidgets);
     expect(find.text('Fatḥatān'), findsOneWidget);
@@ -103,8 +106,8 @@ void main() {
     // No mobile-style AppBar back button (would render via BackButtonIcon
     // rather than the desktop's own arrow_back_rounded tile) and no
     // 640px phone-frame chrome — just the one desktop back control.
-    expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    expect(find.byIcon(QiraahIcons.back), findsOneWidget);
+    await tester.tap(find.byIcon(QiraahIcons.back));
     await tester.pumpAndSettle();
     expect(find.text('Hamzat al-Waṣl'), findsWidgets);
     expect(find.text('Script Families'), findsWidgets);
@@ -346,7 +349,7 @@ void main() {
     await tester.tap(find.text('Small Mīm (Iqlāb)'));
     await tester.pumpAndSettle();
 
-    final backX = tester.getTopLeft(find.byIcon(Icons.arrow_back_rounded)).dx;
+    final backX = tester.getTopLeft(find.byIcon(QiraahIcons.back)).dx;
     // The content column is capped at 760px and centered in a 1440px window,
     // so a header still trapped inside that column would sit past x≈300.
     // Flush left (the ListView's own 20px padding) stays well under that.
@@ -371,7 +374,7 @@ void main() {
     await tester.tap(find.text('Hamzat al-Waṣl'));
     await tester.pumpAndSettle();
 
-    final backX = tester.getTopLeft(find.byIcon(Icons.arrow_back_rounded)).dx;
+    final backX = tester.getTopLeft(find.byIcon(QiraahIcons.back)).dx;
     expect(backX, lessThan(60));
   });
 }

@@ -50,9 +50,7 @@ void main() {
   // A verse-timings API response can hand back a host-qualified URL (see
   // _versesFor's "some reciters return a host-qualified path" comment),
   // which then gets fetched (downloadSurah) or played (AyahAudio.play)
-  // directly. isKnownAudioHost is the fixed allowlist gating that — see the
-  // Kids Mode plan's "audio host allowlist" hardening note, made more
-  // pointed now that this same playback path is child-facing.
+  // directly. isKnownAudioHost is the fixed allowlist gating that.
   group('isKnownAudioHost', () {
     test('every real reciter host is allowed', () {
       expect(isKnownAudioHost('https://everyayah.com/data/x.mp3'), isTrue);

@@ -1,48 +1,67 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show SystemChrome, SystemUiMode;
+import 'dart:async';
+
+import 'package:flutter/services.dart'
+    show SystemChrome, SystemUiMode, SystemUiOverlayStyle;
 
 import 'core/audio.dart';
-import 'core/responsive.dart';
 import 'core/l10n.dart';
+import 'core/marks/marks_store.dart';
+import 'core/sync/pocketbase_backend.dart';
+import 'core/sync/sync_backend.dart';
+import 'core/sync/sync_engine.dart';
 import 'core/settings.dart';
 import 'core/theme.dart';
-import 'screens/desktop/desktop_shell.dart';
-import 'screens/home_screen.dart';
-import 'screens/kids/kids_desktop_shell.dart';
-import 'screens/kids/kids_shell.dart';
+import 'screens/onboarding_screen.dart';
+import 'screens/shell/app_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settings = AppSettings();
   final progress = ProgressStore();
   await Future.wait([settings.load(), progress.load()]);
-  // Kids Mode never uses these faces; warming them would only compete with its
-  // own first frames (all five tabs build at once).
-  if (!settings.kidsMode) {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _warmUpFonts());
-  }
-  runApp(QiraahArabiyyahApp(settings: settings, progress: progress));
+  // Marks load in the background: nothing on the first frame needs them,
+  // and the marks UI waits for `ready`.
+  final marks = MarksStore();
+  // Sync is opt-in: start() only touches the network if this device is
+  // already signed in to a marks server.
+  final sync = SyncEngine(
+      store: marks,
+      backend: settings.syncServer.isEmpty
+          ? const NoServerBackend()
+          : await PocketBaseSyncBackend.create(settings.syncServer));
+  unawaited(marks.load().then((_) => sync.start()));
+  WidgetsBinding.instance.addPostFrameCallback((_) => _warmUpFonts());
+  runApp(QiraahArabiyyahApp(
+      settings: settings, progress: progress, marks: marks, sync: sync));
 }
 
 class QiraahArabiyyahApp extends StatelessWidget {
   final AppSettings settings;
   final ProgressStore progress;
+  final MarksStore? marks;
+  final SyncEngine? sync;
   const QiraahArabiyyahApp({
     super.key,
     required this.settings,
     required this.progress,
+    this.marks,
+    this.sync,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SettingsScope(
+    final app = SettingsScope(
       settings: settings,
       child: ProgressScope(
         progress: progress,
         child: _SystemUiSync(
           settings: settings,
+          marks: marks,
+          sync: sync,
           child: AnimatedBuilder(
             animation: settings,
             builder: (context, _) => MaterialApp(
@@ -57,15 +76,55 @@ class QiraahArabiyyahApp extends StatelessWidget {
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
               home: const RootScreen(),
-              builder: (context, child) => Directionality(
-                textDirection: L10n.isRtl(settings.language)
-                    ? TextDirection.rtl
-                    : TextDirection.ltr,
-                child: child!,
+              builder: (context, child) =>
+                  AnnotatedRegion<SystemUiOverlayStyle>(
+                value: overlayStyleFor(paletteOf(settings.theme)),
+                child: Directionality(
+                  textDirection: L10n.isRtl(settings.language)
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
+                  child: _NavBarInset(
+                    color: paletteOf(settings.theme).bg,
+                    child: _TimeTracker(progress: progress, child: child!),
+                  ),
+                ),
               ),
             ),
           ),
         ),
+      ),
+    );
+    final m = marks, sy = sync;
+    if (m == null) return app;
+    final scoped = MarksScope(store: m, child: app);
+    return sy == null ? scoped : SyncScope(engine: sy, child: scoped);
+  }
+}
+
+/// Keeps the app clear of Android's navigation bar.
+///
+/// Android 15+ draws every app edge-to-edge, behind a transparent
+/// navigation bar, and the screens here don't pad their scroll views and
+/// sheets for it — so the system buttons sat on top of content. Reserving
+/// the bar's height once, below the whole app (in the theme's background
+/// colour), keeps every screen and bottom sheet above it. With the keyboard
+/// up or in immersive mode the inset is zero, so nothing changes there.
+class _NavBarInset extends StatelessWidget {
+  final Color color;
+  final Widget child;
+  const _NavBarInset({required this.color, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    if (defaultTargetPlatform != TargetPlatform.android) return child;
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    if (bottom <= 0) return child;
+    return ColoredBox(
+      color: color,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottom),
+        child: MediaQuery.removePadding(
+            context: context, removeBottom: true, child: child),
       ),
     );
   }
@@ -77,8 +136,11 @@ class QiraahArabiyyahApp extends StatelessWidget {
 /// the keyboard). No-ops on platforms without system bars.
 class _SystemUiSync extends StatefulWidget {
   final AppSettings settings;
+  final MarksStore? marks;
+  final SyncEngine? sync;
   final Widget child;
-  const _SystemUiSync({required this.settings, required this.child});
+  const _SystemUiSync(
+      {required this.settings, this.marks, this.sync, required this.child});
 
   @override
   State<_SystemUiSync> createState() => _SystemUiSyncState();
@@ -112,10 +174,15 @@ class _SystemUiSyncState extends State<_SystemUiSync>
       // than 7 days (Quran Foundation's offline-caching condition). Failures
       // are swallowed inside and simply retried on the next resume.
       refreshStaleQuranCache();
-    } else if (state == AppLifecycleState.paused) {
-      // Flush any debounced settings write (see AppSettings.update) before
-      // the OS can suspend/kill the process mid-background.
+      // Catch up with marks made elsewhere (no-op unless signed in).
+      widget.sync?.syncNow();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      // Flush any debounced settings/marks write (see AppSettings.update)
+      // before the OS can suspend/kill the process mid-background. Desktop
+      // windows may only go as far as `hidden`.
       widget.settings.flush();
+      widget.marks?.flush();
     }
   }
 
@@ -132,19 +199,75 @@ class _SystemUiSyncState extends State<_SystemUiSync>
   Widget build(BuildContext context) => widget.child;
 }
 
-/// Picks the desktop shell or the mobile home based on platform / window /
-/// the manual override in settings. Rebuilds live when the override changes.
-
+/// The first-launch welcome until it has been finished or skipped, then the
+/// app shell (bottom tabs on a phone, the sidebar on desktop — see
+/// [AppShell], which follows the layout setting live).
 class RootScreen extends StatelessWidget {
   const RootScreen({super.key});
   @override
   Widget build(BuildContext context) {
-    final desktop = useDesktop(context);
-    if (SettingsScope.of(context).kidsMode) {
-      return desktop ? const KidsDesktopShell() : const KidsShell();
-    }
-    return desktop ? const DesktopShell() : const HomeScreen();
+    if (!SettingsScope.of(context).onboarded) return const OnboardingScreen();
+    return const AppShell();
   }
+}
+
+/// Counts time spent in the app (while it is in the foreground) towards the
+/// daily goal, in 30-second ticks.
+class _TimeTracker extends StatefulWidget {
+  final ProgressStore progress;
+  final Widget child;
+  const _TimeTracker({required this.progress, required this.child});
+  @override
+  State<_TimeTracker> createState() => _TimeTrackerState();
+}
+
+class _TimeTrackerState extends State<_TimeTracker>
+    with WidgetsBindingObserver {
+  Timer? _tick;
+  DateTime? _since;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _start();
+  }
+
+  void _start() {
+    _since = DateTime.now();
+    _tick?.cancel();
+    _tick = Timer.periodic(const Duration(seconds: 30), (_) => _flush());
+  }
+
+  void _flush() {
+    final since = _since;
+    if (since == null) return;
+    final now = DateTime.now();
+    widget.progress.addTime(now.difference(since).inSeconds);
+    _since = now;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _start();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _flush();
+      _since = null;
+      _tick?.cancel();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Rasterizes a sample of each bundled Arabic face once at startup, so the

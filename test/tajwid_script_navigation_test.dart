@@ -62,6 +62,8 @@ void main() {
 
     // Tapping Recite shows a coming-soon snackbar and does NOT navigate —
     // the hub (with all five phase labels) is still on screen.
+    await tester.ensureVisible(find.text('Recite'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Recite'));
     await tester.pump();
     expect(find.byType(SnackBar), findsOneWidget);

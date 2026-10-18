@@ -1,0 +1,19 @@
+# /etc/caddy/Caddyfile — replace marks.example.com with your domain.
+# Caddy fetches and renews the TLS certificate automatically.
+marks.example.com {
+	encode gzip
+	request_body {
+		max_size 10MB
+	}
+	reverse_proxy 127.0.0.1:8090 {
+		# Realtime (live marks) uses long-lived server-sent events.
+		transport http {
+			read_timeout 360s
+		}
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+	}
+}

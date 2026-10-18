@@ -4,6 +4,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../core/l10n.dart';
 import '../core/responsive.dart';
 import '../core/theme.dart';
+import '../ui/app_icons.dart';
+import '../ui/kit.dart';
 import 'common.dart';
 
 /// A node of a Learn-phase lesson tree (Round 12 — "drill down, then teach").
@@ -250,7 +252,7 @@ Widget shapeSvg(
     height: mm.$2 * k,
     fit: BoxFit.contain,
     alignment: Alignment.center,
-    colorFilter: ColorFilter.mode(color ?? pal(context).text, BlendMode.srcIn),
+    colorFilter: ColorFilter.mode(color ?? pal(context).ink, BlendMode.srcIn),
     semanticsLabel: semanticsLabel,
   );
 }
@@ -276,27 +278,16 @@ Widget lessonDesktopHeader(BuildContext context, String title) {
   final showBack = !embedded && Navigator.of(context).canPop();
   return Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
     if (showBack) ...[
-      Material(
-        color: pal(context).surface,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => Navigator.maybePop(context),
-          child: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-                border: Border.all(color: pal(context).surfaceHigh),
-                borderRadius: BorderRadius.circular(12)),
-            child: Icon(Icons.arrow_back_rounded, size: 20, color: pal(context).text),
-          ),
-        ),
+      QIconButton(
+        icon: AppIcons.back,
+        tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+        onTap: () => Navigator.maybePop(context),
       ),
-      const SizedBox(width: 14),
+      const SizedBox(width: 12),
     ],
     Expanded(
         child: Text(title,
-            style: uiStyle(context, size: 22, weight: FontWeight.w900))),
+            style: uiStyle(context, size: 17, weight: FontWeight.w700))),
   ]);
 }
 
@@ -332,259 +323,203 @@ class LessonIndexScreen extends StatelessWidget with DesktopAware {
 
   @override
   Widget build(BuildContext context) {
-    if (useDesktop(context)) return _desktopBuild(context);
+    final p = pal(context);
     final groups = _groups;
     var i = 0;
-    final children = <Widget>[
-      if (subtitle.isNotEmpty)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 14),
-          child: Text(subtitle,
-              style: uiStyle(context, size: 13.5, color: pal(context).textDim)
-                  .copyWith(height: 1.4)),
-        ),
-    ];
-    for (final g in groups.keys) {
-      if (g.isNotEmpty) children.add(SectionHeader(g));
-      final groupNodes = groups[g]!;
-      if (_isGridGroup(groupNodes)) {
-        children.add(_grid(context, groupNodes, startDelay: 22 * i));
-        i += groupNodes.length;
-      } else {
-        for (final n in groupNodes) {
-          children.add(FadeSlideIn(
-            delayMs: 30 * i++,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _row(context, n),
-            ),
-          ));
-        }
-      }
-    }
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: SafeArea(
         top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-          children: children,
-        ),
+        child: LayoutBuilder(builder: (context, c) {
+          final wide = c.maxWidth >= 900;
+          final children = <Widget>[
+            if (subtitle.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Text(subtitle,
+                    style: displayStyle(context, size: 20, height: 1.3)),
+              ),
+          ];
+          for (final g in groups.keys) {
+            if (g.isNotEmpty) children.add(SectionHeader(g));
+            final groupNodes = groups[g]!;
+            if (_isGridGroup(groupNodes)) {
+              children.add(_grid(context, groupNodes,
+                  startDelay: 22 * i, extent: wide ? 140 : 96));
+              i += groupNodes.length;
+            } else if (wide) {
+              children.add(LayoutBuilder(
+                builder: (context, cc) => Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    for (final n in groupNodes)
+                      SizedBox(
+                          width: (cc.maxWidth - 12) / 2,
+                          child: _row(context, n)),
+                  ],
+                ),
+              ));
+            } else {
+              for (final n in groupNodes) {
+                children.add(FadeSlideIn(
+                  delayMs: 30 * i++,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _row(context, n),
+                  ),
+                ));
+              }
+            }
+          }
+          return ColoredBox(
+            color: p.bg,
+            // One list item per row (each capped on its own), so rows are
+            // built lazily as they scroll near — not all at once.
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+              children: [
+                for (final w in children)
+                  QColumn(maxWidth: wide ? 1080 : 760, child: w),
+              ],
+            ),
+          );
+        }),
       ),
     );
   }
 
-  /// The compact square tile grid — Unit 1's own recipe
-  /// ([LettersExplorer]'s `_smallGrid`), reused here so Joining Forms'
-  /// letter picker looks and animates exactly the same way.
-  Widget _grid(BuildContext context, List<LessonNode> items, {int startDelay = 0}) =>
+  /// The compact square tile grid — Unit 1's own recipe, reused here so
+  /// Joining Forms' letter picker looks the same.
+  Widget _grid(BuildContext context, List<LessonNode> items,
+          {int startDelay = 0, double extent = 96}) =>
       GridView.builder(
         padding: EdgeInsets.zero,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 120, mainAxisSpacing: 12, crossAxisSpacing: 12),
+        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: extent, mainAxisSpacing: 10, crossAxisSpacing: 10),
         itemCount: items.length,
         itemBuilder: (context, i) => FadeSlideIn(
           delayMs: startDelay + 22 * i,
-          child: _gridTile(context, items[i]),
+          child: _gridTile(context, items[i], big: extent > 120),
         ),
       );
 
-  Widget _gridTile(BuildContext context, LessonNode n) => TapScale(
-        onTap: () => _open(context, n),
-        child: Opacity(
-          opacity: n.locked ? .55 : 1,
-          child: Container(
-            decoration: BoxDecoration(
-              color: pal(context).surface,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            alignment: Alignment.center,
-            child: n.svg.isNotEmpty
-                ? shapeSvg(context, n.svg,
-                    mm: n.svgMm, boxSide: 34, color: pal(context).text, semanticsLabel: n.title)
-                : Text(n.glyph,
-                    textDirection: TextDirection.rtl,
-                    style: quranicStyle(context, size: 34, color: pal(context).text)),
-          ),
-        ),
-      );
-
-  Widget _row(BuildContext context, LessonNode n) => TapScale(
-        onTap: () => _open(context, n),
-        child: Semantics(
-          button: true,
-          enabled: !n.locked,
-          child: Opacity(
-            opacity: n.locked ? .55 : 1,
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: pal(context).surface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: pal(context).surfaceHigh),
-              ),
-              child: Row(children: [
-                Container(
-                  width: 50, height: 50,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: pal(context).surfaceHigh,
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: n.svg.isNotEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.all(7),
-                          child: shapeSvg(context, n.svg,
-                              mm: n.svgMm,
-                              boxSide: 36,
-                              color: pal(context).accent,
-                              semanticsLabel: n.title),
-                        )
-                      : n.glyph.isEmpty
-                          ? Icon(n.icon ?? Icons.menu_book_rounded, color: pal(context).accent)
-                          : n.glyphIsLetterSet
-                              ? FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: separatedLetters(context, n.glyph,
-                                      size: 20, color: pal(context).accent, max: 3),
-                                )
-                              : Text(n.glyph,
-                                  textDirection: TextDirection.rtl,
-                                  style:
-                                      quranicStyle(context, size: 20, color: pal(context).accent)),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
-                        Text(n.title,
-                            style: uiStyle(context, size: 15.5, weight: FontWeight.w700)),
-                        if (n.arabicName.isNotEmpty) ...[
-                          const SizedBox(width: 8),
-                          Text(n.arabicName,
-                              textDirection: TextDirection.rtl,
-                              style: arabicStyle(context, size: 14, color: pal(context).textDim)),
-                        ],
-                        if (n.locked) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: pal(context).surfaceHigh,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(context.l10n.soon,
-                                style: uiStyle(context,
-                                    size: 9.5,
-                                    weight: FontWeight.w800,
-                                    color: pal(context).textDim)),
-                          ),
-                        ],
-                      ]),
-                      if (n.summary.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 3),
-                          child: Text(n.summary,
-                              style: uiStyle(context, size: 12.5, color: pal(context).textDim)),
-                        ),
-                    ],
-                  ),
-                ),
-                Icon(n.locked ? Icons.lock_clock_rounded : Icons.chevron_right_rounded,
-                    color: pal(context).textDim),
-              ]),
-            ),
-          ),
-        ),
-      );
-
-  Widget _desktopBuild(BuildContext context) {
-    final groups = _groups;
-    return Scaffold(
-      backgroundColor: pal(context).bg,
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(8, 4, 8, 32),
-          children: [
-            lessonDesktopHeader(context, title),
-            if (subtitle.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(subtitle, style: uiStyle(context, size: 13.5, color: pal(context).textDim)),
+  Widget _gridTile(BuildContext context, LessonNode n, {bool big = false}) {
+    final p = pal(context);
+    final side = big ? 48.0 : 34.0;
+    return Opacity(
+      opacity: n.locked ? .55 : 1,
+      child: Material(
+        color: p.card,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: p.line2)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _open(context, n),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              n.svg.isNotEmpty
+                  ? shapeSvg(context, n.svg,
+                      mm: n.svgMm, boxSide: side, color: p.ink, semanticsLabel: n.title)
+                  : Text(n.glyph,
+                      textDirection: TextDirection.rtl,
+                      style: quranicStyle(context, size: side, color: p.ink)),
+              if (big) ...[
+                const SizedBox(height: 8),
+                Text(n.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: uiStyle(context,
+                        size: 12, weight: FontWeight.w600, color: p.ink3)),
+              ],
             ],
-            const SizedBox(height: 18),
-            for (final g in groups.keys) ...[
-              if (g.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Text(g, style: uiStyle(context, size: 15, weight: FontWeight.w700)),
-                ),
-              if (_isGridGroup(groups[g]!))
-                GridView.builder(
-                  padding: EdgeInsets.zero,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 166, mainAxisSpacing: 16, crossAxisSpacing: 16),
-                  itemCount: groups[g]!.length,
-                  itemBuilder: (context, i) => _deskGridTile(context, groups[g]![i]),
-                )
-              else
-                Wrap(
-                  spacing: 16, runSpacing: 16,
-                  children: [
-                    for (final n in groups[g]!) SizedBox(width: 380, child: _row(context, n)),
-                  ],
-                ),
-              const SizedBox(height: 18),
-            ],
-          ],
+          ),
         ),
       ),
     );
   }
 
-  /// Desktop counterpart of [_gridTile] — [LettersExplorer]'s own desktop
-  /// tile recipe (elevated card, glyph + name), reused so Joining Forms'
-  /// picker matches Unit 1 on desktop too.
-  Widget _deskGridTile(BuildContext context, LessonNode n) => Opacity(
+  Widget _row(BuildContext context, LessonNode n) {
+    final p = pal(context);
+    return Semantics(
+      button: true,
+      enabled: !n.locked,
+      child: Opacity(
         opacity: n.locked ? .55 : 1,
-        child: Material(
-          color: pal(context).surface,
-          borderRadius: BorderRadius.circular(22),
-          elevation: 4,
-          shadowColor: pal(context).shadow,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(22),
-            onTap: () => _open(context, n),
-            child: Container(
+        child: QCard(
+          padding: const EdgeInsets.all(14),
+          onTap: () => _open(context, n),
+          child: Row(children: [
+            Container(
+              width: 50,
+              height: 50,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: pal(context).surfaceHigh.withValues(alpha: .6)),
+                color: p.track,
+                borderRadius: BorderRadius.circular(15),
               ),
+              child: n.svg.isNotEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(7),
+                      child: shapeSvg(context, n.svg,
+                          mm: n.svgMm,
+                          boxSide: 36,
+                          color: p.acc,
+                          semanticsLabel: n.title),
+                    )
+                  : n.glyph.isEmpty
+                      ? Icon(n.icon ?? AppIcons.reader, color: p.acc)
+                      : n.glyphIsLetterSet
+                          ? FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: separatedLetters(context, n.glyph,
+                                  size: 20, color: p.acc, max: 3),
+                            )
+                          : Text(n.glyph,
+                              textDirection: TextDirection.rtl,
+                              style: quranicStyle(context, size: 20, color: p.acc)),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  n.svg.isNotEmpty
-                      ? shapeSvg(context, n.svg,
-                          mm: n.svgMm, boxSide: 52, color: pal(context).text, semanticsLabel: n.title)
-                      : Text(n.glyph,
+                  Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
+                    Text(n.title,
+                        style: uiStyle(context, size: 15, weight: FontWeight.w700)),
+                    if (n.arabicName.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Text(n.arabicName,
                           textDirection: TextDirection.rtl,
-                          style: quranicStyle(context, size: 52, color: pal(context).text)),
-                  const SizedBox(height: 14),
-                  Text(n.title,
-                      style: uiStyle(context,
-                          size: 13, weight: FontWeight.w600, color: pal(context).textDim)),
+                          style: arabicStyle(context, size: 14, color: p.ink3)),
+                    ],
+                    if (n.locked) ...[
+                      const SizedBox(width: 8),
+                      QTag(context.l10n.soon, color: p.ink3),
+                    ],
+                  ]),
+                  if (n.summary.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Text(n.summary,
+                          style: uiStyle(context,
+                              size: 12.5, color: p.ink3, height: 1.35)),
+                    ),
                 ],
               ),
             ),
-          ),
+            const SizedBox(width: 8),
+            Icon(n.locked ? AppIcons.lock : AppIcons.chevronRight,
+                size: 20, color: p.ink3),
+          ]),
         ),
-      );
+      ),
+    );
+  }
 }
 
 /// A lesson's detail page — the "bigger and clearer" screen the drill-down
@@ -604,34 +539,22 @@ class LessonDetailScreen extends StatelessWidget with DesktopAware {
   /// would make the whole page "exist" in the widget tree from the first
   /// frame, breaking `scrollUntilVisible`/`find.byType` tests that rely on
   /// an item only appearing once actually scrolled near.
-  Widget _capped(Widget child) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: child,
-        ),
-      );
+  Widget _capped(Widget child) => QColumn(child: child);
 
   @override
   Widget build(BuildContext context) {
     final d = node.detail;
+    final p = pal(context);
     final desktop = useDesktop(context);
-    final heroSize = desktop ? 170.0 : 100.0;
+    final heroSize = desktop ? 150.0 : 100.0;
     final hero = (d?.hero.isNotEmpty ?? false) ? d!.hero : node.glyph;
     return Scaffold(
-      backgroundColor: desktop ? pal(context).bg : null,
-      appBar: desktop ? null : AppBar(title: Text(node.title)),
+      appBar: AppBar(title: Text(node.title)),
       body: SafeArea(
         top: false,
         child: ListView(
-          padding: EdgeInsets.fromLTRB(20, desktop ? 12 : 8, 20, 30),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
           children: [
-            // The back header spans the full width, flush left — like
-            // [LetterDetail._desktopBuild]'s own header — so it stays
-            // OUTSIDE the width cap, unlike the reading content below it.
-            if (desktop) ...[
-              lessonDesktopHeader(context, node.title),
-              const SizedBox(height: 12),
-            ],
             if ((d?.heroSvg.isNotEmpty ?? false) || hero.isNotEmpty)
               _capped(Center(
                 child: Padding(
@@ -643,40 +566,38 @@ class LessonDetailScreen extends StatelessWidget with DesktopAware {
                             child: shapeSvg(context, d!.heroSvg,
                                 mm: d.heroSvgMm,
                                 boxSide: heroSize,
-                                color: pal(context).accent,
+                                color: p.acc,
                                 semanticsLabel: node.title),
                           ),
                         )
                       : node.glyphIsLetterSet
                           ? separatedLetters(context, hero,
                               size: heroSetGlyphSize(hero.length, heroSize),
-                              color: pal(context).accent)
+                              color: p.acc)
                           : Text(hero,
                               textDirection: TextDirection.rtl,
                               style: quranicStyle(context,
-                                  size: heroSize, height: 1.6, color: pal(context).accent)),
+                                  size: heroSize, height: 1.6, color: p.acc)),
                 ),
               )),
             _capped(Center(
               child: Column(children: [
                 Text(node.title,
                     textAlign: TextAlign.center,
-                    style: uiStyle(context,
-                        size: desktop ? 24 : 20, weight: FontWeight.w900)),
+                    style: displayStyle(context, size: desktop ? 30 : 26)),
                 if (node.arabicName.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(node.arabicName,
                         textDirection: TextDirection.rtl,
-                        style: arabicStyle(context, size: 18, color: pal(context).textDim)),
+                        style: arabicStyle(context, size: 18, color: p.ink3)),
                   ),
               ]),
             )),
             if (d != null && d.intro.isNotEmpty) ...[
               const SizedBox(height: 18),
               _capped(Text(d.intro,
-                  style: uiStyle(context, size: 15, color: pal(context).text)
-                      .copyWith(height: 1.55))),
+                  style: uiStyle(context, size: 15, color: p.ink, height: 1.6))),
             ],
             if (d != null && d.facts.isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -719,11 +640,8 @@ class LessonDetailScreen extends StatelessWidget with DesktopAware {
     return d.ref;
   }
 
-  Widget _factsBlock(BuildContext context, List<(String, String)> facts) => Container(
-        width: double.infinity,
+  Widget _factsBlock(BuildContext context, List<(String, String)> facts) => QCard(
         padding: const EdgeInsets.all(16),
-        decoration:
-            BoxDecoration(color: pal(context).surface, borderRadius: BorderRadius.circular(18)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           for (var i = 0; i < facts.length; i++) ...[
             if (i > 0) const SizedBox(height: 10),
@@ -732,11 +650,11 @@ class LessonDetailScreen extends StatelessWidget with DesktopAware {
                   width: 108,
                   child: Text(facts[i].$1,
                       style: uiStyle(context,
-                          size: 12.5, weight: FontWeight.w700, color: pal(context).accent))),
+                          size: 12.5, weight: FontWeight.w700, color: pal(context).accInk))),
               Expanded(
                   child: Text(facts[i].$2,
-                      style: uiStyle(context, size: 14, color: pal(context).textDim)
-                          .copyWith(height: 1.4))),
+                      style: uiStyle(context,
+                          size: 14, color: pal(context).ink2, height: 1.45))),
             ]),
           ],
         ]),
@@ -745,8 +663,7 @@ class LessonDetailScreen extends StatelessWidget with DesktopAware {
   Widget _lettersRow(BuildContext context, String letters) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(context.l10n.lsnLetters,
-              style: uiStyle(context, size: 13, weight: FontWeight.w700, color: pal(context).textDim)),
+          QSectionLabel(context.l10n.lsnLetters, padding: EdgeInsets.zero),
           const SizedBox(height: 8),
           Wrap(
             spacing: 10, runSpacing: 10,
@@ -756,13 +673,13 @@ class LessonDetailScreen extends StatelessWidget with DesktopAware {
                   width: 46, height: 46,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: pal(context).surface,
+                    color: pal(context).card,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: pal(context).surfaceHigh),
+                    border: Border.all(color: pal(context).line2),
                   ),
                   child: Text(ch,
                       textDirection: TextDirection.rtl,
-                      style: quranicStyle(context, size: 20, color: pal(context).accent)),
+                      style: quranicStyle(context, size: 20, color: pal(context).acc)),
                 ),
             ],
           ),
@@ -773,8 +690,8 @@ class LessonDetailScreen extends StatelessWidget with DesktopAware {
         width: double.infinity,
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: pal(context).accent.withValues(alpha: .07),
-          borderRadius: BorderRadius.circular(18),
+          color: pal(context).accSoft,
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Column(children: [
           Wrap(
@@ -787,20 +704,20 @@ class LessonDetailScreen extends StatelessWidget with DesktopAware {
                       if (c.op.isNotEmpty)
                         Text(c.op,
                             style: uiStyle(context,
-                                size: 22, weight: FontWeight.w700, color: pal(context).accent)),
+                                size: 22, weight: FontWeight.w700, color: pal(context).acc)),
                       Column(mainAxisSize: MainAxisSize.min, children: [
                         c.asset.isNotEmpty
                             ? shapeSvg(context, c.asset,
                                 mm: c.mm,
                                 boxSide: useDesktop(context) ? 84 : 64,
-                                color: pal(context).text)
+                                color: pal(context).ink)
                             : Text(c.glyph,
                                 textDirection: TextDirection.rtl,
                                 style: quranicStyle(context, size: 34)),
                         const SizedBox(height: 4),
                         Text(c.caption,
                             textAlign: TextAlign.center,
-                            style: uiStyle(context, size: 11, color: pal(context).textDim)),
+                            style: uiStyle(context, size: 11, color: pal(context).ink3)),
                       ]),
                     ],
                   ]
@@ -809,7 +726,7 @@ class LessonDetailScreen extends StatelessWidget with DesktopAware {
                       if (op.isNotEmpty)
                         Text(op,
                             style: uiStyle(context,
-                                size: 22, weight: FontWeight.w700, color: pal(context).accent)),
+                                size: 22, weight: FontWeight.w700, color: pal(context).acc)),
                       Column(mainAxisSize: MainAxisSize.min, children: [
                         Text(glyph,
                             textDirection: TextDirection.rtl,
@@ -817,7 +734,7 @@ class LessonDetailScreen extends StatelessWidget with DesktopAware {
                         const SizedBox(height: 4),
                         Text(caption,
                             textAlign: TextAlign.center,
-                            style: uiStyle(context, size: 11, color: pal(context).textDim)),
+                            style: uiStyle(context, size: 11, color: pal(context).ink3)),
                       ]),
                     ],
                   ],
@@ -826,13 +743,14 @@ class LessonDetailScreen extends StatelessWidget with DesktopAware {
             const SizedBox(height: 12),
             Text(b.caption,
                 textAlign: TextAlign.center,
-                style: uiStyle(context, size: 12.5, color: pal(context).textDim)),
+                style: uiStyle(context, size: 12.5, color: pal(context).ink3)),
           ],
         ]),
       );
 
-  Widget _exampleRow(BuildContext context, ConceptExample ex) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
+  Widget _exampleRow(BuildContext context, ConceptExample ex) => QCard(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         child: Row(children: [
           Expanded(
             child: RichText(
@@ -842,7 +760,7 @@ class LessonDetailScreen extends StatelessWidget with DesktopAware {
                   ex.text,
                   ex.highlight ?? '',
                   quranicStyle(context, size: 32),
-                  quranicStyle(context, size: 32, color: pal(context).accent),
+                  quranicStyle(context, size: 32, color: pal(context).acc),
                 ),
               ),
             ),
@@ -851,7 +769,7 @@ class LessonDetailScreen extends StatelessWidget with DesktopAware {
             Padding(
               padding: const EdgeInsets.only(left: 8),
               child: Text(context.l10n.surahRef(ex.ref),
-                  style: uiStyle(context, size: 11.5, color: pal(context).textDim)),
+                  style: uiStyle(context, size: 11.5, color: pal(context).ink3)),
             ),
         ]),
       );
@@ -870,14 +788,14 @@ class LessonDetailScreen extends StatelessWidget with DesktopAware {
           child: Align(
             alignment: Alignment.centerRight,
             child: shapeSvg(context, ex.asset,
-                mm: ex.mm, boxSide: 56, color: pal(context).text, semanticsLabel: ex.text),
+                mm: ex.mm, boxSide: 56, color: pal(context).ink, semanticsLabel: ex.text),
           ),
         ),
         if (ex.ref.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(left: 8),
             child: Text(context.l10n.surahRef(ex.ref),
-                style: uiStyle(context, size: 11.5, color: pal(context).textDim)),
+                style: uiStyle(context, size: 11.5, color: pal(context).ink3)),
           ),
       ]),
     );

@@ -407,7 +407,9 @@ class ProgressStore extends ChangeNotifier {
   void setLastMushafPage(int page) {
     if (lastMushafPage == page) return;
     lastMushafPage = page;
-    notifyListeners();
+    // No notifyListeners(): nothing shows this, it's only read when the
+    // muṣḥaf reopens — and notifying mid-swipe rebuilt every screen that
+    // listens to progress (Today, Learn… hidden under the muṣḥaf).
     _saveReading();
   }
 

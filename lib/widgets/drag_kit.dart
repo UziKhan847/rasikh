@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// The two halves of a drag-and-drop activity, shared by every one in the app
-/// (the quiz's "drag the shape onto the gap", Kids Mode's build-the-word,
-/// sort-into-bins and join-the-letters).
+/// (the quiz's "drag the shape onto the gap").
 ///
 /// **A drag is never the only way.** Every activity built on these also
 /// completes by tap — a child who cannot yet drag accurately still finishes

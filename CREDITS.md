@@ -4,16 +4,14 @@
 | Font | Source | Licence | Notes |
 |---|---|---|---|
 | UthmanicHafs.ttf | King Fahd Glorious Quran Printing Complex (KFGQPC) | KFGQPC custom licence — free to use & redistribute, **no modification, no sale** | NOT OSI/FSF-free → F-Droid will treat as a NonFree asset |
-| ScheherazadeNew.ttf | SIL International | SIL Open Font License 1.1 | Qur'an-adjacent Arabic UI/body typeface and Urdu's fallback face. **Gap, pre-existing:** unlike the other OFL-licensed fonts here, its licence text isn't yet bundled under `LICENSES/` — needs adding, same as `Outfit-OFL.txt`/`NotoNastaliqUrdu-OFL.txt` |
+| ScheherazadeNew.ttf | SIL International | SIL Open Font License 1.1 | Qur'an-adjacent Arabic UI/body typeface and Urdu's fallback face. **Gap, pre-existing:** unlike the other OFL-licensed fonts here, its licence text isn't yet bundled under `LICENSES/` — needs adding, same as `Inter-OFL.txt`/`NotoNastaliqUrdu-OFL.txt` |
 | DigitalKhattV2.otf, DigitalKhattIndoPak.otf | [DigitalKhatt project](https://github.com/DigitalKhatt) — Amine Anane, sponsored by Tarteel Inc.; bundled via Waqar Ahmed's [Quran Revision Companion](https://github.com/Waqar144/quran_memorization_helper) | **SIL Open Font License 1.1** — licence text at `LICENSES/DigitalKhatt-OFL.txt`. (The MIT covers Waqar Ahmed's app that redistributed them, not the fonts themselves: both binaries declare OFL 1.1 in their own `name` table, nameID 13, with the copyright at nameID 0.) | Powers the 15-line muṣḥaf page; DigitalKhattIndoPak also renders the card reader's Indo-Pak script, and DigitalKhattV2 is the reader's optional Madani typeface |
 | SurahNames.ttf, Bismillah.ttf | Waqar Ahmed's [Quran Revision Companion](https://github.com/Waqar144/quran_memorization_helper) | MIT License | Ornamental glyphs for the 15-line muṣḥaf headers |
-| Outfit-Variable.ttf | [Outfit](https://github.com/Outfitio/Outfit-Fonts) | SIL Open Font License 1.1 | Latin-language (English/French/Spanish) UI typeface — licence text at `LICENSES/Outfit-OFL.txt` |
+| Inter-Regular/Medium/SemiBold/Bold.ttf | [Inter](https://github.com/rsms/inter) (via Google Fonts) | SIL Open Font License 1.1 | Latin-language (English/French/Spanish) UI typeface of the redesign — licence text at `LICENSES/Inter-OFL.txt`. Static instances (opsz 14) cut from the upstream variable font: a variable (gvar) font is a known trigger for Skia text-shaper hangs on some Android GPU/driver combinations |
+| SourceSerif4-Regular/Medium.ttf | [Source Serif 4](https://github.com/adobe-fonts/source-serif) (Adobe, via Google Fonts) | SIL Open Font License 1.1 | Display headings of the redesign — licence text at `LICENSES/SourceSerif4-OFL.txt`. Static instances (opsz 32), for the same Skia reason |
+| NotoNaskhArabic-Regular/SemiBold/Bold.ttf | [Noto Naskh Arabic](https://github.com/notofonts/arabic) (via Google Fonts) | SIL Open Font License 1.1 | Arabic letters and the Arabic-language UI — licence text at `LICENSES/NotoNaskhArabic-OFL.txt`. Static instances |
+| QiraahIcons.ttf | The app's own icon font, from the design handoff (`design_handoff_qiraah_flutter/`) | Project asset | Every UI icon (`lib/ui/qiraah_icons.dart`, mapped in `lib/ui/app_icons.dart`) |
 | NotoNastaliqUrdu-Variable.ttf | [Noto Nastaliq Urdu](https://github.com/notofonts/nastaliq) | SIL Open Font License 1.1 | Urdu-language UI typeface — licence text at `LICENSES/NotoNastaliqUrdu-OFL.txt` |
-| Baloo2-Regular/Medium/SemiBold/Bold/ExtraBold.ttf | [Baloo 2](https://github.com/EkType/Baloo2) | SIL Open Font License 1.1 | Kids Mode's display typeface (rounded, playful) — licence text at `LICENSES/Baloo2-OFL.txt`. Bundled, never fetched over the network, same as every face above. Shipped as 5 static weight instances rather than the upstream variable font — a variable (gvar) font is a known trigger for Skia text-shaper hangs on some Android GPU/driver combinations; static instances (via `fonttools varLib.instancer`) sidestep that entirely with an identical visual result |
-| BalooBhaijaan2-Medium/SemiBold/Bold/ExtraBold.ttf | [Baloo Bhaijaan 2](https://github.com/EkType/Baloo2) | SIL Open Font License 1.1 | Kids Mode's UI typeface in the design handoff (`design_handoff_flutter/`): headings, cards, buttons — licence text at `LICENSES/BalooBhaijaan2-OFL.txt`. Static instances cut from the upstream variable font by `tool/kb_fonts.py`, for the same Skia reason as Baloo 2 above |
-| NotoNaskhArabic-Medium/SemiBold.ttf | [Noto Naskh Arabic](https://github.com/notofonts/arabic) | SIL Open Font License 1.1 | Kids Mode's letter face (glyph tiles, answer cells) in the design handoff — licence text at `LICENSES/NotoNaskhArabic-OFL.txt`. Static instances, built by `tool/kb_fonts.py` |
-| AmiriQuran-Regular.ttf | [Amiri Quran](https://github.com/aliftype/amiri) | SIL Open Font License 1.1 | Kids Mode's Qurʼānic-word face in the design handoff — licence text at `LICENSES/AmiriQuran-OFL.txt` |
-| MaterialSymbolsRounded-Kids.ttf | [Material Symbols](https://github.com/google/material-design-icons) (Google) | Apache License 2.0 | Kids Mode's icons, as the design uses them (Rounded, FILL 1, wght 600) — licence text at `LICENSES/MaterialSymbols-Apache-2.0.txt`. Instanced at those axes and subset to the icons listed in `tool/kb_icons.txt` by `tool/kb_fonts.py` (15 MB upstream → ~30 KB) |
 
 ### Removed: PDMSSaleem.ttf, IndoPak.ttf
 Both were removed before the Play Store submission (2026-07-28) and are no
@@ -72,8 +70,7 @@ untouched):
   characters across the 15 sajdah verses, because DigitalKhattV2.otf has no
   glyph for U+06E4 and the muṣḥaf corpus omits it entirely. This one is a
   font-compatibility transcode, not a correctness fix, and applies only when
-  rendering with DigitalKhattV2 — the reader's one Madani face, but not Kids
-  Mode's reading screen, which still renders Uthmani with UthmanicHafs. See
+  rendering with DigitalKhattV2 — the reader's one Madani face. See
   `QuranRepo._transcodeUthmaniKhatt`.
 
 None of these are a wording, reading, or orthography change. All three are
@@ -98,7 +95,7 @@ The 15-line page/line text is a separate dataset — see the section above.
 
 ## Flutter packages
 audioplayers (MIT) · flutter_svg (MIT) · http (BSD-3) · path_provider (BSD-3) ·
-sensors_plus (BSD-3, Kids Mode's Ultra tilt) · shared_preferences (BSD-3).
+shared_preferences (BSD-3).
 All compatible with Play Store & F-Droid; licences surface in-app via
 About → Open-source licences.
 

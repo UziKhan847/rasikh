@@ -20,6 +20,8 @@ import '../data/tanwin_allographs.dart';
 import '../data/tashkeel.dart';
 import '../data/variants.dart';
 import '../data/wasl.dart';
+import '../ui/app_icons.dart';
+import '../ui/kit.dart';
 import '../widgets/common.dart';
 import '../widgets/lesson.dart';
 import 'lessons/forms_lessons.dart';
@@ -40,71 +42,157 @@ class QaidahScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final progress = ProgressScope.of(context);
     final units = qaidahUnits(context);
+    final stars = [for (final u in units) progress.starsFor(u.progressId)];
+    // The first unit without stars is "current"; nothing is ever locked.
+    final current = stars.indexWhere((x) => x == 0);
     return Scaffold(
-      appBar: embedded ? null : AppBar(title:  Text(context.l10n.qaidahPath)),
+      appBar: embedded ? null : AppBar(title: Text(context.l10n.qaidahPath)),
       body: SafeArea(
         top: false,
-        child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-        itemCount: units.length,
-        itemBuilder: (context, i) {
-          final u = units[i];
-          final stars = progress.starsFor(u.progressId);
-          return FadeSlideIn(
-            delayMs: 50 * i,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: TapScale(
-                onTap: () => pushAdaptive(context, QaidahUnitHub(unit: u)),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: pal(context).surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: stars > 0
-                            ? pal(context).accent.withValues(alpha: .45)
-                            : pal(context).surfaceHigh),
-                  ),
-                  child: Row(children: [
-                    Container(
-                      width: 52, height: 52,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: pal(context).surfaceHigh,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(u.arabicBadge,
-                          style: quranicStyle(context, size: 24, height: 1.3,
-                              color: pal(context).accent)),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(context.l10n.unitTitle(i + 1, u.title),
-                              style: uiStyle(context,
-                                  size: 16.5, weight: FontWeight.w700)),
-                          const SizedBox(height: 3),
-                          Text(u.subtitle,
-                              style: uiStyle(context,
-                                  size: 13, color: pal(context).textDim)),
-                        ],
-                      ),
-                    ),
-                    StarRow(stars),
-                  ]),
-                ),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 6, 20, 28),
+          children: [
+            QColumn(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 18),
+                child: Text(context.l10n.qaidahLead,
+                    style: displayStyle(context, size: 24, height: 1.25)),
               ),
             ),
-          );
-        },
-      )),
+            for (var i = 0; i < units.length; i++)
+              QColumn(
+                child: QRiseIn(
+                  delay: Duration(milliseconds: 30 * i),
+                  child: _PathRow(
+                    n: i + 1,
+                    unit: units[i],
+                    stars: stars[i],
+                    current: i == current,
+                    last: i == units.length - 1,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
+}
 
+/// One unit on the path: a node (✓ done, ring for current, number for open)
+/// on a connecting line, and the unit card with its stars and glyph.
+class _PathRow extends StatelessWidget {
+  final int n;
+  final QaidahUnit unit;
+  final int stars;
+  final bool current;
+  final bool last;
+  const _PathRow({
+    required this.n,
+    required this.unit,
+    required this.stars,
+    required this.current,
+    required this.last,
+  });
 
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final done = stars > 0;
+    final latin = const {'en', 'fr', 'es'}
+        .contains(SettingsScope.of(context).language);
+    final label = context.l10n.unitLabel(n);
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 28,
+            child: Column(children: [
+              const SizedBox(height: 20),
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: done ? p.accBg : (current ? p.card : p.bg),
+                  border: Border.all(color: p.acc, width: 2),
+                ),
+                child: done
+                    ? const Icon(AppIcons.check, size: 15, color: Colors.white)
+                    : current
+                        ? null
+                        : Text('$n',
+                            style: uiStyle(context,
+                                size: 12,
+                                weight: FontWeight.w700,
+                                color: p.acc)),
+              ),
+              Expanded(
+                child: Container(
+                  width: 2,
+                  margin: const EdgeInsets.only(top: 4),
+                  color: last ? Colors.transparent : (done ? p.acc : p.line3),
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: QCard(
+                padding: const EdgeInsets.all(14),
+                borderColor: current ? p.acc : null,
+                onTap: () => pushAdaptive(context, QaidahUnitHub(unit: unit)),
+                child: Row(children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(latin ? label.toUpperCase() : label,
+                            style: uiStyle(context,
+                                size: 11,
+                                weight: FontWeight.w700,
+                                letterSpacing: .6,
+                                color: p.ink3)),
+                        const SizedBox(height: 2),
+                        Text(unit.title,
+                            style: uiStyle(context,
+                                size: 15, weight: FontWeight.w700)),
+                        const SizedBox(height: 3),
+                        Text(unit.subtitle,
+                            style: uiStyle(context,
+                                size: 12.5, color: p.ink3, height: 1.35)),
+                        const SizedBox(height: 8),
+                        StarRow(stars, size: 15),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 52,
+                    height: 52,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: p.track,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Text(unit.arabicBadge,
+                        textDirection: TextDirection.rtl,
+                        maxLines: 1,
+                        style: quranicStyle(context,
+                            size: 22, height: 1.3, color: p.acc)),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// A unit of the Qaidah path. Every unit has three phases — Learn, Test,
@@ -204,11 +292,14 @@ class QaidahUnitHub extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(unit.title)),
+      appBar: AppBar(),
       body: SafeArea(
         top: false,
         child: PhaseHub(
           subtitle: unit.subtitle,
+            glyph: unit.arabicBadge,
+            title: unit.title,
+            stars: ProgressScope.of(context).starsFor(unit.progressId),
           phases: unit.phases,
           onPick: (i) =>
               pushAdaptive(context, Builder(builder: unit.phases[i].builder!)),
@@ -221,241 +312,160 @@ class QaidahUnitHub extends StatelessWidget {
 // ─────────────────────────── Unit 1: Letters ───────────────────────────
 
 class LettersExplorer extends StatelessWidget {
-  /// Desktop: the reference "Letters grid" — auto-fill tiles with a big glyph
-  /// and the name beneath, plus a Letter Quiz CTA.
-  Widget _desktopBuild(BuildContext context) {
-    return Scaffold(
-      backgroundColor: pal(context).bg,
-      body: SafeArea(
-        top: false,
-        child: ListView(
-        padding: const EdgeInsets.fromLTRB(8, 4, 8, 32),
-        children: [
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 166, mainAxisSpacing: 16, crossAxisSpacing: 16),
-            itemCount: letters.length,
-            itemBuilder: (context, i) {
-              final l = letters[i];
-              return Material(
-                color: pal(context).surface,
-                borderRadius: BorderRadius.circular(22),
-                elevation: 4,
-                shadowColor: pal(context).shadow,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(22),
-                  onTap: () => pushAdaptive(context, LetterDetail(letter: l)),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                          color:
-                              pal(context).surfaceHigh.withValues(alpha: .6)),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(l.char,
-                            style: quranicStyle(context,
-                                size: 52, color: pal(context).text)),
-                        const SizedBox(height: 14),
-                        Text(letterName(context, l),
-                            style: uiStyle(context,
-                                size: 13,
-                                weight: FontWeight.w600,
-                                color: pal(context).textDim)),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
+  const LettersExplorer({super.key});
+
+  Widget _tile(BuildContext context, ArabicLetter l,
+      {required double glyph, bool dot = false, VoidCallback? onTap}) {
+    final p = pal(context);
+    return Material(
+      color: p.card,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: p.line2)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Stack(children: [
+          Center(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(l.char,
+                  style: arabicStyle(context, size: glyph, height: 1.3)),
+              Text(letterName(context, l),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: uiStyle(context,
+                      size: 10.5, weight: FontWeight.w600, color: p.ink3)),
+            ]),
           ),
-          _deskSection(context, context.l10n.extraLettersTitle,
-              sub: context.l10n.extraLettersSub),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 140, mainAxisSpacing: 14, crossAxisSpacing: 14),
-            itemCount: extraLetters.length,
-            itemBuilder: (context, i) {
-              final l = extraLetters[i];
-              return Material(
-                color: pal(context).surface,
-                borderRadius: BorderRadius.circular(18),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(18),
-                  onTap: () => pushAdaptive(context, LetterDetail(letter: l)),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                          color: pal(context).surfaceHigh.withValues(alpha: .6)),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(l.char, style: quranicStyle(context, size: 36)),
-                        const SizedBox(height: 8),
-                        Text(letterName(context, l),
-                            style: uiStyle(context, size: 11.5, color: pal(context).textDim)),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          _deskSection(context, context.l10n.smallLettersTitle,
-              sub: context.l10n.smallLettersSub),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              for (final s in smallLetters)
-                TapScale(
-                  onTap: () => pushAdaptive(
-                      context, LessonDetailScreen(node: smallLetterLessonNode(context, s))),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                    decoration: _deskCard(context),
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text(s.mark,
-                          style: quranicStyle(context, size: 30, color: pal(context).accent)),
-                      const SizedBox(height: 6),
-                      Text(s.name, style: uiStyle(context, size: 12.5)),
-                    ]),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 26),
-          _deskCta(context, context.l10n.letterQuizTitle,
-              () => pushAdaptive(context, _letterQuiz(context))),
-        ],
-      )),
+          if (dot)
+            PositionedDirectional(
+              top: 8,
+              end: 8,
+              child: Container(
+                width: 6,
+                height: 6,
+                decoration:
+                    BoxDecoration(color: p.acc, shape: BoxShape.circle),
+              ),
+            ),
+        ]),
+      ),
     );
   }
 
-  const LettersExplorer({super.key});
-
-  Widget _smallGrid(BuildContext context, List<ArabicLetter> items,
-          void Function(ArabicLetter) onTap,
-          {int startDelay = 0}) =>
-      GridView.builder(
-        padding: EdgeInsets.zero,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 120, mainAxisSpacing: 12, crossAxisSpacing: 12),
-        itemCount: items.length,
-        itemBuilder: (context, i) {
-          final l = items[i];
-          return FadeSlideIn(
-            delayMs: startDelay + 22 * i,
-            child: TapScale(
-              onTap: () => onTap(l),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: pal(context).surface,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                alignment: Alignment.center,
-                child: Text(l.char, style: quranicStyle(context, size: 34)),
-              ),
-            ),
-          );
-        },
+  // The grid runs right to left like the alphabet; each tile goes back to
+  // the app's direction so Latin names ("Tāʼ") don't reorder.
+  Widget _grid(BuildContext context, List<ArabicLetter> items, double extent,
+          Widget Function(ArabicLetter) tile) =>
+      Directionality(
+        textDirection: TextDirection.rtl,
+        child: GridView.builder(
+          padding: EdgeInsets.zero,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: extent,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10),
+          itemCount: items.length,
+          itemBuilder: (_, i) => Directionality(
+              textDirection: Directionality.of(context), child: tile(items[i])),
+        ),
       );
 
   @override
   Widget build(BuildContext context) {
-    if (useDesktop(context)) return _desktopBuild(context);
+    final p = pal(context);
+    final progress = ProgressScope.of(context);
+    final desk = useDesktop(context);
+    bool seen(ArabicLetter l) => progress.starsFor('letter.${l.char}') > 0;
+    final explored = letters.where(seen).length;
     return Scaffold(
-      appBar: AppBar(title:  Text(context.l10n.theLetters)),
+      appBar: AppBar(
+        title: Text(context.l10n.theLetters),
+        actions: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 20),
+            child: Center(
+              child: Text(
+                  context.l10n.lettersExploredCount(explored, letters.length),
+                  style: uiStyle(context,
+                      size: 13, weight: FontWeight.w600, color: p.ink3)),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         top: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 4, 18, 100),
+          padding: const EdgeInsets.fromLTRB(20, 6, 20, 100),
           children: [
-            GridView.builder(
-              padding: EdgeInsets.zero,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 120,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12),
-              itemCount: letters.length,
-              itemBuilder: (context, i) {
-                final l = letters[i];
-                return FadeSlideIn(
-                  delayMs: 22 * i,
-                  child: TapScale(
-                    onTap: () {
-                      ProgressScope.of(context).report('letter.${l.char}', 1);
-                      pushAdaptive(context, LetterDetail(letter: l));
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: pal(context).surface,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(l.char, style: quranicStyle(context, size: 34)),
-                    ),
-                  ),
-                );
-              },
-            ),
-            SectionHeader(context.l10n.extraLettersTitle,
-                subtitle: context.l10n.extraLettersSub),
-            _smallGrid(
-                context, extraLetters, (l) => pushAdaptive(context, LetterDetail(letter: l)),
-                startDelay: 22 * letters.length),
-            SectionHeader(context.l10n.smallLettersTitle,
-                subtitle: context.l10n.smallLettersSub),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                for (var i = 0; i < smallLetters.length; i++)
-                  FadeSlideIn(
-                    delayMs: 22 * (letters.length + extraLetters.length) + 22 * i,
-                    child: TapScale(
-                      onTap: () => pushAdaptive(
-                          context, LessonDetailScreen(node: smallLetterLessonNode(context, smallLetters[i]))),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: pal(context).surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: pal(context).surfaceHigh),
+            QColumn(
+              maxWidth: desk ? 1080 : 760,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _grid(
+                      context,
+                      letters,
+                      desk ? 120 : 84,
+                      (l) => _tile(context, l,
+                              glyph: desk ? 44 : 32, dot: seen(l), onTap: () {
+                            progress.report('letter.${l.char}', 1);
+                            pushAdaptive(context, LetterDetail(letter: l));
+                          })),
+                  SectionHeader(context.l10n.extraLettersTitle,
+                      subtitle: context.l10n.extraLettersSub),
+                  _grid(
+                      context,
+                      extraLetters,
+                      desk ? 120 : 84,
+                      (l) => _tile(context, l,
+                          glyph: desk ? 36 : 28,
+                          onTap: () =>
+                              pushAdaptive(context, LetterDetail(letter: l)))),
+                  SectionHeader(context.l10n.smallLettersTitle,
+                      subtitle: context.l10n.smallLettersSub),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      for (final sl in smallLetters)
+                        QCard(
+                          radius: 16,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          onTap: () => pushAdaptive(
+                              context,
+                              LessonDetailScreen(
+                                  node: smallLetterLessonNode(context, sl))),
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            Text(sl.mark,
+                                style: quranicStyle(context,
+                                    size: 26, color: p.acc)),
+                            const SizedBox(height: 4),
+                            Text(sl.name,
+                                style: uiStyle(context,
+                                    size: 11.5, color: p.ink2)),
+                          ]),
                         ),
-                        child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          Text(smallLetters[i].mark,
-                              style: quranicStyle(context, size: 26, color: pal(context).accent)),
-                          const SizedBox(height: 4),
-                          Text(smallLetters[i].name, style: uiStyle(context, size: 11.5)),
-                        ]),
-                      ),
-                    ),
+                    ],
                   ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: pal(context).accent,
-        foregroundColor: Colors.white,
+        backgroundColor: p.ink,
+        foregroundColor: p.bg,
+        elevation: 6,
         onPressed: () => pushAdaptive(context, _letterQuiz(context)),
-        icon: const Icon(Icons.quiz_rounded),
-        label:  Text(context.l10n.letterQuiz),
+        icon: const Icon(AppIcons.quiz),
+        label: Text(context.l10n.letterQuiz,
+            style: uiStyle(context,
+                size: 14, weight: FontWeight.w700, color: p.bg)),
       ),
     );
   }
@@ -472,58 +482,50 @@ String _posLabel(BuildContext context, String p) => switch (p) {
 /// used by [LetterDetail] so "several real examples, not just one" looks and
 /// behaves the same everywhere it appears.
 Widget _wordCard(BuildContext context, LetterExample w) {
-  return Container(
-    padding: const EdgeInsets.fromLTRB(16, 22, 16, 24),
-    decoration: _deskCard(context),
+  final p = pal(context);
+  return QCard(
+    padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
     child: Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: pal(context).accent.withValues(alpha: .12),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(_posLabel(context, w.position),
-              style: uiStyle(context,
-                  size: 11.5, weight: FontWeight.w800, color: pal(context).accent)),
-        ),
+        QTag(_posLabel(context, w.position)),
         Text(w.word,
             textDirection: TextDirection.rtl,
-            style: quranicStyle(context, size: 56, height: 1.85, color: pal(context).text)),
+            style: quranicStyle(context, size: 44, height: 1.85, color: p.ink)),
         Text(w.translit,
             style: uiStyle(context,
-                size: 14, weight: FontWeight.w600, color: pal(context).textDim)),
+                size: 13.5, weight: FontWeight.w600, color: p.ink3)),
       ],
     ),
   );
 }
 
 /// Mobile counterpart of [_wordCard] — a compact row instead of a tall card.
-Widget _mobWordCard(BuildContext context, LetterExample w) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: pal(context).surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: pal(context).surfaceHigh),
-      ),
+Widget _mobWordCard(BuildContext context, LetterExample w) => QCard(
+      radius: 16,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       child: Row(children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: pal(context).accent.withValues(alpha: .12),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Text(_posLabel(context, w.position),
+        QTag(_posLabel(context, w.position)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(w.translit,
+              textAlign: TextAlign.end,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: uiStyle(context,
-                  size: 10.5, weight: FontWeight.w800, color: pal(context).accent)),
+                  size: 12.5, weight: FontWeight.w600, color: pal(context).ink3)),
         ),
-        const Spacer(),
-        Text(w.translit,
-            style: uiStyle(context,
-                size: 12.5, weight: FontWeight.w600, color: pal(context).textDim)),
         const SizedBox(width: 12),
-        Text(w.word, textDirection: TextDirection.rtl, style: quranicStyle(context, size: 30)),
+        Flexible(
+          flex: 2,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerEnd,
+            child: Text(w.word,
+                textDirection: TextDirection.rtl,
+                style: quranicStyle(context, size: 30)),
+          ),
+        ),
       ]),
     );
 
@@ -534,49 +536,44 @@ Widget _makhrajRow(BuildContext context, String char) {
   final id = makhrajOfLetter[char] ?? makhrajOfExtraLetter[char];
   if (id == null) return const SizedBox.shrink();
   final m = makhrajById(id);
-  return TapScale(
+  final p = pal(context);
+  return QCard(
+    padding: const EdgeInsets.all(14),
     onTap: () => openLesson(context, makharijPointNode(context, id)),
-    child: Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: pal(context).surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: pal(context).surfaceHigh),
+    child: Row(children: [
+      Container(
+        width: 46,
+        height: 46,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: p.accSoft,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: m.letters.isEmpty
+            ? Text(char,
+                textDirection: TextDirection.rtl,
+                style: quranicStyle(context, size: 17, color: p.acc))
+            : FittedBox(
+                fit: BoxFit.scaleDown,
+                child: separatedLetters(context, m.letters,
+                    size: 17, color: p.acc, max: 3),
+              ),
       ),
-      child: Row(children: [
-        Container(
-          width: 46, height: 46,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: pal(context).accent.withValues(alpha: .12),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: m.letters.isEmpty
-              ? Text(char,
-                  textDirection: TextDirection.rtl,
-                  style: quranicStyle(context, size: 17, color: pal(context).accent))
-              : FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: separatedLetters(context, m.letters,
-                      size: 17, color: pal(context).accent, max: 3),
-                ),
+      const SizedBox(width: 14),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(m.name,
+                style: uiStyle(context, size: 14.5, weight: FontWeight.w700)),
+            Text(m.arabicName,
+                textDirection: TextDirection.rtl,
+                style: arabicStyle(context, size: 13, color: p.ink3)),
+          ],
         ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(m.name, style: uiStyle(context, size: 14.5, weight: FontWeight.w700)),
-              Text(m.arabicName,
-                  textDirection: TextDirection.rtl,
-                  style: arabicStyle(context, size: 13, color: pal(context).textDim)),
-            ],
-          ),
-        ),
-        Icon(Icons.chevron_right_rounded, color: pal(context).textDim),
-      ]),
-    ),
+      ),
+      Icon(AppIcons.chevronRight, size: 20, color: p.ink3),
+    ]),
   );
 }
 
@@ -595,24 +592,21 @@ class _LetterMediaRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canWatch = letters.contains(letter);
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      TextButton.icon(
-        onPressed: () => LetterAudio.playOrComingSoon(context, letter,
-            variant: LetterAudio.adult),
-        icon: const Icon(Icons.play_arrow_rounded, size: 18),
-        label: Text(context.l10n.listen),
-        style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 8)),
-      ),
-      if (canWatch)
-        TextButton.icon(
-          onPressed: () => _showWatchLetter(context, letter),
-          icon: const Icon(Icons.play_circle_outline_rounded, size: 18),
-          label: Text(context.l10n.watch),
-          style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 8)),
-        ),
-    ]);
+    return Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          QPrimaryButton(context.l10n.listen,
+              icon: AppIcons.volume,
+              height: 42,
+              onTap: () => LetterAudio.playOrComingSoon(context, letter,
+                  variant: LetterAudio.adult)),
+          if (canWatch)
+            QOutlineButton(context.l10n.watch,
+                icon: AppIcons.trace,
+                onTap: () => _showWatchLetter(context, letter)),
+        ]);
   }
 }
 
@@ -645,282 +639,224 @@ class LetterDetail extends StatelessWidget with DesktopAware {
   final String mode; // 'letters' | 'joining'
   const LetterDetail({super.key, required this.letter, this.mode = 'letters'});
 
-  /// Desktop: the reference "Letter detail" — ONLY the big letter card on the
-  /// left and the "Easily confused with" family on the right.
-  Widget _desktopBuild(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
     final dotInfo = dotsDescForLetter(context, letter);
     final words = letterExamples[letter.char] ?? const <LetterExample>[];
+    final index = letters.indexOf(letter);
     final fam = letter.similarGroup == null
-        ? <ArabicLetter>[letter]
-        : [
-            for (final ch in similarFamilies[letter.similarGroup]!)
-              letters.firstWhere((l) => l.char == ch)
-          ];
-    return Scaffold(
-      backgroundColor: pal(context).bg,
-      body: SafeArea(
-        top: false,
-        child: ListView(
-        padding: const EdgeInsets.fromLTRB(34, 4, 30, 32),
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Material(
-              color: pal(context).surface,
-              borderRadius: BorderRadius.circular(12),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => Navigator.maybePop(context),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                      border: Border.all(color: pal(context).surfaceHigh),
-                      borderRadius: BorderRadius.circular(12)),
-                  child: Icon(Icons.arrow_back_rounded,
-                      size: 20, color: pal(context).text),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(letterName(context, letter),
-              style: uiStyle(context, size: 22, weight: FontWeight.w900)),
-          const SizedBox(height: 20),
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1280),
-              child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // ── the letter ──
-                Expanded(
-                  flex: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 48, horizontal: 40),
-                    decoration: _deskCard(context),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(letter.char,
-                            style: quranicStyle(context,
-                                size: 200,
-                                height: 1.85,
-                                color: pal(context).accent)),
-                        const SizedBox(height: 34),
-                        Text(letterName(context, letter),
-                            style: uiStyle(context,
-                                size: 34, weight: FontWeight.w800)),
-                        const SizedBox(height: 8),
-                        Row(mainAxisSize: MainAxisSize.min, children: [
-                          Text('“${letter.translit}”',
-                              style: uiStyle(context,
-                                  size: 15,
-                                  weight: FontWeight.w700,
-                                  color: pal(context).accent)),
-                          Container(
-                            width: 4,
-                            height: 4,
-                            margin:
-                                const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                                color: pal(context).textDim,
-                                shape: BoxShape.circle),
-                          ),
-                          Text(dotInfo,
-                              style: uiStyle(context,
-                                  size: 15, color: pal(context).textDim)),
-                        ]),
-                        const SizedBox(height: 12),
-                        _LetterMediaRow(letter: letter),
-                      ],
-                    ),
+        ? const <String>[]
+        : similarFamilies[letter.similarGroup]!;
+    final hero = Column(children: [
+      TweenAnimationBuilder<double>(
+        tween: Tween(begin: .6, end: 1),
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.elasticOut,
+        // elasticOut overshoots past 1.0 by design; Transform.scale doesn't
+        // affect layout, so an un-clamped overshoot would paint the glyph
+        // larger than the box it was just sized for.
+        builder: (context, v, child) =>
+            Transform.scale(scale: v.clamp(0.0, 1.0), child: child),
+        child: Text(letter.char,
+            style: quranicStyle(context, size: 120, height: 1.85, color: p.acc)),
+      ),
+      Text('“${letter.translit}” · $dotInfo',
+          textAlign: TextAlign.center,
+          style: uiStyle(context, size: 14, color: p.ink2)),
+      const SizedBox(height: 14),
+      _LetterMediaRow(letter: letter),
+    ]);
+    final forms = index < 0
+        ? null
+        : Row(children: [
+            for (final (i, (g, label)) in [
+              (letter.char, context.l10n.formAlone),
+              (letter.joins ? letter.initial : letter.char, context.l10n.formStart),
+              (letter.joins ? letter.medial : letter.finalForm,
+                  context.l10n.formMiddle),
+              (letter.finalForm, context.l10n.formEnd),
+            ].indexed)
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsetsDirectional.only(start: i == 0 ? 0 : 8),
+                  child: QCard(
+                    radius: 16,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Column(children: [
+                      Text(g,
+                          textDirection: TextDirection.rtl,
+                          style: arabicStyle(context,
+                              size: 30,
+                              height: 1.5,
+                              color: i == 0 ? p.acc : p.ink)),
+                      Text(label,
+                          style: uiStyle(context,
+                              size: 11.5,
+                              weight: FontWeight.w600,
+                              color: p.ink3)),
+                    ]),
                   ),
                 ),
-                const SizedBox(width: 26),
-                // ── easily confused with ──
-                Expanded(
-                  flex: 14,
-                  child: Container(
-                    padding: const EdgeInsets.all(36),
-                    decoration: _deskCard(context),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _deskSection(context, context.l10n.easilyConfusedWith),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 17, bottom: 22),
-                          child: Text(
-                              fam.length > 1
-                                  ? context.l10n.sameSkeletonDotsDecideDot
-                                  : context.l10n.noLookAlikes,
-                              style: uiStyle(context,
-                                  size: 14, color: pal(context).textDim)),
+              ),
+          ]);
+    final confused = fam.length < 2
+        ? null
+        : Directionality(
+            textDirection: TextDirection.rtl,
+            child: Wrap(spacing: 10, runSpacing: 10, children: [
+              for (final c in fam)
+                Directionality(
+                  textDirection: Directionality.of(context),
+                  child: _confusedTile(
+                    context,
+                    letters.firstWhere((l) => l.char == c),
+                    target: c == letter.char,
+                  ),
+                ),
+            ]),
+          );
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(letterName(context, letter)),
+        actions: [
+          if (index >= 0)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 20),
+              child: Center(
+                child: Text(context.l10n.nOfTotal(index + 1, letters.length),
+                    style: uiStyle(context,
+                        size: 13, weight: FontWeight.w600, color: p.ink3)),
+              ),
+            ),
+        ],
+      ),
+      body: SafeArea(
+        top: false,
+        child: LayoutBuilder(builder: (context, c) {
+          final wide = c.maxWidth >= 900;
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+            children: [
+              QColumn(
+                maxWidth: wide ? 1080 : 760,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (wide)
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: QCard(
+                                padding: const EdgeInsets.all(24),
+                                child: Center(child: hero),
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: QCard(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (forms != null) ...[
+                                      SectionHeader(context.l10n.shapes),
+                                      forms,
+                                    ],
+                                    SectionHeader(
+                                        context.l10n.easilyConfusedWith,
+                                        subtitle: confused == null
+                                            ? context.l10n.noLookAlikes
+                                            : context.l10n
+                                                .sameSkeletonDotsDecide),
+                                    ?confused,
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        Expanded(
+                      )
+                    else ...[
+                      hero,
+                      if (forms != null) ...[
+                        SectionHeader(context.l10n.shapes),
+                        forms,
+                      ],
+                      if (confused != null) ...[
+                        SectionHeader(context.l10n.easilyConfusedWith,
+                            subtitle: context.l10n.sameSkeletonDotsDecide),
+                        confused,
+                      ],
+                    ],
+                    if (words.isNotEmpty) ...[
+                      SectionHeader(context.l10n.seeItInWords,
+                          subtitle: context.l10n.seeItInWordsSub),
+                      if (wide)
+                        IntrinsicHeight(
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              for (var i = 0; i < fam.length; i++) ...[
+                              for (var i = 0; i < words.length; i++) ...[
                                 if (i > 0) const SizedBox(width: 14),
-                                Expanded(
-                                    child: _confusedTile(
-                                        context, fam[i],
-                                        target: fam[i].char == letter.char)),
+                                Expanded(child: _wordCard(context, words[i])),
                               ],
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 26),
-          _deskSection(context, context.l10n.seeItInWords,
-              sub: context.l10n.seeItInWordsSub),
-          if (words.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              alignment: Alignment.center,
-              decoration: _deskCard(context),
-              child: Text(context.l10n.wordExamplesComingThisLetter,
-                  style: uiStyle(context, size: 13.5, color: pal(context).textDim)),
-            )
-          else
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (var i = 0; i < words.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 16),
-                    Expanded(child: _wordCard(context, words[i])),
+                        )
+                      else
+                        for (final w in words)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _mobWordCard(context, w),
+                          ),
+                    ],
+                    SectionHeader(context.l10n.lsnArticulationPoint),
+                    _makhrajRow(context, letter.char),
                   ],
-                ],
+                ),
               ),
-            ),
-          const SizedBox(height: 26),
-          _deskSection(context, context.l10n.lsnArticulationPoint),
-          _makhrajRow(context, letter.char),
-        ],
-      )),
+            ],
+          );
+        }),
+      ),
     );
   }
 
   Widget _confusedTile(BuildContext context, ArabicLetter l,
       {required bool target}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 10),
-      decoration: BoxDecoration(
-        color: target
-            ? pal(context).accent.withValues(alpha: .10)
-            : pal(context).bg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-            color: target
-                ? pal(context).accent.withValues(alpha: .55)
-                : Colors.transparent),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(l.char,
-              style: quranicStyle(context,
-                  size: 70,
-                  height: 1.85,
-                  color: target ? pal(context).accent : pal(context).text)),
-          const SizedBox(height: 22),
-          Text(letterName(context, l),
-              style: uiStyle(context, size: 14, weight: FontWeight.w700)),
-          const SizedBox(height: 5),
-          Text(dotsDesc(context, l.dotCount, l.dotPos),
-              textAlign: TextAlign.center,
-              style:
-                  uiStyle(context, size: 12, color: pal(context).textDim)),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (useDesktop(context)) return _desktopBuild(context);
-    final s = SettingsScope.of(context);
-    final dotInfo = dotsDescForLetter(context, letter);
-    final words = letterExamples[letter.char] ?? const <LetterExample>[];
-    return Scaffold(
-      appBar: AppBar(title: Text(letterName(context, letter))),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 30),
-        children: [
-          Center(
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: .6, end: 1),
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.elasticOut,
-              // elasticOut overshoots past 1.0 by design; Transform.scale
-              // doesn't affect layout, so an un-clamped overshoot would
-              // paint the glyph larger than the box it was just sized for.
-              builder: (context, v, child) =>
-                  Transform.scale(scale: v.clamp(0.0, 1.0), child: child),
-              child: Text(letter.char,
-                  style: quranicStyle(context,
-                      size: 120, height: 1.85, color: pal(context).accent)),
-            ),
+    final p = pal(context);
+    return Material(
+      color: target ? p.accSoft : p.card,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: target ? p.acc : p.line2)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: target
+            ? null
+            : () => Navigator.of(context).pushReplacement(MaterialPageRoute(
+                builder: (_) => LetterDetail(letter: l, mode: mode))),
+        child: SizedBox(
+          width: 92,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+            child: Column(children: [
+              Text(l.char,
+                  style: arabicStyle(context,
+                      size: 34, height: 1.4, color: target ? p.acc : p.ink)),
+              Text(letterName(context, l),
+                  style: uiStyle(context, size: 12, weight: FontWeight.w700)),
+              Text(dotsDesc(context, l.dotCount, l.dotPos),
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  style: uiStyle(context, size: 10.5, color: p.ink3)),
+            ]),
           ),
-          const SizedBox(height: 12),
-          Center(
-            child: Text('“${letter.translit}” · $dotInfo',
-                style: uiStyle(context, size: 15, color: pal(context).textDim)),
-          ),
-          Center(child: _LetterMediaRow(letter: letter)),
-          if (letter.similarGroup != null) ...[
-             SectionHeader(context.l10n.easilyConfusedWith,
-                subtitle: context.l10n.sameSkeletonDotsDecide),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: pal(context).surface,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                textDirection: TextDirection.rtl,
-                children: [
-                  for (final c in similarFamilies[letter.similarGroup]!)
-                    Text(c,
-                        style: quranicStyle(context, size: 38,
-                            color: c == letter.char
-                                ? pal(context).accent
-                                : (s.paperMode
-                                    ? pal(context).paperInk
-                                    : pal(context).text))),
-                ],
-              ),
-            ),
-          ],
-          if (words.isNotEmpty) ...[
-            SectionHeader(context.l10n.seeItInWords,
-                subtitle: context.l10n.seeItInWordsSub),
-            for (var i = 0; i < words.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _mobWordCard(context, words[i]),
-              ),
-          ],
-          SectionHeader(context.l10n.lsnArticulationPoint),
-          _makhrajRow(context, letter.char),
-        ],
-      )),
+        ),
+      ),
     );
   }
 }
@@ -1740,57 +1676,4 @@ QuizScreen _muqattaatTest(BuildContext context, {bool graded = true}) {
       progressId: 'qaidah.muqattaat',
       questions: qs,
       graded: graded);
-}
-
-// ─────────────── desktop builds (match the reference HTML) ───────────────
-
-Widget _deskSection(BuildContext context, String title, {String? sub}) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: Row(children: [
-      Container(
-          width: 5,
-          height: 22,
-          decoration: BoxDecoration(
-              color: pal(context).accent,
-              borderRadius: BorderRadius.circular(4))),
-      const SizedBox(width: 12),
-      Text(title, style: uiStyle(context, size: 20, weight: FontWeight.w800)),
-      if (sub != null) ...[
-        const SizedBox(width: 12),
-        Text(sub,
-            style: uiStyle(context, size: 13, color: pal(context).textDim)),
-      ],
-    ]),
-  );
-}
-
-BoxDecoration _deskCard(BuildContext context) => BoxDecoration(
-      color: pal(context).surface,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(
-          color: pal(context).surfaceHigh.withValues(alpha: .6)),
-      boxShadow: [
-        BoxShadow(
-            color: pal(context).shadow,
-            blurRadius: 20,
-            offset: const Offset(0, 6)),
-      ],
-    );
-
-Widget _deskCta(BuildContext context, String label, VoidCallback onTap) {
-  return Align(
-    alignment: Alignment.centerLeft,
-    child: FilledButton(
-      style: FilledButton.styleFrom(
-          backgroundColor: pal(context).accent,
-          foregroundColor: Colors.white,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-          textStyle:
-              const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-      onPressed: onTap,
-      child: Text(label),
-    ),
-  );
 }

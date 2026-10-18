@@ -6,6 +6,8 @@ import '../core/l10n.dart';
 import '../core/responsive.dart';
 import '../core/theme.dart';
 import '../data/quran.dart';
+import '../ui/app_icons.dart';
+import '../ui/kit.dart';
 
 /// 📥 Downloads — what's already saved for offline use, and what isn't, for
 /// the two reciters and the word-by-word audio offered for bulk download
@@ -241,7 +243,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       body: SafeArea(
         top: false,
         child: _loading
-            ? Center(child: CircularProgressIndicator(color: pal(context).accent))
+            ? Center(child: CircularProgressIndicator(color: pal(context).acc))
             : Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 900),
@@ -268,7 +270,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: pal(context).accent.withValues(alpha: .10),
+          color: pal(context).accSoft,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(children: [
@@ -276,7 +278,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             width: 20, height: 20,
             child: CircularProgressIndicator(
                 strokeWidth: 2.4,
-                color: pal(context).accent,
+                color: pal(context).acc,
                 value: _activeTotal > 0 ? _activeDone / _activeTotal : null),
           ),
           const SizedBox(width: 12),
@@ -294,18 +296,12 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         ]),
       );
 
-  Widget _summaryCard(BuildContext context) => Container(
+  Widget _summaryCard(BuildContext context) => QCard(
         margin: const EdgeInsets.only(bottom: 14),
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: pal(context).surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: pal(context).surfaceHigh),
-        ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(context.l10n.downloadsIntro,
-              style: uiStyle(context, size: 13, color: pal(context).textDim)
-                  .copyWith(height: 1.45)),
+              style: uiStyle(context, size: 14, color: pal(context).ink2, height: 1.5)),
           const SizedBox(height: 16),
           _categoryRow(context, 'alafasy'),
           const Divider(height: 26),
@@ -314,15 +310,15 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           _categoryRow(context, 'wbw'),
           const SizedBox(height: 14),
           Text(context.l10n.tunaijiDownloadNote,
-              style: uiStyle(context, size: 12, color: pal(context).textDim)
+              style: uiStyle(context, size: 12, color: pal(context).ink3)
                   .copyWith(height: 1.4)),
           const SizedBox(height: 10),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Icon(Icons.sync_rounded, size: 15, color: pal(context).textDim),
+            Icon(AppIcons.sync, size: 15, color: pal(context).ink3),
             const SizedBox(width: 6),
             Expanded(
                 child: Text(context.l10n.complianceNote,
-                    style: uiStyle(context, size: 11.5, color: pal(context).textDim))),
+                    style: uiStyle(context, size: 11.5, color: pal(context).ink3))),
           ]),
           Align(
             alignment: Alignment.centerLeft,
@@ -335,7 +331,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                       if (!context.mounted) return;
                       _snack(context.l10n.checkedForUpdates);
                     },
-              icon: const Icon(Icons.refresh_rounded, size: 18),
+              icon: const Icon(AppIcons.reset, size: 18),
               label: Text(context.l10n.checkForUpdates),
             ),
           ),
@@ -350,42 +346,38 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(name, style: uiStyle(context, size: 14.5, weight: FontWeight.w700)),
           Text(formatBytes(bytes),
-              style: uiStyle(context, size: 12, color: pal(context).textDim)),
+              style: uiStyle(context, size: 12, color: pal(context).ink3)),
         ]),
       ),
       if (bytes > 0)
         IconButton(
           tooltip: context.l10n.deleteAllFor(name),
           onPressed: _busy ? null : () => _deleteAllFor(kind),
-          icon: const Icon(Icons.delete_outline_rounded, color: AppColors.bad),
+          icon: Icon(AppIcons.delete, color: pal(context).red),
         ),
       OutlinedButton.icon(
         onPressed: _busy ? null : () => _downloadAll(kind),
-        icon: const Icon(Icons.download_rounded, size: 16),
+        icon: const Icon(AppIcons.download, size: 16),
         label: Text(context.l10n.downloadAll),
       ),
     ]);
   }
 
-  Widget _surahRow(BuildContext context, SurahMeta m) => Container(
+  Widget _surahRow(BuildContext context, SurahMeta m) => QCard(
         margin: const EdgeInsets.only(bottom: 8),
+        radius: 16,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: pal(context).surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: pal(context).surfaceHigh),
-        ),
         child: Row(children: [
           Container(
             width: 34, height: 34,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: pal(context).accent.withValues(alpha: .12),
+              color: pal(context).accSoft,
               borderRadius: BorderRadius.circular(11),
             ),
             child: Text('${m.n}',
                 style: uiStyle(context,
-                    size: 12, weight: FontWeight.w800, color: pal(context).accentDeep)),
+                    size: 12, weight: FontWeight.w800, color: pal(context).accInk)),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -396,7 +388,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                   context.l10n.typeAyat(
                       m.type == 'meccan' ? context.l10n.meccan : context.l10n.medinan,
                       m.ayahs),
-                  style: uiStyle(context, size: 11.5, color: pal(context).textDim)),
+                  style: uiStyle(context, size: 11.5, color: pal(context).ink3)),
             ]),
           ),
           _statusChip(context, 'alafasy', m),
@@ -420,7 +412,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             width: 20, height: 20,
             child: CircularProgressIndicator(
                 strokeWidth: 2.2,
-                color: pal(context).accent,
+                color: pal(context).acc,
                 value: _activeTotal > 0 ? _activeDone / _activeTotal : null),
           ),
         ),
@@ -428,9 +420,9 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     }
 
     final (icon, color) = switch (state) {
-      DlState.full => (Icons.check_circle_rounded, AppColors.ok),
-      DlState.partial => (Icons.incomplete_circle_rounded, pal(context).accent),
-      DlState.none => (Icons.download_rounded, pal(context).textDim),
+      DlState.full => (AppIcons.check, AppColors.ok),
+      DlState.partial => (AppIcons.partial, pal(context).acc),
+      DlState.none => (AppIcons.download, pal(context).ink3),
     };
     final stateLabel = switch (state) {
       DlState.full => context.l10n.downloadedFull,

@@ -14,6 +14,7 @@ import '../../data/wasl.dart';
 import '../../widgets/common.dart';
 import '../../widgets/lesson.dart';
 import '../tashkeel_screen.dart' show CountsStudio;
+import '../../ui/app_icons.dart';
 
 // ── Ḥarakāt ──────────────────────────────────────────────────────────────
 
@@ -192,13 +193,13 @@ LessonNode _tashkilLabNode(BuildContext context, TashkilItem t) => LessonNode(
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                        foregroundColor: pal(context).accent,
-                        side: BorderSide(color: pal(context).accent)),
+                        foregroundColor: pal(context).acc,
+                        side: BorderSide(color: pal(context).acc)),
                     onPressed: () => pushAdaptive(
                         context,
                         CountsStudio(
                             initialCounts: t.counts, word: t.example, highlight: t.highlight)),
-                    icon: const Icon(Icons.av_timer_rounded),
+                    icon: const Icon(AppIcons.timer),
                     label: Text(context.l10n.trainCountTiming(t.counts)),
                   ),
                 ),

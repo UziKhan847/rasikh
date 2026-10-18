@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:qiraah_arabiyyah/ui/app_icons.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/strokes.dart';
@@ -66,7 +67,7 @@ void main() {
         TracingBoard(glyph: glyph, mode: 'guided', watch: true)));
     await tester.pump();
 
-    final replay = find.byIcon(Icons.replay_rounded);
+    final replay = find.byIcon(AppIcons.repeat);
     expect(replay, findsOneWidget);
     await tester.tap(replay);
     await tester.pump();

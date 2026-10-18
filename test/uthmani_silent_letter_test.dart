@@ -81,9 +81,8 @@ void main() {
   test('the fix applies everywhere Uthmani text loads, not just the reader',
       () async {
     // Not a font-compatibility question — every bundled Arabic face has real
-    // glyphs for both marks — so Kids Mode's reading screen and the downloads
-    // manager, which never render through DigitalKhattV2, still need the
-    // correct mark.
+    // glyphs for both marks — so the downloads manager, which never renders
+    // through DigitalKhattV2, still needs the correct mark.
     final words = await QuranRepo.words(2, 'uthmani');
     final word = words[22].firstWhere((w) => w.contains('دۡعُوا'));
     expect(word.contains('ْ'), isFalse);

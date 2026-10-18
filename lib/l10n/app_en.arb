@@ -1,9 +1,5 @@
 {
   "@@locale": "en",
-  "tagline": "From your first alif to the ten Qirā’āt.",
-  "greetingSub": "Learn to read & write the Qur’an",
-  "quranReader": "Qur’an Reader",
-  "quranSub": "The whole Qur’an — word by word",
   "qaidahSub": "Letters → forms → ḥarakāt → words",
   "tracingSub": "Write every letter, stroke by stroke",
   "tashkilSub": "Every mark, every count — 1 · 2 · 4 · 6",
@@ -15,15 +11,12 @@
   "submitAnswer": "Submit",
   "wordByWord": "Word by word",
   "home": "Home",
-  "salamGreeting": "Assalāmu ʿalaykum,",
-  "wordByWordNote": "Break each verse into tappable words; off shows flowing text.",
   "madani": "Madani",
   "indopak": "IndoPak",
   "readerOptions": "Reader options",
   "reciter": "Reciter",
   "questionOf": "Question {a} of {b}",
   "mistakeReview": "Mistake Review",
-  "missedPrompt": "You missed this before — what is it?",
   "yourData": "Your data",
   "sourcesLicences": "Sources & licences",
   "display": "Display",
@@ -31,76 +24,46 @@
   "restore": "Restore",
   "streakStart": "Start your streak",
   "streakKeep": "Keep it going",
-  "oledMode": "OLED mode",
-  "lightMode": "Light mode",
   "layout": "Layout",
-  "ayahCards": "Āyah cards",
   "mushafFlow": "Mushaf flow",
   "afterVerse": "After a verse",
   "flowStop": "Stop",
   "flowContinue": "Continue",
   "flowRepeat": "Repeat",
-  "nowPlaying": "NOW PLAYING",
   "highlightOffline": "Word highlighting needs internet — the verse still plays without it.",
-  "wordGap": "Word gap",
-  "groupWords": "Words per segment",
-  "segmentNewline": "Each segment on a new line",
   "verseAlign": "Verse alignment",
   "alignRight": "Right",
   "alignCenter": "Center",
   "hideTashkil": "Hide tashkīl (ḥarakāt)",
   "tajwidColors": "Tajwīd colors",
-  "font": "Font",
   "downloadWbw": "Download word-by-word audio",
   "downloadRecitation": "Download recitation",
-  "playWholeSurah": "Play whole sūrah",
-  "playRecitation": "Play recitation",
   "language": "Language",
   "theme": "Theme",
   "comingSoon": "is coming soon, in shā’ Allāh — stay tuned!",
   "tajwidNeeds": "Tajwīd colors need tashkīl visible (works in both scripts).",
-  "accentFamilyUsedAcrossWhole": "The accent family used across the whole app.",
-  "advancedTenReadings": "Advanced · the ten readings",
-  "alAfasiWordSync": "Al-ʿAfāsī · word sync",
-  "alHusariWordSync": "Al-Ḥuṣarī · word sync",
   "alTunaiji": "Al-Tunaiji",
   "appliesEverywhereApp": "Applies everywhere in the app",
   "assalamuAlaykum": "Assalāmu ʿalaykum",
   "check": "Check",
-  "chooseALetter": "Choose a letter",
-  "chooseAWord": "Choose a word",
   "clear": "Clear",
   "color": "Color",
   "comfortPresetFineTuneBelow": "Comfort preset is on — fine-tune below.",
-  "comingSoonShaAllah": "Coming soon, in shāʼ Allāh",
   "completeJourneyQurAnicArabic": "A complete journey in Qur’anic Arabic — from recognizing your first alif to exploring the ten Qirā’āt.",
-  "continuous": "Continuous",
   "countsStudio": "Counts Studio",
   "desktopModeShowsSidebarDashboard": "Desktop mode shows the sidebar dashboard. Auto picks it for computers and keeps the simple layout on phones — override it here.",
   "dotDetective": "Dot Detective",
-  "eachReaderTheirCityWhen": "Each reader, their city, when they lived, and the two transmitters who carried their reading.",
-  "eachRuleHasColorOnce": "Each rule has a color. Once you learn the color, you’ll spot the rule anywhere in the muṣḥaf.",
   "eachTwoFamousTransmittersRawis": "Each with two famous transmitters (rāwīs)",
-  "everyVowelMark": "Every vowel and mark",
-  "everythingVeEarnedStarsStreak": "Everything you’ve earned — stars, streak, settings — lives on this device. Back it up to a file before reinstalling or switching phones.",
+  "everythingVeEarnedStarsStreak": "Everything you’ve earned — stars, streak, settings, marks — lives on this device (marks also on your marks server, if you sync them). Back it up to a file before reinstalling or switching phones.",
   "famousVariantsSideSideHafs": "Famous variants, side by side with Ḥafṣ ‘an ‘Āṣim",
   "findEveryOccurrence": "Find every occurrence of…",
   "findEveryTimeSameLetter": "Find every-time-the-same letter:",
-  "fluencyDrills": "Fluency drills",
   "fluencySprint": "Fluency Sprint",
-  "followGlowingCometFromGreen": "Follow the glowing comet from the green start. Lift any time and carry on; tap the dots last.",
   "formsQuiz": "Forms Quiz",
-  "foundations9Units": "Foundations · 11 units",
-  "fromFirstAlifTenQira": "From your first alif to the ten Qirā’āt",
-  "fromLettersReadingRealWords": "From letters to reading real words",
-  "guidedHandwriting": "Guided handwriting",
   "immersiveHideSystemBars": "Immersive (hide system bars)",
   "inARow": "In a row:",
   "indoPak": "Indo-Pak",
-  "joiningForms": "Joining Forms",
-  "jumpToSurah": "Jump to sūrah",
   "k15LineMushaf": "15-line Muṣḥaf",
-  "k16RulesColorCoded": "20 rules · color-coded",
   "learn": "LEARN",
   "letterQuiz": "Letter Quiz",
   "levelCompleteEveryLetterCleared": "🎉 Level complete — every letter cleared!",
@@ -108,34 +71,24 @@
   "nextPage": "Next page",
   "openSourceLicences": "Open-source licences",
   "pageHeader": "Page header",
-  "pickMarkHearHowSounds": "Pick a mark to hear how it sounds and how long to hold it — 1 · 2 · 4 · 6.",
-  "pickUpWhereLeftOff": "Pick up where you left off, or explore a new corner of the path. Everything works offline.",
   "playWord": "Play word",
-  "playback": "Playback",
   "previousPage": "Previous page",
   "qaidahPath": "Qaidah Path",
   "qaidahReview": "Qaidah Review",
   "qiraAreMassTransmittedReadings": "The Qirā’āt are mass-transmitted readings, each carried from the Prophet ﷺ through unbroken chains. This hall is a map of the terrain — actually reciting a reading requires a qualified teacher with ijāzah.",
   "qiraAtQuiz": "Qirā’āt Quiz",
   "qiraHallAdvanced": "Qirā’āt Hall · Advanced",
-  "qiraHallStillBeingReviewed": "The Qirāʼāt Hall is still being reviewed. Because the ten readings are transmitted person to person, this section will open once its content has been checked properly.",
   "qiraahArabiyyah": "Qiraah Arabiyyah",
-  "qur114Surahs": "Qur’an · 114 sūrahs",
-  "qurAnicArabic": "Qur’anic Arabic",
   "readEachWordAloudThen": "Read each word ALOUD, then tap. Sūrat al-Fātiḥah, word by word — build speed without losing tajwīd.",
-  "readHelpEveryWord": "Read with help at every word",
   "readingCoach": "Reading Coach",
   "readingWords": "Reading Words",
   "recitation": "Recitation",
-  "reciteWayWasRevealed": "Recite it the way it was revealed",
-  "repeatVerse": "Repeat verse",
   "restartQuiz": "Restart quiz",
   "roundProgress": "Round progress",
   "sameShapeDifferentDotsCoach": "Same shape, different dots. The coach drills you until you read them without a pause.",
   "sameSkeletonDotsDecide": "Same skeleton — the dots decide",
   "script": "Script",
   "search": "Search",
-  "search2": "Search…",
   "searchLettersRulesSurahs": "Search letters, rules, sūrahs…",
   "shaddah": "Shaddah",
   "shortKindRepeatable": "Short, kind, repeatable",
@@ -148,11 +101,9 @@
   "streak": "Streak",
   "style": "Style",
   "tajwidAcademy": "Tajwīd Academy",
-  "tajwidGivingEveryLetterIts": "Tajwīd is giving every letter its right: its exit point, its strength, its hum, its exact length. Tap a rule, read its verse, then test yourself.",
   "tapCardAfterReadingWord": "Tap the card after reading the word aloud",
   "tashkilQuiz": "Tashkīl Quiz",
   "tellLookAlikesApart": "Tell the look-alikes apart",
-  "tenCanonicalReaders": "The ten canonical readers",
   "textTanzilUthmaniMadaniIndopak": "Text: Tanzil Uthmani (Madani) & IndoPak — QUL-compatible datasets. Tajwīd spans generated against this exact text.",
   "theLetters": "The Letters",
   "traceAgain": "Trace again",
@@ -162,24 +113,11 @@
   "lenient": "Lenient",
   "resetZoom": "Reset zoom",
   "turnComfortPreset": "Turn on the comfort preset",
-  "verseByVerse": "Verse by verse",
   "verseDay": "Verse of the day",
   "video": "Video",
-  "view": "View",
-  "wordExamplesComingThisLetter": "Word examples coming for this letter.",
   "wordHighlightingNeedsInternetVerse": "Word highlighting needs internet — the verse still plays without it.",
-  "wordWordMeaningsTajwidColors": "Tajwīd colors and verse recitation — tap any sūrah to begin.",
   "wordWordRecitationCourtesyMarkaz": "Word-by-word recitation courtesy of Markaz Tafsir, served via QuranCDN. Verse recitation: Shaykh Khalifah Al-Tunaiji (EveryAyah.com).",
-  "writeEachLetterStrokeStroke": "Write each letter, stroke by stroke",
   "yourSettingsLive": "Your settings, live",
-  "streakDaysCount": "{days, plural, =0{0 days} =1{1 day} other{{days} days}}",
-  "@streakDaysCount": {
-    "placeholders": {
-      "days": {
-        "type": "int"
-      }
-    }
-  },
   "streakDaysLabel": "{days, plural, =1{1 day streak} other{{days} days streak}}",
   "@streakDaysLabel": {
     "placeholders": {
@@ -234,20 +172,6 @@
   },
   "doneExclaim": "Done!",
   "@doneExclaim": {},
-  "juzPageOf": "Juzʼ {juz} · Page {page} / {total}",
-  "@juzPageOf": {
-    "placeholders": {
-      "juz": {
-        "type": "int"
-      },
-      "page": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
   "juzOnly": "Juzʼ {juz}",
   "@juzOnly": {
     "placeholders": {
@@ -329,20 +253,6 @@
       }
     }
   },
-  "surahMetaLine": "SŪRAH {number} · {type} · {ayahs} ĀYĀT",
-  "@surahMetaLine": {
-    "placeholders": {
-      "number": {
-        "type": "int"
-      },
-      "type": {
-        "type": "String"
-      },
-      "ayahs": {
-        "type": "int"
-      }
-    }
-  },
   "ayahByReciter": "Āyah {ref} · {who}",
   "@ayahByReciter": {
     "placeholders": {
@@ -351,14 +261,6 @@
       },
       "who": {
         "type": "String"
-      }
-    }
-  },
-  "marksCount": "{count} marks",
-  "@marksCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
       }
     }
   },
@@ -374,10 +276,7 @@
   },
   "pause": "Pause",
   "resume": "Resume",
-  "playPage": "Play page",
-  "singlePage": "Single page",
   "twoPageSpread": "Two-page spread",
-  "hidePageHeader": "Hide page header",
   "qpNameThisLetter": "Name this letter:",
   "qpWhichLetterIsThis": "Which letter is this?",
   "qpShapeBelongsTo": "This shape belongs to…",
@@ -492,23 +391,12 @@
   "tierIntermediate": "Intermediate",
   "tierAdvanced": "Advanced",
   "shapes": "Shapes",
-  "shapesSubJoin": "end · middle · start · alone",
-  "shapesSubNonJoin": "joined · alone (this letter connects on one side only)",
-  "inTheQuran": "In the Qur’an",
   "seeItInWords": "See it in Words",
   "seeItInWordsSub": "beginning · middle · end",
   "posBeginning": "beginning",
   "posMiddle": "middle",
   "posEnd": "end",
   "formJoined": "Joined",
-  "letterInAWord": "{name} in a word:",
-  "@letterInAWord": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "unitLetters": "The Letters",
   "unitLettersSub": "All 28 letters, their dots, and Qur’anic examples",
   "unitJoiningForms": "Joining Forms",
@@ -525,9 +413,7 @@
   "unitMaddLinSub": "The stretching letters — counts begin here",
   "unitReadingWordsSub": "Read real Qur’anic words, unaided",
   "unitReviewSub": "Everything together — earn your three stars",
-  "letterQuizTitle": "Letter Quiz",
   "easilyConfusedWith": "Easily confused with",
-  "sameSkeletonDotsDecideDot": "Same skeleton — the dots decide.",
   "noLookAlikes": "No look-alikes — this shape is unique.",
   "noDots": "No dots",
   "lookPastJoins": "Look past the joins — find the skeleton and its dots.",
@@ -571,7 +457,6 @@
   "maddCounts": "Madd & Counts",
   "startReciteAlong": "Start — recite along",
   "noCount": "no count",
-  "videoForThisSurah": "Video for this sūrah",
   "downloadsNeedApp": "Downloads need the mobile or desktop app (not available on web).",
   "surahAudioSaved": "Sūrah {name} audio saved for offline use.",
   "@surahAudioSaved": {
@@ -586,17 +471,6 @@
   "surah": "Sūrah",
   "wellDoneKeepGoing": "Well done — keep going.",
   "reviewLessonTryAgain": "Review the lesson and try again.",
-  "thisWeek": "{done}/{goal} this week",
-  "@thisWeek": {
-    "placeholders": {
-      "done": {
-        "type": "int"
-      },
-      "goal": {
-        "type": "int"
-      }
-    }
-  },
   "mushafMadaniTitle": "Muṣḥaf · Madani",
   "mushafIndoPakTitle": "Muṣḥaf · Indo-Pak",
   "wordN": "{surah}  ·  {ref}  ·  word {n}",
@@ -608,14 +482,6 @@
       "ref": {
         "type": "String"
       },
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "cardsDueNow": "{n} due for review now",
-  "@cardsDueNow": {
-    "placeholders": {
       "n": {
         "type": "int"
       }
@@ -758,9 +624,6 @@
     }
   },
   "readEachWordAloudShort": "Read each word ALOUD, then tap. Sūrat al-Fātiḥah, word by word.",
-  "videoForThisAyah": "Video for this āyah",
-  "afasyHighlight": "Al-ʿAfāsī · highlight",
-  "husaryHighlight": "Al-Ḥuṣarī · highlight",
   "letterSubtitle": "Letter · “{translit}” · {dots}",
   "@letterSubtitle": {
     "placeholders": {
@@ -826,85 +689,6 @@
   "srcRecitationBody": "Shaykh Khalīfah Al-Tunaiji via EveryAyah.com. Mishary Al-ʿAfāsī & Maḥmūd Khalīl Al-Ḥuṣarī with word timings via the Quran.com (QDC) API.",
   "srcWbwBody": "Word audio courtesy of Quran.com / QuranCDN (Markaz Tafsir).",
   "srcQiraatBody": "Facts summarized from abouttajweed.com.",
-  "tabHome": "Home",
-  "tabHomeBlurb": "Pick up where you left off, or explore a new corner of the path.",
-  "tabReaderBlurb": "Read with word-by-word help, tajwīd colors, and recitation.",
-  "tabQaidahBlurb": "From your first letter to reading whole words — nine guided units.",
-  "tabTracingBlurb": "Write each letter, stroke by stroke, following the glowing comet.",
-  "tabTashkilKicker": "Vowels & marks",
-  "tabTashkilBlurb": "Every ḥarakah and mark — how it sounds and how long to hold it.",
-  "tabTajwidKicker": "Rules of recitation",
-  "tabTajwidBlurb": "Each rule has a color. Learn the color, spot the rule anywhere.",
-  "tabCoachKicker": "Fluency for look-alikes",
-  "tabCoachBlurb": "Same shape, different dots — drills until you read without a pause.",
-  "tabQiraatKicker": "The ten readings",
-  "tabQiraatBlurb": "The ten canonical readers, their cities, and their transmitters.",
-  "tabAboutBlurb": "Learn to read the Qur’an — from your first letter to the ten Qirā’āt.",
-  "colorLegend": "Color legend",
-  "theRules": "The rules",
-  "takeTheQuiz": "Take the quiz",
-  "yourProgress": "Your progress",
-  "starsEarned": "stars earned",
-  "lettersExplored": "letters explored",
-  "dayStreak": "day streak",
-  "explorePath": "Explore the path",
-  "lettersToWords": "Letters → words",
-  "writeByHand": "Write by hand",
-  "coloredRules16": "16 colored rules",
-  "surahs114": "114 sūrahs",
-  "vowelsMarks": "Vowels & marks",
-  "lookAlikeDrills": "Look-alike drills",
-  "allSurahs": "All sūrahs",
-  "everyUnit": "Every unit",
-  "unitsProgress": "{done} of {total} units started · {learned} of {letters} letters explored",
-  "@unitsProgress": {
-    "placeholders": {
-      "done": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      },
-      "learned": {
-        "type": "int"
-      },
-      "letters": {
-        "type": "int"
-      }
-    }
-  },
-  "hintOutlineDesk": "Shape shown · you form every stroke, no comet.",
-  "hintMemoryDesk": "Blank board · draw it from memory.",
-  "hintGuidedDesk": "Shape shown · follow the comet, strokes ink themselves in.",
-  "clearedExclaim": "Cleared!",
-  "niceKeepGoing": "Nice — keep going",
-  "streakReset": "Streak reset",
-  "quizInstrMemoryShort": "Draw it from memory and press Check — {n} in a row (2★+) clears it.",
-  "@quizInstrMemoryShort": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "quizInstrOutlineShort": "Trace over the shape and press Check — {n} in a row (2★+) clears it.",
-  "@quizInstrOutlineShort": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "quizInstrGuidedShort": "Trace along the comet — {n} in a row (2★+) clears it, then a new one appears.",
-  "@quizInstrGuidedShort": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "hideTheCounter": "Hide the counter",
-  "hearTheCount": "Hear the count",
   "dottedFamily": "The dotted family",
   "oneTwoThreeDots": "one, two, three dots",
   "jimGroup": "Jīm group",
@@ -914,63 +698,6 @@
   "oneVsTwoDots": "one vs. two dots",
   "aynGhayn": "ʿAyn & Ghayn",
   "confusableSets": "Confusable sets",
-  "startADrill": "Start a drill",
-  "moreDrills": "More drills",
-  "marksN": "{n} marks",
-  "@marksN": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "mistakeReviewDue": "{label} · {n} due",
-  "@mistakeReviewDue": {
-    "placeholders": {
-      "label": {
-        "type": "String"
-      },
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "mistakeReviewCaughtUp": "{label} · caught up",
-  "@mistakeReviewCaughtUp": {
-    "placeholders": {
-      "label": {
-        "type": "String"
-      }
-    }
-  },
-  "cityDied": "{city} · d. {year} AH",
-  "@cityDied": {
-    "placeholders": {
-      "city": {
-        "type": "String"
-      },
-      "year": {
-        "type": "String"
-      }
-    }
-  },
-  "cityDiedNarrators": "{city} · d. {year} AH · Narrators: {r1} & {r2}",
-  "@cityDiedNarrators": {
-    "placeholders": {
-      "city": {
-        "type": "String"
-      },
-      "year": {
-        "type": "String"
-      },
-      "r1": {
-        "type": "String"
-      },
-      "r2": {
-        "type": "String"
-      }
-    }
-  },
   "mkFatha": "Fatḥah",
   "mkKasra": "Kasrah",
   "mkDamma": "Ḍammah",
@@ -1069,7 +796,6 @@
   "layoutMobile": "Mobile",
   "layoutDesktop": "Desktop",
   "themeLight": "Light",
-  "themeDark": "Dark",
   "themeOled": "OLED",
   "weekdayInitials": "M,T,W,T,F,S,S",
   "perfectScore": "مَا شَاءَ اللّٰه — flawless!",
@@ -1090,18 +816,12 @@
   "variantLabel": "Variant",
   "letterLabel": "Letter",
   "badgeSoon": "SOON",
-  "badgeAdvanced": "ADV",
   "coachIntroBlurb": "Letters that look alike are the hardest part of Arabic for many readers — ب ت ث differ only by dots. This coach trains exactly that, at your pace, with a reading setup tuned for you.",
   "pinPlayer": "Pin",
   "unpinPlayer": "Unpin",
   "collapsePlayer": "Collapse",
-  "colorGreen": "Green",
-  "colorCoral": "Coral",
   "fonts": "Fonts",
   "typefaces": "Typefaces",
-  "themeFamilyMint": "Mint",
-  "themeFamilyNoor": "Noor",
-  "fillPageWidth": "Fill width",
   "phaseLearn": "Learn",
   "phaseLearnSub": "The lesson — marks, letters, and real Qurʼanic examples.",
   "phaseTest": "Test",
@@ -1223,8 +943,6 @@
   "tjLettersInThisRule": "The letters of this rule",
   "scriptSymbols": "Script & Symbols",
   "scriptSymbolsSub": "Waqf signs, sajdah, and Madani vs Indo-Pak",
-  "tabScriptKicker": "Madani & Indo-Pak",
-  "tabScriptBlurb": "Every mark on the page — waqf signs, sajdah, and how the two scripts differ.",
   "unitScriptFamilies": "Script Families",
   "unitScriptFamiliesSub": "Madani (Uthmānī) and Indo-Pak, side by side",
   "unitMarksSigns": "Marks & Signs",
@@ -1233,18 +951,6 @@
   "unitWaqfStoppingSub": "When you must stop, must not, or may either way",
   "unitPageMarks": "Page Marks",
   "unitPageMarksSub": "Sajdah and rubʿ al-ḥizb",
-  "foundations4Units": "Reference · 4 units",
-  "scriptUnitsProgress": "{done} of {total} units explored",
-  "@scriptUnitsProgress": {
-    "placeholders": {
-      "done": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
   "qpWhichScriptIsThis": "Madani or Indo-Pak?",
   "qpWhichWaqfMark": "Which stop rule applies to this mark?",
   "optMustStop": "Must stop",
@@ -1376,240 +1082,7 @@
   "lsnApart": "Apart",
   "lsnJoinedShape": "Joined as One Shape",
   "lsnTellApart": "Telling Them Apart",
-  "kidsMode": "Kids Mode",
-  "kidsModeDesc": "A fun, simplified version of the app for children — its own design, progression, and rewards.",
-  "kidsAddProfile": "Add",
-  "kidsAllLettersDone": "You finished the alphabet!",
-  "kidsAppearance": "Appearance",
-  "kidsTextSize": "Text size",
-  "kidsTextSmall": "Small",
-  "kidsTextMedium": "Medium",
-  "kidsTextLarge": "Large",
-  "kidsBadges": "Badges",
-  "kidsBuy": "Get",
-  "kidsDailyGoalSub": "Finish lessons to fill your ring",
-  "kidsDailyGoalTitle": "Today's Goal",
-  "kidsExitToParentApp": "Exit to parent app",
-  "kidsFlashcards": "Flashcards",
-  "kidsGenderBoy": "Boy",
-  "kidsGenderGirl": "Girl",
-  "kidsGenderPrompt": "This helps us cheer you on correctly!",
-  "kidsGenderSkip": "Skip",
-  "kidsGreatJob": "Great job!",
-  "kidsKeepGoing": "Keep going!",
-  "kidsLetterLocked": "Finish the letter before this one first!",
-  "kidsListening": "Listening",
-  "kidsNameHint": "What's your name?",
-  "kidsNewProfileTitle": "New Profile",
-  "kidsNextCard": "Next",
-  "kidsParentGateSub": "Parents: solve this to continue.",
-  "kidsParentGateTitle": "Grown-ups only",
-  "kidsPractice": "Practice",
-  "kidsRankNeedsSiblings": "Add another profile to start a family leaderboard!",
-  "kidsRankSub": "See how your family is doing this week",
-  "kidsReadTheSentence": "Read the sentence",
-  "kidsReviewAnyLetter": "Tap any letter to review it",
-  "kidsShop": "Shop",
-  "kidsStartLearning": "Start Learning",
-  "kidsStatLetters": "Letters",
-  "kidsStatStreak": "Streak",
-  "kidsStatXp": "Total XP",
-  "kidsSwitchProfile": "Switch profile",
-  "kidsTabHome": "Home",
-  "kidsTabLearn": "Learn",
-  "kidsTabMe": "Me",
-  "kidsTabRank": "Rank",
-  "kidsTabRewards": "Rewards",
-  "kidsTapToFlip": "Tap the card to flip it",
-  "kidsWhosLearning": "Who's learning?",
-  "kidsYou": "You",
-  "kidsYourPath": "Your Path",
-  "kidsBadgeFirstLetter": "First Letter",
-  "kidsBadgeFiveLetters": "5 Letters",
-  "kidsBadgeHalfway": "Halfway There",
-  "kidsBadgeAlphabetMaster": "Alphabet Master",
-  "kidsBadgeStreak3": "3-Day Streak",
-  "kidsBadgeStreak7": "7-Day Streak",
-  "kidsBadgeFormsCleared": "Joining Forms",
-  "kidsBadgeSpecialShapes": "Special Shapes",
-  "kidsBadgeHarakatCleared": "Vowel Marks",
-  "kidsBadgeSukunCleared": "Sukūn",
-  "kidsBadgeWordsCleared": "Reading Words",
-  "kidsBadgeWaslCleared": "Waṣl",
-  "kidsBadgeTajwidMimCleared": "Mīm Rules",
-  "kidsBadgeTajwidNunCleared": "Nūn Rules",
-  "kidsBadgeTajwidQalqalahCleared": "Qalqalah",
-  "kidsBadgeTajwidRaaCleared": "Rā’ Rules",
-  "kidsBadgeReachedTajwid": "Tajwīd Started",
-  "kidsBadgePathFinished": "Path Finished",
-  "kidsBadgeReadASurah": "Read a Sūrah",
-  "kidsBadgeStreak30": "30-Day Streak",
-  "kidsBadgeFullWeek": "Full Week",
-  "kidsBadgeFiveInADay": "5 in One Day",
-  "kidsBadgeFirstQuiz": "First Quiz",
-  "kidsBadgePerfectQuiz": "Perfect Quiz",
-  "kidsBadgeHundredStars": "100 Stars",
-  "kidsBadgeLevel10": "Level 10",
-  "kidsBadgeTenLetters": "10 Letters",
-  "kidsBadgeFormsFewCleared": "Steady Hand",
-  "kidsBadgeShaddaCleared": "Shaddah",
-  "kidsBadgeMaddCleared": "Madd",
-  "kidsBadgeTanwinCleared": "Tanwīn",
-  "kidsBadgeMuqattaatRead": "Muqaṭṭaʿāt",
-  "kidsBadgeSolarLunar": "Sun & Moon",
-  "kidsBadgeTaMarbutaCleared": "Tāʼ Marbūṭah",
-  "kidsBadgeWaqfCleared": "Stopping",
-  "kidsBadgeTwoWords": "Two Words",
-  "kidsBadgeThreeWords": "Three Words",
-  "kidsBadgeStreak14": "14-Day Streak",
-  "kidsBadgeTenPerfect": "10 Perfect",
-  "kidsBadgeFiftyStars": "50 Stars",
-  "kidsBadgeLevel5": "Level 5",
-  "kidsShopThemeOcean": "Ocean Theme",
-  "kidsShopThemeDesert": "Desert Theme",
-  "kidsShopThemeNight": "Night Theme",
-  "kidsShopStreakFreeze": "Streak Freeze",
-  "kidsShopStreakFreezeDesc": "Keeps your streak if you miss a day",
-  "kidsShopLooks": "Looks",
-  "kidsShopColours": "Colours",
-  "kidsShopHelpers": "Helpers",
-  "kidsShopEquip": "Wear",
-  "kidsShopEquipped": "Worn",
-  "kidsFreezesCount": "{count, plural, =0{No freezes} =1{1 freeze} other{{count} freezes}}",
-  "@kidsFreezesCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "kidsStreakSaved": "Your streak was saved!",
-  "kidsShopCamelAvatar": "Camel",
-  "kidsShopBeeAvatar": "Bee",
-  "kidsShopElephantAvatar": "Elephant",
-  "kidsShopAntAvatar": "Ant",
-  "kidsShopSpiderAvatar": "Spider",
-  "kidsShopHorseAvatar": "Horse",
-  "kidsShopCowAvatar": "Cow",
-  "kidsShopWhaleAvatar": "Whale",
-  "kidsShopSilverFrame": "Silver Frame",
-  "kidsShopStarlightFrame": "Starlight Frame",
-  "kidsShopGlowFrame": "Glow Frame",
-  "kidsShopAuroraFrame": "Aurora Frame",
-  "kidsShopTakeOff": "Take off",
-  "kidsShopUseOriginal": "Use original",
-  "kidsHelloName": "Hello, {name}!",
-  "@kidsHelloName": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsLevelLabel": "Level {level}",
-  "@kidsLevelLabel": {
-    "placeholders": {
-      "level": {
-        "type": "int"
-      }
-    }
-  },
-  "kidsContinueWithLetter": "Continue with {name}",
-  "@kidsContinueWithLetter": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsLettersProgress": "{done} of {total} letters",
-  "@kidsLettersProgress": {
-    "placeholders": {
-      "done": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "kidsTraceThe": "Trace the letter {name}",
-  "@kidsTraceThe": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsXpEarned": "+{xp} XP",
-  "@kidsXpEarned": {
-    "placeholders": {
-      "xp": {
-        "type": "int"
-      }
-    }
-  },
-  "kidsStepOf": "Step {step} of {total}",
-  "@kidsStepOf": {
-    "placeholders": {
-      "step": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "kidsMarhaba": "Marhaba 👋",
-  "kidsAlphabet": "Alphabet",
-  "kidsAlphabetArabic": "الأبجدية",
-  "kidsLettersArabic": "الحروف",
-  "kidsGoalComplete": "Goal complete — great work!",
-  "kidsSeeAllLetters": "See all letters",
-  "kidsGoalRemaining": "{count, plural, =1{1 more lesson to go!} other{{count} more lessons to go!}}",
-  "@kidsGoalRemaining": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "kidsLetterNamed": "Letter {name}",
-  "@kidsLetterNamed": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsViewAll": "View all",
-  "kidsGemsEarned": "Gems earned",
-  "kidsRankBannerTitle": "Family Leaderboard",
-  "kidsRankYouAreFirst": "You're in the lead!",
-  "kidsCurrentStreak": "current streak",
-  "kidsRankArabic": "لوحة الصدارة",
-  "kidsRewardsArabic": "المكافآت",
-  "kidsPracticeArabic": "تدريب",
-  "kidsAppearanceArabic": "المظهر",
-  "kidsRankYouAre": "You're #{rank}",
-  "@kidsRankYouAre": {
-    "placeholders": {
-      "rank": {
-        "type": "int"
-      }
-    }
-  },
-  "kidsRankToNext": "{xp} XP to reach #{rank}",
-  "@kidsRankToNext": {
-    "placeholders": {
-      "xp": {
-        "type": "int"
-      },
-      "rank": {
-        "type": "int"
-      }
-    }
-  },
+  "nextCard": "Next",
   "qpPickLetterAndForm": "Pick {name} in the right shape",
   "@qpPickLetterAndForm": {
     "placeholders": {
@@ -1635,270 +1108,244 @@
       }
     }
   },
-  "kidsBlockLetters": "The Letters",
-  "kidsBlockLettersSub": "See each letter, then trace it",
-  "kidsBlockLettersQuiz": "Letters Quiz",
-  "kidsBlockQuizSub": "Show what you know",
-  "kidsBlockLettersFew": "Letters Again",
-  "kidsBlockForms": "Joining Shapes",
-  "kidsBlockFormsSub": "Start, middle and end — one shape at a time",
-  "kidsBlockFormsQuiz": "Shapes Quiz",
-  "kidsBlockSpecial": "Special Shapes",
-  "kidsBlockSpecialSub": "Lām-alif, the kāf wraps, and letters that stack",
-  "kidsBlockSpecialQuiz": "Special Shapes Quiz",
-  "kidsPathTitle": "Your Path",
-  "kidsBlockLocked": "Finish the stage before this one first!",
-  "kidsPathArabic": "مَسَارُك",
-  "kidsReadAloudThenTap": "Read each line out loud, then tap the arrow.",
-  "kidsReadingUnavailable": "The text couldn't be loaded — try again in a moment.",
-  "kidsBlockTaMarbuta": "Tāʼ Marbūṭah",
-  "kidsBlockTaMarbutaSub": "The ending that changes when you stop",
-  "kidsBlockSolarLunar": "Sun and Moon Letters",
-  "kidsBlockSolarLunarSub": "When the lām of “al-” is heard, and when it hides",
-  "kidsBlockTwoWords": "Two Words",
-  "kidsBlockThreeWords": "Three Words",
-  "kidsBlockWordsSub": "Join them up and read them together",
-  "kidsBlockTajwid": "Beautiful Reading",
-  "lsnTaMarbutaHint": "Tāʼ marbūṭah is a final hāʼ with two dots added above it.",
-  "kidsNextUp": "Next: {name}",
-  "@kidsNextUp": {
+  "navToday": "Today",
+  "navReader": "Reader",
+  "navMushaf": "Muṣḥaf",
+  "navLearn": "Learn",
+  "navTrace": "Trace",
+  "settings": "Settings",
+  "showSidebar": "Show sidebar",
+  "hideSidebar": "Hide sidebar",
+  "continueReading": "Continue reading",
+  "startReading": "Start reading",
+  "ayahOfJuz": "Āyah {ayah} of {total} · Juzʼ {juz}",
+  "@ayahOfJuz": {
     "placeholders": {
-      "name": {
-        "type": "String"
+      "ayah": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "juz": {
+        "type": "int"
       }
     }
   },
-  "kidsStageDone": "Stage complete!",
-  "kidsSeeWholePath": "See the whole path",
-  "kidsItemLocked": "Finish the one before this first!",
-  "kidsThisIsLetter": "This is {name}",
-  "@kidsThisIsLetter": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsNeverJoinsForward": "{name} never joins to the letter after it",
-  "@kidsNeverJoinsForward": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsWhichDidYouSay": "Which one did you just say?",
-  "kidsSolarHidesLam": "The lām hides — the letter doubles instead",
-  "kidsLunarKeepsLam": "The lām is heard clearly",
-  "kidsSunLetterIs": "{name} is a Sun Letter",
-  "@kidsSunLetterIs": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsMoonLetterIs": "{name} is a Moon Letter",
-  "@kidsMoonLetterIs": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsWhichRuleIsThis": "Which rule is this?",
-  "kidsMuqattaatIntro": "Some sūrahs open with just letters — said one by one, like spelling your name: Alif. Lām. Mīm.",
-  "kidsMuqattaatCounts": "{counts} counts",
-  "@kidsMuqattaatCounts": {
-    "placeholders": {
-      "counts": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsMuqattaatNoStretch": "No stretch — it's just Alif",
-  "kidsMuqattaatOpensSurah": "Opens Sūrah {list}",
-  "@kidsMuqattaatOpensSurah": {
-    "placeholders": {
-      "list": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsHowManyCounts": "How many counts?",
-  "kidsMaddLongest": "Which word is stretched the LONGEST?",
-  "kidsMaddShortest": "Which word is stretched the SHORTEST?",
-  "kidsWordsIntro": "Time to read whole sentences! Find the highlighted word and sound it out.",
-  "kidsWhichWordMeans": "Which word means \"{gloss}\"?",
-  "kidsWaqfIntro": "These little marks above the words are like traffic lights — telling you whether to stop, keep going, or either!",
-  "kidsReviewIntro": "Look how far you've come! Here's everything you've learned so far.",
-  "kidsWhatDoesMarkMean": "What does this mark mean?",
-  "kidsWaslZeroCheckPrompt": "Does this mark ever make a sound?",
-  "kidsWaslZeroYesOnStop": "Yes — when you stop here",
-  "kidsWaslZeroNeverSounds": "No — never",
-  "@kidsWhichWordMeans": {
-    "placeholders": {
-      "gloss": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsWhichShapeIsThis": "Which one is {title}?",
-  "@kidsWhichShapeIsThis": {
-    "placeholders": {
-      "title": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsLookalikes": "Look-alikes",
-  "kidsOddOneOut": "Which one is different?",
-  "kidsDotHunterPrompt": "Tap every letter with {dots}",
-  "@kidsDotHunterPrompt": {
-    "placeholders": {
-      "dots": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsParentReport": "Progress report",
-  "kidsReportCurrentStage": "Learning now: {stage}",
-  "@kidsReportCurrentStage": {
-    "placeholders": {
-      "stage": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsReportOverall": "{done} of {total} lessons done",
-  "@kidsReportOverall": {
+  "resume2": "Resume",
+  "recite": "Recite",
+  "goalMinutesToday": "{done} / {goal} min today",
+  "@goalMinutesToday": {
     "placeholders": {
       "done": {
         "type": "int"
       },
+      "goal": {
+        "type": "int"
+      }
+    }
+  },
+  "todaysLessonUnit": "Today’s lesson · Unit {n}",
+  "@todaysLessonUnit": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "explore": "Explore",
+  "exploreTajwidSub": "Colour-coded rules",
+  "exploreTraceSub": "Write stroke by stroke",
+  "exploreQuizSub": "Quick questions",
+  "exploreMushafSub": "15-line full display",
+  "learnSubtitle": "From your first alif to the ten Qirāʼāt.",
+  "themeLightSub": "Warm paper",
+  "themeMono": "Mono",
+  "themeMonoSub": "Greyscale · tajwīd stays",
+  "themeNight": "Night",
+  "themeNightSub": "Low light",
+  "themeOledSub": "True black",
+  "ornateBorders": "Ornate borders",
+  "ornateBordersSub": "Illuminated sūrah headers and page frames",
+  "gradients": "Gradients",
+  "gradientsSub": "Subtle depth on cards and buttons",
+  "reading": "Reading",
+  "mushafPaper": "Muṣḥaf paper",
+  "mushafPaperSub": "Page colour in the Light theme",
+  "paperCream": "Cream",
+  "paperWhite": "White",
+  "arabicScript": "Arabic script",
+  "readerLayout": "Reader layout",
+  "layoutAyahCards": "Āyah cards",
+  "layoutWordGrid": "Word grid",
+  "wordsPerCard": "Words per card",
+  "eachCardOwnLine": "Each card on its own line",
+  "gapBetweenCards": "Gap between cards",
+  "arabicTextSize": "Arabic text size",
+  "wordHighlighting": "Word-by-word highlighting",
+  "playbackSpeed": "Playback speed",
+  "followAlong": "Follow along",
+  "followAlongSub": "Scroll to the āyah being recited",
+  "audioPlayer": "Audio player",
+  "playerPinned": "Pinned",
+  "playerFloating": "Floating",
+  "playerHidden": "Hidden",
+  "learning": "Learning",
+  "dailyGoal": "Daily goal",
+  "minutesShort": "{n} min",
+  "@minutesShort": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "minutesUnit": "minutes",
+  "dailyReminder": "Daily reminder",
+  "dailyReminderSub": "A gentle nudge each day — stays on this device",
+  "reminderTime": "Reminder time",
+  "reminderTitle": "Time to read",
+  "reminderBody": "A few minutes with the Qurʼān today keeps your streak going.",
+  "reminderDenied": "Notifications are off for Qiraah — allow them in your device settings.",
+  "appSection": "App",
+  "aboutQiraah": "About Qiraah",
+  "showWelcomeAgain": "Show welcome again",
+  "obSkip": "Skip",
+  "obBegin": "Begin",
+  "obStartReading": "Start reading",
+  "obPromise": "Read, listen and learn the Qurʼān — from your first alif to a page a day.",
+  "obHowRead": "How would you like to read?",
+  "obHowReadSub": "Pick a script and a reciter. You can change both later in Settings.",
+  "obGoal": "Set a gentle goal",
+  "obGoalSub": "A little every day goes further than a lot once in a while.",
+  "theQuran": "The Qurʼān",
+  "searchSurahHint": "Search sūrahs — a number or a name",
+  "surahsTab": "Sūrahs",
+  "bookmarksTab": "Bookmarks",
+  "noSurahMatches": "No sūrah matches “{q}”",
+  "@noSurahMatches": {
+    "placeholders": {
+      "q": {
+        "type": "String"
+      }
+    }
+  },
+  "noSurahMatchesHint": "Try a number like 36, or a name like Yāsīn.",
+  "clearSearch": "Clear search",
+  "noBookmarks": "No bookmarks yet",
+  "noBookmarksHint": "Tap the bookmark on any āyah while reading and it will be kept here.",
+  "openAlFatihah": "Open Al-Fātiḥah",
+  "lastRead": "Last read",
+  "open": "Open",
+  "bookmark": "Bookmark",
+  "removeBookmark": "Remove bookmark",
+  "hideHeader": "Hide header",
+  "showHeader": "Show header",
+  "hidePlayer": "Hide player",
+  "showPlayer": "Show player",
+  "smallerText": "Smaller text",
+  "largerText": "Larger text",
+  "lessGap": "Less gap",
+  "moreGap": "More gap",
+  "nextAyah": "Next āyah",
+  "previousAyah": "Previous āyah",
+  "playerLabel": "Player",
+  "quickAdjust": "Quick adjust",
+  "recitationMode": "Recitation",
+  "reciteFromHere": "Recite from here",
+  "reciteSurah": "Recite sūrah",
+  "tajwidKey": "Tajwīd colour key",
+  "tjKeyMadd": "Madd · 2",
+  "tjKeyMaddLong": "Madd · 4–5",
+  "tjKeyMaddLazim": "Madd lāzim · 6",
+  "tjKeyGhunnah": "Ghunnah · Idghām",
+  "tjKeyIkhfa": "Ikhfāʼ",
+  "tjKeyIqlab": "Iqlāb",
+  "tjKeyQalqalah": "Qalqalah",
+  "tjKeySilent": "Silent",
+  "wordsPill": "Words",
+  "ayahRef": "Āyah {ref}",
+  "@ayahRef": {
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      }
+    }
+  },
+  "juzN": "Juzʼ {n}",
+  "@juzN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "closeMushaf": "Close Muṣḥaf",
+  "landscape": "Landscape",
+  "exitLandscape": "Exit landscape",
+  "pageColour": "Page colour",
+  "goToPage": "Go to page",
+  "focusHideMenus": "Focus — hide all menus",
+  "recitePage": "Recite this page",
+  "pageJuz": "Page {page} · Juzʼ {juz}",
+  "@pageJuz": {
+    "placeholders": {
+      "page": {
+        "type": "int"
+      },
+      "juz": {
+        "type": "int"
+      }
+    }
+  },
+  "pagesJuz": "Pages {from} – {to} · Juzʼ {juz}",
+  "@pagesJuz": {
+    "placeholders": {
+      "from": {
+        "type": "int"
+      },
+      "to": {
+        "type": "int"
+      },
+      "juz": {
+        "type": "int"
+      }
+    }
+  },
+  "mushafKeysHint": "← → to turn · Space to recite",
+  "singlePageZoomed": "Single page, zoomed",
+  "fillWidthScroll": "Fill width — scroll down",
+  "mushafSettings": "Muṣḥaf settings",
+  "pageNumberHint": "Page number (1–{total})",
+  "@pageNumberHint": {
+    "placeholders": {
       "total": {
         "type": "int"
       }
     }
   },
-  "kidsReportStreakDays": "{n} days in a row",
-  "@kidsReportStreakDays": {
+  "go": "Go",
+  "pageN": "Page {page}",
+  "@pageN": {
+    "placeholders": {
+      "page": {
+        "type": "int"
+      }
+    }
+  },
+  "qaidahLead": "Eleven units, from your first letter to fluent words.",
+  "unitLabel": "Unit {n}",
+  "@unitLabel": {
     "placeholders": {
       "n": {
         "type": "int"
       }
     }
   },
-  "kidsReportPractise": "Worth practising together",
-  "kidsReportNothing": "Nothing to revisit yet — that is a good sign.",
-  "kidsReportDue": "{n} waiting in the Warm-up",
-  "@kidsReportDue": {
+  "lettersExploredCount": "{n} / {total} explored",
+  "@lettersExploredCount": {
     "placeholders": {
       "n": {
-        "type": "int"
-      }
-    }
-  },
-  "kidsReportTalk": "Try this together",
-  "kidsReportTalkShapes": "Ask them to point to the letter, say its name, and trace it in the air. Then ask: what makes it different from its look-alikes?",
-  "kidsReportTalkSounds": "Ask them to say each sound out loud and repeat it back to them. Swap the vowel and see if they can hear the change.",
-  "kidsReportTalkRules": "Ask them to explain the rule to you in their own words, as if you were the student. Teaching it is the best way to remember it.",
-  "kidsReportTalkReading": "Let them read one line to you slowly, pointing at each word. Praise the effort, then read it back together.",
-  "kidsReportTalkGeneral": "Ask them to show you today’s lesson and teach you one thing they learned.",
-  "kidsMascotSlip": "Oops — I think this is “{wrong}”. Can you fix my mistake?",
-  "@kidsMascotSlip": {
-    "placeholders": {
-      "wrong": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsWriteIt": "Write it",
-  "kidsWriteFromMemory": "Write {name} from memory",
-  "@kidsWriteFromMemory": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsFindIt": "Find it",
-  "kidsFindEvery": "Tap every word with {name}",
-  "@kidsFindEvery": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsWhichWordHas": "Which word has {name}?",
-  "@kidsWhichWordHas": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsListenPick": "Listen & pick",
-  "kidsWhichWordHeard": "Which word did you hear?",
-  "kidsListenOffline": "We couldn't play the sound — check your connection and try again.",
-  "kidsMouthMap": "Mouth map",
-  "kidsMouthMapIntro": "Every letter is made in a special place. Tap each place to see which letters live there!",
-  "kidsWhereMade": "Where is this letter made?",
-  "kidsWhichHumsNose": "Which letter can hum through your nose?",
-  "kidsZoneJawf": "Open mouth",
-  "kidsZoneKhayshum": "The Nose",
-  "kidsZoneJawfTip": "No touching! Open wide and let the sound ring out long.",
-  "kidsZoneHalqTip": "Touch your throat and say it — feel it deep inside.",
-  "kidsZoneLisanTip": "Your tongue does the work — from the very back to the very tip!",
-  "kidsZoneShafatanTip": "Your lips do the work — press them together for ب and م.",
-  "kidsZoneKhayshumTip": "Hold your nose gently and hum — that hum is the ghunnah.",
-  "kidsMemorise": "Memorise",
-  "kidsMemListen": "Listen to the āyah and follow the words.",
-  "kidsMemSay": "Say it out loud — three times!",
-  "kidsMemFade": "Say it again while the words fade away.",
-  "kidsMemHideMore": "Hide more",
-  "kidsMemPeek": "Peek",
-  "kidsMemOrderWords": "Put the words in order.",
-  "kidsMemOrderAyahs": "Put the āyāt in order.",
-  "kidsMemNext": "What comes next?",
-  "kidsWordByWord": "Word by word",
-  "kidsBuildWord": "Build the word",
-  "kidsBuildThis": "Build this word, letter by letter.",
-  "kidsCheckYes": "Yes!",
-  "kidsCheckNotQuite": "Not quite — it's this one:",
-  "kidsCheckTryAgain": "Have another look and try again!",
-  "kidsHintWaqf": "Look at the small sign above the word.",
-  "kidsHintTajwid": "Think back to the rule cards — which one matches these letters?",
-  "kidsHintWords": "Sound it out, letter by letter.",
-  "kidsHintMuqattaat": "Say the letter's name slowly — how long do you hold it?",
-  "kidsHintMadd": "Clap along — one clap for each count.",
-  "kidsHintMouth": "Touch your face and say it — where do you feel it?",
-  "kidsHintSyllable": "Press Listen again, then pick the one you heard.",
-  "kidsHintNext": "Say the āyah in your head — what comes right after?",
-  "kidsWaqfWhyMustStop": "Stop here — carrying on would change the meaning.",
-  "kidsWaqfWhyMustNotStop": "Don't stop here — the sentence isn't finished yet.",
-  "kidsWaqfWhyEither": "You can stop or keep going — both are fine.",
-  "kidsWaqfWhyPair": "Two of these signs go together — stop at one of them, never both.",
-  "kidsWaqfWhyPreferStop": "Stopping is better here, but you may keep going.",
-  "kidsWaqfWhyPreferGo": "Keeping going is better here, but you may stop.",
-  "kidsWarmUp": "Warm-up",
-  "kidsWarmUpSub": "{n} to practise again",
-  "@kidsWarmUpSub": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "kidsShowMe": "Show me",
-  "kidsSayItAloud": "Say it out loud!",
-  "kidsSaidIt": "I said it!",
-  "kidsTracePass": "Practice {index} of {total}",
-  "@kidsTracePass": {
-    "description": "Which repetition of a traced letter shape this is",
-    "placeholders": {
-      "index": {
         "type": "int"
       },
       "total": {
@@ -1906,336 +1353,320 @@
       }
     }
   },
-  "kidsCheckpoint": "Check-up",
-  "kidsCheckpointFirst": "Check-up · first {count}",
-  "@kidsCheckpointFirst": {
+  "nOfTotal": "{n} of {total}",
+  "@nOfTotal": {
     "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "correctAnswer": "Correct",
+  "notQuite": "Not quite",
+  "theAnswerIs": "The answer is {answer}.",
+  "@theAnswerIs": {
+    "placeholders": {
+      "answer": {
+        "type": "String"
+      }
+    }
+  },
+  "correctLabel": "correct",
+  "tajwidLead": "Giving every letter its right — its exit point, its strength, its hum, its exact length.",
+  "tajwidRulesLabel": "Rules · colour-coded as in the reader",
+  "chapters": "Chapters",
+  "countTrainer": "Count trainer",
+  "holdForCounts": "Hold for exactly {n} counts",
+  "@holdForCounts": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "pressAndHold": "Press and hold",
+  "releaseAt": "Release at {n}",
+  "@releaseAt": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "heldExact": "{held} counts — exactly right.",
+  "@heldExact": {
+    "placeholders": {
+      "held": {
+        "type": "String"
+      }
+    }
+  },
+  "heldShort": "{held} counts — a little short.",
+  "@heldShort": {
+    "placeholders": {
+      "held": {
+        "type": "String"
+      }
+    }
+  },
+  "heldLong": "{held} counts — a little long.",
+  "@heldLong": {
+    "placeholders": {
+      "held": {
+        "type": "String"
+      }
+    }
+  },
+  "countTrainerSub": "Hold a madd or a ghunnah for its exact length.",
+  "scriptLead": "Everything on the page that isn’t a letter — and how the two scripts differ.",
+  "units": "Units",
+  "mkMarks": "Marks",
+  "mkMistake": "Mistake",
+  "mkTajwid": "Tajwīd",
+  "mkHesitation": "Hesitation",
+  "mkDoubt": "Doubt",
+  "mkNote": "Note",
+  "mkFixed": "Fixed",
+  "mkFix": "Fix",
+  "mkMistakeHint": "Wrong word or ḥarakah",
+  "mkTajwidHint": "A tajwīd rule missed",
+  "mkHesitationHint": "Hesitated, then corrected themselves",
+  "mkDoubtHint": "Didn't notice — had to be told",
+  "mkNoteHint": "A comment without a mistake",
+  "mkFixHint": "Mark this word's earlier mistakes as fixed",
+  "mkMarkRecitation": "Mark recitation",
+  "mkListenAndMark": "Listen & mark",
+  "mkMarkBook": "Mark book",
+  "mkReciter": "Reciter",
+  "mkNewBook": "New mark book",
+  "mkBookNameHint": "Reciter's name",
+  "mkListener": "Listener",
+  "mkListenerHint": "Who is listening (optional)",
+  "mkKind": "Kind",
+  "mkKindNone": "—",
+  "mkKindSabaq": "Sabaq",
+  "mkKindSabqi": "Sabqi",
+  "mkKindManzil": "Manzil",
+  "mkKindOther": "Other",
+  "mkStart": "Start",
+  "mkResume": "Resume",
+  "mkUndo": "Undo",
+  "mkEnd": "End",
+  "mkSessionSummary": "Session summary",
+  "mkSessionNoteHint": "Note for this session (optional)",
+  "mkSave": "Save",
+  "mkNoMarksThisSession": "No marks this session — well done.",
+  "mkNothingToFix": "Nothing to fix on this word",
+  "mkMarkingHint": "Pick a pen, then tap words. Tap again to remove.",
+  "mkMarksOnWord": "Marks on this word",
+  "mkNoMarksOnWord": "No marks on this word yet.",
+  "mkAddMark": "Add a mark",
+  "mkComment": "Comment",
+  "mkCommentHint": "Add a comment…",
+  "mkMarkFixed": "Mark fixed",
+  "mkMarkNotFixed": "Not fixed yet",
+  "mkDelete": "Delete",
+  "mkDeleteMarkQ": "Delete this mark?",
+  "mkWholeAyah": "Whole āyah",
+  "mkYou": "You",
+  "mkReplies": "Replies",
+  "mkReply": "Reply",
+  "mkShowMarks": "Show marks",
+  "mkShowFixed": "Show fixed marks",
+  "mkShowFixedSub": "Mistakes that have since been fixed, in green",
+  "mkHifz": "Hifz",
+  "mkHifzTitle": "Hifz & listening",
+  "mkStartListening": "Start listening",
+  "mkStartListeningSub": "Open the muṣḥaf and mark as you listen",
+  "mkRecentSessions": "Recent sessions",
+  "mkNoSessions": "No sessions yet. Start listening to mark a recitation.",
+  "mkStatistics": "Statistics",
+  "mkManageBooks": "Mark books",
+  "mkRename": "Rename",
+  "mkCreate": "Create",
+  "mkDeleteBookQ": "Delete this mark book and all its marks?",
+  "mkActive": "Active",
+  "mkYourName": "Your name",
+  "mkYourNameSub": "Shown on marks you make",
+  "mkTotal": "Total",
+  "mkOpen": "Open",
+  "mkFixRate": "Fix rate",
+  "mkBySurah": "By sūrah",
+  "mkByJuz": "By juzʼ",
+  "mkByPage": "By page",
+  "mkByType": "By type",
+  "mkPerSession": "Marks per session",
+  "mkOpenOverTime": "Open marks over time",
+  "mkProblemWords": "Words marked more than once",
+  "mkAllTime": "All",
+  "mk7d": "7 days",
+  "mk30d": "30 days",
+  "mk90d": "90 days",
+  "mkStatusAll": "All",
+  "mkNoMarksYet": "No marks yet",
+  "mkNoMarksYetSub": "Marks you make while listening show up here.",
+  "mkSortCount": "Most",
+  "mkSortOrder": "In order",
+  "mkTapPageHint": "Tap a page to open it",
+  "mkExportBook": "Export book",
+  "mkImportBook": "Import marks",
+  "mkImported": "Imported {n} marks",
+  "mkTodayCard": "Your marks",
+  "mkTodayCardSub": "{open} open · {fixed} fixed",
+  "@mkImported": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@mkTodayCardSub": {
+    "placeholders": {
+      "open": {
+        "type": "int"
+      },
+      "fixed": {
+        "type": "int"
+      }
+    }
+  },
+  "mkSessionLine": "{date} · {count} marks",
+  "@mkSessionLine": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
       "count": {
         "type": "int"
       }
     }
   },
-  "qpWhichOneIs": "Which one is {name}?",
-  "@qpWhichOneIs": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "qpFormOfAt": "Which is {name} at the {pos}?",
-  "@qpFormOfAt": {
+  "mkMarkedBy": "{name} · {date}",
+  "@mkMarkedBy": {
     "placeholders": {
       "name": {
         "type": "String"
       },
-      "pos": {
+      "date": {
         "type": "String"
       }
     }
   },
-  "kidsDevUnlockTitle": "Unlock everything?",
-  "kidsDevUnlockHint": "Code",
-  "kidsDevUnlockOn": "Every stage, theme and avatar unlocked for testing.",
-  "kidsDevUnlockOff": "Test unlock turned off.",
-  "kidsDevUnlockBanner": "Test unlock on — tap to turn off",
-  "kidsDevJumpStage": "Jump to stage",
-  "kidsDevJumpStageActive": "Pinned to: {stage} — tap to change",
-  "@kidsDevJumpStageActive": {
+  "mkFixedOn": "Fixed {date}",
+  "@mkFixedOn": {
     "placeholders": {
-      "stage": {
+      "date": {
         "type": "String"
       }
     }
   },
-  "kidsDevJumpStageHint": "Testing only — real progress is untouched. Pick a stage to point Home and Learn at it without playing through everything before it.",
-  "kidsDevJumpStageFollow": "Follow real progress",
-  "kidsDragShapeOntoWord": "Drag the right shape of {name} into the word",
-  "@kidsDragShapeOntoWord": {
+  "mkPagesRead": "Pages {from}–{to}",
+  "@mkPagesRead": {
     "placeholders": {
-      "name": {
-        "type": "String"
+      "from": {
+        "type": "int"
+      },
+      "to": {
+        "type": "int"
       }
     }
   },
-  "kidsSortSunMoon": "Sun or moon? Put each word in its place.",
-  "kidsSunLetters": "Sun letters",
-  "kidsMoonLetters": "Moon letters",
-  "kidsJoinTitle": "Join the letters",
-  "kidsJoinIntroTitle": "Letters hold hands",
-  "kidsJoinIntro": "Letters hold hands to make words. Drag a letter onto the one beside it — or just tap it — to join them.",
-  "kidsJoinSix": "But these six keep their hands to themselves:",
-  "kidsJoinPrompt": "Join the letters to make the word.",
-  "kidsJoinNoJoin": "{name} never joins the next letter.",
-  "@kidsJoinNoJoin": {
+  "mkWordCount": "{word} · ×{n}",
+  "@mkWordCount": {
     "placeholders": {
-      "name": {
+      "word": {
         "type": "String"
+      },
+      "n": {
+        "type": "int"
       }
     }
   },
-  "kidsJoinNotNeighbours": "Only letters side by side can join.",
-  "kidsJoinDone": "That’s the word!",
-  "kidsBlockJoinSub": "Drag letters together to make real words",
-  "kidsWhichHasDots": "Which letter has {dots}?",
-  "@kidsWhichHasDots": {
-    "placeholders": {
-      "dots": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsPutInAlphabetOrder": "Tap the letters in alphabet order",
-  "kidsWhichIsColoured": "Which letter is in colour?",
-  "kidsFindTwin": "Which letter looks like this one?",
-  "kidsDotsCountAny": "{n, plural, =1{1 dot} other{{n} dots}}",
-  "@kidsDotsCountAny": {
+  "mkPageN": "Page {n}",
+  "@mkPageN": {
     "placeholders": {
       "n": {
         "type": "int"
       }
     }
   },
-  "kidsDotsPosAny": "dots {pos}",
-  "@kidsDotsPosAny": {
-    "placeholders": {
-      "pos": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsWhichSays": "Which one says “{sound}”?",
-  "@kidsWhichSays": {
-    "placeholders": {
-      "sound": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsBlockReadThreeSub": "Read it three words at a time",
-  "kidsBlockReadAyahSub": "Read it, āyah by āyah",
-  "kidsBadgeReadFiveSurahs": "Five Sūrahs",
-  "kidsBadgeReadTenSurahs": "Ten Sūrahs",
-  "kidsBadgeReadAllSurahs": "Zalzalah to Nās",
-  "kidsShapeLamAlifTitle": "Lām + Alif",
-  "kidsShapeLamAlifNote": "Lām and Alif join hands and make one new shape: لا.",
-  "kidsShapeLamAlifTip": "No little mark on it? Then it is the plain Lām + Alif. A mark means Lām + Hamzah.",
-  "kidsShapeLamHamzaTitle": "Lām + Hamzah",
-  "kidsShapeLamHamzaNote": "It is the Lām + Alif shape again, with a little hamzah mark added. The mark can be above, below, or a wavy line.",
-  "kidsShapeLamHamzaTip": "Look at the mark. Above is أ. Below is إ. A wavy line is آ.",
-  "kidsShapeKafWrapsTitle": "Kāf hugs Alif or Lām",
-  "kidsShapeKafWrapsNote": "Kāf curls up and around the letter after it, like a hug.",
-  "kidsShapeKafWrapsTip": "Look inside the curl. A plain stick is Alif. A stick with a little hook at the bottom is Lām.",
-  "kidsShapeKafElongatedTitle": "The long Kāf",
-  "kidsShapeKafElongatedNote": "Sometimes Kāf stretches its bottom line very long. It is still the same Kāf.",
-  "kidsShapeKafElongatedTip": "The head is the same as usual. Only the line under it is longer.",
-  "kidsShapeMimOverJimTitle": "م over ج ح خ",
-  "kidsShapeMimOverJimNote": "Mīm tucks its little loop into the curve of Jīm, Ḥā’ or Khā’.",
-  "kidsShapeMimOverJimTip": "Look at the dot to find the letter. No dot is Ḥā’. One dot below is Jīm. One dot above is Khā’.",
-  "kidsShapeLamOverJimTitle": "ل over ج ح خ",
-  "kidsShapeLamOverJimNote": "Lām leans back and tucks its foot under Jīm, Ḥā’ or Khā’.",
-  "kidsShapeLamOverJimTip": "The same dot rule. No dot is Ḥā’. A dot below is Jīm. A dot above is Khā’.",
-  "kidsShapeToothOverJimTitle": "ب ت ث ن ي over ج ح خ",
-  "kidsShapeToothOverJimNote": "Bā’, Tā’, Thā’, Nūn or Yā’ tucks its head into Jīm, Ḥā’ or Khā’.",
-  "kidsShapeToothOverJimTip": "One dot below can belong to either letter. On the right, it is for Bā’, Tā’ or Nūn. On the left, it is for Jīm.",
-  "kidsShapeToothOverMimTitle": "ب ت ث ن ي over م",
-  "kidsShapeToothOverMimNote": "Bā’, Tā’, Thā’, Nūn or Yā’ drops down, and Mīm’s round loop sits under it.",
-  "kidsShapeToothOverMimTip": "Mīm’s loop is round and closed. Jīm, Ḥā’ and Khā’ have an open curve.",
-  "kidsShapeAynOverJimTitle": "ع over ج ح خ",
-  "kidsShapeAynOverJimNote": "‘Ayn sits on top, and Jīm, Ḥā’ or Khā’ tucks in underneath.",
-  "kidsShapeAynOverJimTip": "‘Ayn’s loop is open at the top. Below it, use the dot: none is Ḥā’, below is Jīm, above is Khā’.",
-  "kidsShapeFaqafOverJimTitle": "ف ق over ج ح خ",
-  "kidsShapeFaqafOverJimNote": "Fā’ or Qāf has a round head that sits above Jīm, Ḥā’ or Khā’.",
-  "kidsShapeFaqafOverJimTip": "One dot on the head is Fā’. Two dots is Qāf. Then use the dot to find the letter below.",
-  "kidsShapeMimOverMimTitle": "م over م",
-  "kidsShapeMimOverMimNote": "Two Mīms in a row: one sits above the other, not side by side.",
-  "kidsShapeMimOverMimTip": "Both loops look the same. Read the top one first, then the one under it.",
-  "kidsShapeMimFinalAfterToothTitle": "Mīm at the end",
-  "kidsShapeMimFinalAfterToothNote": "At the end of a word, Mīm sits close under the letter before it.",
-  "kidsShapeMimFinalAfterToothTip": "It is the usual end-of-word Mīm. Just look at where it sits: close to the letter before.",
-  "kidsShapeHaaMedialTitle": "Hā’ in the middle",
-  "kidsShapeHaaMedialNote": "In the middle of a word, Hā’ looks like a tiny 8 with two little loops.",
-  "kidsShapeHaaMedialTip": "Two little loops, like an 8, means Hā’. One round loop is Mīm.",
-  "kidsShapeRaZaElongatedFinalTitle": "The long Rā’ or Zāy",
-  "kidsShapeRaZaElongatedFinalNote": "At the end of a word, Rā’ or Zāy can stretch its tail out long.",
-  "kidsShapeRaZaElongatedFinalTip": "Rā’ has no dot. Zāy has one dot above. The long tail does not tell them apart — look for the dot.",
-  "kidsShapeFormMarkAbove": "Mark above",
-  "kidsShapeFormMarkBelow": "Mark below",
-  "kidsShapeFormWavy": "Wavy line",
-  "kidsExtraHamzah": "Hamzah is a tiny stop in your voice. It can stand on its own, with no seat.",
-  "kidsExtraAlifHamzahAbove": "Hamzah sits on top of an Alif.",
-  "kidsExtraAlifHamzahBelow": "Hamzah sits under an Alif.",
-  "kidsExtraWawHamzah": "Hamzah sits on a Wāw.",
-  "kidsExtraYaHamzah": "Hamzah sits on a Yā’ with no dots.",
-  "kidsExtraTaMarbuta": "Tā’ Marbūṭah ends many words. Keep reading and it sounds like “t”. Stop on it and it sounds like a soft “h”.",
-  "kidsExtraAlifMaqsura": "Alif Maqṣūrah looks like a Yā’ with no dots. It sounds like a long “aa”, just like Alif.",
-  "kidsExtraAlifWasl": "Alif Waṣl is an Alif with a small mark on top. Say it only when you start a word. When you join it to the word before, skip it.",
-  "kidsSmallDaggerAlifName": "Little Alif",
-  "kidsSmallDaggerAlifNote": "A tiny Alif written above a letter. Say it long, just like a full Alif: two counts.",
-  "kidsSmallWawName": "Little Wāw",
-  "kidsSmallWawNote": "A tiny Wāw sits on a ḍammah at the end of a word. Round your lips a little more for the “u”.",
-  "kidsSmallYaName": "Little Yā’",
-  "kidsSmallYaNote": "A tiny Yā’ sits on a kasrah at the end of a word. Stretch the “i” a little more.",
-  "kidsGlossDoor": "the door",
-  "kidsGlossHouse": "house",
-  "kidsGlossApple": "the apple",
-  "kidsGlossFox": "the fox",
-  "kidsGlossCamel": "the camel",
-  "kidsGlossMilk": "the milk",
-  "kidsGlossBread": "the bread",
-  "kidsGlossHen": "the hen",
-  "kidsGlossGold": "gold",
-  "kidsGlossMoon": "a moon",
-  "kidsGlossFlower": "the flower",
-  "kidsGlossFish": "the fish",
-  "kidsGlossSun": "the sun",
-  "kidsGlossFalcon": "the falcon",
-  "kidsGlossFrog": "the frog",
-  "kidsGlossBird": "the bird",
-  "kidsGlossShade": "the shade",
-  "kidsGlossEye": "the eye",
-  "kidsGlossCrow": "the crow",
-  "kidsGlossElephant": "the elephant",
-  "kidsGlossPen": "a pen",
-  "kidsGlossBook": "the book",
-  "kidsGlossNight": "the night",
-  "kidsGlossWater": "the water",
-  "kidsGlossBee": "the bee",
-  "kidsGlossCrescent": "the crescent",
-  "kidsGlossBoy": "the boy",
-  "kidsGlossHand": "the hand",
-  "kidsTanwinShapesTitle": "Tanwīn's Two Looks",
-  "kidsTanwinShapesIntro": "Tanwīn is not always drawn the same way. Its shape is a clue to what your voice does next.",
-  "kidsTanwinParallelName": "Side by side",
-  "kidsTanwinParallelHow": "Two marks stand side by side. Say the sound out loud and clear.",
-  "kidsTanwinAlternateName": "Stacked up",
-  "kidsTanwinAlternateHow": "The marks stack on top of each other. Let the sound blend into a hum with the letter after it.",
-  "kidsTanwinIqlabName": "Turns into a mīm",
-  "kidsTanwinIqlabHow": "A tiny mīm sits above or below instead. Close your lips and hum a quiet “m” before the bāʼ.",
-  "kidsTanwinSortPrompt": "Which sound does each tanwīn make? Sort the words.",
-  "kidsWhichShapeMakesSound": "Which shape means “{sound}”?",
-  "@kidsWhichShapeMakesSound": {
-    "placeholders": {
-      "sound": {
-        "type": "String"
-      }
-    }
-  },
-  "kidsTanwinAskClear": "Which shape says it clearly?",
-  "kidsTanwinAskHum": "Which shape blends into a hum?",
-  "kidsTanwinAskMim": "Which shape turns into an “m”?",
-  "kidsTapEachToHear": "Tap each one to hear it",
-  "kidsPracticeWords": "Now find it in real words",
-  "kidsPracticeWordsTitle": "Practice words",
-  "kidsReadIt": "I read it!",
-  "kidsPerfect": "Perfect!",
-  "kidsShopThemeForest": "Forest Theme",
-  "kidsShopThemeLagoon": "Lagoon Theme",
-  "kidsShopThemeBlossom": "Blossom Theme",
-  "kidsShopThemeSunset": "Sunset Theme",
-  "kidsGameThreeInARow": "Three in a Row",
-  "kidsGameThreeInARowSub": "Read a letter right to claim its square",
-  "kidsGameYourTurn": "Your turn — tap a square",
-  "kidsGameComputerTurn": "The computer's turn…",
-  "kidsGameYouWon": "You won!",
-  "kidsGameComputerWon": "The computer won this time",
-  "kidsGameDraw": "A draw — good game!",
-  "kidsGameMemoryMatch": "Memory Match",
-  "kidsGameMemoryMatchSub": "Find each letter's name",
-  "kidsGameFindPairs": "Flip two cards — find the letter and its name",
-  "kidsGameAllMatched": "You found them all!",
-  "kidsGameBingo": "Letter Bingo",
-  "kidsGameBingoSub": "Listen for the letter, then tap it",
-  "kidsGameBingoNoLine": "So close — try again!",
-  "kidsGentleStopTitle": "You've done your day",
-  "kidsGentleStopSub": "A good place to stop — it will all still be here tomorrow.",
-  "kidsSessionReminder": "Session reminder",
-  "kidsSessionReminderSub": "Suggest a break after this long — never a lockout, just a nudge.",
-  "kidsSessionOff": "Off",
-  "kidsSessionMinutes": "{n} minutes",
-  "@kidsSessionMinutes": {
+  "mkJuzN": "Juzʼ {n}",
+  "@mkJuzN": {
     "placeholders": {
       "n": {
         "type": "int"
       }
     }
   },
-  "kidsBreakTitle": "Time for a stretch?",
-  "kidsBreakSub": "You've been learning for a while — a short break helps it stick.",
-  "kidsBreakContinue": "Keep going",
-  "kidsParentBackupTitle": "Keep a copy of progress",
-  "kidsParentBackupSub": "Saved on this device only — nothing is sent anywhere.",
-  "kidsParentOfflineTitle": "Read offline",
-  "kidsParentOfflineSub": "Save the reading sūrahs ahead of time, for a plane or a weak signal.",
-  "kidsDetailLevel": "Detail",
-  "kidsDetailLevelSub": "How fancy the backgrounds are. Plain is flat and fastest, Medium is a calm scene, High moves, and Ultra adds the most — best on newer phones.",
-  "kidsImmersive": "Full screen",
-  "@kidsImmersive": {"description": "Me tab setting: hide the system status and navigation bars (the app-wide immersive mode)."},
-  "kidsImmersiveSub": "Hides the phone's top and bottom bars. Swipe in from an edge to see them again.",
-  "kidsDetailPlain": "Plain",
-  "kidsDetailMedium": "Medium",
-  "kidsDetailHigh": "High",
-  "kidsDetailUltra": "Ultra",
-  "kidsUiTilt": "Screen tilt",
-  "kidsUiTiltSub": "The screen leans a little as the phone tilts.",
-  "kidsUiTiltOff": "Off",
-  "kidsUiTiltSubtle": "Subtle",
-  "kidsUiTiltStrong": "Strong",
-  "kidsGrain": "Film grain",
-  "kidsGrainSub": "A fine, film-like texture over the scenery.",
-  "kidsShopThemeRain": "Rain Theme",
-  "kidsShopThemeCave": "Cave Theme",
-  "kidsShopThemeSunrise": "Sunrise Theme",
-  "kidsShopThemeFrozen": "Frozen Theme",
-  "kidsShopThemeSnowy": "Snowy Theme",
-  "kidsShopMonkeyAvatar": "Monkey",
-  "kidsShopSheepAvatar": "Sheep",
-  "kidsShopGoatAvatar": "Goat",
-  "kidsShopWolfAvatar": "Wolf",
-  "kidsShopShield": "Shield",
-  "kidsShopSword": "Sword",
-  "kidsShopHelmet": "Helmet",
-  "kidsShopTasbeeh": "Tasbeeh",
-  "kidsShopTopi": "Topi",
-  "kidsShopDates": "Dates",
-  "kidsShopQahwa": "Qahwa",
-  "kidsShopChai": "Chai",
-  "kidsShopFlask": "Flask",
-  "kidsShopLantern": "Lantern",
-  "kidsShopCrescent": "Crescent",
-  "kidsShopPalmTree": "Palm Tree",
-  "kidsShopMiswak": "Miswak",
-  "kidsShopZamzam": "Zamzam",
-  "kidsShopAttar": "Attar",
-  "kidsShopIceCube": "Ice Cube",
-  "kidsShopThings": "Things",
-  "kidsAnimalLionCub": "Lion Cub",
-  "kidsIceCubeUnlocked": "You unlocked the Ice Cube avatar!",
-  "kidsShopThemes": "Themes",
-  "kidsShopUse": "Use",
-  "kidsShopInUse": "In use",
-  "kidsThemeClassic": "Classic",
-  "kidsThemeOcean": "Ocean",
-  "kidsThemeLagoon": "Lagoon",
-  "kidsThemeDesert": "Desert",
-  "kidsThemeNight": "Night",
-  "kidsThemeForest": "Forest",
-  "kidsThemeBlossom": "Blossom",
-  "kidsThemeSunset": "Sunset",
-  "kidsThemeRain": "Rain",
-  "kidsThemeCave": "Cave",
-  "kidsThemeSunrise": "Sunrise",
-  "kidsThemeFrozen": "Frozen",
-  "kidsThemeSnowy": "Snowy",
-  "kidsAnimalFox": "Fox",
-  "kidsAnimalPanda": "Panda",
-  "kidsAnimalTiger": "Tiger",
-  "kidsAnimalLion": "Lion",
-  "kidsAnimalKoala": "Koala",
-  "kidsAnimalFrog": "Frog",
-  "kidsAnimalHorse": "Horse",
-  "kidsAnimalDolphin": "Dolphin",
-  "kidsAnimalBear": "Grizzly",
-  "kidsAnimalKangaroo": "Kangaroo",
-  "kidsPathStart": "Start"
+  "mkChecker": "Checker",
+  "mkOwner": "Owner",
+  "mkAccountSync": "Account & sync",
+  "mkAccountSyncSub": "Optional. Share mark books with listeners and checkers on other devices. Without an account everything stays on this device.",
+  "mkSignIn": "Sign in",
+  "mkCreateAccount": "Create account",
+  "mkUsername": "Username",
+  "mkPassword": "Password",
+  "mkDisplayName": "Display name",
+  "mkRecoveryEmail": "Recovery email (optional)",
+  "mkRecoveryEmailHint": "Only used to reset a forgotten password. Without one, the server's admin can reset it for you.",
+  "mkServer": "Server address",
+  "mkServerHint": "https://marks.example.com",
+  "mkSignOut": "Sign out",
+  "mkDeleteAccount": "Delete account",
+  "mkDeleteAccountQ": "Delete your account? Your own synced books are deleted from the server; marks you made in other people's books stay there without your name. Everything on this device stays.",
+  "mkSyncNow": "Sync now",
+  "mkSyncing": "Syncing…",
+  "mkOffline": "Offline — changes will sync later",
+  "mkSyncError": "Couldn't sync",
+  "mkNotSynced": "Not synced yet",
+  "mkShareBook": "Share this book",
+  "mkShareBookSub": "Sync it so listeners and checkers can see and mark it.",
+  "mkSyncThisBook": "Sync this book",
+  "mkInviteListener": "Invite a listener",
+  "mkInviteChecker": "Invite a checker",
+  "mkInviteCode": "Share code",
+  "mkInviteCodeSub": "Valid for 7 days. They enter it under Hifz → Join a book.",
+  "mkJoinBook": "Join a book",
+  "mkJoinCodeHint": "Share code",
+  "mkMembers": "Members",
+  "mkRemove": "Remove",
+  "mkLeaveBook": "Leave book",
+  "mkErrTaken": "That username is taken.",
+  "mkErrInvalid": "Wrong username or password.",
+  "mkErrNetwork": "Can't reach the server.",
+  "mkErrCode": "That code isn't valid or has expired.",
+  "mkErrForbidden": "Not allowed.",
+  "mkErrNoServer": "Enter the server address first.",
+  "mkPasswordShort": "At least 8 characters.",
+  "mkUsernameRule": "3–32 letters, digits, . _ -",
+  "mkForgotPassword": "Forgot password?",
+  "mkResetSent": "If that email is on an account, a reset link is on its way.",
+  "mkCopied": "Copied",
+  "mkSyncedAt": "Synced {time}",
+  "@mkSyncedAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "mkSignedInAs": "Signed in as {name}",
+  "@mkSignedInAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mkSyncPrivacy": "Synced to {server}: your mark books, sessions, marks and comments, your username and display name. Nothing else.",
+  "@mkSyncPrivacy": {
+    "placeholders": {
+      "server": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -22,8 +22,7 @@ import 'l10n.dart';
 ///
 /// A bundled per-letter clip lives at
 /// `assets/audio/letters/<variant>/<codepoint>.mp3`, e.g.
-/// `assets/audio/letters/kids/0628.mp3` for بـ. Two variants ship side by
-/// side: `kids` (a clear, slow, child-facing reading) and `adult`. Adding
+/// `assets/audio/letters/adult/0628.mp3` for بـ. Adding
 /// clips needs **no code change**: drop the files in, list the folder under
 /// `assets:` in `pubspec.yaml`, and every call site here picks them up.
 /// Naming is by Unicode codepoint rather than by letter name or `glyphId`
@@ -34,9 +33,7 @@ import 'l10n.dart';
 class LetterAudio {
   LetterAudio._();
 
-  /// Which recording of a letter to reach for. Kids Mode asks for [kids];
-  /// the grown-up screens ask for [adult].
-  static const kids = 'kids';
+  /// Which recording of a letter to reach for.
   static const adult = 'adult';
 
   /// Relative to audioplayers' own `assets/` prefix, so the on-disk path is
@@ -78,7 +75,7 @@ class LetterAudio {
   /// "coming soon" message instead of leaving a silent tap unexplained.
   /// Never throws: a failed play is a missing sound, not a crash in the
   /// middle of a lesson.
-  static Future<bool> play(ArabicLetter letter, {String variant = kids}) =>
+  static Future<bool> play(ArabicLetter letter, {String variant = adult}) =>
       playRaw(letter.char, variant: variant);
 
   /// [play], for text that isn't a single bare letter — a marked syllable
@@ -86,7 +83,7 @@ class LetterAudio {
   /// concatenation. [assetName] already joins every codepoint in [text] with
   /// `-`, so بَ resolves to the same `<letter>-<mark>` naming a bundled clip
   /// for it would use, with no convention change.
-  static Future<bool> playRaw(String text, {String variant = kids}) async {
+  static Future<bool> playRaw(String text, {String variant = adult}) async {
     final sink = log;
     if (sink != null) {
       sink.add(text);
@@ -115,14 +112,14 @@ class LetterAudio {
   static Future<void> playOrComingSoon(
     BuildContext context,
     ArabicLetter letter, {
-    String variant = kids,
+    String variant = adult,
   }) => playOrComingSoonRaw(context, letter.char, variant: variant);
 
   /// [playOrComingSoon], for a composed syllable — see [playRaw].
   static Future<void> playOrComingSoonRaw(
     BuildContext context,
     String text, {
-    String variant = kids,
+    String variant = adult,
   }) async {
     final played = await playRaw(text, variant: variant);
     if (!played && context.mounted) {

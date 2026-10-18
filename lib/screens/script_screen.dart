@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../core/l10n.dart';
 import '../core/responsive.dart';
+import '../core/settings.dart';
 import '../core/theme.dart';
 import '../data/script_diff.dart';
 import '../data/small_letters.dart';
 import '../data/waqf.dart';
 import '../data/wasl.dart';
+import '../ui/kit.dart';
 import '../widgets/common.dart';
 import '../widgets/lesson.dart';
 import 'lessons/script_lessons.dart';
@@ -27,60 +29,32 @@ class ScriptScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final units = scriptUnits(context);
+    final prog = ProgressScope.of(context);
     return Scaffold(
       appBar: embedded ? null : AppBar(title: Text(context.l10n.scriptSymbols)),
       body: SafeArea(
         top: false,
-        child: ListView.builder(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-          itemCount: units.length,
-          itemBuilder: (context, i) {
-            final u = units[i];
-            return FadeSlideIn(
-              delayMs: 50 * i,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: TapScale(
-                  onTap: () => pushAdaptive(context, ScriptUnitHub(unit: u)),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: pal(context).surface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: pal(context).surfaceHigh),
-                    ),
-                    child: Row(children: [
-                      Container(
-                        width: 52, height: 52,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: pal(context).surfaceHigh,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(u.arabicBadge,
-                            style: quranicStyle(context, size: 20, height: 1.3,
-                                color: pal(context).accent)),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(u.title,
-                                style: uiStyle(context, size: 16.5, weight: FontWeight.w700)),
-                            const SizedBox(height: 3),
-                            Text(u.subtitle,
-                                style: uiStyle(context, size: 13, color: pal(context).textDim)),
-                          ],
-                        ),
-                      ),
-                      Icon(Icons.chevron_right_rounded, color: pal(context).textDim),
-                    ]),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 6, 20, 28),
+          children: [
+            QColumn(
+              child: Text(context.l10n.scriptLead,
+                  style: displayStyle(context, size: 24, height: 1.3)),
+            ),
+            QColumn(child: QSectionLabel(context.l10n.units)),
+            QColumn(
+              child: TwoColumnWrap(children: [
+                for (final u in units)
+                  UnitCard(
+                    glyph: u.arabicBadge,
+                    title: u.title,
+                    subtitle: u.subtitle,
+                    stars: prog.starsFor(u.progressId),
+                    onTap: () => pushAdaptive(context, ScriptUnitHub(unit: u)),
                   ),
-                ),
-              ),
-            );
-          },
+              ]),
+            ),
+          ],
         ),
       ),
     );
@@ -133,11 +107,14 @@ class ScriptUnitHub extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(unit.title)),
+        appBar: AppBar(),
         body: SafeArea(
           top: false,
           child: PhaseHub(
             subtitle: unit.subtitle,
+            glyph: unit.arabicBadge,
+            title: unit.title,
+            stars: ProgressScope.of(context).starsFor(unit.progressId),
             phases: unit.phases,
             onPick: (i) =>
                 pushAdaptive(context, Builder(builder: unit.phases[i].builder!)),

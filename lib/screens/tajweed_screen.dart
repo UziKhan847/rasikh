@@ -12,9 +12,12 @@ import '../data/sifat.dart';
 import '../data/tajweed.dart';
 import '../data/tajwid_cases.dart';
 import '../data/tajwid_path.dart';
+import '../ui/kit.dart';
 import '../widgets/common.dart';
+import '../widgets/count_trainer.dart';
 import '../widgets/lesson.dart';
 import 'lessons/tajwid_lessons.dart';
+import '../ui/app_icons.dart';
 
 final _rng = math.Random();
 
@@ -39,108 +42,139 @@ class TajweedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = pal(context);
     final units = tajwidUnits(context);
+    final wide = MediaQuery.sizeOf(context).width >= 1100;
+    Widget cap(Widget w) => QColumn(child: w);
     return Scaffold(
       appBar: embedded ? null : AppBar(title: Text(context.l10n.tajwidAcademy)),
       body: SafeArea(
         top: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+          padding: const EdgeInsets.fromLTRB(20, 6, 20, 28),
           children: [
-            Text(
-              context.l10n.tajwidGivingEveryLetterIts,
-              style: uiStyle(context, size: 14.5, color: pal(context).textDim),
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8, runSpacing: 8,
+            cap(Text(context.l10n.tajwidLead,
+                style: displayStyle(context, size: 24, height: 1.3))),
+            cap(QSectionLabel(context.l10n.tajwidRulesLabel)),
+            cap(Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 for (final r in tajwidRules)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: r.color.withValues(alpha: .14),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: r.color.withValues(alpha: .5)),
-                    ),
-                    child: Text(tajwidName(context, r),
-                        style: uiStyle(context, size: 12, color: r.color,
-                            weight: FontWeight.w600)),
+                  _RuleChip(
+                    rule: r,
+                    onTap: () =>
+                        pushAdaptive(context, TajwidRuleScreen(rule: r)),
                   ),
               ],
-            ),
-            const SizedBox(height: 14),
-            Row(children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => pushAdaptive(context, const _AllRulesScreen()),
-                  icon: const Icon(Icons.list_rounded),
-                  label: Text(context.l10n.browseAllRules),
+            )),
+            const SizedBox(height: 16),
+            cap(Wrap(spacing: 10, runSpacing: 10, children: [
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: p.ink,
+                  foregroundColor: p.bg,
+                  minimumSize: const Size(0, 50),
+                  padding: const EdgeInsets.symmetric(horizontal: 22),
                 ),
+                onPressed: () =>
+                    pushAdaptive(context, const CountTrainerScreen()),
+                icon: const Icon(AppIcons.timer, size: 18),
+                label: Text(context.l10n.countTrainer),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                      backgroundColor: pal(context).accent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14)),
-                  onPressed: () => pushAdaptive(context, _tajwidQuiz(context)),
-                  icon: const Icon(Icons.quiz_rounded),
-                  label: Text(context.l10n.spotRuleQuiz),
+              QOutlineButton(context.l10n.spotRuleQuiz,
+                  icon: AppIcons.quiz,
+                  onTap: () => pushAdaptive(context, _tajwidQuiz(context))),
+              QOutlineButton(context.l10n.browseAllRules,
+                  icon: AppIcons.listView,
+                  onTap: () =>
+                      pushAdaptive(context, const _AllRulesScreen())),
+            ])),
+            cap(QSectionLabel(context.l10n.chapters)),
+            if (wide)
+              cap(LayoutBuilder(
+                builder: (context, c) => Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final u in units)
+                      SizedBox(
+                          width: (c.maxWidth - 10) / 2,
+                          child: _chapterCard(context, u)),
+                  ],
                 ),
-              ),
-            ]),
-            const SizedBox(height: 18),
-            for (var i = 0; i < units.length; i++)
-              FadeSlideIn(
-                delayMs: 35 * i,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: TapScale(
-                    onTap: () => pushAdaptive(context, TajwidUnitHub(unit: units[i])),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: pal(context).surface,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: pal(context).surfaceHigh),
-                      ),
-                      child: Row(children: [
-                        Container(
-                          width: 52, height: 52,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: pal(context).surfaceHigh,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(units[i].arabicBadge,
-                              style: quranicStyle(context, size: 22, height: 1.3,
-                                  color: pal(context).accent)),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(units[i].title,
-                                  style: uiStyle(context,
-                                      size: 16.5, weight: FontWeight.w700)),
-                              const SizedBox(height: 3),
-                              Text(units[i].subtitle,
-                                  style: uiStyle(context,
-                                      size: 13, color: pal(context).textDim)),
-                            ],
-                          ),
-                        ),
-                        Icon(Icons.chevron_right_rounded, color: pal(context).textDim),
-                      ]),
-                    ),
+              ))
+            else
+              for (var i = 0; i < units.length; i++)
+                cap(QRiseIn(
+                  delay: Duration(milliseconds: 30 * i),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _chapterCard(context, units[i]),
                   ),
-                ),
-              ),
+                )),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chapterCard(BuildContext context, TajwidUnit u) => UnitCard(
+        glyph: u.arabicBadge,
+        title: u.title,
+        subtitle: u.subtitle,
+        stars: ProgressScope.of(context).starsFor(u.progressId),
+        onTap: () => pushAdaptive(context, TajwidUnitHub(unit: u)),
+      );
+}
+
+/// A rule's colour, lifted a little on dark themes so it reads on black.
+Color _ruleColour(BuildContext context, TajwidRule r) => pal(context).isDark
+    ? Color.lerp(r.color, Colors.white, .28)!
+    : r.color;
+
+/// How many counts a rule is held for, where it has a set length.
+int? _countsFor(TajwidRule r) => switch (r.id) {
+      'madd2' => 2,
+      'madd4' || 'madd45' => 4,
+      'madd6' => 6,
+      'ghunnah' => 2,
+      _ => null,
+    };
+
+/// A rule chip: a dot and the name, in the rule's own colour.
+class _RuleChip extends StatelessWidget {
+  final TajwidRule rule;
+  final VoidCallback onTap;
+  const _RuleChip({required this.rule, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _ruleColour(context, rule);
+    return Material(
+      color: c.withValues(alpha: .12),
+      shape: StadiumBorder(side: BorderSide(color: c.withValues(alpha: .35))),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(tajwidName(context, rule),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: uiStyle(context,
+                      size: 13, weight: FontWeight.w700, color: c)),
+            ),
+          ]),
         ),
       ),
     );
@@ -186,8 +220,9 @@ class _RuleCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
         decoration: BoxDecoration(
-          color: pal(context).surface,
+          color: pal(context).card,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: pal(context).line2),
         ),
         child: Material(
           color: Colors.transparent,
@@ -211,7 +246,7 @@ class _RuleCard extends StatelessWidget {
                   textDirection: TextDirection.rtl,
                   textAlign: TextAlign.left,
                   style: arabicStyle(context, size: 16, height: 1.4,
-                      color: pal(context).textDim)),
+                      color: pal(context).ink3)),
               children: [
                 _kv(context, context.l10n.when, tajwidTrigger(context, rule)),
                 const SizedBox(height: 6),
@@ -221,7 +256,7 @@ class _RuleCard extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: s.paperMode ? pal(context).paper : pal(context).surfaceHigh,
+                    color: s.paperMode ? pal(context).paper : pal(context).track,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(children: [
@@ -242,7 +277,7 @@ class _RuleCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(context.l10n.surahRef(rule.example.ref),
                         style: uiStyle(context,
-                            size: 12.5, color: pal(context).textDim)),
+                            size: 12.5, color: pal(context).ink3)),
                   ]),
                 ),
               ],
@@ -263,7 +298,7 @@ class _RuleCard extends StatelessWidget {
                       weight: FontWeight.w700))),
           Expanded(
               child: Text(v,
-                  style: uiStyle(context, size: 14, color: pal(context).textDim))),
+                  style: uiStyle(context, size: 14, color: pal(context).ink3))),
         ],
       );
 }
@@ -299,102 +334,134 @@ class TajwidRuleScreen extends StatelessWidget with DesktopAware {
 
   @override
   Widget build(BuildContext context) {
-    final s = SettingsScope.of(context);
+    final p = pal(context);
+    final c = _ruleColour(context, rule);
+    final counts = _countsFor(rule);
+    final examples = conceptExamples(
+        rule.example.plain, rule.example.ref, rule.moreExamples);
+    Widget cap(Widget w) => QColumn(child: w);
     return Scaffold(
       appBar: AppBar(title: Text(tajwidName(context, rule))),
       body: SafeArea(
         top: false,
-        child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-            children: [
-              Row(children: [
-                Container(
-                  width: 14,
-                  height: 46,
-                  decoration: BoxDecoration(
-                      color: rule.color,
-                      borderRadius: BorderRadius.circular(7)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(tajwidName(context, rule),
-                          style: uiStyle(context,
-                              size: 22, weight: FontWeight.w900)),
-                      Text(rule.arabicName,
-                          textDirection: TextDirection.rtl,
-                          style: arabicStyle(context,
-                              size: 18, color: pal(context).textDim)),
-                    ],
-                  ),
-                ),
-              ]),
-              const SizedBox(height: 20),
-              _block(context, context.l10n.when, tajwidTrigger(context, rule)),
-              const SizedBox(height: 12),
-              _block(context, context.l10n.how, tajwidHow(context, rule)),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color:
-                      s.paperMode ? pal(context).paper : pal(context).surface,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Column(children: [
-                  RichText(
-                    textDirection: TextDirection.rtl,
-                    textAlign: TextAlign.center,
-                    text: TextSpan(children: [
-                      for (final seg in rule.example.segs)
-                        TextSpan(
-                          text: seg.text,
-                          style: _verseStyle(context,
-                              size: 32,
-                              color: seg.ruleId != null
-                                  ? ruleById(seg.ruleId!).color
-                                  : null),
-                        ),
-                    ]),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(context.l10n.surahRef(rule.example.ref),
-                      style: uiStyle(context,
-                          size: 12.5, color: pal(context).textDim)),
-                ]),
-              ),
-            ],
-          ),
-        ),
-      )),
-    );
-  }
-
-  Widget _block(BuildContext context, String k, String v) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: pal(context).surface,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
           children: [
-            Text(k,
-                style: uiStyle(context,
-                    size: 13, weight: FontWeight.w700, color: rule.color)),
-            const SizedBox(height: 4),
-            Text(v,
-                style: uiStyle(context, size: 14.5, color: pal(context).textDim)),
+            cap(Column(children: [
+              Text(rule.arabicName,
+                  textDirection: TextDirection.rtl,
+                  textAlign: TextAlign.center,
+                  style: quranicStyle(context, size: 60, height: 1.7, color: c)),
+              Text(tajwidName(context, rule),
+                  textAlign: TextAlign.center,
+                  style: displayStyle(context, size: 28)),
+            ])),
+            const SizedBox(height: 12),
+            cap(Text(tajwidHow(context, rule),
+                style: uiStyle(context, size: 16, height: 1.5))),
+            const SizedBox(height: 14),
+            cap(QCard(
+              radius: 18,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(context.l10n.when.toUpperCase(),
+                      style: uiStyle(context,
+                          size: 11,
+                          weight: FontWeight.w700,
+                          letterSpacing: .9,
+                          color: c)),
+                  const SizedBox(height: 4),
+                  Text(tajwidTrigger(context, rule),
+                      style: uiStyle(context,
+                          size: 14, color: p.ink2, height: 1.45)),
+                ],
+              ),
+            )),
+            if (rule.letters.isNotEmpty) ...[
+              cap(SectionHeader(context.l10n.lsnLetters)),
+              cap(Directionality(
+                textDirection: TextDirection.rtl,
+                child: Wrap(spacing: 8, runSpacing: 8, children: [
+                  for (final l in rule.letters.split('').where((x) => x.trim().isNotEmpty))
+                    Container(
+                      width: 52,
+                      height: 52,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: p.card,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: p.line2),
+                      ),
+                      child: Text(l,
+                          style: arabicStyle(context, size: 24, color: c)),
+                    ),
+                ]),
+              )),
+            ],
+            if (counts != null) ...[
+              const SizedBox(height: 22),
+              cap(HoldCountTrainer(counts: counts)),
+            ],
+            cap(SectionHeader(context.l10n.lsnExamples)),
+            cap(QCard(
+              radius: 18,
+              padding: const EdgeInsets.all(16),
+              child: Column(children: [
+                RichText(
+                  textDirection: TextDirection.rtl,
+                  textAlign: TextAlign.center,
+                  text: TextSpan(children: [
+                    for (final seg in rule.example.segs)
+                      TextSpan(
+                        text: seg.text,
+                        style: _verseStyle(context,
+                            size: 30,
+                            color: seg.ruleId != null
+                                ? _ruleColour(context, ruleById(seg.ruleId!))
+                                : null),
+                      ),
+                  ]),
+                ),
+                const SizedBox(height: 4),
+                Text(context.l10n.surahRef(rule.example.ref),
+                    style: uiStyle(context, size: 12, color: p.ink3)),
+              ]),
+            )),
+            for (final ex in examples.skip(1))
+              cap(QCard(
+                margin: const EdgeInsets.only(top: 8),
+                radius: 18,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Row(children: [
+                  Expanded(
+                    child: Text(context.l10n.surahRef(ex.ref),
+                        style: uiStyle(context,
+                            size: 12, weight: FontWeight.w600, color: p.ink3)),
+                  ),
+                  Flexible(
+                    flex: 3,
+                    child: RichText(
+                      textDirection: TextDirection.rtl,
+                      textAlign: TextAlign.right,
+                      text: TextSpan(
+                        children: highlightSpans(
+                          ex.text,
+                          ex.highlight ?? '',
+                          _verseStyle(context, size: 28),
+                          _verseStyle(context, size: 28, color: c),
+                        ),
+                      ),
+                    ),
+                  ),
+                ]),
+              )),
           ],
         ),
-      );
+      ),
+    );
+  }
 }
 
 // ═══════════════════════════ Unit path ═══════════════════════════════════
@@ -419,23 +486,23 @@ List<TajwidUnit> tajwidUnits(BuildContext context) => [
           'tajwid.makharij',
           phases: [
             UnitPhase(
-                icon: Icons.menu_book_rounded,
+                icon: AppIcons.reader,
                 label: context.l10n.phaseLearn,
                 sub: context.l10n.phaseLearnSub,
                 builder: (_) => _makharijLearn(context)),
             UnitPhase(
-                icon: Icons.quiz_rounded,
+                icon: AppIcons.quiz,
                 label: context.l10n.phaseTest,
                 sub: context.l10n.phaseTestSub,
                 builder: (c) => _makharijQuiz(c),
                 isTest: true),
             UnitPhase(
-                icon: Icons.refresh_rounded,
+                icon: AppIcons.reset,
                 label: context.l10n.phasePractice,
                 sub: context.l10n.phasePracticeSub,
                 builder: (c) => _makharijQuiz(c, graded: false)),
             UnitPhase(
-                icon: Icons.mic_none_rounded,
+                icon: AppIcons.mic,
                 label: context.l10n.phaseRecite,
                 sub: context.l10n.phaseReciteSub),
           ]),
@@ -443,23 +510,23 @@ List<TajwidUnit> tajwidUnits(BuildContext context) => [
           'tajwid.sifat',
           phases: [
             UnitPhase(
-                icon: Icons.menu_book_rounded,
+                icon: AppIcons.reader,
                 label: context.l10n.phaseLearn,
                 sub: context.l10n.phaseLearnSub,
                 builder: (_) => _sifatLearn(context)),
             UnitPhase(
-                icon: Icons.quiz_rounded,
+                icon: AppIcons.quiz,
                 label: context.l10n.phaseTest,
                 sub: context.l10n.phaseTestSub,
                 builder: (c) => _sifatQuiz(c),
                 isTest: true),
             UnitPhase(
-                icon: Icons.refresh_rounded,
+                icon: AppIcons.reset,
                 label: context.l10n.phasePractice,
                 sub: context.l10n.phasePracticeSub,
                 builder: (c) => _sifatQuiz(c, graded: false)),
             UnitPhase(
-                icon: Icons.mic_none_rounded,
+                icon: AppIcons.mic,
                 label: context.l10n.phaseRecite,
                 sub: context.l10n.phaseReciteSub),
           ]),
@@ -479,23 +546,23 @@ List<TajwidUnit> tajwidUnits(BuildContext context) => [
           'tajwid.cases',
           phases: [
             UnitPhase(
-                icon: Icons.menu_book_rounded,
+                icon: AppIcons.reader,
                 label: context.l10n.phaseLearn,
                 sub: context.l10n.phaseLearnSub,
                 builder: (_) => _casesLearn(context)),
             UnitPhase(
-                icon: Icons.quiz_rounded,
+                icon: AppIcons.quiz,
                 label: context.l10n.phaseTest,
                 sub: context.l10n.phaseTestSub,
                 builder: (c) => _casesQuiz(c),
                 isTest: true),
             UnitPhase(
-                icon: Icons.refresh_rounded,
+                icon: AppIcons.reset,
                 label: context.l10n.phasePractice,
                 sub: context.l10n.phasePracticeSub,
                 builder: (c) => _casesQuiz(c, graded: false)),
             UnitPhase(
-                icon: Icons.mic_none_rounded,
+                icon: AppIcons.mic,
                 label: context.l10n.phaseRecite,
                 sub: context.l10n.phaseReciteSub),
           ]),
@@ -509,31 +576,31 @@ TajwidUnit _ruleUnit(BuildContext context, String title, String subtitle,
   final rules = topic.ruleIds.map(ruleById).toList();
   return TajwidUnit(title, subtitle, badge, progressId, phases: [
     UnitPhase(
-        icon: Icons.menu_book_rounded,
+        icon: AppIcons.reader,
         label: context.l10n.phaseLearn,
         sub: context.l10n.phaseLearnSub,
         builder: (_) => topicId == 'madd'
             ? lessonEntryScreen(maddLessonRoot(context))
             : _ruleFamilyLearn(context, title, rules)),
     UnitPhase(
-        icon: Icons.grid_view_rounded,
+        icon: AppIcons.gridView,
         label: context.l10n.phaseLetters,
         sub: context.l10n.phaseLettersSub,
         builder: (_) => _lettersScreen(context, title, rules)),
     UnitPhase(
-        icon: Icons.quiz_rounded,
+        icon: AppIcons.quiz,
         label: context.l10n.phaseTest,
         sub: context.l10n.phaseTestSub,
         builder: (c) => _ruleFamilyQuiz(c, title, progressId, rules),
         isTest: true),
     UnitPhase(
-        icon: Icons.refresh_rounded,
+        icon: AppIcons.reset,
         label: context.l10n.phasePractice,
         sub: context.l10n.phasePracticeSub,
         builder: (c) =>
             _ruleFamilyQuiz(c, title, progressId, rules, graded: false)),
     UnitPhase(
-        icon: Icons.mic_none_rounded,
+        icon: AppIcons.mic,
         label: context.l10n.phaseRecite,
         sub: context.l10n.phaseReciteSub),
   ]);
@@ -548,11 +615,14 @@ class TajwidUnitHub extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(unit.title)),
+      appBar: AppBar(),
       body: SafeArea(
         top: false,
         child: PhaseHub(
           subtitle: unit.subtitle,
+            glyph: unit.arabicBadge,
+            title: unit.title,
+            stars: ProgressScope.of(context).starsFor(unit.progressId),
           phases: unit.phases,
           onPick: (i) =>
               pushAdaptive(context, Builder(builder: unit.phases[i].builder!)),
@@ -579,7 +649,7 @@ Widget _lettersScreen(BuildContext context, String title, List<TajwidRule> rules
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
         children: [
           Text(context.l10n.tjLettersInThisRule,
-              style: uiStyle(context, size: 14, color: pal(context).textDim)),
+              style: uiStyle(context, size: 14, color: pal(context).ink3)),
           const SizedBox(height: 14),
           Wrap(
             spacing: 12, runSpacing: 12,
@@ -595,14 +665,14 @@ Widget _lettersScreen(BuildContext context, String title, List<TajwidRule> rules
                     width: 64, height: 64,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: pal(context).surface,
+                      color: pal(context).card,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: pal(context).surfaceHigh),
+                      border: Border.all(color: pal(context).track),
                     ),
                     child: Text(ch,
                         textDirection: TextDirection.rtl,
                         style: quranicStyle(context, size: 26,
-                            color: pal(context).accent)),
+                            color: pal(context).acc)),
                   ),
                 ),
             ],

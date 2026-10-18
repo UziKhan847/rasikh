@@ -1,18 +1,27 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- ── Permissions ──────────────────────────────────────────────
          INTERNET             — word-by-word & recitation audio streaming,
-                                audio downloads, Qur'an word-timing lookups.
+                                audio downloads, Qur'an word-timing lookups,
+                                and — only once the user signs in to an
+                                optional marks account — syncing Hifz mark
+                                books with the self-hosted marks server.
                                 All typefaces are bundled assets; no font
                                 requests are made.
          ACCESS_NETWORK_STATE — declared for offline-state detection, though
                                 nothing in the app code currently reads it;
                                 network failures are instead handled locally
                                 by falling back to downloaded/bundled audio.
+         RECEIVE_BOOT_COMPLETED — puts the optional daily reminder (a local
+                                notification, Settings → Learning) back
+                                after a reboot. POST_NOTIFICATIONS comes
+                                from the notifications plugin and is only
+                                asked for when the reminder is switched on.
          No storage permissions are needed: downloads are written to the
          app's own documents directory (scoped storage), and no external
          media, camera, mic, or location access is used.            -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:label="Qiraah Arabiyyah"
@@ -42,6 +51,16 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- The daily reminder (flutter_local_notifications). -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
         <!-- Required by the Flutter tool: marks v2 Android embedding. -->
         <meta-data
             android:name="flutterEmbedding"

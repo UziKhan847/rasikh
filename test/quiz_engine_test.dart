@@ -262,7 +262,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Tap the first unit card (Letters).
-    await tester.tap(find.text('Unit 1 · The Letters'));
+    await tester.tap(find.text('The Letters'));
     await tester.pumpAndSettle();
 
     // The phase hub shows all three phases, unlocked.
@@ -301,6 +301,8 @@ void main() {
         find.textContaining('Ḥurūf Muqaṭṭaʿāt'), 300,
         scrollable: find.byType(Scrollable).first);
     expect(find.textContaining('Ḥurūf Muqaṭṭaʿāt'), findsOneWidget);
+    await tester.ensureVisible(find.textContaining('Ḥurūf Muqaṭṭaʿāt'));
+    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('Ḥurūf Muqaṭṭaʿāt'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Learn'));

@@ -1,0 +1,37 @@
+# Merge into your app's pubspec.yaml
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: QiraahIcons
+      fonts:
+        - asset: assets/fonts/QiraahIcons.ttf
+    # UI + Qur'an fonts (download from Google Fonts, place in assets/fonts/)
+    # KFGQPC Uthmanic Script HAFS (official King Fahd Complex font) — download from https://qurancomplex.gov.sa/en/techquran/dev/ (free, see its licence)
+    - family: Hafs
+      fonts:
+        - asset: assets/fonts/UthmanicHafs_V22.ttf
+    - family: AmiriQuran
+      fonts:
+        - asset: assets/fonts/AmiriQuran-Regular.ttf
+    - family: NotoNaskhArabic
+      fonts:
+        - asset: assets/fonts/NotoNaskhArabic-Regular.ttf
+        - asset: assets/fonts/NotoNaskhArabic-Bold.ttf
+          weight: 700
+    - family: HankenGrotesk
+      fonts:
+        - asset: assets/fonts/HankenGrotesk-Regular.ttf
+        - asset: assets/fonts/HankenGrotesk-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/HankenGrotesk-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/HankenGrotesk-Bold.ttf
+          weight: 700
+    - family: Newsreader
+      fonts:
+        - asset: assets/fonts/Newsreader-Regular.ttf
+        - asset: assets/fonts/Newsreader-Medium.ttf
+          weight: 500
+  assets:
+    - assets/brand/icon-glyph.png
+    - assets/ornaments/

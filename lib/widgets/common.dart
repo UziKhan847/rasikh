@@ -9,13 +9,9 @@ import 'package:flutter/services.dart';
 
 import '../core/settings.dart';
 import '../core/theme.dart';
+import '../ui/kit.dart';
 import 'drag_kit.dart';
-import '../kids_backdrops/kb_app.dart' show kbUi;
-import '../kids_backdrops/kb_components.dart';
-import '../kids_backdrops/kb_scene.dart' show kWhite, kbC;
-import '../kids_backdrops/kb_ui.dart' show KbUi;
-import '../screens/kids/kids_widgets.dart'
-    show KidsLessonSubtitle, KidsScreenScaffold;
+import '../ui/app_icons.dart';
 
 /// Press-down scale feedback for any tappable card.
 class TapScale extends StatefulWidget {
@@ -102,26 +98,19 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 26, 20, 10),
+      padding: const EdgeInsets.fromLTRB(2, 24, 2, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Container(
-              width: 5, height: 22,
-              decoration: BoxDecoration(
-                color: pal(context).accent,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(title, style: uiStyle(context, size: 19, weight: FontWeight.w700)),
-          ]),
+          // Section labels keep their own case (finders and screen readers
+          // see the real words); the label style carries the look.
+          Text(title, style: labelStyle(context).copyWith(fontSize: 13)),
           if (subtitle != null)
             Padding(
-              padding: const EdgeInsets.only(top: 5, left: 15),
+              padding: const EdgeInsets.only(top: 4),
               child: Text(subtitle!,
-                  style: uiStyle(context, size: 13.5, color: pal(context).textDim)),
+                  style: uiStyle(context,
+                      size: 13, color: pal(context).ink3, height: 1.4)),
             ),
         ],
       ),
@@ -133,9 +122,7 @@ class StarRow extends StatelessWidget {
   final int stars;
   final double size;
 
-  /// The colour of a filled star. Null is the app-wide star gold; Kids Mode
-  /// passes its theme's own reward colour so the result screen's stars are not
-  /// orange on an Ocean screen.
+  /// The colour of a filled star. Null is the app-wide star gold.
   final Color? color;
   const StarRow(this.stars, {super.key, this.size = 16, this.color});
 
@@ -145,9 +132,9 @@ class StarRow extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: List.generate(3, (i) {
         return Icon(
-          i < stars ? Icons.star_rounded : Icons.star_outline_rounded,
+          i < stars ? AppIcons.star : AppIcons.starOutline,
           size: size,
-          color: i < stars ? (color ?? AppColors.star) : pal(context).surfaceHigh,
+          color: i < stars ? (color ?? pal(context).gold) : pal(context).line3,
         );
       }),
     );
@@ -170,8 +157,8 @@ class ProgressRing extends StatelessWidget {
       curve: Curves.easeOutCubic,
       builder: (context, v, _) => CustomPaint(
         size: Size.square(size),
-        painter: _RingPainter(v, track ?? pal(context).surfaceHigh,
-            [pal(context).accent, pal(context).accentBright, pal(context).accent2]),
+        painter: _RingPainter(v, track ?? pal(context).track,
+            [pal(context).acc, pal(context).acc]),
         child: SizedBox.square(dimension: size, child: Center(child: center)),
       ),
     );
@@ -489,14 +476,12 @@ class _QuizScreenState extends State<QuizScreen> {
       }
     }
     if (settings.haptics) {
-      // Kids Mode keeps a wrong answer gentle — a light tap, not the sharp
-      // "you failed" buzz the grown-up quiz uses.
-      correct || settings.kidsMode
+      correct
           ? HapticFeedback.lightImpact()
           : HapticFeedback.heavyImpact();
     }
     await Future.delayed(
-        Duration(milliseconds: correct ? 650 : (settings.kidsMode ? 900 : 1400)));
+        Duration(milliseconds: correct ? 650 : 1400));
     if (!mounted) return;
     _advance();
   }
@@ -516,8 +501,7 @@ class _QuizScreenState extends State<QuizScreen> {
       return;
     }
     if (widget.graded) {
-      final settings = SettingsScope.of(context);
-      final stars = starsForFraction(_score / _graded, kids: settings.kidsMode);
+      final stars = starsForFraction(_score / _graded);
       ProgressScope.of(context).report(widget.progressId, stars);
     }
     setState(() => _done = true);
@@ -529,15 +513,17 @@ class _QuizScreenState extends State<QuizScreen> {
   /// shapes rather than as a stack of wide buttons.
   Widget _optionsGrid(BuildContext context, {double vpad = 14}) =>
       LayoutBuilder(builder: (context, c) {
-        final cols = q.optionColumns ?? (c.maxWidth > 520 ? 2 : 1);
-        final aspect =
-            q.optionAspect ?? (cols == 2 ? 3.4 : (cols == 1 ? 5.5 : 1.0));
+        final longest = q.options.fold<int>(0, (m, o) => math.max(m, o.length));
+        final cols = q.optionColumns ??
+            (c.maxWidth > 520 || (c.maxWidth > 300 && longest <= 14) ? 2 : 1);
+        final aspect = q.optionAspect ??
+            (cols == 2 ? (c.maxWidth / 2 - 6) / 64 : (cols == 1 ? 5.5 : 1.0));
         return GridView.count(
           crossAxisCount: cols,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
           childAspectRatio: aspect,
           children: List.generate(
               q.options.length, (i) => _optionTile(context, i, vpad: vpad)),
@@ -552,9 +538,9 @@ class _QuizScreenState extends State<QuizScreen> {
     final List<TextSpan> spans;
     if (q.blank == null) {
       spans = highlightSpans(q.arabic!, q.highlight ?? '', base,
-          quranicStyle(context, size: size, color: pal(context).accent));
+          quranicStyle(context, size: size, color: pal(context).acc));
     } else if (_picked == null) {
-      spans = blankSpans(q.arabic!, q.blank!, base, pal(context).accent);
+      spans = blankSpans(q.arabic!, q.blank!, base, pal(context).acc);
     } else {
       spans = highlightSpans(q.arabic!, q.blank!, base,
           quranicStyle(context, size: size, color: AppColors.ok));
@@ -574,7 +560,7 @@ class _QuizScreenState extends State<QuizScreen> {
       onDrop: _pickSingle,
       builder: (context, hovering) => DropGlow(
         hovering: hovering != null,
-        color: pal(context).accent,
+        color: pal(context).acc,
         child: Padding(padding: const EdgeInsets.all(10), child: word),
       ),
     );
@@ -588,16 +574,13 @@ class _QuizScreenState extends State<QuizScreen> {
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 4),
       child: Center(
-        child: FilledButton.icon(
-          style: FilledButton.styleFrom(
-              backgroundColor: pal(context).accent2,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 22, vertical: 14)),
-          onPressed: (s == null || a == null)
+        child: QPrimaryButton(
+          context.l10n.listen,
+          icon: AppIcons.volume,
+          height: 44,
+          onTap: (s == null || a == null)
               ? null
               : () => AyahAudio.instance.play(s, a),
-          icon: const Icon(Icons.volume_up_rounded, size: 20),
-          label: Text(context.l10n.listen),
         ),
       ),
     );
@@ -609,8 +592,8 @@ class _QuizScreenState extends State<QuizScreen> {
         child: Center(
           child: TextButton.icon(
             onPressed: _isLocked ? null : _skip,
-            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-            label: Text(context.l10n.kidsNextCard),
+            icon: const Icon(AppIcons.forward, size: 18),
+            label: Text(context.l10n.nextCard),
           ),
         ),
       );
@@ -626,392 +609,216 @@ class _QuizScreenState extends State<QuizScreen> {
           total: _graded,
           graded: widget.graded);
     }
-    if (SettingsScope.of(context).kidsMode) return _kidsBuild(context);
-    if (useDesktop(context)) return _desktopBuild(context);
+    final p = pal(context);
+    final embedded = QuizHostScope.of(context);
+    final canBack = !embedded && Navigator.of(context).canPop();
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        actions: [
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 20),
-              child: Text(_qOf(context),
-                  style: uiStyle(context,
-                      size: 13,
-                      weight: FontWeight.w800,
-                      color: pal(context).textDim)),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: p.bg,
       body: SafeArea(
-        top: false,
-        child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Padding(
-        padding: const EdgeInsets.all(20),
-        // Multi-select and ordering questions can add enough option tiles
-        // and controls (strip, Submit button) to exceed a phone's height —
-        // scroll instead of overflowing. The Arabic-display area used to be
-        // Expanded (fills whatever space is left); it's a generous fixed
-        // height instead so the whole thing can live in a plain
-        // SingleChildScrollView (IntrinsicHeight isn't an option — the
-        // options grid below has its own LayoutBuilder, and LayoutBuilder
-        // can't compute intrinsic dimensions).
-        child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: (_i + 1) / widget.questions.length),
-              duration: const Duration(milliseconds: 350),
-              builder: (context, v, _) => ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: v, minHeight: 8,
-                  backgroundColor: pal(context).surfaceHigh,
-                  valueColor: AlwaysStoppedAnimation(pal(context).accent),
+        child: Column(children: [
+          // back · progress · "Question n of m"
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 20, 8),
+            child: QColumn(
+              maxWidth: 1080,
+              child: Row(children: [
+                if (canBack) ...[
+                  QIconButton(
+                    icon: AppIcons.back,
+                    tooltip:
+                        MaterialLocalizations.of(context).backButtonTooltip,
+                    onTap: () => Navigator.of(context).maybePop(),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(
+                        begin: 0, end: (_i + 1) / widget.questions.length),
+                    duration: const Duration(milliseconds: 400),
+                    builder: (context, v, _) =>
+                        QProgressBar(value: v, height: 8, track: p.line),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Text(_qOf(context),
+                    style: uiStyle(context,
+                        size: 13, weight: FontWeight.w700, color: p.ink3)),
+              ]),
             ),
-            const SizedBox(height: 22),
-            Text(q.prompt,
-                textAlign: TextAlign.center,
-                style: uiStyle(context, size: 17, color: pal(context).textDim)),
-            if (q.arabic != null)
-              SizedBox(
-                // A gap-fill word is set smaller: it has to stay legible as a
-                // whole word for the slot to mean anything, where a single
-                // glyph can fill the box.
-                height: q.blank != null ? 170 : 220,
-                child: Center(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: _questionArabic(context, q.blank != null ? 64 : 96),
-                  ),
-                ),
-              )
-            else
-              const SizedBox(height: 24),
-            if (q.audioRef != null) _audioButton(context),
-            if (_isOrder) _orderStrip(context),
-            _optionsGrid(context),
-            if (_isMulti) _submitButton(context),
-            if (q.skippable) _skipButton(context),
-            if (_isLocked && !_wasCorrect && q.explain != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12, bottom: 8),
-                child: Text(q.explain!,
-                    textAlign: TextAlign.center,
-                    style: uiStyle(context, size: 13.5, color: pal(context).textDim)),
-              ),
-          ],
-        ),
-        ),
-      ),
-        ),
-      ),
-      ),
-    );
-  }
-  String _qOf(BuildContext context) =>
-      context.l10n.questionOf(_i + 1, widget.questions.length);
-
-  /// Kids Mode: the design's Warm-up screen (kb_screens.dart `KbQuizScreen`) —
-  /// the quiz name as a heading beside the way back, the question count
-  /// opposite, the framed progress bar, the prompt on the sky, the word on
-  /// its card, and the options as answer cells. Same questions, same grading.
-  Widget _kidsBuild(BuildContext context) {
-    return KidsScreenScaffold(
-      title: widget.title,
-      trailing: _qOf(context),
-      child: Builder(builder: (context) {
-        final ui = kbUi(context);
-        return SingleChildScrollView(
-          clipBehavior: Clip.none,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: (_i + 1) / widget.questions.length),
-                duration: const Duration(milliseconds: 350),
-                builder: (context, v, _) => KbFramedProgress(value: v, ui: ui),
-              ),
-              const SizedBox(height: 22),
-              KidsLessonSubtitle(q.prompt,
-                  fontSize: 22, height: 1.3, align: TextAlign.center),
-              const SizedBox(height: 18),
-              if (q.arabic != null)
-                Center(
-                  child: KbSurface(
-                    color: ui.surface,
-                    edge: ui.edge,
-                    elev: KbElev.big,
-                    radius: 28,
-                    padding: const EdgeInsets.fromLTRB(32, 6, 32, 0),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: _kidsQuestionArabic(
-                          context, ui, q.blank != null ? 56 : 84),
-                    ),
-                  ),
-                ),
-              if (q.audioRef != null) ...[
-                const SizedBox(height: 16),
-                Center(child: _kidsAudioButton(context, ui)),
-              ],
-              const SizedBox(height: 26),
-              if (_isOrder) _kidsOrderStrip(context, ui),
-              _kidsOptions(context, ui),
-              if (_isMulti) ...[
-                const SizedBox(height: 18),
-                KbBigButton(context.l10n.submitAnswer,
-                    ui: ui,
-                    enabled: _multiPicked.isNotEmpty && !_locked,
-                    onTap: _submitMulti),
-              ],
-              if (q.skippable) ...[
-                const SizedBox(height: 14),
-                Center(
-                  child: Opacity(
-                    opacity: _isLocked ? .5 : 1,
-                    child: KbPill(context.l10n.kidsNextCard,
-                        ui: ui,
-                        icon: Directionality.of(context) == TextDirection.rtl
-                            ? 'arrow_back'
-                            : 'arrow_forward',
-                        onTap: _isLocked ? null : _skip),
-                  ),
-                ),
-              ],
-              if (_isLocked && !_wasCorrect && q.explain != null) ...[
-                const SizedBox(height: 16),
-                KbSurface(
-                  color: ui.surface,
-                  edge: ui.edge,
-                  padding: const EdgeInsets.all(16),
-                  child: Text(q.explain!,
-                      textAlign: TextAlign.center,
-                      style: kbText(17, kbC(ui.ink),
-                          weight: FontWeight.w600, height: 1.35)),
-                ),
-              ],
-              const SizedBox(height: 16),
-            ],
           ),
-        );
-      }),
-    );
-  }
-
-  /// [_questionArabic], in the design's quiz-word face (Amiri Quran, line
-  /// height 1.9) and the kit's inks.
-  Widget _kidsQuestionArabic(BuildContext context, KbUi ui, double size) {
-    final base = kbText(size, kbC(ui.ink),
-        family: kbFontQuran, weight: FontWeight.w400, height: 1.9);
-    final List<TextSpan> spans;
-    if (q.blank == null) {
-      spans = highlightSpans(q.arabic!, q.highlight ?? '', base,
-          base.copyWith(color: kbC(ui.linkInk)));
-    } else if (_picked == null) {
-      spans = blankSpans(q.arabic!, q.blank!, base, kbC(ui.linkInk));
-    } else {
-      spans = highlightSpans(q.arabic!, q.blank!, base,
-          base.copyWith(color: kbC(KbUi.goodEdge)));
-    }
-    final word = RichText(
-      key: ValueKey(_i),
-      textDirection: TextDirection.rtl,
-      textAlign: TextAlign.center,
-      textScaler: MediaQuery.textScalerOf(context),
-      text: TextSpan(children: spans),
-    );
-    if (!(q.dragToGap && q.blank != null)) return word;
-    return DropSlot<int>(
-      enabled: _picked == null,
-      onDrop: _pickSingle,
-      builder: (context, hovering) => DropGlow(
-        hovering: hovering != null,
-        color: kbC(ui.accent),
-        child: Padding(padding: const EdgeInsets.all(10), child: word),
+          Expanded(
+            child: LayoutBuilder(builder: (context, c) {
+              final wide = c.maxWidth >= 900;
+              final question = _questionCard(context, wide: wide);
+              final answers = Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_isOrder) _orderStrip(context),
+                  _feedback(context),
+                  _optionsGrid(context, vpad: wide ? 18 : 14),
+                  if (_isMulti) _submitButton(context),
+                  if (q.skippable) _skipButton(context),
+                ],
+              );
+              // Multi-select and ordering questions can add enough option
+              // tiles and controls to exceed a phone's height — the whole
+              // page scrolls instead of overflowing.
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                child: QColumn(
+                  maxWidth: wide ? 1080 : 720,
+                  // (No IntrinsicHeight: the options grid has a LayoutBuilder,
+                  // which can't report intrinsic sizes.)
+                  child: wide
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(flex: 11, child: question),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              flex: 9,
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 40),
+                                child: answers,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [question, answers],
+                        ),
+                ),
+              );
+            }),
+          ),
+        ]),
       ),
     );
   }
 
-  Widget _kidsAudioButton(BuildContext context, KbUi ui) {
-    final parts = q.audioRef!.split(':');
-    final s = int.tryParse(parts.first);
-    final a = int.tryParse(parts.length > 1 ? parts[1] : '');
-    return KbPill(context.l10n.listen,
-        ui: ui,
-        icon: 'volume_up',
-        fontSize: 20,
-        iconSize: 24,
-        padding: const EdgeInsets.fromLTRB(24, 10, 24, 8),
-        onTap: (s == null || a == null)
-            ? null
-            : () => AyahAudio.instance.play(s, a));
-  }
-
-  /// Ordering: what has been tapped so far, in tap order, on the tile colour.
-  Widget _kidsOrderStrip(BuildContext context, KbUi ui) {
-    if (_orderPicked.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final i in _orderPicked)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: kbC(ui.tile),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(q.options[i],
-                  textDirection:
-                      q.optionsAreArabic ? TextDirection.rtl : TextDirection.ltr,
-                  style: q.optionsAreArabic
-                      ? kbText(24, kbC(ui.tileInk),
-                          family: kbFontQuran,
-                          weight: FontWeight.w400,
-                          height: 1.6)
-                      : kbText(16, kbC(ui.tileInk), weight: FontWeight.w700)),
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// The options: one column of the design's answer cells (64 tall), or the
-  /// question's own grid of square tiles.
-  Widget _kidsOptions(BuildContext context, KbUi ui) {
-    final cols = q.optionColumns;
-    if (cols == null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < q.options.length; i++) ...[
-            if (i > 0) const SizedBox(height: 12),
-            ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 64),
-              child: _kidsOptionTile(context, ui, i),
-            ),
-          ],
-        ],
-      );
-    }
-    return GridView.count(
-      crossAxisCount: cols,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      clipBehavior: Clip.none,
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: q.optionAspect ?? 1.0,
+  /// The quiz title, the prompt, and the Arabic in a rounded card.
+  Widget _questionCard(BuildContext context, {required bool wide}) {
+    final p = pal(context);
+    final glyphOnly = q.blank == null &&
+        q.arabic != null &&
+        q.arabic!.trim().runes.length <= 3;
+    final arabic = q.arabic == null
+        ? null
+        : AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _questionArabic(
+                context, q.blank != null ? (wide ? 72 : 58) : (wide ? 110 : 88)),
+          );
+    final body = Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (var i = 0; i < q.options.length; i++) _kidsOptionTile(context, ui, i),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(
+              const {'en', 'fr', 'es'}
+                      .contains(SettingsScope.of(context).language)
+                  ? widget.title.toUpperCase()
+                  : widget.title,
+              textAlign: TextAlign.center,
+              style: labelStyle(context)),
+        ),
+        Text(q.prompt,
+            textAlign: TextAlign.center,
+            style: uiStyle(context, size: 15, color: p.ink2, height: 1.4)),
+        if (arabic != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Center(
+              child: glyphOnly
+                  ? Container(
+                      width: wide ? 240 : 180,
+                      height: wide ? 240 : 180,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: p.card,
+                        borderRadius: BorderRadius.circular(44),
+                        border: Border.all(color: p.line2),
+                      ),
+                      child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: arabic)),
+                    )
+                  : QCard(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 14),
+                      radius: 28,
+                      child: arabic,
+                    ),
+            ),
+          )
+        else
+          const SizedBox(height: 20),
+        if (q.audioRef != null) _audioButton(context),
       ],
     );
+    if (!wide) {
+      return Padding(padding: const EdgeInsets.only(bottom: 4), child: body);
+    }
+    return QCard(
+      radius: 24,
+      padding: const EdgeInsets.all(28),
+      child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 380), child: body),
+    );
   }
 
-  Widget _kidsOptionTile(BuildContext context, KbUi ui, int i) {
-    var state = KbCellState.idle;
-    Widget? badge;
-    if (_isMulti) {
-      final selected = _multiPicked.contains(i);
-      if (_locked) {
-        if (q.correctSet!.contains(i)) {
-          state = KbCellState.good;
-        } else if (selected) {
-          state = KbCellState.bad;
-        }
-      } else if (selected) {
-        state = KbCellState.open;
-      }
-    } else if (_isOrder) {
-      final pos = _orderPicked.indexOf(i);
-      if (pos != -1) {
-        state = _locked
-            ? (q.sequence![pos] == q.options[i]
-                ? KbCellState.good
-                : KbCellState.bad)
-            : KbCellState.open;
-        badge = PositionedDirectional(
-          top: -8,
-          end: -8,
-          child: Container(
-            width: 26,
-            height: 26,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: kbC(ui.cardDeep),
-              shape: BoxShape.circle,
-              border: Border.all(color: kbC(ui.surface), width: 3),
+  /// "Correct" / "Not quite" with the explanation, once a question is graded.
+  Widget _feedback(BuildContext context) {
+    final p = pal(context);
+    final show = _isLocked && (!_wasCorrect || q.explain != null);
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      alignment: Alignment.topCenter,
+      child: !show
+          ? const SizedBox(width: double.infinity)
+          : QRiseIn(
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: (_wasCorrect ? AppColors.ok : p.red)
+                      .withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        _wasCorrect
+                            ? context.l10n.correctAnswer
+                            : context.l10n.notQuite,
+                        style: uiStyle(context,
+                            size: 14,
+                            weight: FontWeight.w700,
+                            color: _wasCorrect ? AppColors.ok : p.red)),
+                    if (!_wasCorrect)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                            q.explain ??
+                                context.l10n.theAnswerIs(_answerDisplay),
+                            style: uiStyle(context,
+                                size: 13, color: p.ink2, height: 1.4)),
+                      ),
+                  ],
+                ),
+              ),
             ),
-            child: Text('${pos + 1}',
-                style: kbText(13, kbC(kWhite), height: 1)),
-          ),
-        );
-      }
-    } else if (_picked != null) {
-      if (i == q.correct) {
-        state = KbCellState.good;
-      } else if (i == _picked) {
-        state = KbCellState.bad;
-      }
-    }
-    final cell = KbGlyphCell(
-      ui: ui,
-      state: state,
-      square: false,
-      elev: KbElev.option,
-      onTap: () {
-        if (_isMulti) {
-          _toggleMulti(i);
-        } else if (_isOrder) {
-          _appendOrder(i);
-        } else {
-          _pickSingle(i);
-        }
-      },
-      // Scale-down guard: a grid tile is square rather than a wide row, and
-      // a large text size would otherwise clip the glyph.
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            q.options[i],
-            textAlign: TextAlign.center,
-            textDirection:
-                q.optionsAreArabic ? TextDirection.rtl : TextDirection.ltr,
-            style: q.optionsAreArabic
-                ? kbText(q.optionColumns != null ? 40 : 34,
-                    kbC(KbGlyphCell.inkOf(ui, state)),
-                    family: kbFontArabic,
-                    weight: FontWeight.w600,
-                    height: 1.3)
-                : kbText(19, kbC(KbGlyphCell.inkOf(ui, state)),
-                    weight: FontWeight.w700),
-          ),
-        ),
-      ),
     );
-    final tile = badge == null
-        ? cell
-        : Stack(clipBehavior: Clip.none, children: [
-            Positioned.fill(child: cell),
-            badge,
-          ]);
-    if (q.dragToGap && q.blank != null && !_isMulti && !_isOrder) {
-      return DragTile<int>(data: i, enabled: _picked == null, child: tile);
-    }
-    return tile;
   }
+
+  String _qOf(BuildContext context) =>
+      context.l10n.questionOf(_i + 1, widget.questions.length);
 
   /// Multi-select: a Submit button, enabled once at least one option is
   /// picked, disabled after grading.
@@ -1041,7 +848,7 @@ class _QuizScreenState extends State<QuizScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
-                color: pal(context).accent.withValues(alpha: .14),
+                color: pal(context).acc.withValues(alpha: .14),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(q.options[i],
@@ -1057,8 +864,10 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   Widget _optionTile(BuildContext context, int i, {double vpad = 14}) {
-    Color border = pal(context).surfaceHigh;
-    Color fill = pal(context).surface;
+    final p = pal(context);
+    Color border = p.line2;
+    Color fill = p.card;
+    Color ink = p.ink;
     Widget? badge;
     if (_isMulti) {
       final selected = _multiPicked.contains(i);
@@ -1067,12 +876,12 @@ class _QuizScreenState extends State<QuizScreen> {
           border = AppColors.ok;
           fill = AppColors.ok.withValues(alpha: .14);
         } else if (selected) {
-          border = AppColors.bad;
-          fill = AppColors.bad.withValues(alpha: .14);
+          border = p.red;
+          fill = p.red.withValues(alpha: .14);
         }
       } else if (selected) {
-        border = pal(context).accent;
-        fill = pal(context).accent.withValues(alpha: .12);
+        border = p.acc;
+        fill = p.accSoft;
       }
     } else if (_isOrder) {
       final pos = _orderPicked.indexOf(i);
@@ -1080,18 +889,18 @@ class _QuizScreenState extends State<QuizScreen> {
       if (used) {
         if (_locked) {
           final right = q.sequence![pos] == q.options[i];
-          border = right ? AppColors.ok : AppColors.bad;
-          fill = (right ? AppColors.ok : AppColors.bad).withValues(alpha: .14);
+          border = right ? AppColors.ok : p.red;
+          fill = (right ? AppColors.ok : p.red).withValues(alpha: .14);
         } else {
-          border = pal(context).accent;
-          fill = pal(context).accent.withValues(alpha: .12);
+          border = p.acc;
+          fill = p.accSoft;
         }
         badge = Positioned(
           top: -8,
           right: -8,
           child: CircleAvatar(
             radius: 11,
-            backgroundColor: pal(context).accent,
+            backgroundColor: p.acc,
             child: Text('${pos + 1}',
                 style: const TextStyle(
                     fontSize: 12,
@@ -1104,9 +913,11 @@ class _QuizScreenState extends State<QuizScreen> {
       if (i == q.correct) {
         border = AppColors.ok;
         fill = AppColors.ok.withValues(alpha: .14);
+        ink = AppColors.ok;
       } else if (i == _picked) {
-        border = AppColors.bad;
-        fill = AppColors.bad.withValues(alpha: .14);
+        border = p.red;
+        fill = p.red.withValues(alpha: .14);
+        ink = p.red;
       }
     }
     final tile = AnimatedContainer(
@@ -1115,8 +926,8 @@ class _QuizScreenState extends State<QuizScreen> {
       padding: EdgeInsets.symmetric(vertical: vpad, horizontal: 18),
       decoration: BoxDecoration(
         color: fill,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: border, width: 1.6),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: border, width: 1.5),
       ),
       // Scale-down guard, not a fixed size: `quranicStyle` multiplies by the
       // reader's arabicScale, and a grid tile is square rather than a wide
@@ -1130,8 +941,8 @@ class _QuizScreenState extends State<QuizScreen> {
               q.optionsAreArabic ? TextDirection.rtl : TextDirection.ltr,
           style: q.optionsAreArabic
               ? quranicStyle(context,
-                  size: q.optionColumns != null ? 40 : 26)
-              : uiStyle(context, size: 17, weight: FontWeight.w600),
+                  size: q.optionColumns != null ? 40 : 26, color: ink)
+              : uiStyle(context, size: 16, weight: FontWeight.w700, color: ink),
         ),
       ),
     );
@@ -1155,183 +966,6 @@ class _QuizScreenState extends State<QuizScreen> {
     }
     return tappable;
   }
-
-  /// Desktop: quizzes and drills share ONE layout. See [_flatDesktopBuild].
-  Widget _desktopBuild(BuildContext context) => _flatDesktopBuild(context);
-
-  /// The shared flat layout for every desktop quiz and drill: a title +
-  /// progress bar across the top, the question in a card on the left, and the
-  /// answers as tall buttons on the right. When it is hosted inside the Qaidah
-  /// shell the shell supplies the back-header; when it is pushed as its own
-  /// route (Letter, Forms, Tajwid, Tashkil, review quizzes) we add a back
-  /// button here, so the format is identical either way.
-  Widget _flatDesktopBuild(BuildContext context) {
-    final p = pal(context);
-    final embedded = QuizHostScope.of(context);
-    final showBack = !embedded && Navigator.of(context).canPop();
-    return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
-        child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1280),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // heading (optional back button) + question counter
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (showBack) ...[
-                      Material(
-                        color: p.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () => Navigator.maybePop(context),
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                                border: Border.all(color: p.surfaceHigh),
-                                borderRadius: BorderRadius.circular(12)),
-                            child: Icon(Icons.arrow_back_rounded,
-                                size: 20, color: p.text),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                    ],
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(widget.title,
-                            style: uiStyle(context,
-                                size: 20, weight: FontWeight.w900)),
-                        const SizedBox(height: 6),
-                        Container(
-                          width: 46,
-                          height: 3,
-                          decoration: BoxDecoration(
-                              color: p.accent,
-                              borderRadius: BorderRadius.circular(2)),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    Text(_qOf(context),
-                        style: uiStyle(context,
-                            size: 13,
-                            weight: FontWeight.w800,
-                            color: p.textDim)),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                // progress
-                TweenAnimationBuilder<double>(
-                  tween: Tween(
-                      begin: 0, end: (_i + 1) / widget.questions.length),
-                  duration: const Duration(milliseconds: 350),
-                  builder: (context, v, _) => ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: v,
-                      minHeight: 8,
-                      backgroundColor: p.surfaceHigh,
-                      valueColor: AlwaysStoppedAnimation(p.accent),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 28),
-                // question card (left) + answers (right)
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        flex: 11,
-                        child: Container(
-                          constraints: const BoxConstraints(minHeight: 440),
-                          padding: const EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: p.surface,
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                                color: p.surfaceHigh.withValues(alpha: .6)),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: p.shadow,
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 6)),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(q.prompt,
-                                  textAlign: TextAlign.center,
-                                  style: uiStyle(context,
-                                      size: 16, color: p.textDim)),
-                              if (q.arabic != null) ...[
-                                const SizedBox(height: 26),
-                                AnimatedSwitcher(
-                                  duration:
-                                      const Duration(milliseconds: 300),
-                                  child: _questionArabic(
-                                      context, q.blank != null ? 78 : 120),
-                                ),
-                              ],
-                              if (q.audioRef != null) _audioButton(context),
-                              if (_isLocked && !_wasCorrect && q.explain != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 18),
-                                  child: Text(q.explain!,
-                                      textAlign: TextAlign.center,
-                                      style: uiStyle(context,
-                                          size: 13.5, color: p.textDim)),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        flex: 9,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (_isOrder) _orderStrip(context),
-                            // A grid question keeps its grid here too — the
-                            // tall-button column is only right for text.
-                            if (q.optionColumns != null)
-                              _optionsGrid(context, vpad: 12)
-                            else
-                              for (var i = 0; i < q.options.length; i++) ...[
-                                _optionTile(context, i, vpad: 20),
-                                if (i != q.options.length - 1)
-                                  const SizedBox(height: 16),
-                              ],
-                            if (_isMulti) _submitButton(context),
-                            if (q.skippable) _skipButton(context),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      ),
-    );
-  }
-
 }
 
 class _ResultView extends StatelessWidget {
@@ -1348,8 +982,7 @@ class _ResultView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final frac = score / total;
-    final kidsMode = SettingsScope.of(context).kidsMode;
-    final stars = starsForFraction(frac, kids: kidsMode);
+    final stars = starsForFraction(frac);
     final msg = !graded
         ? context.l10n.practiceRoundComplete
         : stars == 3
@@ -1357,98 +990,56 @@ class _ResultView extends StatelessWidget {
             : stars >= 1
                 ? context.l10n.wellDoneKeepGoing
                 : context.l10n.reviewLessonTryAgain;
-    if (kidsMode) {
-      // The same result, on the design's hero card — the score on a glyph
-      // tile, the stars in the reward colour, Continue as the big button.
-      return KidsScreenScaffold(
-        title: title,
-        child: Builder(builder: (context) {
-          final ui = kbUi(context);
-          return Center(
-            child: SingleChildScrollView(
-              clipBehavior: Clip.none,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  KbSurface(
-                    color: ui.surface,
-                    edge: ui.edge,
-                    elev: KbElev.hero,
-                    radius: 32,
-                    padding: const EdgeInsets.fromLTRB(22, 26, 22, 24),
-                    child: Column(children: [
-                      KbGlyphTile('$score/$total',
-                          bg: ui.tile,
-                          ink: ui.tileInk,
-                          size: 110,
-                          radius: 30,
-                          fontSize: 34),
-                      if (graded) ...[
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            for (var i = 0; i < 3; i++)
-                              KbIcon(i < stars ? 'star' : 'star_outline',
-                                  size: 44,
-                                  color: kbC(
-                                      i < stars ? ui.reward : ui.inkSoft)),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: 12),
-                      Text(msg,
-                          textAlign: TextAlign.center,
-                          style: kbText(20, kbC(ui.ink), height: 1.25)),
-                    ]),
-                  ),
-                  const SizedBox(height: 28),
-                  KbBigButton(context.l10n.continueLabel,
-                      ui: ui,
-                      highlight: true,
-                      fontSize: 22,
-                      onTap: () => Navigator.pop(context)),
-                ],
-              ),
-            ),
-          );
-        }),
-      );
-    }
+    final p = pal(context);
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: SafeArea(
         top: false,
         child: Center(
-          child: FadeSlideIn(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ProgressRing(
-                  fraction: frac, size: 130,
-                  center: Text('$score/$total',
-                      style: uiStyle(context, size: 24, weight: FontWeight.w700)),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: QColumn(
+              maxWidth: 420,
+              child: FadeSlideIn(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ProgressRing(
+                      fraction: frac,
+                      size: 170,
+                      center: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Text('$score/$total',
+                            style: displayStyle(context, size: 44)),
+                        Text(context.l10n.correctLabel,
+                            style: uiStyle(context,
+                                size: 12,
+                                weight: FontWeight.w600,
+                                color: p.ink3)),
+                      ]),
+                    ),
+                    const SizedBox(height: 18),
+                    if (graded) StarRow(stars, size: 36),
+                    const SizedBox(height: 14),
+                    Text(msg,
+                        textAlign: TextAlign.center,
+                        style: displayStyle(context, size: 24)),
+                    const SizedBox(height: 26),
+                    Row(children: [
+                      Expanded(
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: p.ink,
+                            foregroundColor: p.bg,
+                            minimumSize: const Size.fromHeight(52),
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(context.l10n.continueLabel),
+                        ),
+                      ),
+                    ]),
+                  ],
                 ),
-                const SizedBox(height: 18),
-                // Kids Mode's own reward colour, not the app-wide gold — a
-                // kids Test on an Ocean-themed screen must not show an
-                // orange star, the same fix the rest of Kids Mode already
-                // got.
-                if (graded)
-                  StarRow(
-                    stars,
-                    size: 40,
-                    color: kidsMode ? kidsPal(context).amber : null,
-                  ),
-                const SizedBox(height: 10),
-                Text(msg, style: uiStyle(context, size: 17)),
-                const SizedBox(height: 26),
-                FilledButton.tonal(
-                  onPressed: () => Navigator.pop(context),
-                  child:  Text(context.l10n.continueLabel),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -1457,13 +1048,8 @@ class _ResultView extends StatelessWidget {
   }
 }
 
-/// Star thresholds for a quiz score fraction. Kids Mode uses a gentler curve
-/// than the grown-up app's — a 40%-for-one-star floor reads as punishing for
-/// a 7-year-old (see the Kids Mode plan's Phase 2).
-int starsForFraction(double frac, {required bool kids}) {
-  if (kids) {
-    return frac >= 0.9 ? 3 : (frac >= 0.6 ? 2 : (frac >= 0.25 ? 1 : 0));
-  }
+/// Star thresholds for a quiz score fraction.
+int starsForFraction(double frac) {
   return frac >= 0.95 ? 3 : (frac >= 0.7 ? 2 : (frac >= 0.4 ? 1 : 0));
 }
 
@@ -1535,47 +1121,17 @@ class MediaRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (SettingsScope.of(context).kidsMode) {
-      // Kids Mode: the design's word-card pills (kb_screens.dart
-      // `KbHamzahScreen`) — Listen deep, Watch on the surface. Same actions.
-      final ui = kbUi(context);
-      const pad = EdgeInsets.fromLTRB(12, 6, 16, 4);
-      return Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 10,
-        runSpacing: 8,
-        children: [
-          KbPill(context.l10n.listen,
-              ui: ui,
-              kind: KbPillKind.deep,
-              icon: 'play_arrow',
-              fontSize: 16,
-              iconSize: 20,
-              elev: KbElev.edge3,
-              padding: pad,
-              onTap: () => _listen(context)),
-          KbPill(context.l10n.watch,
-              ui: ui,
-              icon: 'play_circle',
-              fontSize: 16,
-              iconSize: 20,
-              elev: KbElev.edge3,
-              padding: pad,
-              onTap: () => comingSoon(context, context.l10n.video)),
-        ],
-      );
-    }
     return Row(mainAxisSize: MainAxisSize.min, children: [
       TextButton.icon(
         onPressed: () => _listen(context),
-        icon: const Icon(Icons.play_arrow_rounded, size: 18),
+        icon: const Icon(AppIcons.play, size: 18),
         label: Text(context.l10n.listen),
         style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 8)),
       ),
       TextButton.icon(
         onPressed: () => comingSoon(context, context.l10n.video),
-        icon: const Icon(Icons.play_circle_outline_rounded, size: 18),
+        icon: const Icon(AppIcons.video, size: 18),
         label: Text(context.l10n.watch),
         style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 8)),
@@ -1605,6 +1161,84 @@ List<ConceptExample> conceptExamples(
 
 // ──────────────────────── Learn → Test → Practice hub ─────────────────────
 
+/// A unit row on a module hub (Tajwīd chapters, Script & Symbols units): the
+/// unit's glyph on a tile, its title and line, its stars and a chevron.
+class UnitCard extends StatelessWidget {
+  final String glyph;
+  final String title;
+  final String subtitle;
+  final int stars;
+  final VoidCallback onTap;
+  const UnitCard({
+    super.key,
+    required this.glyph,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.stars = 0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return QCard(
+      padding: const EdgeInsets.all(14),
+      onTap: onTap,
+      child: Row(children: [
+        Container(
+          width: 52,
+          height: 52,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: p.track,
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Text(glyph,
+              maxLines: 1,
+              textDirection: TextDirection.rtl,
+              style: arabicStyle(context, size: 21, height: 1.4, color: p.acc)),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: uiStyle(context, size: 15, weight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text(subtitle,
+                  style:
+                      uiStyle(context, size: 13, color: p.ink3, height: 1.35)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        StarRow(stars, size: 14),
+        const SizedBox(width: 6),
+        Icon(AppIcons.chevronRight, size: 20, color: p.ink3),
+      ]),
+    );
+  }
+}
+
+/// Lays [children] out in two columns once the column is wide enough.
+class TwoColumnWrap extends StatelessWidget {
+  final List<Widget> children;
+  final double gap;
+  final double breakpoint;
+  const TwoColumnWrap(
+      {super.key, required this.children, this.gap = 10, this.breakpoint = 680});
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
+        final cols = c.maxWidth >= breakpoint ? 2 : 1;
+        final w = (c.maxWidth - gap * (cols - 1)) / cols;
+        return Wrap(spacing: gap, runSpacing: gap, children: [
+          for (final i in children) SizedBox(width: w, child: i),
+        ]);
+      });
+}
+
 /// One phase of a unit path (Qaidah, Tajwīd, Script & Symbols). A null
 /// [builder] means "listed but not open yet" — [PhaseHub] dims that card and
 /// taps it through to [comingSoon] instead of navigating, the same treatment
@@ -1618,9 +1252,8 @@ class UnitPhase {
   /// True for the one phase that grades the unit — every unit's Qaidah/
   /// Script three-phase shape has this at index 1, but a Tajwīd rule family's
   /// five-phase shape has a read-only "Letters" browse at index 1 and the
-  /// real Test at index 2. Kids Mode reuses these units and needs the actual
-  /// Test regardless of unit shape, so it looks for this flag rather than
-  /// assuming a fixed index (`kids_path.dart`'s `_unitBlock`).
+  /// real Test at index 2, so callers look for this flag rather than assuming
+  /// a fixed index.
   final bool isTest;
   const UnitPhase(
       {required this.icon,
@@ -1638,18 +1271,18 @@ List<UnitPhase> standardPhases(BuildContext context,
         required WidgetBuilder practice}) =>
     [
       UnitPhase(
-          icon: Icons.menu_book_rounded,
+          icon: AppIcons.reader,
           label: context.l10n.phaseLearn,
           sub: context.l10n.phaseLearnSub,
           builder: learn),
       UnitPhase(
-          icon: Icons.quiz_rounded,
+          icon: AppIcons.quiz,
           label: context.l10n.phaseTest,
           sub: context.l10n.phaseTestSub,
           builder: test,
           isTest: true),
       UnitPhase(
-          icon: Icons.refresh_rounded,
+          icon: AppIcons.repeat,
           label: context.l10n.phasePractice,
           sub: context.l10n.phasePracticeSub,
           builder: practice),
@@ -1659,75 +1292,150 @@ List<UnitPhase> standardPhases(BuildContext context,
 /// Practice, Tajwīd's five-phase path (with a disabled Recite), and Script &
 /// Symbols. Nothing enabled is locked; a phase with a null [UnitPhase.builder]
 /// is listed but dimmed, and taps through to a coming-soon message.
+///
+/// With a [glyph] and [title] it opens with the unit's big glyph, its title
+/// in the display face and the [subtitle]; the graded phase shows the unit's
+/// [stars].
 class PhaseHub extends StatelessWidget {
   final String subtitle;
   final List<UnitPhase> phases;
   final void Function(int index) onPick;
-  const PhaseHub(
-      {super.key, required this.subtitle, required this.phases, required this.onPick});
+  final String? glyph;
+  final String? title;
+  final int stars;
+  const PhaseHub({
+    super.key,
+    required this.subtitle,
+    required this.phases,
+    required this.onPick,
+    this.glyph,
+    this.title,
+    this.stars = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final p = pal(context);
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
       children: [
-        Text(subtitle, style: uiStyle(context, size: 14, color: pal(context).textDim)),
-        const SizedBox(height: 16),
-        for (var i = 0; i < phases.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: TapScale(
-              onTap: () {
-                if (phases[i].builder == null) {
-                  comingSoon(context, phases[i].label);
-                } else {
-                  onPick(i);
-                }
-              },
-              child: Opacity(
-                opacity: phases[i].builder == null ? .55 : 1,
-                child: Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: pal(context).surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: pal(context).surfaceHigh),
-                  ),
-                  child: Row(children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                          color: pal(context).surfaceHigh,
-                          borderRadius: BorderRadius.circular(16)),
-                      child: Icon(phases[i].icon, color: pal(context).accent),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(phases[i].label,
-                              style:
-                                  uiStyle(context, size: 16.5, weight: FontWeight.w700)),
-                          const SizedBox(height: 3),
-                          Text(phases[i].sub,
-                              style: uiStyle(context, size: 13, color: pal(context).textDim)),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                        phases[i].builder == null
-                            ? Icons.lock_clock_rounded
-                            : Icons.chevron_right_rounded,
-                        color: pal(context).textDim),
+        QColumn(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (glyph != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 18),
+                  child: Column(children: [
+                    Text(glyph!,
+                        textDirection: TextDirection.rtl,
+                        maxLines: 1,
+                        style: TextStyle(
+                            fontFamily: 'NotoNaskhArabic',
+                            fontSize: 72,
+                            height: 1.5,
+                            color: p.acc)),
+                    if (title != null)
+                      Text(title!,
+                          textAlign: TextAlign.center,
+                          style: displayStyle(context, size: 28)),
+                    const SizedBox(height: 6),
+                    Text(subtitle,
+                        textAlign: TextAlign.center,
+                        style: uiStyle(context,
+                            size: 14, color: p.ink2, height: 1.45)),
                   ]),
+                )
+              else ...[
+                Text(subtitle,
+                    style: uiStyle(context,
+                        size: 14, color: p.ink2, height: 1.45)),
+                const SizedBox(height: 16),
+              ],
+              for (var i = 0; i < phases.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _PhaseCard(
+                    phase: phases[i],
+                    index: i,
+                    stars: stars,
+                    onTap: () {
+                      if (phases[i].builder == null) {
+                        comingSoon(context, phases[i].label);
+                      } else {
+                        onPick(i);
+                      }
+                    },
+                  ),
                 ),
-              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PhaseCard extends StatelessWidget {
+  final UnitPhase phase;
+  final int index;
+  final int stars;
+  final VoidCallback onTap;
+  const _PhaseCard(
+      {required this.phase,
+      required this.index,
+      required this.stars,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final open = phase.builder != null;
+    // Learn in the accent, Test in gold, the rest in soft hue tints.
+    final (Color bg, Color fg) = index == 0
+        ? (p.accSoft, p.acc)
+        : phase.isTest
+            ? (p.sel, p.gold)
+            : (() {
+                final t = hueTint(context, index.isEven ? 220 : 280);
+                return (t.bg, t.fg);
+              })();
+    return Opacity(
+      opacity: open ? 1 : .55,
+      child: QCard(
+        padding: const EdgeInsets.all(16),
+        onTap: onTap,
+        child: Row(children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+                color: bg, borderRadius: BorderRadius.circular(14)),
+            child: Icon(phase.icon, size: 22, color: fg),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(phase.label,
+                    style: uiStyle(context, size: 15, weight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text(phase.sub,
+                    style: uiStyle(context,
+                        size: 13, color: p.ink3, height: 1.35)),
+              ],
             ),
           ),
-      ],
+          const SizedBox(width: 8),
+          if (!open)
+            Icon(AppIcons.lock, size: 18, color: p.ink3)
+          else if (phase.isTest && stars > 0)
+            StarRow(stars, size: 15)
+          else
+            Icon(AppIcons.chevronRight, size: 20, color: p.ink3),
+        ]),
+      ),
     );
   }
 }

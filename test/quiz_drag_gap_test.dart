@@ -6,7 +6,7 @@ import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/widgets/common.dart';
 
-import 'kids_test_support.dart';
+import 'test_support.dart';
 
 /// "Drag the right shape onto the word": a gap question whose options can be
 /// dragged into the word as well as tapped. Both ways must answer it — the tap

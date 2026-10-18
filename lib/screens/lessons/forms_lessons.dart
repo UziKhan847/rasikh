@@ -7,6 +7,7 @@ import '../../data/special_shapes.dart';
 import '../../data/variants.dart';
 import '../../widgets/common.dart';
 import '../../widgets/lesson.dart';
+import '../../ui/app_icons.dart';
 
 /// Joining Forms, restructured (Round 13) to match Unit 1's own pattern: a
 /// picker (here, the 28 letters plus a Special Shapes group), then a real
@@ -63,7 +64,7 @@ LessonNode _letterFormNode(BuildContext context, ArabicLetter l) {
 
 LessonNode ligaturesGroupNode(BuildContext context) => LessonNode(
       id: 'forms.special.ligatures',
-      icon: Icons.link_rounded,
+      icon: AppIcons.shapeJoin,
       title: context.l10n.lsnLigatures,
       group: context.l10n.lsnSpecialShapes,
       children: [
@@ -73,7 +74,7 @@ LessonNode ligaturesGroupNode(BuildContext context) => LessonNode(
 
 LessonNode kafWrapGroupNode(BuildContext context) => LessonNode(
       id: 'forms.special.kaf',
-      icon: Icons.route_rounded,
+      icon: AppIcons.shapeRoute,
       title: context.l10n.lsnKafsWrap,
       group: context.l10n.lsnSpecialShapes,
       children: [
@@ -83,7 +84,7 @@ LessonNode kafWrapGroupNode(BuildContext context) => LessonNode(
 
 LessonNode stackingGroupNode(BuildContext context) => LessonNode(
       id: 'forms.special.stacking',
-      icon: Icons.layers_rounded,
+      icon: AppIcons.shapeStack,
       title: context.l10n.lsnStacking,
       group: context.l10n.lsnSpecialShapes,
       children: [
@@ -94,7 +95,7 @@ LessonNode stackingGroupNode(BuildContext context) => LessonNode(
 
 LessonNode heightsGroupNode(BuildContext context) => LessonNode(
       id: 'forms.special.heights',
-      icon: Icons.height_rounded,
+      icon: AppIcons.shapeHeight,
       title: context.l10n.lsnHeightsAndTails,
       group: context.l10n.lsnSpecialShapes,
       children: [

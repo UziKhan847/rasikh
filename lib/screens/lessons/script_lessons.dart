@@ -62,11 +62,11 @@ Widget _familyDetailScreen(BuildContext context, ScriptDifference d) {
             _capped(_bigScriptRow(context, context.l10n.indoPak, d.indopakWord)),
             const SizedBox(height: 20),
             _capped(Text(d.note,
-                style: uiStyle(context, size: 15, color: pal(context).text)
+                style: uiStyle(context, size: 15, color: pal(context).ink)
                     .copyWith(height: 1.55))),
             const SizedBox(height: 10),
             _capped(Text(context.l10n.surahRef(d.ref),
-                style: uiStyle(context, size: 12.5, color: pal(context).textDim))),
+                style: uiStyle(context, size: 12.5, color: pal(context).ink3))),
             const SizedBox(height: 16),
             _capped(const MediaRow()),
           ],
@@ -79,10 +79,10 @@ Widget _bigScriptRow(BuildContext context, String label, String word) => Contain
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration:
-          BoxDecoration(color: pal(context).surface, borderRadius: BorderRadius.circular(20)),
+          BoxDecoration(color: pal(context).card, borderRadius: BorderRadius.circular(20)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label,
-            style: uiStyle(context, size: 13, weight: FontWeight.w700, color: pal(context).accent)),
+            style: uiStyle(context, size: 13, weight: FontWeight.w700, color: pal(context).acc)),
         const SizedBox(height: 10),
         Text(word,
             textDirection: TextDirection.rtl,

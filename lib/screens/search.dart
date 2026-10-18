@@ -10,6 +10,8 @@ import '../data/tajweed.dart';
 import 'qaidah_screen.dart' show LetterDetail;
 import 'quran_screen.dart' show SurahReaderScreen;
 import 'tajweed_screen.dart' show TajwidRuleScreen;
+import '../ui/app_icons.dart';
+import '../ui/kit.dart';
 
 /// One row of results — a letter, a tajwīd rule, or a sūrah. The same delegate
 /// powers the desktop top-bar search and the mobile search pill.
@@ -101,18 +103,40 @@ class GlobalSearch extends SearchDelegate<void> {
   @override
   String get searchFieldLabel => _fieldLabel;
 
+  // The search bar in the redesign's look: the screen background, no
+  // underline, the UI face for the query.
+  @override
+  ThemeData appBarTheme(BuildContext context) {
+    final t = Theme.of(context);
+    final p = pal(context);
+    return t.copyWith(
+      appBarTheme: t.appBarTheme.copyWith(backgroundColor: p.bg),
+      inputDecorationTheme: InputDecorationTheme(
+        border: InputBorder.none,
+        hintStyle: uiStyle(context, size: 16, color: p.ink3),
+      ),
+      textTheme: t.textTheme.copyWith(
+          titleLarge: uiStyle(context, size: 16, weight: FontWeight.w600)),
+    );
+  }
+
   @override
   List<Widget> buildActions(BuildContext context) => [
         if (query.isNotEmpty)
           IconButton(
               onPressed: () => query = '',
-              icon: const Icon(Icons.clear_rounded)),
+              icon: const Icon(AppIcons.close)),
       ];
 
   @override
-  Widget buildLeading(BuildContext context) => IconButton(
-      onPressed: () => close(context, null),
-      icon: const Icon(Icons.arrow_back_rounded));
+  Widget buildLeading(BuildContext context) => Padding(
+        padding: const EdgeInsetsDirectional.only(start: 12),
+        child: QIconButton(
+          icon: AppIcons.back,
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          onTap: () => close(context, null),
+        ),
+      );
 
   @override
   Widget buildResults(BuildContext context) => _list(context);
@@ -126,41 +150,74 @@ class GlobalSearch extends SearchDelegate<void> {
       builder: (context, snap) {
         if (!snap.hasData) {
           return Center(
-              child: CircularProgressIndicator(color: pal(context).accent));
+              child: CircularProgressIndicator(color: pal(context).acc));
         }
         final hits = searchAll(context, query, snap.data!);
         if (hits.isEmpty) {
-          return Center(
-            child: Text(context.l10n.noMatchesFor(query.trim()),
-                style: uiStyle(context, size: 14, color: pal(context).textDim)),
+          return QColumn(
+            child: QEmptyState(
+              icon: AppIcons.search,
+              circle: 64,
+              title: context.l10n.noMatchesFor(query.trim()),
+              hint: context.l10n.noSurahMatchesHint,
+            ),
           );
         }
-        return ListView.builder(
-          itemCount: hits.length,
-          itemBuilder: (context, i) {
-            final h = hits[i];
-            return ListTile(
-              leading: Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: h.accent.withValues(alpha: .14),
-                  borderRadius: BorderRadius.circular(13),
+        final p = pal(context);
+        return ColoredBox(
+          color: p.bg,
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            itemCount: hits.length,
+            itemBuilder: (context, i) {
+              final h = hits[i];
+              return QColumn(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: QCard(
+                    radius: 18,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    onTap: () => _open(context, h),
+                    child: Row(children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: h.accent.withValues(alpha: .14),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Text(h.glyph,
+                            maxLines: 1,
+                            textDirection: TextDirection.rtl,
+                            style: arabicStyle(context,
+                                size: 20, height: 1.3, color: p.ink)),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(h.title,
+                                style: uiStyle(context,
+                                    size: 15, weight: FontWeight.w700)),
+                            Text(h.subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: uiStyle(context,
+                                    size: 12.5, color: p.ink3)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _kindBadge(context, h),
+                    ]),
+                  ),
                 ),
-                child: Text(h.glyph,
-                    textDirection: TextDirection.rtl,
-                    style: const TextStyle(
-                        fontFamily: 'ScheherazadeNew', fontSize: 22)),
-              ),
-              title: Text(h.title,
-                  style: uiStyle(context, size: 15, weight: FontWeight.w700)),
-              subtitle: Text(h.subtitle,
-                  style: uiStyle(context, size: 12, color: pal(context).textDim)),
-              trailing: _kindBadge(context, h),
-              onTap: () => _open(context, h),
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );

@@ -70,9 +70,8 @@ void main() {
     expect(reader[1].contains('ࣰ'), isTrue);
     expect(reader[1].contains('ٗ'), isFalse);
 
-    // And the untransformed default — still what Kids Mode's reading screen
-    // and the downloads manager get, since neither renders through
-    // DigitalKhattV2 — is unmoved.
+    // And the untransformed default — still what the downloads manager gets,
+    // since it doesn't render through DigitalKhattV2 — is unmoved.
     final plain = await QuranRepo.ayahs(2, 'uthmani');
     expect(plain[1].contains('ٗ'), isTrue);
     // Same characters, same words either way — the invariant tajwīd offsets

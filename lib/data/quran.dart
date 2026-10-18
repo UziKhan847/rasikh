@@ -61,8 +61,7 @@ class QuranRepo {
   /// [font] is the family the returned text will be *rendered with*, because
   /// which extra codepoints have to be transcoded is a property of the face,
   /// not of the script — see [_uthmaniKhattGlyphMap]. It defaults to the face
-  /// every caller except the card reader uses (Kids Mode's reading screen,
-  /// `downloads.dart`), so they need not care. Regardless of [font], the
+  /// every caller except the card reader uses (`downloads.dart`), so they need not care. Regardless of [font], the
   /// Uthmani corpus always gets one correction — see [_fixSilentLetterMark] —
   /// since that one is a data error, not a font-compatibility question.
   static Future<List<String>> ayahs(int surah, String script,
@@ -239,8 +238,8 @@ List<String> _decodeIndopakList(String raw) => [
 /// belongs to every caller, this one is font compatibility and belongs only
 /// to whichever caller renders with this specific face. Keyed off [font] in
 /// [QuranRepo._decoderFor] rather than folded permanently into the default
-/// decode path, since UthmanicHafs — still Kids Mode's and the muṣḥaf-less
-/// callers' face — has no glyph for U+08F0/U+08F1/U+08F2 at all, and
+/// decode path, since UthmanicHafs — still the muṣḥaf-less callers'
+/// face — has no glyph for U+08F0/U+08F1/U+08F2 at all, and
 /// transcoding unconditionally would break rendering there in 6,643 places.
 ///
 /// The first three rows are exact re-encodings — the same mark, two Unicode

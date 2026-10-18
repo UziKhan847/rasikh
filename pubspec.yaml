@@ -1,7 +1,7 @@
 name: qiraah_arabiyyah
 description: "Qiraah Arabiyyah — a modern Arabic reading & writing journey: Qaidah, tracing with stroke direction, Tashkil counts, Tajwid, dyslexia-friendly practice, and the 10 Qira'at."
 publish_to: 'none'
-version: 3.0.6+306
+version: 3.0.7+307
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
@@ -17,16 +17,15 @@ dependencies:
   audioplayers: ^6.1.0
   http: ^1.2.2
   path_provider: ^2.1.4
-  sensors_plus: ^7.1.1
+  flutter_local_notifications: ^22.3.2
+  timezone: ^0.11.1
+  flutter_timezone: ^5.1.1
+  pocketbase: ^0.25.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  # Test-only: lets test/kids_mode_test.dart fake path_provider's platform
-  # channel (BackupService writes to the app documents dir) without a device.
-  path_provider_platform_interface: ^2.1.2
-  plugin_platform_interface: ^2.1.8
 
 flutter:
   uses-material-design: true
@@ -34,7 +33,6 @@ flutter:
   generate: true
   assets:
     - assets/brand/
-    - assets/avatars/
     - assets/quran/
     - assets/quran/u/
     - assets/quran/i/
@@ -61,45 +59,37 @@ flutter:
     - family: Bismillah
       fonts:
         - asset: assets/fonts/Bismillah.ttf
-    - family: Outfit
+    # The redesign (design_handoff_qiraah_flutter): UI icons, UI and display
+    # type, and the letter face. Static instances (see CREDITS.md). Inter and
+    # Source Serif 4 stand in for the design's Hanken Grotesk and Newsreader:
+    # same feel, and they carry every transliteration mark (ā ḥ ṣ ʿ ʼ …).
+    - family: QiraahIcons
       fonts:
-        - asset: assets/fonts/Outfit-Variable.ttf
-    - family: Baloo2
+        - asset: assets/fonts/QiraahIcons.ttf
+    - family: Inter
       fonts:
-        - asset: assets/fonts/Baloo2-Regular.ttf
+        - asset: assets/fonts/Inter-Regular.ttf
           weight: 400
-        - asset: assets/fonts/Baloo2-Medium.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
           weight: 500
-        - asset: assets/fonts/Baloo2-SemiBold.ttf
+        - asset: assets/fonts/Inter-SemiBold.ttf
           weight: 600
-        - asset: assets/fonts/Baloo2-Bold.ttf
+        - asset: assets/fonts/Inter-Bold.ttf
           weight: 700
-        - asset: assets/fonts/Baloo2-ExtraBold.ttf
-          weight: 800
-    # Kids Mode's redesign (design_handoff_flutter/, built by tool/kb_fonts.py).
-    # Static instances of the upstream variable fonts, as with Baloo2 above.
-    - family: Baloo Bhaijaan 2
+    - family: SourceSerif4
       fonts:
-        - asset: assets/fonts/BalooBhaijaan2-Medium.ttf
+        - asset: assets/fonts/SourceSerif4-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/SourceSerif4-Medium.ttf
           weight: 500
-        - asset: assets/fonts/BalooBhaijaan2-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/BalooBhaijaan2-Bold.ttf
-          weight: 700
-        - asset: assets/fonts/BalooBhaijaan2-ExtraBold.ttf
-          weight: 800
-    - family: Noto Naskh Arabic
+    - family: NotoNaskhArabic
       fonts:
-        - asset: assets/fonts/NotoNaskhArabic-Medium.ttf
-          weight: 500
+        - asset: assets/fonts/NotoNaskhArabic-Regular.ttf
+          weight: 400
         - asset: assets/fonts/NotoNaskhArabic-SemiBold.ttf
           weight: 600
-    - family: Amiri Quran
-      fonts:
-        - asset: assets/fonts/AmiriQuran-Regular.ttf
-    - family: Material Symbols Rounded
-      fonts:
-        - asset: assets/fonts/MaterialSymbolsRounded-Kids.ttf
+        - asset: assets/fonts/NotoNaskhArabic-Bold.ttf
+          weight: 700
     - family: NotoNastaliqUrdu
       fonts:
         - asset: assets/fonts/NotoNastaliqUrdu-Variable.ttf

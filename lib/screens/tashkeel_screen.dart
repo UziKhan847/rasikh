@@ -10,6 +10,7 @@ import '../core/theme.dart';
 import '../data/glyph_names.dart';
 import '../data/tashkeel.dart';
 import '../widgets/common.dart';
+import '../ui/app_icons.dart';
 
 /// ⏱ Counts Studio — an animated metronome. One ḥarakah = one beat.
 /// The ring fills across the chosen counts; recite along and hold the
@@ -99,11 +100,11 @@ class _CountsStudioState extends State<CountsStudio>
                 margin: const EdgeInsets.all(24),
                 padding: const EdgeInsets.fromLTRB(40, 34, 40, 30),
                 decoration: BoxDecoration(
-                  color: pal(context).surface,
+                  color: pal(context).card,
                   borderRadius: BorderRadius.circular(28),
                   border: Border.all(
                       color:
-                          pal(context).surfaceHigh.withValues(alpha: .6)),
+                          pal(context).track.withValues(alpha: .6)),
                   boxShadow: [
                     BoxShadow(
                         color: pal(context).shadow,
@@ -140,7 +141,7 @@ class _CountsStudioState extends State<CountsStudio>
                   widget.word!,
                   widget.highlight ?? '',
                   quranicStyle(context, size: 44),
-                  quranicStyle(context, size: 44, color: pal(context).accent),
+                  quranicStyle(context, size: 44, color: pal(context).acc),
                 )),
               ),
             widget.embedded
@@ -161,9 +162,9 @@ class _CountsStudioState extends State<CountsStudio>
                                 progress: running ? t : 0,
                                 counts: counts,
                                 beat: beat,
-                                track: pal(context).surfaceHigh,
-                                pip: pal(context).textDim,
-                                arc: pal(context).accent),
+                                track: pal(context).track,
+                                pip: pal(context).ink3,
+                                arc: pal(context).acc),
                             child: const SizedBox.square(dimension: 180),
                           );
                         },
@@ -185,9 +186,9 @@ class _CountsStudioState extends State<CountsStudio>
                           progress: running ? t : 0,
                           counts: counts,
                           beat: beat,
-                          track: pal(context).surfaceHigh,
-                          pip: pal(context).textDim,
-                          arc: pal(context).accent),
+                          track: pal(context).track,
+                          pip: pal(context).ink3,
+                          arc: pal(context).acc),
                       child: SizedBox.square(
                         dimension: 230,
                         child: Center(
@@ -198,7 +199,7 @@ class _CountsStudioState extends State<CountsStudio>
                               running ? '$beat' : '$counts',
                               style: uiStyle(context,
                                   size: 84, weight: FontWeight.w800,
-                                  color: pal(context).accent),
+                                  color: pal(context).acc),
                             ),
                           ),
                         ),
@@ -217,13 +218,13 @@ class _CountsStudioState extends State<CountsStudio>
                   ChoiceChip(
                     label: Text(context.l10n.countLabelPlural(c)),
                     selected: counts == c,
-                    selectedColor: pal(context).accent,
-                    backgroundColor: pal(context).surfaceHigh,
+                    selectedColor: pal(context).acc,
+                    backgroundColor: pal(context).track,
                     visualDensity: VisualDensity.compact,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     labelStyle: uiStyle(context,
                         size: 13,
-                        color: counts == c ? Colors.white : pal(context).text,
+                        color: counts == c ? Colors.white : pal(context).ink,
                         weight: FontWeight.w700),
                     onSelected: (_) {
                       setState(() {
@@ -237,8 +238,8 @@ class _CountsStudioState extends State<CountsStudio>
             ),
             const SizedBox(height: 8),
             Row(children: [
-              Icon(Icons.speed_rounded,
-                  color: pal(context).textDim, size: 20),
+              Icon(AppIcons.speed,
+                  color: pal(context).ink3, size: 20),
               Expanded(
                 child: Slider(
                   min: 350, max: 1000,
@@ -251,7 +252,7 @@ class _CountsStudioState extends State<CountsStudio>
                 ),
               ),
               Text(context.l10n.bpmLabel((60000 / beatMs).round()),
-                  style: uiStyle(context, size: 13, color: pal(context).textDim)),
+                  style: uiStyle(context, size: 13, color: pal(context).ink3)),
             ]),
             const SizedBox(height: 6),
             SizedBox(
@@ -259,14 +260,14 @@ class _CountsStudioState extends State<CountsStudio>
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
                     backgroundColor:
-                        running ? pal(context).surfaceHigh : pal(context).accent,
+                        running ? pal(context).track : pal(context).acc,
                     foregroundColor:
-                        running ? pal(context).text : Colors.white,
+                        running ? pal(context).ink : Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16)),
                 onPressed: _toggle,
                 icon: Icon(running
-                    ? Icons.stop_rounded
-                    : Icons.play_arrow_rounded),
+                    ? AppIcons.stop
+                    : AppIcons.play),
                 label: Text(running ? context.l10n.stop : context.l10n.startReciteAlong),
               ),
             ),

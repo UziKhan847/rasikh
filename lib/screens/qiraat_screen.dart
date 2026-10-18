@@ -7,6 +7,7 @@ import '../core/responsive.dart';
 import '../core/theme.dart';
 import '../data/qiraat.dart';
 import '../widgets/common.dart';
+import '../ui/app_icons.dart';
 
 /// 🕌 Qirā'āt Hall — advanced mode. The ten canonical readings: who, what
 /// makes each distinctive, and famous side-by-side differences with the
@@ -27,14 +28,14 @@ class QiraatScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: pal(context).accent.withValues(alpha: .1),
+              color: pal(context).acc.withValues(alpha: .1),
               borderRadius: BorderRadius.circular(16),
               border:
-                  Border.all(color: pal(context).accent.withValues(alpha: .4)),
+                  Border.all(color: pal(context).acc.withValues(alpha: .4)),
             ),
             child: Text(
               context.l10n.qiraAreMassTransmittedReadings,
-              style: uiStyle(context, size: 13.5, color: pal(context).textDim),
+              style: uiStyle(context, size: 13.5, color: pal(context).ink3),
             ),
           ),
            SectionHeader(context.l10n.theTenReaders,
@@ -49,11 +50,11 @@ class QiraatScreen extends StatelessWidget {
           const SizedBox(height: 10),
           FilledButton.icon(
             style: FilledButton.styleFrom(
-                backgroundColor: pal(context).accent,
+                backgroundColor: pal(context).acc,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14)),
             onPressed: () => pushAdaptive(context, _qiraatQuiz(context)),
-            icon: const Icon(Icons.quiz_rounded),
+            icon: const Icon(AppIcons.quiz),
             label:  Text(context.l10n.qiraAtQuiz),
           ),
         ],
@@ -73,7 +74,7 @@ class _ReaderCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
         decoration: BoxDecoration(
-          color: pal(context).surface,
+          color: pal(context).card,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Material(
@@ -89,23 +90,23 @@ class _ReaderCard extends StatelessWidget {
                 width: 44, height: 44,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: pal(context).surfaceHigh,
+                  color: pal(context).track,
                   shape: BoxShape.circle,
                   border: Border.all(
-                      color: pal(context).accent.withValues(alpha: .5)),
+                      color: pal(context).acc.withValues(alpha: .5)),
                 ),
                 child: Text('${index + 1}',
                     style: uiStyle(context, size: 16, weight: FontWeight.w800,
-                        color: pal(context).accent)),
+                        color: pal(context).acc)),
               ),
               title: Text(q.reader,
                   style: uiStyle(context, size: 16, weight: FontWeight.w700)),
               subtitle: Text('${q.city} · d. ${q.died} AH',
-                  style: uiStyle(context, size: 12.5, color: pal(context).textDim)),
+                  style: uiStyle(context, size: 12.5, color: pal(context).ink3)),
               trailing: Text(q.arabic,
                   textDirection: TextDirection.rtl,
                   style: arabicStyle(context, size: 20, height: 1.4,
-                      color: pal(context).accent)),
+                      color: pal(context).acc)),
               children: [
                 if (q.bio.isNotEmpty)
                   Padding(
@@ -128,14 +129,14 @@ class _ReaderCard extends StatelessWidget {
                       children: [
                         Padding(
                           padding: const EdgeInsets.only(top: 6),
-                          child: Icon(Icons.brightness_1,
-                              size: 6, color: pal(context).accent),
+                          child: Icon(AppIcons.dot,
+                              size: 6, color: pal(context).acc),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                             child: Text(s,
                                 style: uiStyle(context,
-                                    size: 13.5, color: pal(context).textDim))),
+                                    size: 13.5, color: pal(context).ink3))),
                       ],
                     ),
                   ),
@@ -152,7 +153,7 @@ class _ReaderCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: pal(context).surfaceHigh,
+            color: pal(context).track,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(name,
@@ -172,7 +173,7 @@ class _DiffCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: pal(context).surface,
+          color: pal(context).card,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -183,30 +184,30 @@ class _DiffCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: pal(context).accent.withValues(alpha: .15),
+                  color: pal(context).acc.withValues(alpha: .15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(d.ref,
                     style: uiStyle(context, size: 12.5,
-                        color: pal(context).accent, weight: FontWeight.w700)),
+                        color: pal(context).acc, weight: FontWeight.w700)),
               ),
               const SizedBox(width: 8),
               Text(d.topic,
                   style: uiStyle(context, size: 13.5,
-                      color: pal(context).textDim, weight: FontWeight.w600)),
+                      color: pal(context).ink3, weight: FontWeight.w600)),
             ]),
             const SizedBox(height: 12),
-            _variantRow(context, 'Ḥafṣ', d.hafs, pal(context).accent),
+            _variantRow(context, 'Ḥafṣ', d.hafs, pal(context).acc),
             const SizedBox(height: 8),
             _variantRow(
                 context, context.l10n.variantLabel, d.variant, AppColors.lilac),
             const SizedBox(height: 10),
             Text(context.l10n.readByName(d.readBy),
                 style: uiStyle(context, size: 12.5,
-                    color: pal(context).accent, weight: FontWeight.w600)),
+                    color: pal(context).acc, weight: FontWeight.w600)),
             const SizedBox(height: 6),
             Text(d.note,
-                style: uiStyle(context, size: 13, color: pal(context).textDim)),
+                style: uiStyle(context, size: 13, color: pal(context).ink3)),
           ],
         ),
       ),

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delete your account — Qiraah Arabiyyah</title>
+<style>
+  :root { --bg:#fbf7ec; --card:#fff; --ink:#1d2420; --sub:#6f6656; --line:#e3d9c2; --acc:#0f6e58; --bad:#b4483b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#121816; --card:#18211e; --ink:#e8e3d6; --sub:#929b96; --line:#25302c; --acc:#4dbb98; --bad:#e0604c; } }
+  body { background:var(--bg); color:var(--ink); font:16px/1.55 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; padding:24px 16px; }
+  main { max-width:520px; margin:0 auto; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; }
+  label { display:block; font-weight:600; margin:14px 0 6px; }
+  input { width:100%; box-sizing:border-box; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font:inherit; }
+  button { margin-top:18px; padding:11px 18px; border:0; border-radius:24px; background:var(--bad); color:#fff; font:inherit; font-weight:700; cursor:pointer; }
+  p.sub, li { color:var(--sub); }
+  #msg { margin-top:14px; font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Delete your account</h1>
+  <p>This deletes your Qiraah Arabiyyah marks account on this server:</p>
+  <ul>
+    <li>your username, display name and (if you added one) recovery email;</li>
+    <li>the mark books you own, with all their sessions, marks and comments;</li>
+    <li>your membership of other people's books. Marks you made in those books stay
+      in them, as part of that reciter's record, but without your name.</li>
+  </ul>
+  <p class="sub">Marks stored on your own devices are not affected. You can also delete
+    your account in the app: Settings → Account &amp; sync → Delete account.</p>
+  <form class="card" id="f">
+    <label for="u">Username</label>
+    <input id="u" autocomplete="username" required>
+    <label for="p">Password</label>
+    <input id="p" type="password" autocomplete="current-password" required>
+    <button type="submit">Delete my account</button>
+    <div id="msg" role="status"></div>
+  </form>
+</main>
+<script>
+  const msg = document.getElementById('msg');
+  document.getElementById('f').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    msg.textContent = '';
+    if (!confirm('Delete your account and the books you own? This cannot be undone.')) return;
+    try {
+      const auth = await fetch('/api/collections/users/auth-with-password', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ identity: document.getElementById('u').value.trim().toLowerCase(),
+                               password: document.getElementById('p').value }),
+      });
+      if (!auth.ok) { msg.textContent = 'Wrong username or password.'; return; }
+      const { token, record } = await auth.json();
+      const del = await fetch('/api/collections/users/records/' + encodeURIComponent(record.id), {
+        method: 'DELETE', headers: { Authorization: token },
+      });
+      msg.textContent = del.ok ? 'Your account has been deleted.' : 'Something went wrong — please try again.';
+      if (del.ok) document.getElementById('f').reset();
+    } catch (_) {
+      msg.textContent = "Can't reach the server.";
+    }
+  });
+</script>
+</body>
+</html>

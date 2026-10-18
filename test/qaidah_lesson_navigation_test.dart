@@ -44,7 +44,8 @@ void main() {
     await tester.pumpWidget(_harness(settings, progress, const QaidahScreen()));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.textContaining('Shaddah'));
+    await tester.scrollUntilVisible(find.textContaining('Shaddah'), 200,
+        scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     await tester.tap(find.textContaining('Shaddah'));
     await tester.pumpAndSettle();

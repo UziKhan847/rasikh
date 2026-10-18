@@ -544,18 +544,20 @@ abstract final class MushafGeometry {
     return roomy.width > roomyWidth ? roomy : fit(false);
   }
 
-  static final Map<String, double> _widest44 = {};
+  static final Map<String, double> _widestEm = {};
+  static final Expando<double> _lineEm = Expando('lineEm');
 
-  /// The page's widest text line in em (measured once per page at 44 px; text
-  /// width scales with font size, so this holds for any viewport).
+  /// The page's widest text line in em. Every line is shaped once per page,
+  /// at 44 px; text width scales with font size, so the result holds for
+  /// any viewport (and gives each line's width too — see [lineEm]).
   static double widestEm(String script, int page, List<MushafLine> lines) {
     final key = '${MushafRepo._norm(script)}/$page';
-    final cached = _widest44[key];
+    final cached = _widestEm[key];
     if (cached != null) return cached;
     const ref = 44.0;
     final style = TextStyle(
         fontFamily: MushafRepo.fontFamily(script), fontSize: ref, height: 1.0);
-    var widest = 1.0;
+    var widest = 1.0 / ref;
     for (final l in lines) {
       if (!l.isText) continue;
       final tp = TextPainter(
@@ -564,9 +566,16 @@ abstract final class MushafGeometry {
           textDirection: TextDirection.rtl,
           maxLines: 1)
         ..layout();
-      if (tp.width > widest) widest = tp.width;
+      final em = tp.width / ref;
+      _lineEm[l] = em;
+      if (em > widest) widest = em;
       tp.dispose();
     }
-    return _widest44[key] = widest / ref;
+    return _widestEm[key] = widest;
   }
+
+  /// A text line's natural width (plain spaces) in em, from [widestEm]'s
+  /// pass — so a line isn't shaped again just to be measured. Null until
+  /// its page has been measured.
+  static double? lineEm(MushafLine line) => _lineEm[line];
 }

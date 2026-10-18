@@ -5,12 +5,9 @@ import 'package:flutter/material.dart';
 import '../../core/l10n.dart';
 import '../../data/glyph_names.dart';
 import '../../data/letters.dart';
-import '../../data/variants.dart';
-import '../../data/word_pool.dart';
 import '../../widgets/common.dart';
 
-/// Extra joining-form question shapes, shared by the grown-up Qāʿidah unit
-/// and Kids Mode's forms block — one set of generators, not two.
+/// Extra joining-form question shapes for the Qāʿidah unit.
 ///
 /// The existing forms quiz (`qaidah_screen.dart`) asks one thing: *which
 /// letter is this shape?* These ask the other three questions a Qāʿidah
@@ -252,54 +249,4 @@ List<QuizQuestion> listenAndPickQuestions(BuildContext context,
     ));
   }
   return qs;
-}
-
-// ── tāʼ marbūṭah vs. final hāʼ ────────────────────────────────────────────
-
-/// "Which letter ends this word?" — ة, ه or the open ت it is so often mistaken
-/// for, over a wide pool of real words.
-///
-/// The Qāʿidah practice round already asks the ة / ه question once via
-/// `haaVsTaaMarbutaQuestion`, but that only ever uses each variant's PRIMARY
-/// word, so it can produce exactly two distinct questions. A whole stage
-/// built on it would repeat itself; this draws on the variants' `moreExamples`
-/// AND on every verbatim word the marks' and waṣl's examples carry that ends in
-/// one of the two — several dozen, not ten. It also offers three options, not
-/// two: with only ة and ه a round was a coin flip.
-List<QuizQuestion> taMarbutaQuestions(BuildContext context, {int count = 6}) {
-  final pool = <String, (String, String)>{}; // word -> (highlight, answer)
-  for (final v in letterVariants) {
-    if (v.id != 'haa.word_final' && v.id != 'taa_marbuta.word_final') continue;
-    final answer = v.id.startsWith('haa') ? 'ه' : 'ة';
-    pool[v.word] = (v.highlight, answer);
-    for (final (word, _, highlight) in v.moreExamples) {
-      pool[word] = (highlight, answer);
-    }
-  }
-  for (final word in quranicExampleWords()) {
-    final end = wordEnding(word);
-    if (end == null || pool.containsKey(word)) continue;
-    final base = end.substring(0, String.fromCharCode(end.runes.first).length);
-    if (base == 'ة' || base == 'ه') pool[word] = (end, base);
-  }
-  final entries = pool.entries.toList();
-  return [
-    for (final e in pickN(entries, count, _rng))
-      () {
-        final (highlight, answer) = e.value;
-        final o = buildOptions(answer, const ['ه', 'ة', 'ت'], _rng, count: 3);
-        return QuizQuestion(
-          prompt: context.l10n.qpWhichLetterEndsWord,
-          arabic: e.key,
-          highlight: highlight,
-          options: o.options,
-          correct: o.correct,
-          optionsAreArabic: true,
-          optionColumns: 3,
-          optionAspect: 1.4,
-          reviewId: 'variant.taMarbuta.${e.key}',
-          explain: context.l10n.lsnTaMarbutaHint,
-        );
-      }()
-  ];
 }

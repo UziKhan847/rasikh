@@ -1,0 +1,188 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:qiraah_arabiyyah/core/l10n.dart';
+import 'package:qiraah_arabiyyah/core/reader_size.dart';
+import 'package:qiraah_arabiyyah/core/settings.dart';
+import 'package:qiraah_arabiyyah/core/theme.dart';
+import 'package:qiraah_arabiyyah/data/letters.dart';
+import 'package:qiraah_arabiyyah/data/mushaf.dart';
+import 'package:qiraah_arabiyyah/data/quran.dart';
+import 'package:qiraah_arabiyyah/data/tajweed.dart';
+import 'package:qiraah_arabiyyah/main.dart';
+import 'package:qiraah_arabiyyah/screens/learn_screen.dart';
+import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
+import 'package:qiraah_arabiyyah/screens/onboarding_screen.dart';
+import 'package:qiraah_arabiyyah/screens/qaidah_screen.dart';
+import 'package:qiraah_arabiyyah/screens/quran_screen.dart';
+import 'package:qiraah_arabiyyah/screens/settings_screen.dart';
+import 'package:qiraah_arabiyyah/screens/shell/modules.dart';
+import 'package:qiraah_arabiyyah/screens/tajweed_screen.dart';
+
+import 'test_support.dart';
+
+/// Every main screen at a small phone (320×568), a small desktop (1024×768)
+/// and a large one (1440×900), in all four themes: no overflow, no
+/// exception. (Rendering errors fail the test on their own.)
+late List<SurahMeta> _meta;
+
+final _screens = <String, Widget Function()>{
+  'today': () => const RootScreen(),
+  'quran list': () => const SurahListScreen(),
+  'reader': () => SurahReaderScreen(meta: _meta[1]),
+  'mushaf': () => const MushafPageScreen(startPage: 2),
+  'learn': () => const LearnScreen(),
+  'settings': () => const SettingsScreen(),
+  'onboarding': () => const OnboardingScreen(),
+  for (final m in LearnModule.values)
+    'module ${m.name}': () => Builder(builder: m.screen),
+  'letters': () => const LettersExplorer(),
+  'letter detail': () => LetterDetail(letter: letters[13]),
+  'tajwid rule': () => TajwidRuleScreen(rule: tajwidRules[11]),
+  'letter quiz': () => Builder(builder: (c) => letterQuizScreen(c)),
+};
+
+const _sizes = <(String, Size)>[
+  ('320', Size(320, 568)),
+  ('1024', Size(1024, 768)),
+  ('1440', Size(1440, 900)),
+];
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    mockAudioPlugins();
+    _meta = await QuranRepo.meta();
+    for (final f in ['DigitalKhattV2', 'UthmanicHafs']) {
+      await QuranRepo.ayahs(2, 'uthmani', font: f);
+      await QuranRepo.words(2, 'uthmani', font: f);
+    }
+    await QuranRepo.tajwid(2, 'uthmani');
+    await MushafRepo.ensure('uthmani');
+  });
+
+  Future<void> pumpScreen(
+    WidgetTester tester,
+    Size size,
+    Widget screen, {
+    void Function(AppSettings)? tweak,
+    String theme = 'light',
+  }) async {
+    useReducedMotion(tester);
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({});
+    final s = AppSettings();
+    final p = ProgressStore();
+    await s.load();
+    await p.load();
+    s.onboarded = true;
+    s.appTheme = theme;
+    s.desktopMode = size.width >= 1024 ? 'on' : 'off';
+    tweak?.call(s);
+    await tester.pumpWidget(
+      SettingsScope(
+        settings: s,
+        child: ProgressScope(
+          progress: p,
+          child: MaterialApp(
+            theme: buildTheme(s),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+            home: screen,
+          ),
+        ),
+      ),
+    );
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  }
+
+  Future<void> unmount(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 1));
+  }
+
+  group('largest Arabic', () {
+    for (final (name, size, px) in const [
+      ('desktop 120px', Size(1440, 900), kReaderMaxDesktop),
+      ('phone 64px', Size(360, 780), kReaderMaxMobile),
+    ]) {
+      for (final grid in [false, true]) {
+        testWidgets('reader at $name${grid ? ' (word grid)' : ''}', (
+          tester,
+        ) async {
+          await pumpScreen(
+            tester,
+            size,
+            SurahReaderScreen(meta: _meta[1]),
+            tweak: (s) {
+              s.quranFontScale = px / kReaderBase;
+              s.wordByWord = grid;
+            },
+          );
+          await unmount(tester);
+        });
+      }
+    }
+  });
+
+  for (final dock in ['pinned', 'floating', 'hidden']) {
+    testWidgets('reader with the player $dock', (tester) async {
+      await pumpScreen(
+        tester,
+        const Size(390, 844),
+        SurahReaderScreen(meta: _meta[1]),
+        tweak: (s) => s.playerDock = dock,
+      );
+      await unmount(tester);
+    });
+  }
+
+  for (final (sizeName, size) in _sizes) {
+    for (final theme in AppTheme.values) {
+      for (final e in _screens.entries) {
+        testWidgets('${e.key} · $sizeName · ${theme.name}', (tester) async {
+          useReducedMotion(tester);
+          tester.view.physicalSize = size;
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          SharedPreferences.setMockInitialValues({});
+          final s = AppSettings();
+          final p = ProgressStore();
+          await s.load();
+          await p.load();
+          s.onboarded = true;
+          s.appTheme = theme.name;
+          s.desktopMode = size.width >= 1024 ? 'on' : 'off';
+          await tester.pumpWidget(
+            SettingsScope(
+              settings: s,
+              child: ProgressScope(
+                progress: p,
+                child: MaterialApp(
+                  theme: buildTheme(s),
+                  localizationsDelegates:
+                      AppLocalizations.localizationsDelegates,
+                  supportedLocales: AppLocalizations.supportedLocales,
+                  locale: const Locale('en'),
+                  home: e.value(),
+                ),
+              ),
+            ),
+          );
+          for (var i = 0; i < 6; i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+          await tester.pumpWidget(const SizedBox());
+          await tester.pump(const Duration(seconds: 1));
+        });
+      }
+    }
+  }
+}

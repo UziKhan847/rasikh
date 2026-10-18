@@ -4,9 +4,10 @@ analyzer:
     - android/**
     - ios/**
     - web/**
+    - tools/**
     - windows/**
     - macos/**
     - linux/**
-    # The design handoff: reference copies of code already installed in lib/.
-    - design_handoff_flutter/**
+    # The design handoff: reference copies of code installed in lib/ui.
+    - design_handoff_qiraah_flutter/**
 include: package:flutter_lints/flutter.yaml

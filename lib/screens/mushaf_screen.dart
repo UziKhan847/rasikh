@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../core/audio.dart';
@@ -10,6 +11,7 @@ import '../core/marks/marks_model.dart';
 import '../core/marks/marks_store.dart';
 import '../core/marks/qc_words.dart';
 import '../core/marks/word_ref.dart';
+import '../core/perf_log.dart';
 import '../core/responsive.dart';
 import '../core/settings.dart';
 import '../core/tap_longpress.dart';
@@ -126,6 +128,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     initRecitationTracking();
     _doneSub = AyahAudio.instance.onComplete.listen(_onVerseDone);
     _marking.addListener(_onMarking);
+    PerfLog.start();
   }
 
   @override
@@ -156,6 +159,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       _curSurah = v.$1;
       _ready = true;
     });
+    _prewarm(_page);
     if (widget.startMarking && !_marking.active && !_startedMarking) {
       _startedMarking = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -239,11 +243,39 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   int _spreadStart(int p) => ((p - 1) >> 1) * 2 + 1;
 
   void _settle(int page) {
+    final sw = kMushafPerf ? (Stopwatch()..start()) : null;
+    PerfLog.where = 'page $page';
     _page = page;
     _curSurah = MushafRepo.firstVerseOfPage(_script, page).$1;
     ProgressScope.read(context).setLastMushafPage(page);
     _notePage(page);
     _recognizers.trim(page);
+    _prewarm(page);
+    if (sw != null) {
+      PerfLog.log('→ page $page (bookkeeping ${sw.elapsedMicroseconds} µs)');
+    }
+  }
+
+  /// Measures the pages either side of [page] in idle time, one page per
+  /// idle slot, so the swipe that reaches them doesn't pay for it.
+  void _prewarm(int page) {
+    final script = _script;
+    for (final p in [page + 1, page - 1, page + 2, page - 2]) {
+      if (p < 1 || p > _total) continue;
+      SchedulerBinding.instance.scheduleTask(() {
+        if (!mounted || script != _script) return;
+        final lines = MushafRepo.pageSync(script, p);
+        if (lines != null && lines.isNotEmpty) {
+          final sw = kMushafPerf ? (Stopwatch()..start()) : null;
+          MushafGeometry.widestEm(script, p, lines);
+          _ayahsOn(p);
+          if (sw != null && sw.elapsedMicroseconds > 50) {
+            PerfLog.log('prewarmed page $p in idle time '
+                '(${(sw.elapsedMicroseconds / 1000).toStringAsFixed(1)} ms)');
+          }
+        }
+      }, Priority.idle);
+    }
   }
 
   /// Shows [p] — the PageView on a phone, a fade-and-slide turn on desktop.
@@ -2070,6 +2102,11 @@ class _MushafPageView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final page = _page(context);
+    return kMushafPerf ? PerfLayoutTimer(page: this.page, child: page) : page;
+  }
+
+  Widget _page(BuildContext context) {
     final lines = MushafRepo.pageSync(script, page);
     if (lines == null || lines.isEmpty) {
       return Center(child: CircularProgressIndicator(color: paper.acc));
@@ -2241,14 +2278,25 @@ class _MushafPageView extends StatelessWidget {
       // The page's widest line fills the width; lines sit about
       // MushafGeometry.pitch apart (never tighter than minPitch, which caps
       // the font on pages with short lines).
-      final byWidth = targetW / MushafGeometry.widestEm(script, page, lines);
+      final sw = kMushafPerf ? (Stopwatch()..start()) : null;
+      final widest = MushafGeometry.widestEm(script, page, lines);
+      if (sw != null && sw.elapsedMicroseconds > 50) {
+        PerfLog.measured(page, 'widest-pass lines',
+            sw, lines.where((l) => l.isText).length);
+      }
+      final byWidth = targetW / widest;
       if (fitWidth) {
         fs = byWidth.clamp(8.0, 200.0);
         slotH = fs * MushafGeometry.pitch;
       } else {
         slotH = vh / n;
         final byHeight = slotH / MushafGeometry.minPitch;
-        fs = (byWidth < byHeight ? byWidth : byHeight).clamp(8.0, 200.0);
+        // Rounded DOWN to 0.5 px: neighbouring pages then share font sizes,
+        // and the renderer's glyph cache (kept per size) is reused instead
+        // of rasterising every glyph anew on each page. Rounding down keeps
+        // the text inside the line; justification absorbs the difference.
+        final raw = (byWidth < byHeight ? byWidth : byHeight).clamp(8.0, 200.0);
+        fs = (raw * 2).floorToDouble() / 2;
       }
       contentH = fitWidth ? slotH * n : vh;
       _scaleCache[cacheKey] = (fs, slotH, contentH);
@@ -2363,7 +2411,14 @@ class _MushafPageView extends StatelessWidget {
     final geomKey =
         '${identityHashCode(l)}_${_roundPx(targetW)}_${base.fontSize!.toStringAsFixed(2)}';
     var natural = _lineGeomCache[geomKey];
+    // Usually known already: the page's sizing pass shaped every line once.
+    final em = MushafGeometry.lineEm(l);
+    if (natural == null && em != null) {
+      natural = em * base.fontSize!;
+      _lineGeomCache[geomKey] = natural;
+    }
     if (natural == null) {
+      final sw = kMushafPerf ? (Stopwatch()..start()) : null;
       final measure = TextPainter(
           text: TextSpan(
               text: l.words.map((w) => w.text).join(' '), style: base),
@@ -2373,6 +2428,7 @@ class _MushafPageView extends StatelessWidget {
       natural = measure.width;
       measure.dispose();
       _lineGeomCache[geomKey] = natural;
+      if (sw != null) PerfLog.measured(page, 'width-pass', sw, 1);
     }
 
     // Justify by widening each space (the paragraph's wordSpacing; Skia
@@ -2462,6 +2518,7 @@ class _MushafPageView extends StatelessWidget {
 
     var lb = _lineBoxCache[geomKey];
     if (lb == null) {
+      final sw = kMushafPerf ? (Stopwatch()..start()) : null;
       final tp = TextPainter(
           text: TextSpan(children: spans, style: rootStyle),
           textDirection: TextDirection.rtl,
@@ -2490,6 +2547,7 @@ class _MushafPageView extends StatelessWidget {
       );
       tp.dispose();
       _lineBoxCache[geomKey] = lb;
+      if (sw != null) PerfLog.measured(page, 'box-pass', sw, 1);
     }
 
     final tpWidth = lb.$1, tpHeight = lb.$2;

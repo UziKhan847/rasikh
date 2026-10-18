@@ -4,9 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/screens/about_screen.dart';
+import 'package:qiraah_arabiyyah/screens/settings_screen.dart';
 
-/// Reachability check for the new Downloads screen: About → "Manage
+/// Reachability check for the new Downloads screen: Settings → "Manage
 /// downloads" → the Downloads screen. Doesn't wait for [DownloadsScreen]'s
 /// own async load (which tokenizes every sūrah's word count for the
 /// word-by-word status column) to finish — that's real asset/isolate work
@@ -42,10 +42,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-      'About: "Manage downloads" opens the Downloads screen, loading state first',
+      'Settings: "Manage downloads" opens the Downloads screen, loading state first',
       (tester) async {
     final (settings, progress) = await _boot();
-    await tester.pumpWidget(_harness(settings, progress, const AboutScreen()));
+    await tester.pumpWidget(_harness(settings, progress, const SettingsScreen()));
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('Manage downloads'));

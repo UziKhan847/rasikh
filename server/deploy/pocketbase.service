@@ -1,0 +1,33 @@
+# /etc/systemd/system/qiraah-marks.service
+# PocketBase for Qiraah Arabiyyah marks. Listens on localhost only; Caddy
+# terminates TLS in front of it (deploy/Caddyfile).
+[Unit]
+Description=Qiraah Arabiyyah marks server (PocketBase)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=qiraah
+Group=qiraah
+WorkingDirectory=/opt/qiraah-marks
+EnvironmentFile=/opt/qiraah-marks/.env
+Environment=GOMEMLIMIT=400MiB
+ExecStart=/opt/qiraah-marks/pocketbase serve --http=127.0.0.1:8090 \
+  --dir=/opt/qiraah-marks/pb_data \
+  --migrationsDir=/opt/qiraah-marks/pb_migrations \
+  --hooksDir=/opt/qiraah-marks/pb_hooks \
+  --publicDir=/opt/qiraah-marks/pb_public \
+  --encryptionEnv=PB_ENCRYPTION_KEY
+Restart=always
+RestartSec=5s
+LimitNOFILE=4096
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/qiraah-marks/pb_data
+
+[Install]
+WantedBy=multi-user.target

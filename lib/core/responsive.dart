@@ -76,7 +76,7 @@ class _DesktopFrame extends StatelessWidget {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: p.surfaceHigh),
+                  border: Border.all(color: p.track),
                 ),
                 child: child,
               ),

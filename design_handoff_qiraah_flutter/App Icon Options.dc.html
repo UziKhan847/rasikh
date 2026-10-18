@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Hanken+Grotesk:wght@400;600;700&family=Newsreader:opsz,wght@6..72,400&family=Noto+Naskh+Arabic:wght@500;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#E8E4DA;font-family:'Hanken Grotesk',sans-serif;color:#16201C}a{color:#0F7A62}a:hover{color:#0B5E4B}</style>
+</helmet>
+<section style="padding:48px;display:flex;flex-direction:column;gap:28px">
+<div style="max-width:760px"><div style="font-size:12px;letter-spacing:.1em;font-weight:700;color:#7A817C">APP ICON · TURN 1</div><div style="font-family:'Newsreader',serif;font-size:36px;margin-top:6px">Your current icon, and five options in the new palette</div><div style="font-size:15px;color:#56605B;margin-top:8px;line-height:1.5">The current mint gradient belongs to the old UI. It reads younger than the redesign, and next to the deep-emerald app it looks like a different product. The قع idea works — keep it — but the letters collide where the ʿayn’s tail meets the qāf. Every option is shown as an app icon, an Android adaptive circle, at small size, and as the monochrome themed icon.</div></div>
+<div style="display:flex;flex-wrap:wrap;gap:20px">
+<sc-for list="{{ opts }}" as="o" hint-placeholder-count="6">
+<div id="{{ o.id }}" style="width:300px;background:#F5F3EE;border-radius:24px;padding:20px;border:1px solid #DDD8CD;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;font-weight:700;background:#16201C;color:#fff;padding:3px 9px;border-radius:8px">{{ o.id }}</span><span style="font-size:12px;color:#7A817C;font-weight:600">{{ o.tag }}</span></div>
+<div style="display:flex;justify-content:center"><div style="width:180px;height:180px;border-radius:42px;overflow:hidden;position:relative;background:{{ o.bg }};box-shadow:0 18px 30px -16px rgba(20,30,25,.45)">
+<sc-if value="{{ o.star }}"><div style="position:absolute;inset:34px;border:2px solid {{ o.acc }};border-radius:6px;opacity:.9"></div><div style="position:absolute;inset:34px;border:2px solid {{ o.acc }};border-radius:6px;transform:rotate(45deg);opacity:.9"></div></sc-if>
+<sc-if value="{{ o.ring }}"><div style="position:absolute;inset:16px;border:1.5px solid {{ o.acc }};border-radius:30px"></div></sc-if>
+<sc-if value="{{ o.useImg }}"><div style="position:absolute;inset:{{ o.inset }};background:{{ o.fg }};-webkit-mask:url(assets/icon-glyph.png) center/contain no-repeat;mask:url(assets/icon-glyph.png) center/contain no-repeat"></div></sc-if>
+<sc-if value="{{ o.useText }}"><div dir="rtl" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:{{ o.font }};font-size:{{ o.size }};line-height:1;color:{{ o.fg }};padding-bottom:{{ o.pb }}">{{ o.glyph }}</div></sc-if>
+<sc-if value="{{ o.dots }}"><div style="position:absolute;top:44px;left:50%;margin-left:-21px;display:flex;gap:10px"><div style="width:16px;height:16px;background:{{ o.acc }};transform:rotate(45deg);border-radius:2px"></div><div style="width:16px;height:16px;background:{{ o.acc }};transform:rotate(45deg);border-radius:2px"></div></div></sc-if>
+</div></div>
+<div style="display:flex;align-items:center;justify-content:center;gap:18px">
+<div style="width:72px;height:72px;border-radius:36px;overflow:hidden;position:relative;background:{{ o.bg }}"><sc-if value="{{ o.useImg }}"><div style="position:absolute;inset:14px;background:{{ o.fg }};-webkit-mask:url(assets/icon-glyph.png) center/contain no-repeat;mask:url(assets/icon-glyph.png) center/contain no-repeat"></div></sc-if><sc-if value="{{ o.useText }}"><div dir="rtl" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:{{ o.font }};font-size:{{ o.sizeS }};line-height:1;color:{{ o.fg }}">{{ o.glyph }}</div></sc-if></div>
+<div style="width:40px;height:40px;border-radius:10px;overflow:hidden;position:relative;background:{{ o.bg }}"><sc-if value="{{ o.useImg }}"><div style="position:absolute;inset:6px;background:{{ o.fg }};-webkit-mask:url(assets/icon-glyph.png) center/contain no-repeat;mask:url(assets/icon-glyph.png) center/contain no-repeat"></div></sc-if><sc-if value="{{ o.useText }}"><div dir="rtl" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:{{ o.font }};font-size:{{ o.sizeXS }};line-height:1;color:{{ o.fg }}">{{ o.glyph }}</div></sc-if></div>
+<div style="width:72px;height:72px;border-radius:36px;overflow:hidden;position:relative;background:#DCE5DF"><sc-if value="{{ o.useImg }}"><div style="position:absolute;inset:14px;background:#2D4A3F;-webkit-mask:url(assets/icon-glyph.png) center/contain no-repeat;mask:url(assets/icon-glyph.png) center/contain no-repeat"></div></sc-if><sc-if value="{{ o.useText }}"><div dir="rtl" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:{{ o.font }};font-size:{{ o.sizeS }};line-height:1;color:#2D4A3F">{{ o.glyph }}</div></sc-if></div>
+</div>
+<div style="display:flex;justify-content:center;gap:18px;font-size:10px;color:#8B928D;font-weight:600;margin-top:-8px"><span style="width:72px;text-align:center">Adaptive</span><span style="width:40px;text-align:center">40px</span><span style="width:72px;text-align:center">Themed</span></div>
+<div><div style="font-weight:700;font-size:15px">{{ o.name }}</div><div style="font-size:13px;color:#56605B;margin-top:4px;line-height:1.45">{{ o.note }}</div></div>
+</div>
+</sc-for>
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals(){
+    const base={star:false,ring:false,dots:false,useImg:false,useText:false,inset:'30px',pb:'0',font:"'Noto Naskh Arabic', serif",size:'110px',sizeS:'44px',sizeXS:'24px',glyph:'قع',acc:'#E3C27A'};
+    const o=[
+      {...base,id:'0',tag:'Current',name:'Current icon',bg:'linear-gradient(135deg,#2AD8A0,#12B88E)',fg:'#FFFFFF',useImg:true,note:'Bright and friendly, but it’s the old mint palette and reads younger than the redesign. The ʿayn’s tail crashes into the qāf.'},
+      {...base,id:'1a',tag:'Lowest risk',name:'Same glyph, new colours',bg:'#0F3B32',fg:'#F2EEE4',useImg:true,note:'Keeps your current letterform so recognition carries over, recoloured to deep emerald and paper. The quickest change.'},
+      {...base,id:'1b',tag:'Recommended',name:'Naskh qāf-ʿayn in gold',bg:'#0F3B32',fg:'#E3C27A',useText:true,size:'104px',sizeS:'40px',sizeXS:'22px',pb:'14px',ring:true,note:'Redrawn in calligraphic Naskh so the two letters sit together instead of colliding. The gold matches the reader’s accents; the hairline frame gives a muṣḥaf-cover feel.'},
+      {...base,id:'1c',tag:'Most distinctive',name:'Rubʿ al-ḥizb frame',bg:'#0F3B32',fg:'#F2EEE4',useText:true,star:true,glyph:'ق',size:'84px',sizeS:'40px',sizeXS:'22px',pb:'14px',note:'The eight-point star from the muṣḥaf’s quarter marks frames a single qāf. Recognisable as Qur’anic at a glance; the star drops away at small sizes.'},
+      {...base,id:'1d',tag:'Light',name:'Paper and emerald',bg:'#F5F3EE',fg:'#0F7A62',acc:'#B4862C',useText:true,size:'104px',sizeS:'40px',sizeXS:'22px',pb:'14px',ring:true,note:'Matches the app’s cream reading surface. Calm and premium, though light icons can disappear on light wallpapers.'},
+      {...base,id:'1e',tag:'Simplest',name:'Single qāf',bg:'#0F7A62',fg:'#F2EEE4',useText:true,glyph:'ق',size:'120px',sizeS:'46px',sizeXS:'26px',pb:'22px',note:'One bold qāf, nothing else. Sharpest at 40px and in the themed monochrome icon; the least ornamental option.'}
+    ];
+    return {opts:o};
+  }
+}
+</script>
+</body>
+</html>
