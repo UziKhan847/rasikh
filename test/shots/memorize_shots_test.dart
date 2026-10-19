@@ -13,8 +13,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:qiraah_arabiyyah/core/l10n.dart';
+import 'package:qiraah_arabiyyah/core/marks/marks_model.dart';
+import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
+import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
+import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
+import 'package:qiraah_arabiyyah/core/memorize.dart';
+import 'package:qiraah_arabiyyah/screens/mushaf/memorize_cards_screen.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/core/theme.dart';
+import 'package:qiraah_arabiyyah/data/mushaf.dart';
 import 'package:qiraah_arabiyyah/data/quran.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
 
@@ -107,4 +114,72 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
     });
   }
+
+  testWidgets('memorize_cards', (tester) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({});
+    final s = AppSettings();
+    final p = ProgressStore();
+    await s.load();
+    await p.load();
+    s.onboarded = true;
+    final m = MarksStore(
+        persistence: MemoryMarksPersistence(), saveDelay: Duration.zero);
+    await m.load();
+    final b = m.ensureActiveBook('Me').id;
+    m.addMark(b, const WordRef(2, 255, 3), MarkType.mistake);
+    m.addMark(b, const WordRef(2, 255, 6), MarkType.doubt);
+    final c = MemorizeController.startAt('uthmani', 42);
+    final key = GlobalKey();
+    await tester.pumpWidget(MarksScope(
+      store: m,
+      child: SettingsScope(
+        settings: s,
+        child: ProgressScope(
+          progress: p,
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: buildTheme(s),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+            home: RepaintBoundary(
+                key: key, child: MemorizeCardsScreen(controller: c)),
+          ),
+        ),
+      ),
+    ));
+    for (var i = 0; i < 6; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 30)));
+      await tester.pump(const Duration(milliseconds: 80));
+    }
+    // Into Āyat al-Kursī, eight words in.
+    while (c.viewAyah < MushafRepo.globalAyahOf(2, 255)) {
+      c.nextVerse();
+    }
+    c.prevVerse();
+    for (var i = 0; i < 9; i++) {
+      c.nextWord();
+    }
+    for (var i = 0; i < 4; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 30)));
+      await tester.pump(const Duration(milliseconds: 80));
+    }
+    final boundary =
+        key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final bytes = await tester.runAsync(() async {
+      final img = await boundary.toImage(pixelRatio: 1.5);
+      final data = await img.toByteData(format: ui.ImageByteFormat.png);
+      return data!.buffer.asUint8List();
+    });
+    File('$_out/memorize_cards.png')
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(bytes!);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 1));
+  });
 }

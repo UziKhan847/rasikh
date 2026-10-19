@@ -5,6 +5,7 @@ import '../../core/marks/marks_model.dart';
 import '../../core/marks/marks_stats.dart';
 import '../../core/marks/marks_store.dart';
 import '../../core/marks/word_ref.dart';
+import '../../core/memorize.dart';
 import '../../core/responsive.dart';
 import '../../core/settings.dart';
 import '../../core/theme.dart';
@@ -14,6 +15,7 @@ import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
 import '../shell/app_shell.dart';
+import '../mushaf/memorize_cards_screen.dart';
 import '../mushaf/mushaf_index_sheet.dart';
 import 'charts.dart';
 import 'mark_books_screen.dart';
@@ -45,6 +47,18 @@ Future<void> _openIndex(BuildContext context) async {
             script, w.globalAyah, w.word <= 0 ? 0 : w.word - 1),
         script: script),
   );
+}
+
+/// Memorize as verse cards from the last page read.
+Future<void> _openMemorizeCards(BuildContext context) async {
+  final script = SettingsScope.of(context).mushafScript;
+  final prog = ProgressScope.read(context);
+  await MushafRepo.ensure(script);
+  if (!context.mounted) return;
+  final page = prog.lastMushafScript == script ? prog.lastMushafPage ?? 1 : 1;
+  await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => MemorizeCardsScreen(
+          controller: MemorizeController.startAt(script, page))));
 }
 
 /// Review the active book's marks, around the last page read.
@@ -121,6 +135,16 @@ class HifzScreen extends StatelessWidget {
             const Icon(AppIcons.pen, color: kHeroGold, size: 30),
           ]),
         ),
+        const SizedBox(height: 10),
+        QGroup(children: [
+          QRow(
+            leading: Icon(AppIcons.cards, color: p.acc),
+            title: context.l10n.mzStartCards,
+            subtitle: context.l10n.mzStartCardsSub,
+            chevron: true,
+            onTap: () => _openMemorizeCards(context),
+          ),
+        ]),
         if (book != null) ...[
           QSectionLabel(
             context.l10n.mkReciter,

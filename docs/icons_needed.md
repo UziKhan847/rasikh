@@ -12,7 +12,7 @@ The app's icons all go through `lib/ui/app_icons.dart`. Most already use the red
 - Deliver them as SVGs plus an updated `QiraahIcons.ttf` (with `codepoints.json`), continuing the codepoints from **U+E030**. The suggested codepoint for each is in the table.
 - Swapping one in is a one-line change in `app_icons.dart` (`static const tashkil = QiraahIcons.tashkil;`).
 
-## The 39 icons
+## The 49 icons
 
 | # | Name (`AppIcons.`) | Suggested codepoint | Used for | Stand-in today (Material) |
 |---|---|---|---|---|
@@ -56,13 +56,15 @@ The app's icons all go through `lib/ui/app_icons.dart`. Most already use the red
 | 38 | `add` | U+E055 | Add a mark / book | `add_rounded` |
 | 39 | `more` | U+E056 | More actions | `more_horiz_rounded` |
 | 40 | `review` | U+E057 | Hifz / muṣḥaf: review your marks | `fact_check_outlined` |
-| 41 | `cards` | U+E058 | Review: show as verse cards | `view_carousel_outlined` |
-| 42 | `memorize` | U+E059 | Muṣḥaf: memorize (hide the page) | `visibility_off_outlined` |
-| 43 | `show` | U+E05A | Memorize: show the page | `visibility_outlined` |
-| 44 | `nextVerse` | U+E05B | Memorize: reveal the rest of the āyah (points left: the text runs right to left) | `keyboard_double_arrow_left_rounded` |
-| 45 | `prevVerse` | U+E05C | Memorize: hide the āyah again | `keyboard_double_arrow_right_rounded` |
-| 47 | `pdf` | U+E05E | Hifz / statistics: export a PDF report | `picture_as_pdf_outlined` |
-| 46 | `pageOn` | U+E05D | Memorize: rest of the page, then turn (points left: onward) | `first_page_rounded` |
+| 41 | `cards` | U+E058 | Verse cards (review and memorize), and switching to them | `view_carousel_outlined` |
+| 42 | `memorize` | U+E059 | Memorize: start it; hide the page / the āyah | `visibility_off_outlined` |
+| 43 | `show` | U+E05A | Memorize: show the page / the āyah | `visibility_outlined` |
+| 44 | `nextVerse` | U+E05B | Memorize: reveal the rest of the āyah (a double arrow; draw it forward like the others — the bar orders the controls for right-to-left reading) | `keyboard_double_arrow_left_rounded` |
+| 45 | `prevVerse` | U+E05C | Memorize: hide the āyah again (the same double arrow, backward) | `keyboard_double_arrow_right_rounded` |
+| 46 | `pageOn` | U+E05D | Memorize: reveal the rest of the page, then turn it (arrow to a bar, forward) | `first_page_rounded` |
+| 47 | `pdf` | U+E05E | Hifz / statistics / review: export a PDF report | `picture_as_pdf_outlined` |
+| 48 | `textBigger` | U+E05F | Memorize verse cards: larger text | `text_increase_rounded` |
+| 49 | `textSmaller` | U+E060 | Memorize verse cards: smaller text | `text_decrease_rounded` |
 
 ## Not icons (already done)
 

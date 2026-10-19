@@ -104,6 +104,36 @@ class MemorizeController extends ChangeNotifier {
     if (first < _end) _set(first, view: first);
   }
 
+  // ── verse cards: one āyah at a time ──
+
+  /// The āyah in view (verse cards show it alone).
+  int get viewAyah => MushafRepo.tokenAt(script, _view).$1;
+
+  /// Shows the whole āyah in view.
+  void revealAyah() {
+    final end = MushafRepo.tokenOf(script, viewAyah, -1) + 1;
+    if (end > _end) _set(end);
+  }
+
+  /// Hides the whole āyah in view again.
+  void hideAyah() {
+    final first = MushafRepo.tokenOf(script, viewAyah, 0);
+    if (first < _end) _set(first, view: first);
+  }
+
+  /// Whether any of the āyah in view is still hidden.
+  bool get ayahHidden =>
+      _end <= MushafRepo.tokenOf(script, viewAyah, -1);
+
+  /// For verse cards: the āyah before the one being memorized, whole, then
+  /// this one up to the last revealed word.
+  List<(int, int)> ayahClips() {
+    final c = currentClip;
+    if (c == null) return const [];
+    final (g, w) = c;
+    return [if (g > 0 && w >= 0) (g - 1, -1), c];
+  }
+
   /// Starts over from [page] (everything on it hidden).
   void restartAt(int page) {
     final (first, _) = MushafRepo.pageTokens(script, page);

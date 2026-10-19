@@ -116,5 +116,7 @@ abstract final class AppIcons {
   static const nextVerse = Icons.keyboard_double_arrow_left_rounded; // stand-in
   static const prevVerse = Icons.keyboard_double_arrow_right_rounded; // stand-in
   static const pdf = Icons.picture_as_pdf_outlined; // stand-in
+  static const textBigger = Icons.text_increase_rounded; // stand-in
+  static const textSmaller = Icons.text_decrease_rounded; // stand-in
   static const pageOn = Icons.first_page_rounded; // stand-in (points left: onward)
 }

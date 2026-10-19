@@ -242,4 +242,56 @@ void main() {
     // Past the word audio's fetch timeouts (a tap played a word).
     await tester.pump(const Duration(seconds: 30));
   });
+
+  testWidgets('closing the muṣḥaf mid-review rebuilds nothing mid-teardown',
+      (tester) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (s, p, m, b) = await _boot();
+    final c = ReviewController.start(m, b, const ReviewQuery());
+    // A screen below that listens to the marks (as the Hifz screen does).
+    await tester.pumpWidget(_app(
+        s,
+        p,
+        m,
+        Builder(
+          builder: (context) => ListenableBuilder(
+            listenable: m,
+            builder: (context, _) => Scaffold(
+              body: TextButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => MushafPageScreen(
+                        startPage: _page(_a), script: 'uthmani', review: c))),
+                child: Text('${m.sessionsOf(b).length} sessions'),
+              ),
+            ),
+          ),
+        )));
+    await tester.tap(find.byType(TextButton));
+    await _settle(tester);
+    expect(find.byType(ReviewBar), findsOneWidget);
+    Navigator.of(tester.element(find.byType(MushafPageScreen))).pop();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(m.session(b, c.sessionId!)!.endedAt, isNotNull,
+        reason: 'the review session still closes');
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
+  });
+
+  testWidgets('the review bar recites the āyah', (tester) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (s, p, m, b) = await _boot();
+    final c = ReviewController.start(m, b, const ReviewQuery());
+    await tester.pumpWidget(_app(s, p, m,
+        MushafPageScreen(startPage: _page(_a), script: 'uthmani', review: c)));
+    await _settle(tester);
+    expect(find.byTooltip('Ḥuṣarī recites the āyah'), findsOneWidget);
+    c.end();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
+  });
 }

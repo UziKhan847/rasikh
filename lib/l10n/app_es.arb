@@ -977,5 +977,15 @@
   "rpSurahN": "Sura {n}",
   "rpWhere": "Página {page} · Juzʼ {juz} · Ḥizb {hizb}",
   "rpRange": "{from} – {to}",
-  "rpAyahsN": "{n, plural, =1{1 aleya} other{{n} aleyas}}"
+  "rpAyahsN": "{n, plural, =1{1 aleya} other{{n} aleyas}}",
+  "rvReciteVerse": "Al-Ḥuṣarī recita la aleya",
+  "mzStartCards": "Memorizar en tarjetas de aleyas",
+  "mzStartCardsSub": "Letra grande, una aleya a la vez — sin seguir las páginas",
+  "mzShowAyah": "Mostrar la aleya",
+  "mzHideAyah": "Ocultar la aleya",
+  "mzPlayCards": "Escuchar lo visible (mantén: con la aleya anterior)",
+  "mzAsCards": "Tarjetas de aleyas",
+  "mzAsPage": "Página del muṣḥaf",
+  "mzBigger": "Letra más grande",
+  "mzSmaller": "Letra más pequeña"
 }

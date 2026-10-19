@@ -22,6 +22,12 @@ class MemorizeBar extends StatelessWidget {
 
   /// Floating pill (desktop / landscape) vs. a full-width bar.
   final bool floating;
+
+  /// Verse cards: the āyah is the unit (show / hide the āyah; no page).
+  final bool cards;
+
+  /// Switches between the muṣḥaf page and verse cards, keeping the place.
+  final VoidCallback? onSwitchView;
   const MemorizeBar({
     super.key,
     required this.controller,
@@ -35,6 +41,8 @@ class MemorizeBar extends StatelessWidget {
     required this.onPlayPage,
     required this.onEnd,
     this.floating = false,
+    this.cards = false,
+    this.onSwitchView,
   });
 
   @override
@@ -54,7 +62,7 @@ class MemorizeBar extends StatelessWidget {
           where = context.l10n
               .mzWhere('${surahNames[s] ?? ''} $s:$a', w < 0 ? 1 : w + 1);
         }
-        final pageHidden = c.hideFromOn(c.viewPage) >= 0;
+        final hidden = cards ? c.ayahHidden : c.hideFromOn(c.viewPage) >= 0;
         IconButton icon(IconData i, String tip, VoidCallback? on) => IconButton(
               tooltip: tip,
               onPressed: on,
@@ -82,8 +90,9 @@ class MemorizeBar extends StatelessWidget {
         final controls = Directionality(
           textDirection: TextDirection.ltr,
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            icon(AppIcons.pageOn, context.l10n.mzNextPage,
-                c.atEnd ? null : c.nextPage),
+            if (!cards)
+              icon(AppIcons.pageOn, context.l10n.mzNextPage,
+                  c.atEnd ? null : c.nextPage),
             icon(AppIcons.nextVerse, context.l10n.mzNextVerse,
                 c.atEnd ? null : c.nextVerse),
             FilledButton.icon(
@@ -106,11 +115,20 @@ class MemorizeBar extends StatelessWidget {
                 height: 28,
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 color: line),
-            icon(pageHidden ? AppIcons.show : AppIcons.memorize,
-                pageHidden ? context.l10n.mzShowPage : context.l10n.mzHidePage,
-                pageHidden ? c.revealPage : c.hidePage),
+            if (cards)
+              icon(hidden ? AppIcons.show : AppIcons.memorize,
+                  hidden ? context.l10n.mzShowAyah : context.l10n.mzHideAyah,
+                  hidden ? c.revealAyah : c.hideAyah)
+            else
+              icon(hidden ? AppIcons.show : AppIcons.memorize,
+                  hidden ? context.l10n.mzShowPage : context.l10n.mzHidePage,
+                  hidden ? c.revealPage : c.hidePage),
+            if (onSwitchView != null)
+              icon(cards ? AppIcons.mushaf : AppIcons.cards,
+                  cards ? context.l10n.mzAsPage : context.l10n.mzAsCards,
+                  onSwitchView),
             Tooltip(
-              message: context.l10n.mzPlay,
+              message: cards ? context.l10n.mzPlayCards : context.l10n.mzPlay,
               child: InkWell(
                 borderRadius: BorderRadius.circular(999),
                 onTap: c.atStart ? null : onPlay,

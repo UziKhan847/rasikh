@@ -977,5 +977,15 @@
   "rpSurahN": "سورت {n}",
   "rpWhere": "صفحہ {page} · پارہ {juz} · حزب {hizb}",
   "rpRange": "{from} – {to}",
-  "rpAyahsN": "{n, plural, =1{1 آیت} other{{n} آیات}}"
+  "rpAyahsN": "{n, plural, =1{1 آیت} other{{n} آیات}}",
+  "rvReciteVerse": "حصری آیت کی تلاوت کریں",
+  "mzStartCards": "آیت کارڈ سے حفظ کریں",
+  "mzStartCardsSub": "بڑی لکھائی، ایک وقت میں ایک آیت — صفحے کی پابندی نہیں",
+  "mzShowAyah": "آیت دکھائیں",
+  "mzHideAyah": "آیت چھپائیں",
+  "mzPlayCards": "جو دکھ رہا ہے سنیں (دبائے رکھیں: پچھلی آیت کے ساتھ)",
+  "mzAsCards": "آیت کارڈ",
+  "mzAsPage": "مصحف کا صفحہ",
+  "mzBigger": "بڑی لکھائی",
+  "mzSmaller": "چھوٹی لکھائی"
 }

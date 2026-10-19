@@ -60,6 +60,9 @@ class AppSettings extends ChangeNotifier {
   /// recitation highlights, tajwīd colours, marks — is unchanged.
   bool lite = false;
 
+  /// Memorize as verse cards: the āyah's font size (they're for large text).
+  double memorizeCardFont = 36;
+
   /// The one-time "this device seems slow — turn on Lite mode?" offer has
   /// been made (see core/jank_watch.dart).
   bool liteSuggested = false;
@@ -197,6 +200,7 @@ class AppSettings extends ChangeNotifier {
     ornate = m['ornate'] ?? true;
     gradients = m['gradients'] ?? true;
     lite = m['lite'] ?? false;
+    memorizeCardFont = (m['memorizeCardFont'] as num?)?.toDouble() ?? 36;
     liteSuggested = m['liteSuggested'] ?? false;
     // An install from before the welcome existed has already found its way.
     onboarded = m['onboarded'] ?? true;
@@ -273,6 +277,7 @@ class AppSettings extends ChangeNotifier {
         'ornate': ornate,
         'gradients': gradients,
         'lite': lite,
+        'memorizeCardFont': memorizeCardFont,
         'liteSuggested': liteSuggested,
         'onboarded': onboarded,
         'lang': language,

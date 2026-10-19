@@ -24,6 +24,9 @@ class VerseView extends StatelessWidget {
 
   /// The word in focus ([WordRef.key]); -1 for none.
   final int focus;
+
+  /// Memorize: tokens from here on are hidden (see [MushafLineSpec.hideFrom]).
+  final int hideFrom;
   final int playAyah, playWord;
   final bool reciting;
   final MushafTapHandlers handlers;
@@ -41,6 +44,7 @@ class VerseView extends StatelessWidget {
     this.marks = const {},
     this.markPal,
     this.focus = -1,
+    this.hideFrom = -1,
     this.playAyah = -1,
     this.playWord = -1,
     this.reciting = false,
@@ -133,6 +137,7 @@ class VerseView extends StatelessWidget {
                 marks: marks,
                 markPal: markPal,
                 focus: focus,
+                hideFrom: hideFrom,
                 rewrap: true,
               ),
             ),

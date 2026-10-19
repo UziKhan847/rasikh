@@ -22,6 +22,7 @@ import '../mushaf_screen.dart';
 import 'marking.dart';
 import 'report_pdf.dart';
 import 'review_bar.dart';
+import '../../core/recite_back.dart';
 import 'review_setup_sheet.dart';
 import 'word_marks_sheet.dart';
 
@@ -147,7 +148,9 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
     _pages.dispose();
     WbwAudio.instance.stop();
     AyahAudio.instance.stop();
-    if (!_ending) _c.end();
+    // Ended just after this frame (it notifies the marks; nothing may
+    // rebuild while the tree is torn down).
+    if (!_ending) Future.microtask(_c.end);
     super.dispose();
   }
 
@@ -199,7 +202,9 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
       _playWord = -1;
     });
     AyahAudio.instance.setRate(s.playbackSpeed);
-    final err = await AyahAudio.instance.play(surah, ayah, reciter: s.reciter);
+    // Review recites in Ḥuṣarī's voice (his timings light the words).
+    final err = await AyahAudio.instance
+        .play(surah, ayah, reciter: ReciteBack.reciter);
     if (!mounted) return;
     if (err != null) {
       setState(() => _reciting = false);

@@ -977,5 +977,15 @@
   "rpSurahN": "Sourate {n}",
   "rpWhere": "Page {page} · Juzʼ {juz} · Ḥizb {hizb}",
   "rpRange": "{from} – {to}",
-  "rpAyahsN": "{n, plural, =1{1 verset} other{{n} versets}}"
+  "rpAyahsN": "{n, plural, =1{1 verset} other{{n} versets}}",
+  "rvReciteVerse": "Al-Ḥuṣarī récite le verset",
+  "mzStartCards": "Mémoriser en cartes de versets",
+  "mzStartCardsSub": "Grande écriture, un verset à la fois — sans suivre les pages",
+  "mzShowAyah": "Afficher le verset",
+  "mzHideAyah": "Masquer le verset",
+  "mzPlayCards": "Écouter ce qui s'affiche (appui long : avec le verset d'avant)",
+  "mzAsCards": "Cartes de versets",
+  "mzAsPage": "Page du muṣḥaf",
+  "mzBigger": "Texte plus grand",
+  "mzSmaller": "Texte plus petit"
 }

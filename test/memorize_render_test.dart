@@ -3,7 +3,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:qiraah_arabiyyah/core/l10n.dart';
+import 'package:qiraah_arabiyyah/core/marks/marks_model.dart';
+import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
+import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
+import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
+import 'package:qiraah_arabiyyah/core/memorize.dart';
+import 'package:qiraah_arabiyyah/ui/mark_style.dart';
+import 'package:qiraah_arabiyyah/screens/mushaf/memorize_cards_screen.dart';
+import 'package:qiraah_arabiyyah/screens/mushaf/verse_view.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
+import 'package:qiraah_arabiyyah/core/theme.dart';
 import 'package:qiraah_arabiyyah/data/mushaf.dart';
 import 'package:qiraah_arabiyyah/data/mushaf_atlas.dart';
 import 'package:qiraah_arabiyyah/data/quran.dart';
@@ -225,6 +234,108 @@ void main() {
     for (final r in onScreen(tester)) {
       expect(_sprites(r.laidLine! as AtlasLine), 0);
     }
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 1));
+  });
+
+  test('marks come with their words: none on hidden ones', () {
+    final atlas = MushafAtlas.of('uthmani')!;
+    final line = textLine();
+    final n = line.words.length;
+    // Every word on the line marked.
+    final marks = {
+      for (final w in line.words)
+        WordRef.fromGlobal(w.ayah, w.isMarker ? -1 : w.wordIdx).key:
+            const MarkVisual(open: MarkType.mistake, fixed: false,
+                hasComment: false, count: 1),
+    };
+    MushafLineSpec spec(int hideFrom) => MushafLineSpec(
+          script: 'uthmani',
+          page: 2,
+          index: 3,
+          line: line,
+          fontSize: 22,
+          slotH: 40,
+          targetW: 380,
+          ink: const Color(0xFF000000),
+          accent: const Color(0xFF00AA00),
+          strongBg: const Color(0x3300AA00),
+          verseBg: const Color(0x1100AA00),
+          marks: marks,
+          markPal: markPaletteForPaper(kMushafPapers['cream']!),
+          hideFrom: hideFrom,
+        );
+    final half = n ~/ 2;
+    final l = buildAtlasLine(spec(line.firstTok + half), atlas, 0);
+    expect(l.markLines, hasLength(half), reason: 'the revealed words only');
+    expect(l.backgrounds, hasLength(half));
+    final all = buildAtlasLine(spec(-1), atlas, 0);
+    expect(all.markLines, hasLength(n));
+  });
+
+  testWidgets('verse cards: large āyah, word by word, marks, and the page view',
+      (tester) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (s, p) = await boot();
+    final m = MarksStore(
+        persistence: MemoryMarksPersistence(), saveDelay: Duration.zero);
+    await m.load();
+    final b = m.ensureActiveBook('Me').id;
+    m.addMark(b, const WordRef(2, 2, 2), MarkType.doubt); // لَا of 2:2
+    final c = MemorizeController.startAt('uthmani', 2);
+    await tester.pumpWidget(MarksScope(
+      store: m,
+      child: SettingsScope(
+        settings: s,
+        child: ProgressScope(
+          progress: p,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+            home: MemorizeCardsScreen(controller: c),
+          ),
+        ),
+      ),
+    ));
+    await settle(tester);
+    expect(find.byType(VerseView), findsOneWidget);
+    expect(find.byType(MemorizeBar), findsOneWidget);
+    var lines = onScreen(tester);
+    expect(lines.every((r) => _sprites(r.laidLine! as AtlasLine) == 0), isTrue);
+    expect(lines.first.spec.fontSize, s.memorizeCardFont);
+
+    // 2:1 (one word and its ۝), then the card moves on to 2:2 with the
+    // next word — and the doubt on its second word shows once it's there.
+    await tester.tap(find.text('Next word'));
+    await settle(tester);
+    expect(c.viewAyah, MushafRepo.globalAyahOf(2, 1));
+    await tester.tap(find.text('Next word'));
+    await settle(tester);
+    expect(c.viewAyah, MushafRepo.globalAyahOf(2, 2));
+    lines = onScreen(tester);
+    expect(lines.expand((r) => r.laidLine!.markLines), isEmpty,
+        reason: 'the marked word is still hidden');
+    await tester.tap(find.text('Next word'));
+    await settle(tester);
+    lines = onScreen(tester);
+    expect(lines.expand((r) => r.laidLine!.markLines), hasLength(1));
+
+    // Bigger text.
+    final before = s.memorizeCardFont;
+    await tester.tap(find.byTooltip('Larger text'));
+    await settle(tester);
+    expect(s.memorizeCardFont, before + 4);
+
+    // To the muṣḥaf page, the same place.
+    await tester.tap(find.byTooltip('Muṣḥaf page'));
+    await settle(tester);
+    await tester.pumpAndSettle();
+    expect(find.byType(MushafPageScreen), findsOneWidget);
+    expect(find.byType(MemorizeBar), findsOneWidget);
+    expect(p.lastMushafPage, 2);
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));
   });

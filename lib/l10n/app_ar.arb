@@ -977,5 +977,15 @@
   "rpSurahN": "السورة {n}",
   "rpWhere": "صفحة {page} · الجزء {juz} · الحزب {hizb}",
   "rpRange": "{from} – {to}",
-  "rpAyahsN": "{n, plural, =1{آية واحدة} other{{n} آيات}}"
+  "rpAyahsN": "{n, plural, =1{آية واحدة} other{{n} آيات}}",
+  "rvReciteVerse": "الحصري يتلو الآية",
+  "mzStartCards": "احفظ ببطاقات الآيات",
+  "mzStartCardsSub": "خط كبير، آية بعد آية — بلا التزام بالصفحة",
+  "mzShowAyah": "أظهر الآية",
+  "mzHideAyah": "أخفِ الآية",
+  "mzPlayCards": "استمع لما يظهر (اضغط مطولًا: مع الآية السابقة)",
+  "mzAsCards": "بطاقات الآيات",
+  "mzAsPage": "صفحة المصحف",
+  "mzBigger": "خط أكبر",
+  "mzSmaller": "خط أصغر"
 }

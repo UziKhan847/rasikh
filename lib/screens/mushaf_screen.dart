@@ -19,6 +19,7 @@ import 'mushaf/mushaf_index_sheet.dart';
 import '../core/memorize.dart';
 import '../core/recite_back.dart';
 import 'mushaf/memorize_bar.dart';
+import 'mushaf/memorize_cards_screen.dart';
 import '../core/marks/review.dart';
 import 'marks/review_bar.dart';
 import 'marks/review_cards_screen.dart';
@@ -64,6 +65,9 @@ class MushafPageScreen extends StatefulWidget with DesktopAware {
   /// A review to carry on with (started from the Hifz screen or the verse
   /// cards): its bar shows, and its current mark is in focus.
   final ReviewController? review;
+
+  /// Memorizing to carry on with (from the memorize verse cards).
+  final MemorizeController? memorize;
   const MushafPageScreen(
       {super.key,
       this.startPage = 1,
@@ -71,7 +75,8 @@ class MushafPageScreen extends StatefulWidget with DesktopAware {
       this.pageScript,
       this.startMarking = false,
       this.focus,
-      this.review});
+      this.review,
+      this.memorize});
 
   @override
   State<MushafPageScreen> createState() => _MushafPageScreenState();
@@ -199,6 +204,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     } else {
       _focus = widget.focus;
     }
+    _memo = widget.memorize?..addListener(_onMemo);
     _load();
   }
 
@@ -334,6 +340,17 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     setState(() {});
   }
 
+  /// Memorize as verse cards: from the page in view (or carrying on from
+  /// where the page view is), in large writing. Ending there ends it here.
+  Future<void> _memorizeAsCards() async {
+    if (_memo == null) _startMemorize();
+    final m = _memo;
+    if (m == null) return;
+    final r = await Navigator.of(context).push<String>(MaterialPageRoute(
+        builder: (_) => MemorizeCardsScreen(controller: m, fromMushaf: true)));
+    if (r == 'end' && mounted) _endMemorize();
+  }
+
   void _onMemo() {
     final m = _memo;
     if (m == null || !mounted) return;
@@ -385,6 +402,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         floating: floating,
         onPlay: _playRevealed,
         onPlayPage: () => _playRevealed(page: true),
+        onSwitchView: _memorizeAsCards,
         onEnd: _endMemorize,
       );
 
@@ -427,7 +445,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     final w = _review?.current?.ref;
     if (w == null) return;
     if (verse || w.isWholeAyah) {
-      _playVerse(w.globalAyah, userTap: false);
+      _playVerse(w.globalAyah, userTap: false, reciter: ReciteBack.reciter);
     } else {
       _playWordAudio(MushafWord('', w.globalAyah, w.word0));
     }
@@ -504,9 +522,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     _spreadCtrl?.dispose();
     _pageN.dispose();
     _marking.removeListener(_onMarking);
-    // A review left by closing the muṣḥaf ends (its session closes).
-    _review?.removeListener(_onReview);
-    _review?.end();
+    // A review left by closing the muṣḥaf ends (its session closes) — just
+    // after this frame: ending it notifies the marks, and the screens that
+    // listen to them can't rebuild while the tree is being torn down.
+    final r = _review;
+    if (r != null) {
+      r.removeListener(_onReview);
+      Future.microtask(r.end);
+    }
     if (_memo != null) {
       _memo!.removeListener(_onMemo);
       ReciteBack.instance.stop();
@@ -861,7 +884,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     });
   }
 
-  Future<void> _playVerse(int global, {bool userTap = true}) async {
+  /// Plays āyah [global] in the chosen reciter's voice ([reciter]: another
+  /// one — review recites in Ḥuṣarī's).
+  Future<void> _playVerse(int global,
+      {bool userTap = true, String? reciter}) async {
     if (userTap) _lastWordTap = DateTime.now();
     if (userTap && _reciting && _playAyah == global) {
       _stopAudio();
@@ -877,7 +903,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     });
     AyahAudio.instance.setRate(s.playbackSpeed);
     final err =
-        await AyahAudio.instance.play(surah, ayahInSurah, reciter: s.reciter);
+        await AyahAudio.instance.play(surah, ayahInSurah,
+            reciter: reciter ?? s.reciter);
     if (!mounted) return;
     if (err != null) {
       _stopAudio();
@@ -1037,6 +1064,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                   Navigator.pop(sheet);
                   _startMemorize();
                 },
+          onMemorizeCards: () {
+            Navigator.pop(sheet);
+            _memorizeAsCards();
+          },
         ),
       ),
     );
@@ -1185,9 +1216,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       ..onTapVerse = _memorizing ? ((_) => _memo?.nextWord()) : _onTapVerse;
     final (lo, hi) = _ayahsOn(page);
     final mine = _playAyah >= 0 && _playAyah >= lo && _playAyah <= hi;
-    // Memorizing shows the words alone: no marks, and the hidden ones blank
-    // (each page gets only its own cut, so pages away from it keep theirs).
-    final marks = _memorizing ? const <int, MarkVisual>{} : _visuals(s);
+    // Memorizing (revision too): a word's marks appear as the word does —
+    // hidden words draw nothing, marks included. Each page gets only its
+    // own cut, so pages away from it keep their look.
+    final marks = _visuals(s);
     final markPal = markPaletteForPaper(paper);
     // Only the page holding the focused word gets it: the others' lines
     // keep their cached look.
@@ -2442,12 +2474,16 @@ class _MushafSettingsSheet extends StatelessWidget {
 
   /// Starts memorizing from the page in view.
   final VoidCallback? onMemorize;
+
+  /// The same, as verse cards.
+  final VoidCallback? onMemorizeCards;
   const _MushafSettingsSheet(
       {required this.controller,
       required this.script,
       required this.onScript,
       this.onReview,
-      this.onMemorize});
+      this.onMemorize,
+      this.onMemorizeCards});
 
   @override
   Widget build(BuildContext context) {
@@ -2466,6 +2502,14 @@ class _MushafSettingsSheet extends StatelessWidget {
               subtitle: context.l10n.mzStartSub,
               chevron: true,
               onTap: onMemorize,
+            ),
+          if (onMemorizeCards != null)
+            QRow(
+              leading: Icon(AppIcons.cards, color: pal(context).acc),
+              title: context.l10n.mzStartCards,
+              subtitle: context.l10n.mzStartCardsSub,
+              chevron: true,
+              onTap: onMemorizeCards,
             ),
           if (onReview != null)
             QRow(

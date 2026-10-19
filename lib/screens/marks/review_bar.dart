@@ -155,6 +155,8 @@ class ReviewBar extends StatelessWidget {
               ),
             ),
           ),
+          icon(AppIcons.recite, context.l10n.rvReciteVerse,
+              m == null ? null : onRepeatVerse),
           icon(AppIcons.undo, context.l10n.mkUndo, c.canUndo ? c.undo : null),
           const SizedBox(width: 2),
           FilledButton.icon(
