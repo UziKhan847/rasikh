@@ -1845,5 +1845,99 @@
         "type": "int"
       }
     }
+  },
+  "rpExport": "Export PDF report",
+  "rpTitle": "Recitation report",
+  "rpPeriod": "Period",
+  "rpAllTime": "All time",
+  "rpLast7": "Last 7 days",
+  "rpLast30": "Last 30 days",
+  "rpCustom": "Choose dates…",
+  "rpGroupBy": "Group by",
+  "rpBySurah": "Sūrah",
+  "rpByPage": "Page",
+  "rpShare": "Share",
+  "rpPrint": "Print",
+  "rpMaking": "Preparing the report… {done} / {total}",
+  "rpBook": "Mark book",
+  "rpGenerated": "Generated {date}",
+  "rpTotals": "Totals",
+  "rpOpenCol": "Open",
+  "rpFixedCol": "Fixed",
+  "rpWordN": "Word {n}",
+  "rpWholeAyah": "Whole āyah",
+  "rpFixedOn": "fixed {date}",
+  "rpNoMarks": "No marks match",
+  "rpSurahN": "Sūrah {n}",
+  "rpWhere": "Page {page} · Juzʼ {juz} · Ḥizb {hizb}",
+  "rpRange": "{from} – {to}",
+  "rpAyahsN": "{n, plural, =1{1 āyah} other{{n} āyāt}}",
+  "@rpMaking": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "@rpGenerated": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@rpWordN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@rpFixedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@rpSurahN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@rpWhere": {
+    "placeholders": {
+      "page": {
+        "type": "int"
+      },
+      "juz": {
+        "type": "int"
+      },
+      "hizb": {
+        "type": "int"
+      }
+    }
+  },
+  "@rpRange": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "@rpAyahsN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   }
 }

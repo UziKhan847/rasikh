@@ -21,6 +21,9 @@ dependencies:
   timezone: ^0.11.1
   flutter_timezone: ^5.1.1
   pocketbase: ^0.25.2
+  # Marks report: the PDF itself, and the share sheet / print preview.
+  pdf: ^3.11.3
+  printing: ^5.14.2
 
 dev_dependencies:
   flutter_test:

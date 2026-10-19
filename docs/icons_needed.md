@@ -61,6 +61,7 @@ The app's icons all go through `lib/ui/app_icons.dart`. Most already use the red
 | 43 | `show` | U+E05A | Memorize: show the page | `visibility_outlined` |
 | 44 | `nextVerse` | U+E05B | Memorize: reveal the rest of the āyah (points left: the text runs right to left) | `keyboard_double_arrow_left_rounded` |
 | 45 | `prevVerse` | U+E05C | Memorize: hide the āyah again | `keyboard_double_arrow_right_rounded` |
+| 47 | `pdf` | U+E05E | Hifz / statistics: export a PDF report | `picture_as_pdf_outlined` |
 | 46 | `pageOn` | U+E05D | Memorize: rest of the page, then turn (points left: onward) | `first_page_rounded` |
 
 ## Not icons (already done)

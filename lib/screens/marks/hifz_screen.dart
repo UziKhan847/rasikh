@@ -19,6 +19,7 @@ import 'charts.dart';
 import 'mark_books_screen.dart';
 import 'marking.dart';
 import 'marks_stats_screen.dart';
+import 'report_pdf.dart';
 import 'review_cards_screen.dart';
 import 'sync_section.dart';
 
@@ -186,6 +187,15 @@ class HifzScreen extends StatelessWidget {
                 subtitle: context.l10n.rvTapHint,
                 chevron: true,
                 onTap: () => _openReview(context),
+              ),
+              QRow(
+                leading: Icon(AppIcons.pdf, color: p.acc),
+                title: context.l10n.rpExport,
+                chevron: true,
+                onTap: () => showReportSheet(context,
+                    store: store,
+                    bookId: book.id,
+                    script: SettingsScope.of(context).mushafScript),
               ),
             ]),
           ],

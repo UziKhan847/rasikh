@@ -1021,74 +1021,7 @@ class RenderMushafLine extends RenderBox {
     final built = _atlasLine == null;
     final l = laidLine! as AtlasLine;
     if (built && sw != null) PerfLog.atlasLine(sw.elapsedMicroseconds);
-    final o = offset + textOffset;
-    for (final (left, right, c) in l.backgrounds) {
-      canvas.drawRect(
-        Rect.fromLTWH(o.dx + left, o.dy, right - left, l.height),
-        Paint()..color = c,
-      );
-    }
-    final images = atlas.tiers[l.tier].images;
-    if (images != null) {
-      final paint = Paint()..filterQuality = FilterQuality.medium;
-      canvas.save();
-      canvas.translate(o.dx, o.dy);
-      for (final (sheet, xf, rects, colors) in l.batches) {
-        // Each sprite is a white glyph; modulate takes its colour.
-        canvas.drawRawAtlas(
-          images[sheet],
-          xf,
-          rects,
-          colors,
-          BlendMode.modulate,
-          null,
-          paint,
-        );
-      }
-      canvas.restore();
-    }
-    _paintMarks(canvas, o, l);
-    _paintFocus(canvas, o, l);
-  }
-
-  /// The focused word's outline: a rounded box in the accent colour.
-  void _paintFocus(Canvas canvas, Offset o, MushafLineLayout l) {
-    if (l.focusBoxes.isEmpty) return;
-    final w = (_spec.fontSize * .07).clamp(1.5, 3.0);
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w
-      ..color = _spec.accent;
-    for (final (left, right) in l.focusBoxes) {
-      if (right <= left) continue;
-      final r = Rect.fromLTRB(o.dx + left - w, o.dy + w / 2,
-          o.dx + right + w, o.dy + l.height - w / 2);
-      canvas.drawRRect(
-          RRect.fromRectAndRadius(r, Radius.circular(_spec.fontSize * .25)),
-          paint);
-    }
-  }
-
-  void _paintMarks(Canvas canvas, Offset o, MushafLineLayout l) {
-    final pal = _spec.markPal;
-    if (l.markLines.isEmpty || pal == null) return;
-    final fs = _spec.fontSize;
-    final t = (fs * .065).clamp(1.2, 3.0);
-    // Under the kasrahs (~0.35 em below the baseline), above the next line's
-    // tallest marks.
-    final y = o.dy + l.baseline + fs * .42;
-    for (final (left, right, v) in l.markLines) {
-      // Inset a little so neighbouring marked words read as separate.
-      final inset = ((right - left) * .06).clamp(1.0, 4.0);
-      paintMarkLine(
-        canvas,
-        Offset(o.dx + left + inset, y),
-        right - left - inset * 2,
-        v,
-        pal,
-        thickness: t,
-      );
-    }
+    paintAtlasLine(canvas, offset + textOffset, l, atlas, _spec);
   }
 
   @override
@@ -1114,8 +1047,8 @@ class RenderMushafLine extends RenderBox {
     final l = _line = MushafLineCache.get(_spec);
     final o = offset + textOffset;
     l.painter.paint(context.canvas, o);
-    _paintMarks(context.canvas, o, l);
-    _paintFocus(context.canvas, o, l);
+    paintLineMarks(context.canvas, o, l, _spec);
+    paintLineFocus(context.canvas, o, l, _spec);
   }
 
   // ── taps ──
@@ -1191,5 +1124,83 @@ class RenderMushafLine extends RenderBox {
     config
       ..label = _spec.text
       ..textDirection = TextDirection.rtl;
+  }
+}
+
+/// Draws an atlas line at [o]: its highlights, its glyphs (one
+/// `drawRawAtlas` per sheet), its mark lines and focus outline. Shared by
+/// the muṣḥaf's lines and anything that paints them elsewhere (the PDF
+/// report's verse images).
+void paintAtlasLine(Canvas canvas, Offset o, AtlasLine l, MushafAtlas atlas,
+    MushafLineSpec spec) {
+  for (final (left, right, c) in l.backgrounds) {
+    canvas.drawRect(
+      Rect.fromLTWH(o.dx + left, o.dy, right - left, l.height),
+      Paint()..color = c,
+    );
+  }
+  final images = atlas.tiers[l.tier].images;
+  if (images != null) {
+    final paint = Paint()..filterQuality = FilterQuality.medium;
+    canvas.save();
+    canvas.translate(o.dx, o.dy);
+    for (final (sheet, xf, rects, colors) in l.batches) {
+      // Each sprite is a white glyph; modulate takes its colour.
+      canvas.drawRawAtlas(
+        images[sheet],
+        xf,
+        rects,
+        colors,
+        BlendMode.modulate,
+        null,
+        paint,
+      );
+    }
+    canvas.restore();
+  }
+  paintLineMarks(canvas, o, l, spec);
+  paintLineFocus(canvas, o, l, spec);
+}
+
+/// The focused word's outline: a rounded box in the accent colour.
+void paintLineFocus(
+    Canvas canvas, Offset o, MushafLineLayout l, MushafLineSpec spec) {
+  if (l.focusBoxes.isEmpty) return;
+  final w = (spec.fontSize * .07).clamp(1.5, 3.0);
+  final paint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = w
+    ..color = spec.accent;
+  for (final (left, right) in l.focusBoxes) {
+    if (right <= left) continue;
+    final r = Rect.fromLTRB(o.dx + left - w, o.dy + w / 2, o.dx + right + w,
+        o.dy + l.height - w / 2);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(r, Radius.circular(spec.fontSize * .25)),
+        paint);
+  }
+}
+
+/// The marked words' pattern lines, under the words.
+void paintLineMarks(
+    Canvas canvas, Offset o, MushafLineLayout l, MushafLineSpec spec) {
+  final pal = spec.markPal;
+  if (l.markLines.isEmpty || pal == null) return;
+  final fs = spec.fontSize;
+  final t = (fs * .065).clamp(1.2, 3.0);
+  // Under the kasrahs (~0.35 em below the baseline), above the next line's
+  // tallest marks.
+  final y = o.dy + l.baseline + fs * .42;
+  for (final (left, right, v) in l.markLines) {
+    // Inset a little so neighbouring marked words read as separate.
+    final inset = ((right - left) * .06).clamp(1.0, 4.0);
+    paintMarkLine(
+      canvas,
+      Offset(o.dx + left + inset, y),
+      right - left - inset * 2,
+      v,
+      pal,
+      thickness: t,
+    );
   }
 }

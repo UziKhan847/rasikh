@@ -15,6 +15,7 @@ import '../../ui/mark_style.dart';
 import '../shell/app_shell.dart';
 import 'charts.dart';
 import 'marking.dart';
+import 'report_pdf.dart';
 
 /// Counts of marks by type, sūrah, juzʼ and page, over sessions and time —
 /// for one mark book, with the filters in a row above the charts.
@@ -332,6 +333,14 @@ class _MarksStatsScreenState extends State<MarksStatsScreen> {
       title: context.l10n.mkStatistics,
       subtitle: store.book(bookId)?.name,
       maxWidth: 900,
+      actions: [
+        QIconButton(
+          icon: AppIcons.pdf,
+          tooltip: context.l10n.rpExport,
+          onTap: () => showReportSheet(context,
+              store: store, bookId: bookId, script: script),
+        ),
+      ],
       children: children,
     );
   }

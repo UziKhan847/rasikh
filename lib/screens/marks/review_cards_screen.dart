@@ -20,6 +20,7 @@ import '../mushaf/mushaf_line.dart';
 import '../mushaf/verse_view.dart';
 import '../mushaf_screen.dart';
 import 'marking.dart';
+import 'report_pdf.dart';
 import 'review_bar.dart';
 import 'review_setup_sheet.dart';
 import 'word_marks_sheet.dart';
@@ -58,26 +59,38 @@ Future<void> startReview(
   }
 }
 
-/// The end of a review: how many were looked at, fixed, and are still open.
-/// Ends [c]'s session. Returns true if "review again" was picked.
+/// The end of a review: how many were looked at, fixed, and are still open
+/// — with "review again" and a PDF of what was reviewed. Ends [c]'s session.
+/// Returns true if "review again" was picked.
 Future<bool> showReviewSummary(BuildContext context, ReviewController c) async {
   c.end();
-  final again = await showDialog<bool>(
+  final choice = await showDialog<String>(
     context: context,
     builder: (d) => AlertDialog(
       title: Text(d.l10n.rvDoneTitle),
       content: Text(d.l10n.rvDoneSummary(c.seenCount, c.fixedCount, c.openCount)),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(d, true),
+            onPressed: () => Navigator.pop(d, 'pdf'),
+            child: Text(d.l10n.rpExport)),
+        TextButton(
+            onPressed: () => Navigator.pop(d, 'again'),
             child: Text(d.l10n.rvAgain)),
         TextButton(
-            onPressed: () => Navigator.pop(d, false),
+            onPressed: () => Navigator.pop(d, 'done'),
             child: Text(d.l10n.rvDone)),
       ],
     ),
   );
-  return again ?? false;
+  if (choice == 'pdf' && context.mounted) {
+    // The same marks, every status (what was fixed shows as fixed).
+    await showReportSheet(context,
+        store: c.store,
+        bookId: c.bookId,
+        script: c.query.script,
+        query: c.query.copyWith(status: ReviewStatus.any));
+  }
+  return choice == 'again';
 }
 
 /// Review as verse cards: one card per mark, its whole āyah drawn as the
