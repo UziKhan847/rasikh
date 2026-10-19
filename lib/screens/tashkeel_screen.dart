@@ -11,6 +11,7 @@ import '../data/glyph_names.dart';
 import '../data/tashkeel.dart';
 import '../widgets/common.dart';
 import '../ui/app_icons.dart';
+import '../ui/kit.dart';
 
 /// ⏱ Counts Studio — an animated metronome. One ḥarakah = one beat.
 /// The ring fills across the chosen counts; recite along and hold the
@@ -105,12 +106,12 @@ class _CountsStudioState extends State<CountsStudio>
                   border: Border.all(
                       color:
                           pal(context).track.withValues(alpha: .6)),
-                  boxShadow: [
+                  boxShadow: qShadows(context, [
                     BoxShadow(
                         color: pal(context).shadow,
                         blurRadius: 30,
                         offset: const Offset(0, 8)),
-                  ],
+                  ]),
                 ),
                 child: SizedBox(height: 540, child: _content(context, activePortion)),
               ),

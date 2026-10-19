@@ -79,7 +79,7 @@ String arabicIndic(int n) => [
 /// The āyah marker's stroke: gold with Ornate borders on, else the accent.
 Color ayahMarkerStroke(BuildContext context) {
   final p = pal(context);
-  if (!SettingsScope.of(context).ornate) return p.acc;
+  if (!SettingsScope.of(context).useOrnate) return p.acc;
   return switch (p.theme) {
     AppTheme.mono => const Color(0xFF9A9A9A),
     AppTheme.light => const Color(0xFFC9A253),
@@ -286,7 +286,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
       final ctx = _ayahKeys[i]?.currentContext;
       if (ctx != null) {
         Scrollable.ensureVisible(ctx,
-            duration: const Duration(milliseconds: 350),
+            duration: motion(context, const Duration(milliseconds: 350)),
             alignment: .08,
             curve: Curves.easeOut);
       } else {
@@ -328,7 +328,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
       if (ctx != null) {
         Scrollable.ensureVisible(ctx,
             alignment: .04,
-            duration: const Duration(milliseconds: 150),
+            duration: motion(context, const Duration(milliseconds: 150)),
             curve: Curves.easeOut);
         return;
       }
@@ -683,7 +683,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
           child: Stack(children: [
             Column(children: [
               AnimatedSize(
-                duration: const Duration(milliseconds: 220),
+                duration: motion(context, const Duration(milliseconds: 220)),
                 curve: Curves.easeOut,
                 child: hidden
                     ? const SizedBox(width: double.infinity, height: 0)
@@ -1561,7 +1561,7 @@ class _Banner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
-    final ornate = SettingsScope.of(context).ornate;
+    final ornate = SettingsScope.of(context).useOrnate;
     final gold = ayahMarkerStroke(context);
     final name = Text('سورة ${meta.name}',
         textDirection: TextDirection.rtl,
@@ -1683,7 +1683,7 @@ class _TajwidKey extends StatelessWidget {
           ),
         ),
         AnimatedSize(
-          duration: const Duration(milliseconds: 200),
+          duration: motion(context, const Duration(milliseconds: 200)),
           child: open
               ? Padding(
                   padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
@@ -1735,7 +1735,7 @@ class _ReaderPlayer extends StatelessWidget {
     final s = SettingsScope.of(context);
     final min = s.playerMinimised;
     final body = AnimatedSize(
-      duration: const Duration(milliseconds: 220),
+      duration: motion(context, const Duration(milliseconds: 220)),
       curve: Curves.easeOut,
       alignment: Alignment.bottomCenter,
       child: min ? _minimised(context) : _expanded(context),
@@ -1756,9 +1756,9 @@ class _ReaderPlayer extends StatelessWidget {
           color: p.card,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           border: Border(top: BorderSide(color: p.line2)),
-          boxShadow: const [
+          boxShadow: qShadows(context, const [
             BoxShadow(color: Color(0x1F14201C), blurRadius: 24, offset: Offset(0, -6))
-          ],
+          ]),
         ),
         child: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -1966,13 +1966,13 @@ class _PlayButton extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             boxShadow: size >= 56
-                ? [
+                ? qShadows(context, [
                     BoxShadow(
                         color: p.accBg.withValues(alpha: .55),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                         spreadRadius: -8)
-                  ]
+                  ])
                 : null,
           ),
           child: Material(
@@ -2117,13 +2117,13 @@ class _FloatingPlayerState extends State<_FloatingPlayer> {
           color: p.card,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(color: p.line2),
-          boxShadow: const [
+          boxShadow: qShadows(context, const [
             BoxShadow(
                 color: Color(0x7314201C),
                 blurRadius: 50,
                 offset: Offset(0, 24),
                 spreadRadius: -20)
-          ],
+          ]),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(mainAxisSize: MainAxisSize.min, children: [

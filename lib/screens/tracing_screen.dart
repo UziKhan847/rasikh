@@ -821,9 +821,9 @@ class _TracingBoardState extends State<TracingBoard>
   final List<Offset> userDots = [];
   _MemoryResult? result;
 
+  // Started in build (guided boards only, and not with animations off).
   late final AnimationController _pulse = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 900))
-    ..repeat(reverse: true);
+      vsync: this, duration: const Duration(milliseconds: 900), value: .5);
 
   // ── watch mode: drives strokeIndex/progress by itself instead of a
   // finger. Only created when [TracingBoard.watch] is true. ──
@@ -1066,8 +1066,10 @@ class _TracingBoardState extends State<TracingBoard>
     // Two independent axes: who forms the stroke, and whether the shape shows.
     final free = widget.mode != 'guided';
     // Only the guided board pulses; don't tick (and repaint) for nothing.
-    if (free) {
+    // With animations off (Lite mode) the guide holds still, mid-pulse.
+    if (free || noMotion(context)) {
       if (_pulse.isAnimating) _pulse.stop();
+      if (!free) _pulse.value = .5;
     } else if (!_pulse.isAnimating) {
       _pulse.repeat(reverse: true);
     }
@@ -1233,6 +1235,13 @@ class _TracingBoardState extends State<TracingBoard>
     final g = widget.glyph;
     final aspect = g.aspect.clamp(0.6, 3.4);
     final p = pal(context);
+    // The watch board's guide glows like the guided one (held still with
+    // animations off).
+    if (noMotion(context)) {
+      if (_pulse.isAnimating) _pulse.stop();
+    } else if (!_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
+    }
     return Column(children: [
       Expanded(
         child: Center(
@@ -1657,12 +1666,12 @@ class _ResultOverlay extends StatelessWidget {
           color: p.card.withValues(alpha: .97),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: p.line2),
-          boxShadow: [
+          boxShadow: qShadows(context, [
             BoxShadow(
                 color: Colors.black.withValues(alpha: .18),
                 blurRadius: 18,
                 offset: const Offset(0, 8)),
-          ],
+          ]),
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Text(

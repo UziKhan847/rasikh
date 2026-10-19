@@ -233,20 +233,34 @@ class _Style extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = SettingsScope.of(context);
+    // Lite mode overrides the two below: they show off, and can't be
+    // changed, while it's on (their own values come back after).
     return _Section(context.l10n.style, [
       QGroup(children: [
         QRow(
-          title: context.l10n.ornateBorders,
-          subtitle: context.l10n.ornateBordersSub,
+          title: context.l10n.liteMode,
+          subtitle: context.l10n.liteModeSub,
           control: QSwitch(
-              value: s.ornate, onChanged: (v) => s.update(() => s.ornate = v)),
+              value: s.lite, onChanged: (v) => s.update(() => s.lite = v)),
+        ),
+        QRow(
+          title: context.l10n.ornateBorders,
+          subtitle: s.lite
+              ? context.l10n.liteOffNote
+              : context.l10n.ornateBordersSub,
+          control: QSwitch(
+              value: s.useOrnate,
+              onChanged:
+                  s.lite ? null : (v) => s.update(() => s.ornate = v)),
         ),
         QRow(
           title: context.l10n.gradients,
-          subtitle: context.l10n.gradientsSub,
+          subtitle:
+              s.lite ? context.l10n.liteOffNote : context.l10n.gradientsSub,
           control: QSwitch(
-              value: s.gradients,
-              onChanged: (v) => s.update(() => s.gradients = v)),
+              value: s.useGradients,
+              onChanged:
+                  s.lite ? null : (v) => s.update(() => s.gradients = v)),
         ),
       ]),
     ]);

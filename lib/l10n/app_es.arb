@@ -884,5 +884,10 @@
   "switchToDesktopLayout": "Cambiar al diseño de escritorio",
   "mkTapToMark": "Toca una palabra para marcarla: error → tajwīd → titubeo → duda → nada. Mantenla pulsada para corregir, comentar o borrar.",
   "mkMarkCleared": "Marca quitada",
-  "mkTapAgainHint": "Toca de nuevo para marcarla como error"
+  "mkTapAgainHint": "Toca de nuevo para marcarla como error",
+  "liteMode": "Modo ligero",
+  "liteModeSub": "Para dispositivos lentos: sin animaciones, sombras ni degradados",
+  "liteOffNote": "Desactivado mientras el modo ligero está activo",
+  "liteSuggest": "Este dispositivo parece lento: ¿activar el modo ligero?",
+  "liteTurnOn": "Activar"
 }

@@ -884,5 +884,10 @@
   "switchToDesktopLayout": "Passer à la mise en page bureau",
   "mkTapToMark": "Touchez un mot pour le marquer : erreur → tajwīd → hésitation → doute → rien. Maintenez-le pour corriger, commenter ou supprimer.",
   "mkMarkCleared": "Marque retirée",
-  "mkTapAgainHint": "Touchez à nouveau pour le marquer comme erreur"
+  "mkTapAgainHint": "Touchez à nouveau pour le marquer comme erreur",
+  "liteMode": "Mode léger",
+  "liteModeSub": "Pour les appareils lents : sans animations, ombres ni dégradés",
+  "liteOffNote": "Désactivé tant que le mode léger est actif",
+  "liteSuggest": "Cet appareil semble lent — activer le mode léger ?",
+  "liteTurnOn": "Activer"
 }

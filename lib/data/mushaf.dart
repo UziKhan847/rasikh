@@ -284,6 +284,39 @@ class MushafRepo {
     return d.tokPage[t];
   }
 
+  /// The page of [toScript] that shows what [page] of [fromScript] shows:
+  /// the one printing the word in the middle of [page]. The two scripts
+  /// break their pages at different words, so a page's first āyah (let
+  /// alone its sūrah) can land a page or more away; the middle word is on
+  /// the page that overlaps it most. Both scripts must be loaded.
+  static int matchingPage(String fromScript, int page, String toScript) {
+    final from = _data[_norm(fromScript)];
+    final to = _data[_norm(toScript)];
+    if (from == null || to == null) return page;
+    if (_norm(fromScript) == _norm(toScript)) return page;
+    if (page < 1 || page > from.pages.length) return 1;
+    final words = [
+      for (final ln in from.pages[page - 1])
+        if (ln.isText) ...ln.words,
+    ];
+    if (words.isEmpty) {
+      // A page of headers only: the sūrah it opens.
+      for (final ln in from.pages[page - 1]) {
+        if (ln.isHeader && ln.surah < to.surahFirstPage.length) {
+          final p = to.surahFirstPage[ln.surah];
+          if (p > 0) return p;
+        }
+      }
+      return page.clamp(1, to.pages.length);
+    }
+    final w = words[words.length ~/ 2];
+    if (w.ayah < 0 || w.ayah >= to.realWordCount.length) return 1;
+    // The ۝ marker is the token after the āyah's last real word.
+    final t = to.ayahFirstTok[w.ayah] +
+        (w.wordIdx < 0 ? to.realWordCount[w.ayah] : w.wordIdx);
+    return t < to.tokPage.length ? to.tokPage[t] : to.pages.length;
+  }
+
   /// The word's text as printed in [script], or '' if unknown.
   static String wordText(String script, int globalAyah, int word0) {
     final d = _data[_norm(script)];

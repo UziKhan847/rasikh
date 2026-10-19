@@ -849,6 +849,7 @@ class RenderMushafLine extends RenderBox {
   LaidLine? _line;
   AtlasLine? _atlasLine;
 
+  int _capVersion = MushafAtlas.capVersion;
   double _dpr = 1;
   set devicePixelRatio(double v) {
     if (v == _dpr) return;
@@ -859,6 +860,12 @@ class RenderMushafLine extends RenderBox {
 
   MushafLineSpec get spec => _spec;
   set spec(MushafLineSpec v) {
+    if (_capVersion != MushafAtlas.capVersion) {
+      // Lite mode changed which sheets to draw from.
+      _capVersion = MushafAtlas.capVersion;
+      _atlasLine = null;
+      markNeedsPaint();
+    }
     if (v.key == _spec.key) {
       _spec = v;
       return;

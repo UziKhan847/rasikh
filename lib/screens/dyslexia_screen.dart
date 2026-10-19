@@ -435,12 +435,12 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
                           color: pal(context)
                               .track
                               .withValues(alpha: .6)),
-                      boxShadow: [
+                      boxShadow: qShadows(context, [
                         BoxShadow(
                             color: pal(context).shadow,
                             blurRadius: 24,
                             offset: const Offset(0, 6)),
-                      ],
+                      ]),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,12 +540,12 @@ class _SpotTheLetterDrillState extends State<SpotTheLetterDrill> {
                   ? AppColors.bad
                   : pal(context).track.withValues(alpha: .6),
               width: isWrong ? 2 : 1),
-          boxShadow: [
+          boxShadow: qShadows(context, [
             BoxShadow(
                 color: pal(context).shadow,
                 blurRadius: 14,
                 offset: const Offset(0, 4)),
-          ],
+          ]),
         ),
         child: Stack(children: [
           Center(
@@ -772,12 +772,12 @@ class _FluencySprintState extends State<FluencySprint> {
       borderRadius: BorderRadius.circular(28),
       border:
           Border.all(color: pal(context).track.withValues(alpha: .6)),
-      boxShadow: [
+      boxShadow: qShadows(context, [
         BoxShadow(
             color: pal(context).shadow,
             blurRadius: 30,
             offset: const Offset(0, 8)),
-      ],
+      ]),
     );
     if (!running) {
       return Scaffold(

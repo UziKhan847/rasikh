@@ -55,7 +55,26 @@ Color oklch(double l, double c, double hueDeg) {
 QGradients gradientsOf(BuildContext context) =>
     QGradients.of(SettingsScope.of(context).theme);
 
-bool gradientsOn(BuildContext context) => SettingsScope.of(context).gradients;
+bool gradientsOn(BuildContext context) =>
+    SettingsScope.of(context).useGradients;
+
+/// Lite mode is on (see [AppSettings.lite]).
+bool liteOn(BuildContext context) => SettingsScope.of(context).lite;
+
+/// Whether to skip animations: Lite mode, or the system's "remove
+/// animations" setting (Lite mode sets MediaQuery's flag for the whole app,
+/// so this one check covers both).
+bool noMotion(BuildContext context) =>
+    MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
+/// [d], or zero when animations are off (see [noMotion]).
+Duration motion(BuildContext context, Duration d) =>
+    noMotion(context) ? Duration.zero : d;
+
+/// [shadows], or none in Lite mode: blurred shadows are among the costliest
+/// things a slow GPU draws, and nothing depends on them.
+List<BoxShadow>? qShadows(BuildContext context, List<BoxShadow>? shadows) =>
+    liteOn(context) ? null : shadows;
 
 /// The screen background: a near-flat gradient, or flat when Gradients is off.
 BoxDecoration screenDecoration(BuildContext context) {
@@ -665,7 +684,7 @@ class QSegmented<T> extends StatelessWidget {
     Widget seg((T, String, IconData?) o) {
       final on = o.$1 == value;
       final child = AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: motion(context, const Duration(milliseconds: 200)),
         height: height,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         alignment: Alignment.center,
@@ -673,13 +692,13 @@ class QSegmented<T> extends StatelessWidget {
           color: on ? p.segOn : Colors.transparent,
           borderRadius: BorderRadius.circular(11),
           boxShadow: on && !p.isDark
-              ? const [
+              ? qShadows(context, const [
                   BoxShadow(
                     color: Color(0x14000000),
                     blurRadius: 4,
                     offset: Offset(0, 1),
                   ),
-                ]
+                ])
               : null,
         ),
         child: Row(
@@ -1055,7 +1074,7 @@ class QRadioRow extends StatelessWidget {
 /// A Material [Switch] in the redesign's colours (white knob).
 class QSwitch extends StatelessWidget {
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged; // null: shown disabled
   const QSwitch({super.key, required this.value, required this.onChanged});
   @override
   Widget build(BuildContext context) =>

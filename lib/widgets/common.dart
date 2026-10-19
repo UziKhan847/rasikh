@@ -35,7 +35,7 @@ class _TapScaleState extends State<TapScale> {
       onTap: widget.onTap,
       child: AnimatedScale(
         scale: _down ? 0.96 : 1,
-        duration: const Duration(milliseconds: 110),
+        duration: motion(context, const Duration(milliseconds: 110)),
         curve: Curves.easeOut,
         child: widget.child,
       ),
@@ -55,14 +55,18 @@ class FadeSlideIn extends StatefulWidget {
 
 class _FadeSlideInState extends State<FadeSlideIn>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 480));
+  // Made only when the entrance plays: with animations off (Lite mode) the
+  // child just shows — no controller, no timer, no frames.
+  AnimationController? _c;
   Timer? _delay;
 
   @override
-  void initState() {
-    super.initState();
-    _delay = Timer(Duration(milliseconds: widget.delayMs), () => _c.forward());
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_c != null || noMotion(context)) return;
+    final c = _c = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 480));
+    _delay = Timer(Duration(milliseconds: widget.delayMs), () => c.forward());
   }
 
   @override
@@ -72,13 +76,17 @@ class _FadeSlideInState extends State<FadeSlideIn>
     // virtualization — before its delay elapses. Without canceling here,
     // that leaves a dangling Timer for the rest of the app's lifetime.
     _delay?.cancel();
-    _c.dispose();
+    _c?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final curved = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
+    final c = _c;
+    if (c == null || (noMotion(context) && !c.isAnimating)) {
+      return widget.child;
+    }
+    final curved = CurvedAnimation(parent: c, curve: Curves.easeOutCubic);
     return FadeTransition(
       opacity: curved,
       child: SlideTransition(
@@ -153,7 +161,7 @@ class ProgressRing extends StatelessWidget {
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: fraction.clamp(0, 1)),
-      duration: const Duration(milliseconds: 900),
+      duration: motion(context, const Duration(milliseconds: 900)),
       curve: Curves.easeOutCubic,
       builder: (context, v, _) => CustomPaint(
         size: Size.square(size),
@@ -183,9 +191,14 @@ class _RingPainter extends CustomPainter {
     final fg = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 7
-      ..strokeCap = StrokeCap.round
-      ..shader = SweepGradient(colors: ring)
+      ..strokeCap = StrokeCap.round;
+    // One colour (the usual case) is a plain stroke, not a sweep shader.
+    if (ring.toSet().length == 1) {
+      fg.color = ring.first;
+    } else {
+      fg.shader = SweepGradient(colors: ring)
           .createShader(Rect.fromCircle(center: c, radius: r));
+    }
     canvas.drawCircle(c, r, bg);
     canvas.drawArc(Rect.fromCircle(center: c, radius: r), -math.pi / 2,
         2 * math.pi * v, false, fg);

@@ -48,6 +48,23 @@ class MushafAtlas {
   );
 
   static final Map<String, MushafAtlas> _loaded = {};
+
+  /// Lite mode: draw from the standard sheets only — the larger ones cost
+  /// GPU memory that old phones lack. [capVersion] changes with it, so lines
+  /// built under the other setting rebuild (see RenderMushafLine.spec).
+  static bool get smallOnly => _smallOnly;
+  static bool _smallOnly = false;
+  static int capVersion = 0;
+  static void setSmallOnly(bool v) {
+    if (v == _smallOnly) return;
+    _smallOnly = v;
+    capVersion++;
+    if (v) {
+      for (final a in _loaded.values) {
+        a.releaseLarge();
+      }
+    }
+  }
   static final Map<String, Future<MushafAtlas?>> _loading = {};
 
   /// Off in tests that exercise the text path.
@@ -236,6 +253,7 @@ class MushafAtlas {
   /// The tier to draw at [pxPerEm] (font size × device pixel ratio): the
   /// smallest whose glyphs are at least that big, else the largest.
   int tierFor(double pxPerEm) {
+    if (_smallOnly) return 0;
     for (var i = 0; i < tiers.length; i++) {
       if (tiers[i].em * 1.25 >= pxPerEm) return i;
     }

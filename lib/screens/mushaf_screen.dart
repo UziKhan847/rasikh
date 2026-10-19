@@ -42,10 +42,20 @@ import 'shell/app_shell.dart';
 class MushafPageScreen extends StatefulWidget with DesktopAware {
   final int startPage;
   final String? script; // 'uthmani' | 'indopak'; null → current setting
+
+  /// The script [startPage] is numbered in, when it may not be the one shown
+  /// (the last page read, saved in the other script): the page is mapped
+  /// over. Null → [startPage] is already in the shown script's numbering.
+  final String? pageScript;
+
   /// Open in marking mode (the session sheet shows on open).
   final bool startMarking;
   const MushafPageScreen(
-      {super.key, this.startPage = 1, this.script, this.startMarking = false});
+      {super.key,
+      this.startPage = 1,
+      this.script,
+      this.pageScript,
+      this.startMarking = false});
 
   @override
   State<MushafPageScreen> createState() => _MushafPageScreenState();
@@ -159,6 +169,21 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   Future<void> _load() async {
     await MushafRepo.ensure(_script);
+    final from = widget.pageScript;
+    if (!_mappedStart && from != null && from != _script) {
+      _mappedStart = true;
+      await MushafRepo.ensure(from);
+      if (!mounted) return;
+      _page = MushafRepo.matchingPage(from, _page, _script);
+      _ctrl?.dispose();
+      _ctrl = PageController(initialPage: _page - 1);
+      if (_spreadCtrl != null) {
+        _spreadCtrl!.dispose();
+        _spreadCtrl =
+            PageController(initialPage: (_spreadStart(_page) - 1) ~/ 2);
+      }
+    }
+    _mappedStart = true;
     // The glyph atlas (usually loaded at startup already). Until it's ready
     // the page is shaped as text; when it arrives the lines switch to it.
     if (MushafAtlas.of(_script) == null) {
@@ -181,6 +206,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       _curSurah = v.$1;
       _ready = true;
     });
+    // Saved with its script: after a switch, or a page mapped over from
+    // the other script, the number is in this script's pages.
+    ProgressScope.read(context).setLastMushafPage(_page, _script);
+    _pageN.value = _page;
     _prewarm(_page);
     if (widget.startMarking && !_marking.active && !_startedMarking) {
       _startedMarking = true;
@@ -191,6 +220,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   }
 
   bool _startedMarking = false;
+
+  /// [MushafPageScreen.pageScript] has been applied (only on first load).
+  bool _mappedStart = false;
 
   void _onMarking() {
     if (mounted) setState(() {});
@@ -276,7 +308,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     PerfLog.where = 'muṣḥaf p.$page';
     _page = page;
     _curSurah = MushafRepo.firstVerseOfPage(_script, page).$1;
-    ProgressScope.read(context).setLastMushafPage(page);
+    ProgressScope.read(context).setLastMushafPage(page, _script);
     _notePage(page);
     _prewarm(page);
     _pageN.value = page;
@@ -365,7 +397,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       setState(() => _settle(t));
       return;
     }
-    if (animate) {
+    if (animate && !noMotion(context)) {
       c.animateToPage(idx,
           duration: const Duration(milliseconds: 380),
           curve: const Cubic(.2, .8, .2, 1));
@@ -408,6 +440,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     return false;
   }
 
+  /// The last script switch, to make switching straight back exact.
+  ({String from, int fromPage, String to, int toPage})? _lastSwitch;
+
   Future<void> _switchScript(String v) async {
     if (v == _script) return;
     if (!kIndopakMushafAvailable && v == 'indopak') {
@@ -415,7 +450,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       return;
     }
     _stopAudio();
-    final keepSurah = _curSurah;
+    final from = _script, fromPage = _pendingPage ?? _page;
     setState(() {
       _ready = false;
       _script = v;
@@ -426,9 +461,20 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     // a statement about which script you want the reader in, and the two
     // surfaces are navigated separately.
     st.update(() => st.mushafScript = v);
+    await MushafRepo.ensure(from);
     await MushafRepo.ensure(v);
-    final p = await MushafRepo.pageForSurah(v, keepSurah);
     if (!mounted) return;
+    // Straight back to the script we just came from, without turning a
+    // page: the page we were on. (Mapping back by the middle word could
+    // land one page off, since the two scripts break pages differently.)
+    final back = _lastSwitch;
+    final p = back != null &&
+            back.to == from &&
+            back.toPage == fromPage &&
+            back.from == v
+        ? back.fromPage
+        : MushafRepo.matchingPage(from, fromPage, v);
+    _lastSwitch = (from: from, fromPage: fromPage, to: v, toPage: p);
     _page = p;
     _ctrl?.dispose();
     _ctrl = PageController(initialPage: p - 1);
@@ -830,6 +876,12 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   Widget build(BuildContext context) {
     PerfLog.screenBuilt();
     final s = SettingsScope.of(context);
+    if (s.lite != MushafAtlas.smallOnly) {
+      // Lite mode toggled: rebuilt pages hand their lines a fresh spec,
+      // which redraws them from the right sheets.
+      MushafAtlas.setSmallOnly(s.lite);
+      _pageMemo.clear();
+    }
     if (_booted && _ready && s.mushafScript != _seenSetting) {
       _seenSetting = s.mushafScript;
       if (s.mushafScript != _script) {
@@ -959,7 +1011,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     final markPal = markPaletteForPaper(paper);
     final tajwid = s.mushafTajwid ? tajwidColorsForDark(paper.dark) : null;
     final inputs = <Object?>[
-      _script, paper, s.ornate, fitWidth, s.mushafHeader, margin, spine,
+      _script, paper, s.useOrnate, fitWidth, s.mushafHeader, margin, spine,
       _names, mine ? _playAyah : -1, mine ? _playWord : -1,
       mine && _reciting, marks, markPal, tajwid, compact,
     ];
@@ -971,7 +1023,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       script: _script,
       names: _names,
       paper: paper,
-      ornate: s.ornate,
+      ornate: s.useOrnate,
       wideLayout: fitWidth,
       showHeader: s.mushafHeader,
       margin: margin,
@@ -1122,7 +1174,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           Size(c.maxWidth - margin.horizontal, c.maxHeight - margin.vertical);
       Size box(int p) {
         final b = MushafGeometry.pageBox(avail, _script,
-            ornate: s.ornate, header: s.mushafHeader, page: p);
+            ornate: s.useOrnate, header: s.mushafHeader, page: p);
         return MushafGeometry.pageRatio(_script, p) == null
             ? Size(b.width, avail.height)
             : b;
@@ -1145,7 +1197,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         ignoring: !_chrome,
         child: AnimatedOpacity(
           opacity: _chrome ? 1 : 0,
-          duration: const Duration(milliseconds: 250),
+          duration: motion(context, const Duration(milliseconds: 250)),
           child: child,
         ),
       );
@@ -1503,13 +1555,13 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                 color: paper.chrome,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: paper.line),
-                boxShadow: const [
+                boxShadow: qShadows(context, const [
                   BoxShadow(
                       color: Color(0x40000000),
                       blurRadius: 16,
                       offset: Offset(0, 6),
                       spreadRadius: -10),
-                ],
+                ]),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 _PaperButton(
@@ -1603,7 +1655,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       onKeyEvent: _onKey,
       child: Column(children: [
         AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
+          duration: motion(context, const Duration(milliseconds: 250)),
           curve: Curves.easeOut,
           height: _chrome ? 64 : 0,
           decoration: BoxDecoration(
@@ -1727,7 +1779,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       {bool compact = false}) {
     final first = _spreadStart(page);
     Size fit(int p, Size a) => MushafGeometry.pageBox(a, _script,
-        ornate: s.ornate, header: s.mushafHeader, page: p, compact: compact);
+        ornate: s.useOrnate, header: s.mushafHeader, page: p, compact: compact);
     final r = fit(first, avail), l = fit(first + 1, avail);
     final h = r.height < l.height ? r.height : l.height;
     return fit(page, Size(avail.width, h));
@@ -1762,7 +1814,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     return DecoratedBox(
       decoration: BoxDecoration(
         color: paper.bg,
-        gradient: s.gradients
+        gradient: s.useGradients
             ? RadialGradient(
                 radius: .9,
                 colors: [paper.paper.withValues(alpha: .13), paper.bg])
@@ -1776,7 +1828,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         Size box(Size avail, int page,
                 {double? heightBudget, bool byWidthOnly = false}) =>
             MushafGeometry.pageBox(avail, _script,
-                ornate: s.ornate,
+                ornate: s.useOrnate,
                 header: s.mushafHeader,
                 page: page,
                 heightBudget: heightBudget,
@@ -1789,7 +1841,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
             key: ValueKey('spread-$first-$_script'),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
-              boxShadow: const [
+              boxShadow: qShadows(context, const [
                 // Soft but cheap: a 60px blur was costly to repaint on weak
                 // GPUs for little visible difference.
                 BoxShadow(
@@ -1797,7 +1849,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                     blurRadius: 24,
                     offset: Offset(0, 14),
                     spreadRadius: -10),
-              ],
+              ]),
             ),
             child: _spreadRow(first, avail, s, paper),
           );
@@ -1838,7 +1890,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
             child: Padding(
               padding: EdgeInsets.all(pad),
               child: Center(
-                child: AnimatedSwitcher(
+                child: noMotion(context) ? content : AnimatedSwitcher(
                   duration: const Duration(milliseconds: 160),
                   reverseDuration: const Duration(milliseconds: 150),
                   transitionBuilder: (child, anim) {
@@ -1947,13 +1999,13 @@ class _PaperButton extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         boxShadow: shadow
-            ? const [
+            ? qShadows(context, const [
                 BoxShadow(
                     color: Color(0x59000000),
                     blurRadius: 16,
                     offset: Offset(0, 6),
                     spreadRadius: -8),
-              ]
+              ])
             : null,
       ),
       child: Material(
@@ -2132,9 +2184,19 @@ class _MushafSettingsSheet extends StatelessWidget {
           ),
           QRow(
             title: context.l10n.ornateBorders,
-            subtitle: context.l10n.ornateBordersSub,
+            subtitle: s.lite
+                ? context.l10n.liteOffNote
+                : context.l10n.ornateBordersSub,
             control: QSwitch(
-                value: s.ornate, onChanged: (v) => s.update(() => s.ornate = v)),
+                value: s.useOrnate,
+                onChanged:
+                    s.lite ? null : (v) => s.update(() => s.ornate = v)),
+          ),
+          QRow(
+            title: context.l10n.liteMode,
+            subtitle: context.l10n.liteModeSub,
+            control: QSwitch(
+                value: s.lite, onChanged: (v) => s.update(() => s.lite = v)),
           ),
           if (!isDesktopPlatform())
             QRow(
@@ -2312,7 +2374,8 @@ class _MushafPageView extends StatelessWidget {
     return LayoutBuilder(builder: (context, outer) {
       final roomy =
           outer.maxWidth - margin.horizontal > MushafGeometry.roomyWidth;
-      final spineShade = spine == null
+      final spineShade = spine == null ||
+              !SettingsScope.of(context).useGradients
           ? null
           : LinearGradient(
               begin: spine == 'left'

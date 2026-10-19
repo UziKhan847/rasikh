@@ -118,7 +118,7 @@ void main() {
     final p = ProgressStore();
     await p.load();
     p.setLastRead(2, 255);
-    p.setLastMushafPage(42);
+    p.setLastMushafPage(42, 'indopak');
     p.toggleBookmark(1, 5);
     p.toggleBookmark(36, 58);
     p.toggleBookmark(1, 5); // and off again
@@ -129,6 +129,7 @@ void main() {
     await again.load();
     expect(again.lastRead, (2, 255));
     expect(again.lastMushafPage, 42);
+    expect(again.lastMushafScript, 'indopak');
     expect(again.bookmarks, [(36, 58)]);
     expect(again.minutesToday, 2);
   });

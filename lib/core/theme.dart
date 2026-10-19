@@ -324,9 +324,13 @@ class _FadeTransitions extends PageTransitionsBuilder {
   Widget buildTransitions<T>(PageRoute<T> route, BuildContext context,
           Animation<double> animation, Animation<double> secondaryAnimation,
           Widget child) =>
-      FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: Curves.ease),
-          child: child);
+      // Lite mode (or the system's "remove animations"): the new screen
+      // simply appears.
+      (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
+          ? child
+          : FadeTransition(
+              opacity: CurvedAnimation(parent: animation, curve: Curves.ease),
+              child: child);
 }
 
 SystemUiOverlayStyle overlayStyleFor(Palette p) => p.isDark

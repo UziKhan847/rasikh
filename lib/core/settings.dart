@@ -54,6 +54,20 @@ class AppSettings extends ChangeNotifier {
   bool ornate = true;
   bool gradients = true;
 
+  /// Lite mode, for slow devices: no animations (page fades, entrances,
+  /// the tracing pulse), no blurred shadows, no gradients or ornaments, and
+  /// the muṣḥaf drawn from its smaller glyph sheets. What the reader needs —
+  /// recitation highlights, tajwīd colours, marks — is unchanged.
+  bool lite = false;
+
+  /// The one-time "this device seems slow — turn on Lite mode?" offer has
+  /// been made (see core/jank_watch.dart).
+  bool liteSuggested = false;
+
+  /// What to draw, Lite mode applied: read these, not [gradients]/[ornate].
+  bool get useGradients => gradients && !lite;
+  bool get useOrnate => ornate && !lite;
+
   /// The first-launch welcome has been finished or skipped.
   bool onboarded = false;
   String language = 'en'; // en | ar | ur | fr | es
@@ -182,6 +196,8 @@ class AppSettings extends ChangeNotifier {
     mushafPaper = m['mushafPaper'] ?? 'cream';
     ornate = m['ornate'] ?? true;
     gradients = m['gradients'] ?? true;
+    lite = m['lite'] ?? false;
+    liteSuggested = m['liteSuggested'] ?? false;
     // An install from before the welcome existed has already found its way.
     onboarded = m['onboarded'] ?? true;
     language = m['lang'] ?? 'en';
@@ -256,6 +272,8 @@ class AppSettings extends ChangeNotifier {
         'mushafPaper': mushafPaper,
         'ornate': ornate,
         'gradients': gradients,
+        'lite': lite,
+        'liteSuggested': liteSuggested,
         'onboarded': onboarded,
         'lang': language,
         'tashkilTerms': tashkilTerms,
@@ -393,8 +411,10 @@ class ProgressStore extends ChangeNotifier {
   /// The last āyah opened in the reader (sūrah, āyah), or null.
   (int, int)? lastRead;
 
-  /// The last muṣḥaf page opened (1-based), or null.
+  /// The last muṣḥaf page opened (1-based), or null, and the script whose
+  /// page numbers it's in (the two scripts paginate differently).
   int? lastMushafPage;
+  String? lastMushafScript;
 
   /// Bookmarked āyāt, newest first.
   final List<(int, int)> bookmarks = [];
@@ -412,9 +432,10 @@ class ProgressStore extends ChangeNotifier {
     _saveReading();
   }
 
-  void setLastMushafPage(int page) {
-    if (lastMushafPage == page) return;
+  void setLastMushafPage(int page, String script) {
+    if (lastMushafPage == page && lastMushafScript == script) return;
     lastMushafPage = page;
+    lastMushafScript = script;
     // No notifyListeners(): nothing shows this, it's only read when the
     // muṣḥaf reopens — and notifying mid-swipe rebuilt every screen that
     // listens to progress (Today, Learn… hidden under the muṣḥaf).
@@ -450,6 +471,7 @@ class ProgressStore extends ChangeNotifier {
         jsonEncode({
           'last': lastRead == null ? null : [lastRead!.$1, lastRead!.$2],
           'page': lastMushafPage,
+          'pageScript': lastMushafScript,
           'marks': [
             for (final b in bookmarks) [b.$1, b.$2]
           ],
@@ -465,6 +487,7 @@ class ProgressStore extends ChangeNotifier {
     final last = m['last'] as List?;
     lastRead = last == null ? null : ((last[0] as num).toInt(), (last[1] as num).toInt());
     lastMushafPage = (m['page'] as num?)?.toInt();
+    lastMushafScript = m['pageScript'] as String?;
     bookmarks
       ..clear()
       ..addAll([

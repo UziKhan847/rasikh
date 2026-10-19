@@ -62,6 +62,7 @@ void openMushaf(BuildContext context,
           builder: (_) => MushafPageScreen(
               startPage: page ?? prog.lastMushafPage ?? 1,
               script: script,
+              pageScript: page == null ? prog.lastMushafScript : null,
               startMarking: startMarking)));
 }
 
@@ -198,7 +199,8 @@ class _AppShellState extends State<AppShell> {
         AppSection.quran => const SurahListScreen(),
         // read, not of: the shell must not rebuild on every progress change.
         AppSection.mushaf => MushafPageScreen(
-            startPage: ProgressScope.read(context).lastMushafPage ?? 1),
+            startPage: ProgressScope.read(context).lastMushafPage ?? 1,
+            pageScript: ProgressScope.read(context).lastMushafScript),
         AppSection.hifz => const HifzScreen(),
         AppSection.learn => const LearnScreen(),
         AppSection.trace => const TracingScreen(),

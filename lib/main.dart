@@ -8,6 +8,7 @@ import 'package:flutter/services.dart'
     show SystemChrome, SystemUiMode, SystemUiOverlayStyle;
 
 import 'core/audio.dart';
+import 'core/jank_watch.dart';
 import 'core/l10n.dart';
 import 'core/marks/marks_store.dart';
 import 'core/perf_log.dart';
@@ -46,6 +47,8 @@ Future<void> main() async {
   });
   // Slow-frame logging in profile builds (or with MUSHAF_PERF=true).
   PerfLog.start();
+  // A device that keeps dropping frames is offered Lite mode, once.
+  JankWatch.start(settings);
   runApp(QiraahArabiyyahApp(
       settings: settings, progress: progress, marks: marks, sync: sync));
 }
@@ -81,6 +84,7 @@ class QiraahArabiyyahApp extends StatelessWidget {
               // context.l10n for `title` here would throw.
               onGenerateTitle: (context) => context.l10n.qiraahArabiyyah,
               debugShowCheckedModeBanner: false,
+              scaffoldMessengerKey: rootMessengerKey,
               theme: buildTheme(settings),
               // The language comes from the in-app picker, not the device.
               locale: Locale(settings.language),
@@ -96,7 +100,10 @@ class QiraahArabiyyahApp extends StatelessWidget {
                       : TextDirection.ltr,
                   child: _NavBarInset(
                     color: paletteOf(settings.theme).bg,
-                    child: _TimeTracker(progress: progress, child: child!),
+                    child: _TimeTracker(
+                      progress: progress,
+                      child: _LiteMotion(lite: settings.lite, child: child!),
+                    ),
                   ),
                 ),
               ),
@@ -109,6 +116,24 @@ class QiraahArabiyyahApp extends StatelessWidget {
     if (m == null) return app;
     final scoped = MarksScope(store: m, child: app);
     return sy == null ? scoped : SyncScope(engine: sy, child: scoped);
+  }
+}
+
+/// Lite mode turns animations off app-wide through the same flag the
+/// system's "remove animations" setting sets, so every widget that honours
+/// one honours both (see `noMotion` in ui/kit.dart).
+class _LiteMotion extends StatelessWidget {
+  final bool lite;
+  final Widget child;
+  const _LiteMotion({required this.lite, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!lite) return child;
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(disableAnimations: true),
+      child: child,
+    );
   }
 }
 

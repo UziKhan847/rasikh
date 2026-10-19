@@ -1673,5 +1673,10 @@
   "switchToDesktopLayout": "Switch to the desktop layout",
   "mkTapToMark": "Tap a word to mark it: mistake → tajwīd → hesitation → doubt → off. Hold it to fix, comment or delete.",
   "mkMarkCleared": "Mark taken off",
-  "mkTapAgainHint": "Tap again to mark it as a mistake"
+  "mkTapAgainHint": "Tap again to mark it as a mistake",
+  "liteMode": "Lite mode",
+  "liteModeSub": "For slower devices: no animations, shadows or gradients",
+  "liteOffNote": "Off while Lite mode is on",
+  "liteSuggest": "This device seems slow — turn on Lite mode?",
+  "liteTurnOn": "Turn on"
 }

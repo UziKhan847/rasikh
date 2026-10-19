@@ -651,7 +651,7 @@ class LetterDetail extends StatelessWidget with DesktopAware {
     final hero = Column(children: [
       TweenAnimationBuilder<double>(
         tween: Tween(begin: .6, end: 1),
-        duration: const Duration(milliseconds: 500),
+        duration: motion(context, const Duration(milliseconds: 500)),
         curve: Curves.elasticOut,
         // elasticOut overshoots past 1.0 by design; Transform.scale doesn't
         // affect layout, so an un-clamped overshoot would paint the glyph

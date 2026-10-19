@@ -46,13 +46,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Scaffold(
       backgroundColor: g.heroFlat,
       body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: g.hero,
-              stops: const [0, .55, 1]),
-        ),
+        decoration: gradientsOn(context)
+            ? BoxDecoration(
+                gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: g.hero,
+                    stops: const [0, .55, 1]),
+              )
+            : BoxDecoration(color: g.heroFlat),
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(

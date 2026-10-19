@@ -4,6 +4,7 @@ import '../../core/l10n.dart';
 import '../../core/marks/marks_model.dart';
 import '../../core/theme.dart';
 import '../../ui/app_icons.dart';
+import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
 import 'marking.dart';
 
@@ -121,13 +122,13 @@ class MarkingBar extends StatelessWidget {
             color: bg,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: line),
-            boxShadow: const [
+            boxShadow: qShadows(context, const [
               BoxShadow(
                   color: Color(0x40000000),
                   blurRadius: 16,
                   offset: Offset(0, 6),
                   spreadRadius: -10),
-            ],
+            ]),
           ),
           child: body,
         );
