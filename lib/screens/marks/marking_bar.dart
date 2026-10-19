@@ -7,8 +7,9 @@ import '../../ui/app_icons.dart';
 import '../../ui/mark_style.dart';
 import 'marking.dart';
 
-/// The pen bar shown while marking: four mark pens and "fix", then undo and
-/// end. Colours come from the host (muṣḥaf paper or app palette).
+/// The bar shown while marking: the order a tap steps a word's mark through
+/// (mistake → tajwīd → hesitation → doubt → off), what the last tap did, then
+/// undo and end. Colours come from the host (muṣḥaf paper or app palette).
 class MarkingBar extends StatelessWidget {
   final MarkingController controller;
   final MarkPalette pal;
@@ -37,29 +38,34 @@ class MarkingBar extends StatelessWidget {
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
-        final pen = controller.pen;
-        final type = pen.type;
-        final hint = type == null
-            ? context.l10n.mkFixHint
-            : markTypeHint(context, type);
-        final title =
-            type == null ? context.l10n.mkFix : markTypeLabel(context, type);
-        final pens = Row(mainAxisSize: MainAxisSize.min, children: [
-          for (final p in MarkPen.values)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: _PenButton(
-                pen: p,
-                selected: p == pen,
-                pal: pal,
-                ring: ink,
-                bg: bg,
-                tooltip: p.type == null
-                    ? context.l10n.mkFix
-                    : markTypeLabel(context, p.type!),
-                onTap: () => controller.setPen(p),
-              ),
+        final last = controller.lastType;
+        final String title, hint;
+        if (!controller.tapped) {
+          title = '';
+          hint = context.l10n.mkTapToMark;
+        } else if (last == null) {
+          title = context.l10n.mkMarkCleared;
+          hint = context.l10n.mkTapAgainHint;
+        } else {
+          title = markTypeLabel(context, last);
+          hint = markTypeHint(context, last);
+        }
+        // The cycle, read right to left like the text it marks (mistake on
+        // the right, each next step to its left); the type the last tap left
+        // is ringed. Laid out left to right explicitly: the icon font mirrors
+        // chevrons inside right-to-left text.
+        final cycle = Row(mainAxisSize: MainAxisSize.min, children: [
+          for (final (i, t) in MarkType.pens.reversed.indexed) ...[
+            if (i > 0)
+              Icon(AppIcons.chevronLeft, size: 14, color: sub),
+            _CycleStep(
+              type: t,
+              current: controller.tapped && t == last,
+              pal: pal,
+              ring: ink,
+              tooltip: markTypeLabel(context, t),
             ),
+          ],
         ]);
         final actions = Row(mainAxisSize: MainAxisSize.min, children: [
           Container(width: 1, height: 28, color: line),
@@ -84,14 +90,15 @@ class MarkingBar extends StatelessWidget {
         ]);
         final caption = Text.rich(
           TextSpan(children: [
-            TextSpan(
-                text: '$title  ',
-                style: uiStyle(context,
-                    size: 12.5, weight: FontWeight.w700, color: ink)),
+            if (title.isNotEmpty)
+              TextSpan(
+                  text: '$title  ',
+                  style: uiStyle(context,
+                      size: 12.5, weight: FontWeight.w700, color: ink)),
             TextSpan(
                 text: hint, style: uiStyle(context, size: 12.5, color: sub)),
           ]),
-          maxLines: 1,
+          maxLines: 2,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
         );
@@ -101,7 +108,7 @@ class MarkingBar extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              pens,
+              Directionality(textDirection: TextDirection.ltr, child: cycle),
               const SizedBox(width: 4),
               actions,
             ]),
@@ -129,52 +136,43 @@ class MarkingBar extends StatelessWidget {
   }
 }
 
-class _PenButton extends StatelessWidget {
-  final MarkPen pen;
-  final bool selected;
+/// One step of the tap cycle: the type's swatch, ringed when it's what the
+/// last tap left on its word.
+class _CycleStep extends StatelessWidget {
+  final MarkType type;
+  final bool current;
   final MarkPalette pal;
-  final Color ring, bg;
+  final Color ring;
   final String tooltip;
-  final VoidCallback onTap;
-  const _PenButton({
-    required this.pen,
-    required this.selected,
+  const _CycleStep({
+    required this.type,
+    required this.current,
     required this.pal,
     required this.ring,
-    required this.bg,
     required this.tooltip,
-    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final t = pen.type;
-    final c = t == null ? pal.fixed : pal.colorOf(t);
+    final c = pal.colorOf(type);
     return Tooltip(
       message: tooltip,
       child: Semantics(
-        button: true,
-        selected: selected,
+        selected: current,
         label: tooltip,
-        child: InkResponse(
-          onTap: onTap,
-          radius: 24,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: selected ? c.withValues(alpha: .18) : Colors.transparent,
-              border: Border.all(
-                  color: selected ? c : ring.withValues(alpha: .15),
-                  width: selected ? 2.2 : 1),
-            ),
-            alignment: Alignment.center,
-            child: t == null
-                ? Icon(AppIcons.check, size: 20, color: c)
-                : MarkSwatch(type: t, pal: pal, size: 18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: current ? c.withValues(alpha: .18) : Colors.transparent,
+            border: Border.all(
+                color: current ? c : ring.withValues(alpha: .15),
+                width: current ? 2.2 : 1),
           ),
+          alignment: Alignment.center,
+          child: MarkSwatch(type: type, pal: pal, size: 16),
         ),
       ),
     );

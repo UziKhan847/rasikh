@@ -8,3 +8,10 @@ build/
 
 # kb_backdrop_compare_test output (rendered PNGs + diff heat-maps)
 test/_out/
+# Widget Preview related
+.widget_preview/
+
+# Python environment for tool/mushaf_atlas/gen_atlas.py
+tool/mushaf_atlas/.venv/
+# gen_atlas.py self-check contact sheets
+tool/mushaf_atlas/out/

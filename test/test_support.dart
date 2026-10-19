@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:qiraah_arabiyyah/data/mushaf.dart';
+import 'package:qiraah_arabiyyah/data/mushaf_atlas.dart';
 
 /// Turns on the OS reduce-motion flag for this test, so screens with
 /// repeating animations let `pumpAndSettle()` return.
@@ -40,4 +42,11 @@ void mockAudioPlugins() {
     }
     return handler?.call(message);
   };
+}
+
+/// Loads [script]'s muṣḥaf and its glyph atlas outside fake async (call from
+/// setUpAll), so muṣḥaf screens draw from the atlas from their first frame.
+Future<void> loadMushaf(String script) async {
+  await MushafRepo.ensure(script);
+  await MushafAtlas.load(script, MushafRepo.tokensSync(script));
 }

@@ -662,6 +662,38 @@ class MarksStore extends ChangeNotifier {
     return addMark(bookId, ref, type, sessionId: sessionId);
   }
 
+  /// Marking mode's tap: steps this session's own open mark on [ref] through
+  /// [MarkType.pens] — none → mistake → tajwīd → hesitation → doubt → none.
+  /// Returns the edit (for undo) and the type the word now carries from this
+  /// session (null: cleared).
+  (MarkOp, MarkType?) cycle(String bookId, WordRef ref, {String? sessionId}) {
+    final d = _data(bookId);
+    Mark? mine;
+    for (final m in d.byWord[ref.key] ?? const <Mark>[]) {
+      if (m.sessionId == sessionId &&
+          m.authorId == authorId &&
+          MarkType.pens.contains(m.type) &&
+          !d.fixByMark.containsKey(m.id)) {
+        mine = m; // the newest wins (oldest first)
+      }
+    }
+    if (mine == null) {
+      return (
+        addMark(bookId, ref, MarkType.pens.first, sessionId: sessionId),
+        MarkType.pens.first,
+      );
+    }
+    final i = MarkType.pens.indexOf(mine.type);
+    if (i == MarkType.pens.length - 1) {
+      final op = MarkOp(bookId, [_snap(d, MarkKinds.mark, mine.id)]);
+      _drop(d, MarkKinds.mark, mine);
+      _changed(bookId);
+      return (op, null);
+    }
+    final next = MarkType.pens[i + 1];
+    return (setType(mine, next), next);
+  }
+
   MarkOp addMark(String bookId, WordRef ref, MarkType type,
       {String? sessionId, String comment = ''}) {
     final d = _data(bookId);

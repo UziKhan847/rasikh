@@ -879,5 +879,10 @@
   "heldLong": "{held} temps — un peu long.",
   "countTrainerSub": "Tiens un madd ou une ghunnah sa durée exacte.",
   "scriptLead": "Tout ce qui, sur la page, n’est pas une lettre — et ce qui distingue les deux écritures.",
-  "units": "Unités"
+  "units": "Unités",
+  "switchToPhoneLayout": "Passer à la mise en page téléphone",
+  "switchToDesktopLayout": "Passer à la mise en page bureau",
+  "mkTapToMark": "Touchez un mot pour le marquer : erreur → tajwīd → hésitation → doute → rien. Maintenez-le pour corriger, commenter ou supprimer.",
+  "mkMarkCleared": "Marque retirée",
+  "mkTapAgainHint": "Touchez à nouveau pour le marquer comme erreur"
 }

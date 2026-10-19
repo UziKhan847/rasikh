@@ -10,12 +10,15 @@ import 'package:flutter/services.dart'
 import 'core/audio.dart';
 import 'core/l10n.dart';
 import 'core/marks/marks_store.dart';
+import 'core/perf_log.dart';
 import 'core/sync/pocketbase_backend.dart';
 import 'core/sync/sync_backend.dart';
 import 'core/sync/sync_engine.dart';
 import 'core/settings.dart';
 import 'core/theme.dart';
 import 'screens/onboarding_screen.dart';
+import 'data/mushaf.dart';
+import 'data/mushaf_atlas.dart';
 import 'screens/shell/app_shell.dart';
 
 Future<void> main() async {
@@ -34,7 +37,15 @@ Future<void> main() async {
           ? const NoServerBackend()
           : await PocketBaseSyncBackend.create(settings.syncServer));
   unawaited(marks.load().then((_) => sync.start()));
-  WidgetsBinding.instance.addPostFrameCallback((_) => _warmUpFonts());
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _warmUpFonts();
+    // The muṣḥaf's glyph atlas, ready before the muṣḥaf is first opened.
+    final script = settings.mushafScript;
+    unawaited(MushafRepo.ensure(script).then(
+        (_) => MushafAtlas.load(script, MushafRepo.tokensSync(script))));
+  });
+  // Slow-frame logging in profile builds (or with MUSHAF_PERF=true).
+  PerfLog.start();
   runApp(QiraahArabiyyahApp(
       settings: settings, progress: progress, marks: marks, sync: sync));
 }
@@ -107,7 +118,6 @@ class QiraahArabiyyahApp extends StatelessWidget {
 /// navigation bar, and the screens here don't pad their scroll views and
 /// sheets for it — so the system buttons sat on top of content. Reserving
 /// the bar's height once, below the whole app (in the theme's background
-/// colour), keeps every screen and bottom sheet above it. With the keyboard
 /// up or in immersive mode the inset is zero, so nothing changes there.
 class _NavBarInset extends StatelessWidget {
   final Color color;

@@ -157,6 +157,15 @@ class _Header extends StatelessWidget {
             context: context,
             delegate: GlobalSearch(context.l10n.searchLettersRulesSurahs)),
       ),
+      // On a computer, tablet or the web, the way back to the desktop layout.
+      if (!useDesktop(context) && canUseDesktopShell(context)) ...[
+        const SizedBox(width: 8),
+        QIconButton(
+          icon: AppIcons.desktop,
+          tooltip: '${context.l10n.switchToDesktopLayout} (Ctrl+Shift+L)',
+          onTap: () => toggleLayout(context),
+        ),
+      ],
       if (!useDesktop(context)) ...[
         const SizedBox(width: 8),
         QIconButton(

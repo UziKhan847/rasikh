@@ -879,5 +879,10 @@
   "heldLong": "{held} tiempos: un poco largo.",
   "countTrainerSub": "Sostén un madd o una ghunnah su duración exacta.",
   "scriptLead": "Todo lo que hay en la página que no es una letra, y en qué se diferencian las dos escrituras.",
-  "units": "Unidades"
+  "units": "Unidades",
+  "switchToPhoneLayout": "Cambiar al diseño de móvil",
+  "switchToDesktopLayout": "Cambiar al diseño de escritorio",
+  "mkTapToMark": "Toca una palabra para marcarla: error → tajwīd → titubeo → duda → nada. Mantenla pulsada para corregir, comentar o borrar.",
+  "mkMarkCleared": "Marca quitada",
+  "mkTapAgainHint": "Toca de nuevo para marcarla como error"
 }

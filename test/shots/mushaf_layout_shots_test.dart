@@ -15,7 +15,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/core/theme.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
 import 'package:qiraah_arabiyyah/data/quran.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
 
@@ -33,8 +32,8 @@ void main() {
     mockAudioPlugins();
     await loadFonts();
     await QuranRepo.meta();
-    await MushafRepo.ensure('uthmani');
-    await MushafRepo.ensure('indopak');
+    await loadMushaf('uthmani');
+    await loadMushaf('indopak');
   });
 
   // (name, script, page, size, desktop view or null for phone, theme)
@@ -46,6 +45,10 @@ void main() {
     ('fill_uthmani', 'uthmani', 50, const Size(1400, 900), 'fill', 'light'),
     ('phone_uthmani', 'uthmani', 50, const Size(393, 852), null, 'light'),
     ('phone_indopak', 'indopak', 50, const Size(393, 852), null, 'light'),
+    ('phone_landscape', 'uthmani', 22, const Size(914, 412), null, 'light'),
+    ('phone_tajwid', 'uthmani', 50, const Size(393, 852), null, 'light'),
+    ('phone_tajwid_night', 'indopak', 50, const Size(393, 852), null, 'night'),
+    ('phone_landscape_two', 'uthmani', 22, const Size(914, 412), null, 'light'),
   ];
   for (final (name, script, page, size, view, theme) in shots) {
     testWidgets(name, (tester) async {
@@ -61,6 +64,8 @@ void main() {
       s.appTheme = theme;
       s.desktopMode = view == null ? 'off' : 'on';
       if (view != null) s.mushafView = view;
+      s.mushafPhoneSpread = name.endsWith('_two');
+      s.mushafTajwid = name.contains('tajwid');
       final key = GlobalKey();
       await tester.pumpWidget(SettingsScope(
         settings: s,

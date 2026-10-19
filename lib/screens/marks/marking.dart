@@ -6,20 +6,7 @@ import '../../core/marks/marks_model.dart';
 import '../../core/marks/marks_store.dart';
 import '../../core/marks/word_ref.dart';
 import '../../core/settings.dart';
-import '../../ui/kit.dart';
 import 'session_sheet.dart';
-
-/// The pens in the marking bar: the four mark types, then "fix".
-enum MarkPen {
-  mistake(MarkType.mistake),
-  tajwid(MarkType.tajwid),
-  hesitation(MarkType.hesitation),
-  doubt(MarkType.doubt),
-  fix(null);
-
-  final MarkType? type;
-  const MarkPen(this.type);
-}
 
 String markTypeLabel(BuildContext context, MarkType t) => switch (t) {
       MarkType.mistake => context.l10n.mkMistake,
@@ -92,10 +79,13 @@ Future<String?> askText(BuildContext context,
 }
 
 /// Marking-mode state shared by the muṣḥaf and the card reader: the open
-/// session, the current pen, the undo stack and the range read so far.
+/// session, the undo stack, the range read so far and what the last tap did.
+///
+/// In marking mode a tap on a word steps its mark through the types
+/// (mistake → tajwīd → hesitation → doubt → off; see [MarksStore.cycle]);
+/// holding it opens the word's sheet to fix, comment, reply or delete.
 class MarkingController extends ChangeNotifier {
   bool _active = false;
-  MarkPen pen = MarkPen.mistake;
   String? bookId;
   String? sessionId;
   final List<MarkOp> _undo = [];
@@ -115,11 +105,10 @@ class MarkingController extends ChangeNotifier {
     _toG = _toG == null || to > _toG! ? to : _toG;
   }
 
-  void setPen(MarkPen p) {
-    if (p == pen) return;
-    pen = p;
-    notifyListeners();
-  }
+  /// What the last tap left on its word: a type, or null once cleared
+  /// (and before any tap, see [tapped]).
+  MarkType? lastType;
+  bool tapped = false;
 
   /// Opens the start-session sheet (or resumes this device's open session)
   /// and switches marking on. Returns whether marking is now on.
@@ -132,25 +121,23 @@ class MarkingController extends ChangeNotifier {
     bookId = s.bookId;
     sessionId = s.id;
     _undo.clear();
+    tapped = false;
+    lastType = null;
     _fromG = s.fromGlobalAyah;
     _toG = s.toGlobalAyah;
     notifyListeners();
     return true;
   }
 
-  /// Applies the current pen to [ref]. Returns false when the fix pen had
-  /// nothing to fix.
+  /// A tap on [ref] in marking mode: its mark steps to the next type (or
+  /// off). Returns false if there's no book to mark in.
   bool apply(BuildContext context, WordRef ref) {
     final store = MarksScope.maybeOf(context);
     final b = bookId;
     if (store == null || b == null || store.book(b) == null) return false;
-    final op = pen == MarkPen.fix
-        ? store.fix(b, ref, sessionId: sessionId)
-        : store.toggle(b, ref, pen.type!, sessionId: sessionId);
-    if (op == null) {
-      showQToast(context, context.l10n.mkNothingToFix);
-      return false;
-    }
+    final (op, type) = store.cycle(b, ref, sessionId: sessionId);
+    tapped = true;
+    lastType = type;
     _undo.add(op);
     if (_undo.length > 100) _undo.removeAt(0);
     noteRange(ref.globalAyah, ref.globalAyah);

@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,9 +10,11 @@ import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/mushaf.dart';
 import 'package:qiraah_arabiyyah/data/quran.dart';
+import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_line.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
 import 'package:qiraah_arabiyyah/screens/quran_screen.dart';
 
+import 'shots/shots_test.dart' show loadFonts;
 import 'test_support.dart';
 
 /// A mark is stored once, by (sūrah, āyah, word), and must be drawn on the
@@ -64,14 +65,45 @@ Future<void> _pump(WidgetTester tester, AppSettings s, ProgressStore p,
   }
 }
 
-/// Every word span on screen.
-List<TextSpan> _wordSpans(WidgetTester tester) {
-  final out = <TextSpan>[];
-  for (final rt in tester.widgetList<RichText>(find.byType(RichText))) {
-    rt.text.visitChildren((span) {
-      if (span is TextSpan && span.recognizer != null) out.add(span);
-      return true;
-    });
+/// A word as drawn: its text, the highlight behind it (if any), whether it
+/// carries a text decoration, the line it's on and its index.
+typedef _Word = (String text, Color? bg, bool decorated, RenderMushafLine, int);
+
+/// Every word on screen — from the glyph atlas line or the text line,
+/// whichever drew it.
+List<_Word> _words(WidgetTester tester) {
+  final out = <_Word>[];
+  for (final el in find.byType(MushafLineView).evaluate()) {
+    final r = el.renderObject! as RenderMushafLine;
+    final laid = r.laidLine;
+    if (laid == null) continue;
+    // Only lines on screen (the pager keeps its neighbours laid out too).
+    final at = r.localToGlobal(r.size.center(Offset.zero));
+    if (!(Offset.zero & tester.view.physicalSize).contains(at)) continue;
+    final words = r.spec.line.words;
+    if (laid is AtlasLine) {
+      for (var i = 0; i < words.length; i++) {
+        final (left, right) = laid.boxes[i];
+        Color? bg;
+        for (final (l, rr, c) in laid.backgrounds) {
+          if (l == left && rr == right) bg = c;
+        }
+        out.add((words[i].text, bg, false, r, i));
+      }
+    } else if (laid is LaidLine) {
+      final spans = (laid.painter.text! as TextSpan).children!;
+      // Words and the gaps between them alternate.
+      for (var i = 0; i < words.length; i++) {
+        final t = spans[i * 2] as TextSpan;
+        out.add((
+          t.text!,
+          t.style?.backgroundColor,
+          t.style?.decoration != null,
+          r,
+          i,
+        ));
+      }
+    }
   }
   return out;
 }
@@ -81,9 +113,11 @@ void main() {
 
   setUpAll(() async {
     mockAudioPlugins();
+    // Real glyph widths: the page is sized from the bundled fonts' widths.
+    await loadFonts();
     await QuranRepo.meta();
-    await MushafRepo.ensure('uthmani');
-    await MushafRepo.ensure('indopak');
+    await loadMushaf('uthmani');
+    await loadMushaf('indopak');
     // The reader decodes off-isolate; warm its caches outside fake async.
     for (final f in ['DigitalKhattV2', 'UthmanicHafs']) {
       await QuranRepo.ayahs(15, 'uthmani', font: f);
@@ -101,22 +135,18 @@ void main() {
       m.addMark(b.id, _ref, MarkType.mistake);
 
       await _pump(tester, s, p, m, script);
-      final marked = _wordSpans(tester)
-          .where((t) => t.style?.backgroundColor == _mistakeTint)
-          .toList();
+      final marked =
+          _words(tester).where((w) => w.$2 == _mistakeTint).toList();
       expect(marked, hasLength(1));
-      expect(marked.single.text,
+      expect(marked.single.$1,
           MushafRepo.wordText(script, _ref.globalAyah, _ref.word0));
       // No text decoration: it would cut through the kasrahs.
-      expect(marked.single.style!.decoration, isNull);
+      expect(marked.single.$3, isFalse);
 
       // Hidden with "show marks" off.
       s.update(() => s.showMarks = false);
       await tester.pump(const Duration(milliseconds: 300)); // + save debounce
-      expect(
-          _wordSpans(tester)
-              .where((t) => t.style?.backgroundColor == _mistakeTint),
-          isEmpty);
+      expect(_words(tester).where((w) => w.$2 == _mistakeTint), isEmpty);
       await m.flush();
     });
   }
@@ -139,8 +169,11 @@ void main() {
     expect(find.byTooltip('Undo'), findsOneWidget);
 
     final word = MushafRepo.wordText('uthmani', _ref.globalAyah, _ref.word0);
-    final span = _wordSpans(tester).firstWhere((t) => t.text == word);
-    (span.recognizer! as TapGestureRecognizer).onTap!();
+    final (_, _, _, line, i) = _words(tester).firstWhere((w) => w.$1 == word);
+    final (left, right) = line.laidLine!.boxes[i];
+    final pos = line.localToGlobal(
+        line.textOffset + Offset((left + right) / 2, line.laidLine!.height / 2));
+    await tester.tapAt(pos);
     await tester.pump();
     final marks = m.marksAt(m.activeBookId!, _ref);
     expect(marks, hasLength(1));
@@ -160,6 +193,76 @@ void main() {
     expect(session.isOpen, isFalse);
     expect(session.fromGlobalAyah, lessThanOrEqualTo(_ref.globalAyah));
     expect(session.toGlobalAyah, greaterThanOrEqualTo(_ref.globalAyah));
+    await m.flush();
+  });
+
+  /// Where to touch [ref]'s word on screen.
+  Offset wordCentre(WidgetTester tester, WordRef ref) {
+    final word = MushafRepo.wordText('uthmani', ref.globalAyah, ref.word0);
+    final (_, _, _, line, i) = _words(tester).firstWhere((w) => w.$1 == word);
+    final (left, right) = line.laidLine!.boxes[i];
+    return line.localToGlobal(
+        line.textOffset + Offset((left + right) / 2, line.laidLine!.height / 2));
+  }
+
+  testWidgets('marking: each tap steps the mark; holding opens its actions',
+      (tester) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (s, p, m) = await _boot();
+    await _pump(tester, s, p, m, 'uthmani');
+    await tester.tap(find.byTooltip('Mark recitation'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Zayd');
+    await tester.tap(find.text('Start'));
+    await tester.pumpAndSettle();
+
+    final at = wordCentre(tester, _ref);
+    List<MarkType> types() =>
+        [for (final x in m.marksAt(m.activeBookId!, _ref)) x.type];
+    await tester.tapAt(at);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(types(), [MarkType.mistake]);
+    await tester.tapAt(at);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(types(), [MarkType.tajwid]);
+    expect(find.textContaining('Tajw'), findsWidgets); // the bar says so
+
+    // Holding opens the sheet with the mark's actions as buttons.
+    await tester.longPressAt(at);
+    await tester.pumpAndSettle();
+    for (final label in ['Comment', 'Reply', 'Delete']) {
+      expect(find.widgetWithText(TextButton, label), findsOneWidget,
+          reason: label);
+    }
+    await tester.tap(find.widgetWithText(TextButton, 'Mark fixed'));
+    await tester.pump();
+    expect(m.isFixed(m.marksAt(m.activeBookId!, _ref).single), isTrue);
+    await m.flush();
+  });
+
+  testWidgets('reading: a tap plays the word; holding also opens its sheet',
+      (tester) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (s, p, m) = await _boot();
+    await _pump(tester, s, p, m, 'uthmani');
+    bool playing() => tester
+        .renderObjectList<RenderMushafLine>(find.byType(MushafLineView))
+        .any((r) => r.spec.playAyah == _ref.globalAyah);
+
+    final at = wordCentre(tester, _ref);
+    await tester.tapAt(at);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(playing(), isTrue, reason: 'the tap played the word');
+    expect(find.byType(BottomSheet), findsNothing);
+
+    await tester.longPressAt(at);
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(playing(), isTrue);
     await m.flush();
   });
 

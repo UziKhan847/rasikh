@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+import '../ui/tajwid_colors.dart';
 import '../core/audio.dart';
 import '../core/l10n.dart';
 import '../core/marks/card_align.dart';
@@ -36,44 +37,7 @@ export 'quran_list_screen.dart' show SurahListScreen, openSurah;
 
 /// Tajwīd rule colours, by rule index (see `QuranRepo.tajwid`): the
 /// redesign's light set, or its night set on the dark themes.
-List<Color> tajwidColorsFor(Palette p) => p.isDark ? _tjNight : _tjLight;
-
-const _tjLight = <Color>[
-  Color(0xFF1E8A86), // 0 ghunnah
-  Color(0xFF1E8A86), // 1 idgham_g
-  Color(0xFF6F8F8C), // 2 idgham_ng
-  Color(0xFF3F7FC2), // 3 iqlab
-  Color(0xFF2E9A7A), // 4 ikhfa
-  Color(0xFF2E9A7A), // 5 ikhfa_shafawi
-  Color(0xFF1E8A86), // 6 idgham_shafawi
-  Color(0xFF2F6CA6), // 7 qalqalah
-  Color(0xFFB4862C), // 8 madd2
-  Color(0xFFC9682F), // 9 madd4 (muttasil)
-  Color(0xFFC9682F), // 10 madd45 (munfasil)
-  Color(0xFFB4483B), // 11 madd6 (lazim)
-  Color(0xFFA7ABA3), // 12 shamsiyya
-  Color(0xFFA7ABA3), // 13 silent
-];
-
-const _tjNight = <Color>[
-  Color(0xFF5CC3BE),
-  Color(0xFF5CC3BE),
-  Color(0xFF8FB3AF),
-  Color(0xFF8AB4E8),
-  Color(0xFF6FCFAE),
-  Color(0xFF6FCFAE),
-  Color(0xFF5CC3BE),
-  Color(0xFF7DAEDD),
-  Color(0xFFD9AE55),
-  Color(0xFFE39A62),
-  Color(0xFFE39A62),
-  Color(0xFFE07A6C),
-  Color(0xFF5E6863),
-  Color(0xFF5E6863),
-];
-
-/// Kept for callers outside the reader: the light set.
-const tajwidRuleColors = _tjLight;
+List<Color> tajwidColorsFor(Palette p) => tajwidColorsForDark(p.isDark);
 
 /// The face the reader renders [script] with — fixed per script, not a user
 /// choice. Both are DigitalKhatt faces: DigitalKhattIndoPak for Indo-Pak,
@@ -1237,6 +1201,10 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
           Text.rich(TextSpan(children: spans), textDirection: TextDirection.rtl),
     );
 
+    // Reading: a tap plays the word (or jumps the recitation to it);
+    // holding it plays it and opens its sheet. Marking: a tap steps the
+    // word's mark through the types; holding it opens the sheet to fix,
+    // comment, reply or delete.
     void onTap() {
       if (marking) {
         _markCardWord(ayahIdx, first);
@@ -1244,12 +1212,14 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
       }
       if (recitingAyah && playingAyah == ayahIdx && _seekToWord(first)) return;
       _playGroup(ayahIdx, first, last);
-      if (first == last) _showWord(ayahIdx, first);
     }
 
     // While marking, a grouped segment's taps go to its words (see above).
     final tap = marking && first != last ? null : onTap;
-    void longPress() => _showWord(ayahIdx, first);
+    void longPress() {
+      if (!marking) _playGroup(ayahIdx, first, last);
+      _showWord(ayahIdx, first);
+    }
     if (!grid) {
       // A bare word: highlight by background while it is being said.
       // Plain Container, not AnimatedContainer: one animation controller per
@@ -1774,8 +1744,14 @@ class _ReaderPlayer extends StatelessWidget {
     if (floating) {
       return Column(mainAxisSize: MainAxisSize.min, children: [progress, body]);
     }
+    // The dock tab sits on the player's top edge. Its upper half used to
+    // hang outside the player's bounds, where taps aren't delivered to it —
+    // they reached the words behind instead (tapping "float", "collapse" or
+    // "close" played a word). The player now reserves that strip, so the
+    // whole tab is inside it.
     return Stack(clipBehavior: Clip.none, children: [
       Container(
+        margin: const EdgeInsets.only(top: _kDockTabOverhang),
         decoration: BoxDecoration(
           color: p.card,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -1804,13 +1780,15 @@ class _ReaderPlayer extends StatelessWidget {
         ),
       ),
       Positioned(
-        top: -14,
+        top: 0,
         left: 0,
         right: 0,
         child: Center(child: _DockTab(state: state)),
       ),
     ]);
   }
+
+  static const _kDockTabOverhang = 14.0;
 
   Widget _expanded(BuildContext context) {
     final p = pal(context);

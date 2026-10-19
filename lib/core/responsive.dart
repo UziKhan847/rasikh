@@ -45,6 +45,16 @@ bool useDesktop(BuildContext context) {
   return isTabletSize(context);
 }
 
+/// Switches between the desktop shell and the phone layout (Ctrl+Shift+L,
+/// the sidebar's phone button, Today's desktop button). Does nothing where
+/// the desktop shell can't be used — a phone stays a phone.
+void toggleLayout(BuildContext context) {
+  if (!canUseDesktopShell(context)) return;
+  final s = SettingsScope.of(context);
+  final desktop = useDesktop(context);
+  s.update(() => s.desktopMode = desktop ? 'off' : 'on');
+}
+
 /// Marker mixin: screens that render their own desktop layout are pushed
 /// full-screen by [pushAdaptive]; portrait-only screens get a phone frame.
 mixin DesktopAware on Widget {}

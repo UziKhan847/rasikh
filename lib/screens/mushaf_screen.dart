@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../core/audio.dart';
@@ -14,8 +13,9 @@ import '../core/marks/word_ref.dart';
 import '../core/perf_log.dart';
 import '../core/responsive.dart';
 import '../core/settings.dart';
-import '../core/tap_longpress.dart';
 import '../core/theme.dart';
+import '../data/mushaf_atlas.dart';
+import '../ui/tajwid_colors.dart';
 import '../data/mushaf.dart';
 import '../data/quran.dart';
 import '../ui/app_icons.dart';
@@ -25,6 +25,7 @@ import '../ui/qiraah_ornaments.dart';
 import 'marks/marking.dart';
 import 'marks/marking_bar.dart';
 import 'marks/word_marks_sheet.dart';
+import 'mushaf/mushaf_line.dart';
 import 'shell/app_shell.dart';
 
 /// 📖 True 15-line Muṣḥaf — page-for-page and line-for-line with the printed
@@ -81,6 +82,11 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       _playWord = word < 0 ? word : mushafWordOfQc(_playAyah, word);
 
   PageController? _ctrl;
+  // Phone on its side with two facing pages: the pager turns spreads.
+  PageController? _spreadCtrl;
+  bool _phoneSpread = false;
+  // A phone on its side: the status bar stays hidden (more page height).
+  bool _landscape = false;
   String _script = 'uthmani';
   int _page = 1;
   int _total = 604;
@@ -120,7 +126,13 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   // ── marking ──
   final _marking = MarkingController();
-  final _recognizers = _WordRecognizers();
+  final _handlers = MushafTapHandlers();
+
+  /// The page the pager moved to mid-swipe, settled once the swipe ends.
+  int? _pendingPage;
+
+  /// The settled page, for the bars that show it (see [_settle]).
+  final _pageN = ValueNotifier<int>(1);
 
   @override
   void initState() {
@@ -147,6 +159,16 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   Future<void> _load() async {
     await MushafRepo.ensure(_script);
+    // The glyph atlas (usually loaded at startup already). Until it's ready
+    // the page is shaped as text; when it arrives the lines switch to it.
+    if (MushafAtlas.of(_script) == null) {
+      final script = _script;
+      MushafAtlas.load(script, MushafRepo.tokensSync(script)).then((a) {
+        if (a != null && mounted && script == _script) {
+          setState(_pageMemo.clear);
+        }
+      });
+    }
     final total = MushafRepo.pageCountSync(_script);
     final metas = await QuranRepo.meta();
     if (!mounted) return;
@@ -221,12 +243,19 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     WbwAudio.instance.stop();
     AyahAudio.instance.stop();
     _ctrl?.dispose();
+    _spreadCtrl?.dispose();
+    _pageN.dispose();
     _marking.removeListener(_onMarking);
     _marking.dispose();
-    _recognizers.dispose();
+    MushafLineScheduler.reset();
+    MushafAtlas.of(_script)?.releaseLarge();
+    PerfLog.where = 'app';
     final n = _shell?.focus;
     if (n != null && n.value) n.value = false;
-    if (!_chrome) _restoreSystemBars();
+    if (!_chrome || _landscape) {
+      _landscape = false;
+      _restoreSystemBars();
+    }
     if (_orientationLocked) {
       SystemChrome.setPreferredOrientations(const []).catchError((_) {});
     }
@@ -244,37 +273,79 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   void _settle(int page) {
     final sw = kMushafPerf ? (Stopwatch()..start()) : null;
-    PerfLog.where = 'page $page';
+    PerfLog.where = 'muṣḥaf p.$page';
     _page = page;
     _curSurah = MushafRepo.firstVerseOfPage(_script, page).$1;
     ProgressScope.read(context).setLastMushafPage(page);
     _notePage(page);
-    _recognizers.trim(page);
     _prewarm(page);
+    _pageN.value = page;
     if (sw != null) {
       PerfLog.log('→ page $page (bookkeeping ${sw.elapsedMicroseconds} µs)');
     }
   }
 
-  /// Measures the pages either side of [page] in idle time, one page per
-  /// idle slot, so the swipe that reaches them doesn't pay for it.
+  /// Prepares the pages either side of [page] in the background — their
+  /// sizes and every line, one line per step — so the swipe that reaches
+  /// them finds them ready. Paused while a finger is down (see
+  /// [MushafLineScheduler]).
   void _prewarm(int page) {
-    final script = _script;
-    for (final p in [page + 1, page - 1, page + 2, page - 2]) {
+    final s = _settingsRef;
+    if (s == null) return;
+    // Drawn from the glyph atlas: nothing to prepare.
+    if (MushafAtlas.of(_script) != null) return;
+    final spread = (_desktop && _view(s) == 'spread') || _phoneSpread;
+    final first = spread ? _spreadStart(page) : page;
+    final order = spread
+        ? [first + 2, first + 3, first - 1, first - 2]
+        : [page + 1, page - 1, page + 2, page - 2];
+    MushafLineScheduler.addJob(_warm(order, _script, mushafPaperOf(s)));
+  }
+
+  Iterable<void> _warm(List<int> pages, String script, MushafPaper paper) sync* {
+    for (final p in pages) {
+      if (!mounted || script != _script) return;
       if (p < 1 || p > _total) continue;
-      SchedulerBinding.instance.scheduleTask(() {
+      final lines = MushafRepo.pageSync(script, p);
+      if (lines == null || lines.isEmpty) continue;
+      final sw = kMushafPerf ? (Stopwatch()..start()) : null;
+      if (!MushafGeometry.hasWidths(script, p, lines)) {
+        MushafGeometry.widestEm(script, p, lines);
+        yield null;
+      }
+      _ayahsOn(p);
+      final vp = mushafLastViewport;
+      final size = mushafTextAreaFor(p);
+      if (vp == null || size == null) continue;
+      final fitWidth = vp.$2;
+      final (fs, slotH, _) = mushafPageGeometry(
+          script, p, lines, size.width, size.height,
+          fitWidth: fitWidth);
+      var shaped = 0;
+      for (var i = 0; i < lines.length; i++) {
+        if (!lines[i].isText) continue;
+        final spec = MushafLineSpec(
+          script: script,
+          page: p,
+          index: i,
+          line: lines[i],
+          fontSize: fs,
+          slotH: slotH,
+          targetW: size.width,
+          ink: paper.ink,
+          accent: paper.acc,
+          strongBg: paper.hl2,
+          verseBg: paper.hl,
+        );
+        if (MushafLineCache.has(spec.key)) continue;
+        MushafLineCache.get(spec, why: 'prewarm');
+        shaped++;
+        yield null;
         if (!mounted || script != _script) return;
-        final lines = MushafRepo.pageSync(script, p);
-        if (lines != null && lines.isNotEmpty) {
-          final sw = kMushafPerf ? (Stopwatch()..start()) : null;
-          MushafGeometry.widestEm(script, p, lines);
-          _ayahsOn(p);
-          if (sw != null && sw.elapsedMicroseconds > 50) {
-            PerfLog.log('prewarmed page $p in idle time '
-                '(${(sw.elapsedMicroseconds / 1000).toStringAsFixed(1)} ms)');
-          }
-        }
-      }, Priority.idle);
+      }
+      if (sw != null && shaped > 0) {
+        PerfLog.log('prepared page $p in the background: $shaped lines');
+      }
     }
   }
 
@@ -288,17 +359,18 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       });
       return;
     }
-    final c = _ctrl;
-    if (c == null || !c.hasClients || c.page?.round() == t - 1) {
+    final c = _phoneSpread ? _spreadCtrl : _ctrl;
+    final idx = _phoneSpread ? (_spreadStart(t) - 1) ~/ 2 : t - 1;
+    if (c == null || !c.hasClients || c.page?.round() == idx) {
       setState(() => _settle(t));
       return;
     }
     if (animate) {
-      c.animateToPage(t - 1,
+      c.animateToPage(idx,
           duration: const Duration(milliseconds: 380),
           curve: const Cubic(.2, .8, .2, 1));
     } else {
-      c.jumpToPage(t - 1);
+      c.jumpToPage(idx);
     }
   }
 
@@ -307,12 +379,34 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     final s = SettingsScope.of(context);
     if (_desktop && _view(s) == 'spread') {
       _jump(_spreadStart(_page) + 2 * dir);
+    } else if (_phoneSpread) {
+      _jump(_spreadStart(_page) + 2 * dir, animate: true);
     } else {
       _jump(_page + dir, animate: true);
     }
   }
 
-  void _onPage(int i) => setState(() => _settle(i + 1));
+  /// The pager moved to a new page (fires halfway through a swipe). Only
+  /// remembered here: the screen updates when the swipe has settled (see
+  /// [_onScroll]), so nothing rebuilds while the finger is still moving.
+  void _onPage(int i) {
+    _pendingPage = i + 1;
+    PerfLog.where = 'muṣḥaf p.${i + 1}';
+  }
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth != 0 || n.metrics.axis != Axis.horizontal) return false;
+    if (n is ScrollStartNotification) {
+      MushafLineScheduler.scrolling = true;
+    } else if (n is ScrollEndNotification) {
+      MushafLineScheduler.scrolling = false;
+      final p = _pendingPage;
+      _pendingPage = null;
+      // The bars follow through _pageN; the screen itself isn't rebuilt.
+      if (p != null && p != _page && mounted) _settle(p);
+    }
+    return false;
+  }
 
   Future<void> _switchScript(String v) async {
     if (v == _script) return;
@@ -338,6 +432,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     _page = p;
     _ctrl?.dispose();
     _ctrl = PageController(initialPage: p - 1);
+    _spreadCtrl?.dispose();
+    _spreadCtrl = _phoneSpread
+        ? PageController(initialPage: (_spreadStart(p) - 1) ~/ 2)
+        : null;
     await _load();
   }
 
@@ -356,7 +454,25 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     }
   }
 
+  /// A phone turned on its side hides the status bar for the whole time —
+  /// the pages get its height; turned back, the bars return as they were.
+  void _setLandscape(bool on) {
+    if (on == _landscape) return;
+    _landscape = on;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_landscape) {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky)
+            .catchError((_) {});
+      } else if (_chrome) {
+        _restoreSystemBars();
+      }
+    });
+  }
+
   void _restoreSystemBars() {
+    // On its side the phone keeps the bars hidden (see _setLandscape).
+    if (_landscape) return;
     // Via the saved reference: this also runs from dispose(), when the
     // context can no longer look up its ancestors.
     final immersive = _settingsRef?.immersive ?? false;
@@ -501,6 +617,11 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         if (idx == -1) _playAyah = -1;
       });
     });
+  }
+
+  void _playAndShowWord(MushafWord wd) {
+    _playWordAudio(wd);
+    _showWord(wd);
   }
 
   void _togglePlay() {
@@ -707,6 +828,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   @override
   Widget build(BuildContext context) {
+    PerfLog.screenBuilt();
     final s = SettingsScope.of(context);
     if (_booted && _ready && s.mushafScript != _seenSetting) {
       _seenSetting = s.mushafScript;
@@ -724,6 +846,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       // back at the current page.
       _ctrl?.dispose();
       _ctrl = PageController(initialPage: _page - 1);
+      _spreadCtrl?.dispose();
+      _spreadCtrl = _phoneSpread
+          ? PageController(initialPage: (_spreadStart(_page) - 1) ~/ 2)
+          : null;
     }
     _wasDesktop = desktop;
     final paper = mushafPaperOf(s);
@@ -743,9 +869,28 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                     // the full width and scrolls vertically.
                     final landscape =
                         c.maxWidth > c.maxHeight && c.maxHeight < 520;
-                    return landscape
-                        ? _landscapeBody(context, s, paper)
-                        : _portraitBody(context, s, paper);
+                    _setPhoneSpread(landscape && s.mushafPhoneSpread);
+                    _setLandscape(landscape);
+                    final pager = !landscape
+                        ? _pager(s, paper,
+                            fitWidth: false,
+                            margin: const EdgeInsets.fromLTRB(8, 8, 8, 8))
+                        : _phoneSpread
+                            ? _spreadPager(s, paper,
+                                margin: const EdgeInsets.fromLTRB(68, 4, 72, 4))
+                            : _pager(s, paper,
+                                fitWidth: true,
+                                margin: const EdgeInsets.fromLTRB(68, 10, 72, 0));
+                    // A page turn only refreshes the bars (title, page label,
+                    // progress): the pager is handed through as the same
+                    // widget, so its pages aren't rebuilt.
+                    return ValueListenableBuilder<int>(
+                      valueListenable: _pageN,
+                      child: pager,
+                      builder: (context, _, pager) => landscape
+                          ? _landscapeBody(context, s, paper, pager!)
+                          : _portraitBody(context, s, paper, pager!),
+                    );
                   }),
       ),
     );
@@ -754,7 +899,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   Widget _pageView(int page, AppSettings s, MushafPaper paper,
           {bool fitWidth = false,
           EdgeInsets margin = EdgeInsets.zero,
-          String? spine}) =>
+          String? spine,
+          bool compact = false}) =>
       _memoPage(
         page: page,
         paper: paper,
@@ -762,6 +908,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         fitWidth: fitWidth,
         margin: margin,
         spine: spine,
+        compact: compact,
       );
 
   // ── page widgets, memoised ──
@@ -797,19 +944,24 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     required bool fitWidth,
     required EdgeInsets margin,
     required String? spine,
+    bool compact = false,
   }) {
-    _recognizers
+    _handlers
+      // Reading: a tap plays the word; holding it plays it and opens its
+      // sheet. Marking: a tap steps the word's mark through the types;
+      // holding it opens the sheet to fix, comment, reply or delete.
       ..onTapWord = _marking.active ? _markWord : _playWordAudio
-      ..onLongPressWord = _showWord
+      ..onLongPressWord = _marking.active ? _showWord : _playAndShowWord
       ..onTapVerse = _onTapVerse;
     final (lo, hi) = _ayahsOn(page);
     final mine = _playAyah >= 0 && _playAyah >= lo && _playAyah <= hi;
     final marks = _visuals(s);
     final markPal = markPaletteForPaper(paper);
+    final tajwid = s.mushafTajwid ? tajwidColorsForDark(paper.dark) : null;
     final inputs = <Object?>[
       _script, paper, s.ornate, fitWidth, s.mushafHeader, margin, spine,
       _names, mine ? _playAyah : -1, mine ? _playWord : -1,
-      mine && _reciting, marks, markPal,
+      mine && _reciting, marks, markPal, tajwid, compact,
     ];
     final key = '$page/${spine ?? ''}';
     final memo = _pageMemo[key];
@@ -829,8 +981,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       reciting: mine && _reciting,
       marks: marks,
       markPal: markPal,
-      recognizers: _recognizers,
-      onTapVerse: _onTapVerse,
+      handlers: _handlers,
+      tajwid: tajwid,
+      compact: compact,
     );
     if (_pageMemo.length > 12) _pageMemo.clear();
     _pageMemo[key] = (inputs, w);
@@ -885,44 +1038,106 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   Widget _pager(AppSettings s, MushafPaper paper,
           {required bool fitWidth, required EdgeInsets margin}) =>
-      GestureDetector(
+      _swiper(
+        controller: _ctrl,
+        count: _total,
+        onPage: _onPage,
+        builder: (context, i) => _pagerItem(s, paper, i,
+            fitWidth: fitWidth, margin: margin),
+      );
+
+  /// Two facing pages per swipe (a phone on its side).
+  Widget _spreadPager(AppSettings s, MushafPaper paper,
+          {required EdgeInsets margin}) =>
+      _swiper(
+        controller: _spreadCtrl,
+        count: (_total + 1) ~/ 2,
+        onPage: (i) => _onPage(2 * i),
+        builder: (context, i) => LayoutBuilder(builder: (context, c) {
+          final avail = Size((c.maxWidth - margin.horizontal) / 2,
+              c.maxHeight - margin.vertical);
+          mushafPageBoxOf = (p) => _spreadBoxOf(p, avail, s, compact: true);
+          return Padding(
+            padding: margin,
+            child: Center(
+                child: _spreadRow(2 * i + 1, avail, s, paper, compact: true)),
+          );
+        }),
+      );
+
+  /// Switches the phone between one page and two (and back), keeping the
+  /// page: each pager starts where the other was.
+  void _setPhoneSpread(bool on) {
+    if (on == _phoneSpread) return;
+    _phoneSpread = on;
+    _ctrl?.dispose();
+    _ctrl = PageController(initialPage: _page - 1);
+    _spreadCtrl?.dispose();
+    _spreadCtrl =
+        on ? PageController(initialPage: (_spreadStart(_page) - 1) ~/ 2) : null;
+  }
+
+  Widget _swiper({
+    required PageController? controller,
+    required int count,
+    required ValueChanged<int> onPage,
+    required IndexedWidgetBuilder builder,
+  }) =>
+      Listener(
+        // A finger on the pages pauses background work until it lifts.
+        onPointerDown: (_) => MushafLineScheduler.pointerDown(),
+        onPointerUp: (_) => MushafLineScheduler.pointerUp(),
+        onPointerCancel: (_) => MushafLineScheduler.pointerUp(),
+        child: NotificationListener<ScrollNotification>(
+        onNotification: _onScroll,
+        child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: _onPageTap,
         child: PageView.builder(
-          key: ValueKey(_script),
-          controller: _ctrl,
+          key: ValueKey('$_script/${count == _total}'),
+          controller: controller,
           reverse: true, // right-to-left page turning
           // Pre-builds the adjacent page instead of Flutter's default
           // zero-length cache extent, so a page's first-visit layout cost
           // lands before the swipe reaches it, not mid-gesture.
           allowImplicitScrolling: true,
-          itemCount: _total,
-          onPageChanged: _onPage,
-          itemBuilder: (context, i) {
-            final page =
-                _pageView(i + 1, s, paper, fitWidth: fitWidth, margin: margin);
-            if (fitWidth) return page;
-            // Portrait: the page takes the width its text needs (see
-            // MushafGeometry) and the full height between the bars — on a
-            // phone, spare height spreads the lines rather than leaving
-            // empty bands above and below the page.
-            return LayoutBuilder(builder: (context, c) {
-              final b = MushafGeometry.pageBox(
-                  Size(c.maxWidth - margin.horizontal,
-                      c.maxHeight - margin.vertical),
-                  _script,
-                  ornate: s.ornate,
-                  header: s.mushafHeader);
-              return Center(
-                child: SizedBox(
-                    width: b.width + margin.horizontal,
-                    height: c.maxHeight,
-                    child: page),
-              );
-            });
-          },
+          itemCount: count,
+          onPageChanged: onPage,
+          itemBuilder: builder,
         ),
+      ),
+      ),
       );
+
+  Widget _pagerItem(AppSettings s, MushafPaper paper, int i,
+      {required bool fitWidth, required EdgeInsets margin}) {
+    final page = _pageView(i + 1, s, paper, fitWidth: fitWidth, margin: margin);
+    if (fitWidth) return page;
+    // Portrait: a page with a scanned shape takes exactly the printed page's
+    // proportions (MushafGeometry.pageRatio); otherwise it takes the width
+    // its text needs and the full height between the bars, spare height
+    // spreading the lines.
+    return LayoutBuilder(builder: (context, c) {
+      final avail =
+          Size(c.maxWidth - margin.horizontal, c.maxHeight - margin.vertical);
+      Size box(int p) {
+        final b = MushafGeometry.pageBox(avail, _script,
+            ornate: s.ornate, header: s.mushafHeader, page: p);
+        return MushafGeometry.pageRatio(_script, p) == null
+            ? Size(b.width, avail.height)
+            : b;
+      }
+
+      mushafPageBoxOf = box;
+      final b = box(i + 1);
+      return Center(
+        child: SizedBox(
+            width: b.width + margin.horizontal,
+            height: b.height + margin.vertical,
+            child: page),
+      );
+    });
+  }
 
   /// Fades a bar in and out with the chrome (250ms), and stops it catching
   /// taps while hidden.
@@ -937,7 +1152,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   // ── phone, portrait ──
 
-  Widget _portraitBody(BuildContext context, AppSettings s, MushafPaper paper) {
+  Widget _portraitBody(
+      BuildContext context, AppSettings s, MushafPaper paper, Widget pager) {
     final pad = MediaQuery.paddingOf(context);
     final narrow = MediaQuery.sizeOf(context).width < 360;
     return Stack(children: [
@@ -947,8 +1163,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
             top: _chrome ? pad.top + _kTopBar : pad.top,
             bottom: _chrome ? pad.bottom + _kBottomBar : pad.bottom,
           ),
-          child: _pager(s, paper,
-              fitWidth: false, margin: const EdgeInsets.fromLTRB(8, 8, 8, 8)),
+          child: pager,
         ),
       ),
       Positioned(
@@ -1206,15 +1421,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   // ── phone, landscape ──
 
   Widget _landscapeBody(
-      BuildContext context, AppSettings s, MushafPaper paper) {
+      BuildContext context, AppSettings s, MushafPaper paper, Widget pager) {
     final pad = MediaQuery.paddingOf(context);
     return Stack(children: [
       Positioned.fill(
         child: Padding(
           padding: EdgeInsets.only(
               left: pad.left, right: pad.right, top: pad.top, bottom: 0),
-          child: _pager(s, paper,
-              fitWidth: true, margin: const EdgeInsets.fromLTRB(68, 10, 72, 0)),
+          child: pager,
         ),
       ),
       PositionedDirectional(
@@ -1239,6 +1453,18 @@ class _MushafPageScreenState extends State<MushafPageScreen>
               shadow: true,
               tooltip: context.l10n.exitLandscape,
               onTap: () => _rotate(true)),
+          const SizedBox(height: 8),
+          // One page across the width ↔ two facing pages.
+          _PaperButton(
+              paper: paper,
+              icon: _phoneSpread ? AppIcons.fitWidth : AppIcons.viewSpread,
+              size: 46,
+              shadow: true,
+              tooltip: _phoneSpread
+                  ? context.l10n.fillWidthScroll
+                  : context.l10n.twoPageSpread,
+              onTap: () => s.update(
+                  () => s.mushafPhoneSpread = !s.mushafPhoneSpread)),
           const SizedBox(height: 8),
           _PaperButton(
               paper: paper,
@@ -1296,8 +1522,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Text(
-                      context.l10n.pageJuz(
-                          _page, MushafRepo.juzOfPage(_script, _page)),
+                      _phoneSpread && _spreadStart(_page) < _total
+                          ? context.l10n.pagesJuz(
+                              _spreadStart(_page),
+                              _spreadStart(_page) + 1,
+                              MushafRepo.juzOfPage(
+                                  _script, _spreadStart(_page)))
+                          : context.l10n.pageJuz(
+                              _page, MushafRepo.juzOfPage(_script, _page)),
                       style: uiStyle(context,
                           size: 13, weight: FontWeight.w700, color: paper.ink)),
                 ),
@@ -1325,18 +1557,6 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     final k = e.logicalKey;
     final keys = HardwareKeyboard.instance;
     if (e is KeyDownEvent && _marking.active) {
-      const digits = [
-        LogicalKeyboardKey.digit1,
-        LogicalKeyboardKey.digit2,
-        LogicalKeyboardKey.digit3,
-        LogicalKeyboardKey.digit4,
-        LogicalKeyboardKey.digit5,
-      ];
-      final i = digits.indexOf(k);
-      if (i >= 0) {
-        _marking.setPen(MarkPen.values[i]);
-        return KeyEventResult.handled;
-      }
       if (k == LogicalKeyboardKey.keyZ &&
           (keys.isControlPressed || keys.isMetaPressed)) {
         _marking.undo(context);
@@ -1500,6 +1720,41 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     );
   }
 
+  /// [page]'s box in a two-page spread that fits pages of [avail] each:
+  /// facing pages share one height (the shorter of the two), each as wide as
+  /// its scanned shape makes it.
+  Size _spreadBoxOf(int page, Size avail, AppSettings s,
+      {bool compact = false}) {
+    final first = _spreadStart(page);
+    Size fit(int p, Size a) => MushafGeometry.pageBox(a, _script,
+        ornate: s.ornate, header: s.mushafHeader, page: p, compact: compact);
+    final r = fit(first, avail), l = fit(first + 1, avail);
+    final h = r.height < l.height ? r.height : l.height;
+    return fit(page, Size(avail.width, h));
+  }
+
+  /// The two facing pages from [first] (right) and [first] + 1 (left).
+  Widget _spreadRow(int first, Size avail, AppSettings s, MushafPaper paper,
+      {bool compact = false}) {
+    final left = first + 1;
+    final rb = _spreadBoxOf(first, avail, s, compact: compact);
+    final lb =
+        left <= _total ? _spreadBoxOf(left, avail, s, compact: compact) : rb;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      SizedBox(
+        width: lb.width,
+        height: rb.height,
+        child: left <= _total
+            ? _pageView(left, s, paper, spine: 'left', compact: compact)
+            : const SizedBox(),
+      ),
+      SizedBox(
+          width: rb.width,
+          height: rb.height,
+          child: _pageView(first, s, paper, spine: 'right', compact: compact)),
+    ]);
+  }
+
   Widget _stage(BuildContext context, AppSettings s, MushafPaper paper,
       String view, int first) {
     final pad = _chrome ? 24.0 : 14.0;
@@ -1516,19 +1771,20 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       child: LayoutBuilder(builder: (context, c) {
         final availW = (c.maxWidth - 2 * pad - 2 * arrows).clamp(200.0, 1e9);
         final availH = (c.maxHeight - 2 * pad).clamp(200.0, 1e9);
-        // Pages are sized from the text (MushafGeometry): every page of the
-        // view shares one box, so turning pages never changes its shape.
-        Size box(Size avail, {double? heightBudget, bool byWidthOnly = false}) =>
+        // Pages take their scanned shape (MushafGeometry.pageRatio), or, without
+        // one, share one box sized from the text.
+        Size box(Size avail, int page,
+                {double? heightBudget, bool byWidthOnly = false}) =>
             MushafGeometry.pageBox(avail, _script,
                 ornate: s.ornate,
                 header: s.mushafHeader,
+                page: page,
                 heightBudget: heightBudget,
                 byWidthOnly: byWidthOnly);
         Widget content;
         if (view == 'spread') {
-          final b = box(Size(availW / 2, availH));
-          final w = b.width, h = b.height;
-          final left = first + 1;
+          final avail = Size(availW / 2, availH);
+          mushafPageBoxOf = (p) => _spreadBoxOf(p, avail, s);
           content = Container(
             key: ValueKey('spread-$first-$_script'),
             decoration: BoxDecoration(
@@ -1543,24 +1799,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                     spreadRadius: -10),
               ],
             ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              SizedBox(
-                width: w,
-                height: h,
-                child: left <= _total
-                    ? _pageView(left, s, paper, spine: 'left')
-                    : const SizedBox(),
-              ),
-              SizedBox(
-                  width: w,
-                  height: h,
-                  child: _pageView(first, s, paper, spine: 'right')),
-            ]),
+            child: _spreadRow(first, avail, s, paper),
           );
         } else {
-          final b = view == 'fill'
-              ? box(Size(availW, availH), byWidthOnly: true)
-              : box(Size(availW, availH), heightBudget: availH * 1.6);
+          Size boxOf(int p) => view == 'fill'
+              ? box(Size(availW, availH), p, byWidthOnly: true)
+              : box(Size(availW, availH), p, heightBudget: availH * 1.6);
+          mushafPageBoxOf = boxOf;
+          final b = boxOf(_page);
           final w = b.width, h = b.height;
           // A new scroll view per page: each turn starts at the top.
           content = ClipRRect(
@@ -1740,98 +1986,6 @@ class _PaperButton extends StatelessWidget {
   }
 }
 
-/// The marks' pattern lines under a muṣḥaf line, a little below the
-/// baseline — under the kasrahs, which a text decoration would cut through.
-class _MarkLinePainter extends CustomPainter {
-  final List<(double left, double right, MarkVisual v)> lines;
-  final MarkPalette pal;
-  final double dx, baseline, fontSize;
-  _MarkLinePainter(
-      {required this.lines,
-      required this.pal,
-      required this.dx,
-      required this.baseline,
-      required this.fontSize});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final t = (fontSize * .065).clamp(1.2, 3.0);
-    // Kasrahs reach ~0.35 em below the baseline; the next line's tallest
-    // marks start ~0.3–0.5 em further down.
-    final y = baseline + fontSize * .42;
-    for (final (left, right, v) in lines) {
-      // Inset a little so neighbouring marked words read as separate.
-      final inset = ((right - left) * .06).clamp(1.0, 4.0);
-      paintMarkLine(canvas, Offset(dx + left + inset, y),
-          right - left - inset * 2, v, pal,
-          thickness: t);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_MarkLinePainter old) =>
-      old.pal != pal ||
-      old.dx != dx ||
-      old.baseline != baseline ||
-      old.fontSize != fontSize ||
-      old.lines.length != lines.length ||
-      !_sameLines(old.lines, lines);
-
-  static bool _sameLines(List<(double, double, MarkVisual)> a,
-      List<(double, double, MarkVisual)> b) {
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
-  }
-}
-
-/// The muṣḥaf's word and āyah-marker recognizers, kept across rebuilds
-/// (a page used to mint ~150 new, never-disposed recognizers on every
-/// build). Taps go to whatever handlers the screen set last; recognizers of
-/// pages far from the one shown are disposed.
-class _WordRecognizers {
-  void Function(MushafWord)? onTapWord;
-  void Function(MushafWord)? onLongPressWord;
-  void Function(int globalAyah)? onTapVerse;
-
-  final Map<int, Map<int, TapAndLongPressGestureRecognizer>> _byPage = {};
-
-  TapAndLongPressGestureRecognizer of(int page, MushafWord wd) {
-    final key = wd.ayah * 1000 + (wd.isMarker ? 999 : wd.wordIdx);
-    return (_byPage[page] ??= {})[key] ??= wd.isMarker
-        ? TapAndLongPressGestureRecognizer(
-            onTap: () => onTapVerse?.call(wd.ayah),
-            onLongPress: () => onTapVerse?.call(wd.ayah),
-          )
-        : TapAndLongPressGestureRecognizer(
-            onTap: () => onTapWord?.call(wd),
-            onLongPress: () => onLongPressWord?.call(wd),
-          );
-  }
-
-  /// Disposes recognizers of pages more than [keep] away from [page] (those
-  /// pages are no longer mounted).
-  void trim(int page, {int keep = 4}) {
-    _byPage.removeWhere((p, m) {
-      if ((p - page).abs() <= keep) return false;
-      for (final r in m.values) {
-        r.dispose();
-      }
-      return true;
-    });
-  }
-
-  void dispose() {
-    for (final m in _byPage.values) {
-      for (final r in m.values) {
-        r.dispose();
-      }
-    }
-    _byPage.clear();
-  }
-}
-
 /// A page number chip in the desktop bar.
 class _PageChip extends StatelessWidget {
   final String label;
@@ -1965,6 +2119,12 @@ class _MushafSettingsSheet extends StatelessWidget {
             ),
           ),
           QRow(
+            title: context.l10n.tajwidColors,
+            control: QSwitch(
+                value: s.mushafTajwid,
+                onChanged: (v) => s.update(() => s.mushafTajwid = v)),
+          ),
+          QRow(
             title: context.l10n.pageHeader,
             control: QSwitch(
                 value: s.mushafHeader,
@@ -2079,8 +2239,13 @@ class _MushafPageView extends StatelessWidget {
   /// Word marks to draw, by [WordRef.key] (word 0 = the āyah's ۝).
   final Map<int, MarkVisual> marks;
   final MarkPalette? markPal;
-  final _WordRecognizers recognizers;
-  final void Function(int globalAyah) onTapVerse;
+  final MushafTapHandlers handlers;
+
+  /// Tajwīd rule colours, when the page shows tajwīd.
+  final List<Color>? tajwid;
+
+  /// The phone's two-page spread: thinner padding, page number in the head.
+  final bool compact;
   const _MushafPageView({
     required this.page,
     required this.script,
@@ -2096,12 +2261,14 @@ class _MushafPageView extends StatelessWidget {
     required this.reciting,
     this.marks = const {},
     this.markPal,
-    required this.recognizers,
-    required this.onTapVerse,
+    required this.handlers,
+    this.tajwid,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    PerfLog.pageBuilt();
     final page = _page(context);
     return kMushafPerf ? PerfLayoutTimer(page: this.page, child: page) : page;
   }
@@ -2122,7 +2289,9 @@ class _MushafPageView extends StatelessWidget {
     // outside it when ornate borders are on.
     Widget framed(Widget child) {
       final inner = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: compact
+            ? const EdgeInsets.symmetric(horizontal: 6, vertical: 2)
+            : const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           border: Border.all(color: frame),
           borderRadius: BorderRadius.circular(ornate ? 4 : 6),
@@ -2141,7 +2310,8 @@ class _MushafPageView extends StatelessWidget {
     }
 
     return LayoutBuilder(builder: (context, outer) {
-      final roomy = outer.maxWidth > 520;
+      final roomy =
+          outer.maxWidth - margin.horizontal > MushafGeometry.roomyWidth;
       final spineShade = spine == null
           ? null
           : LinearGradient(
@@ -2156,50 +2326,96 @@ class _MushafPageView extends StatelessWidget {
                 Colors.transparent,
               ],
             );
+      final padding = roomy
+          ? const EdgeInsets.fromLTRB(22, 18, 22, 10)
+          : (compact
+              ? const EdgeInsets.fromLTRB(4, 4, 4, 3)
+              : const EdgeInsets.fromLTRB(6, 6, 6, 4));
+      final decoration = BoxDecoration(
+        color: paper.paper,
+        borderRadius: radius,
+        border: Border.all(color: paper.line),
+      );
+      final foreground = spineShade == null
+          ? null
+          : BoxDecoration(borderRadius: radius, gradient: spineShade);
+      final pageNumber = showHeader && !compact
+          ? Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(_ar(page),
+                  textDirection: TextDirection.rtl,
+                  style: arabicStyle(context,
+                      size: 13, height: 1.3, color: paper.sub)),
+            )
+          : null;
+      // Isolates the word grid's paint layer from the page frame around it:
+      // every recitation word-highlight tick repaints this subtree, and
+      // without this boundary the frame would be redrawn on every tick even
+      // though its own inputs never change.
+      Widget grid(double? height) => RepaintBoundary(
+            child: LayoutBuilder(builder: (context, c) {
+              final vh = height ?? c.maxHeight;
+              if (height == null) {
+                mushafChrome = Size(
+                    outer.maxWidth - margin.horizontal - c.maxWidth,
+                    outer.maxHeight - margin.vertical - vh);
+              }
+              return _grid(context, lines, c.maxWidth, vh);
+            }),
+          );
+
+      if (wideLayout) {
+        // A short-and-wide viewport (phone landscape): the page is laid out
+        // to the full width and runs as tall as its text — paper, frame and
+        // all — and scrolls as a whole, like a zoomed-in page rather than a
+        // window onto one. Flutter desktop only drags scrollables with touch
+        // by default; mouse and trackpad can pan it too.
+        return ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(dragDevices: {
+            PointerDeviceKind.touch,
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.stylus,
+            PointerDeviceKind.trackpad,
+          }),
+          child: SingleChildScrollView(
+            padding: margin.copyWith(bottom: margin.bottom + 12),
+            child: Container(
+              decoration: decoration,
+              foregroundDecoration: foreground,
+              padding: padding,
+              child: Column(
+                children: [
+                  framed(Column(
+                    children: [
+                      if (showHeader) _pageHeader(context),
+                      grid(0),
+                    ],
+                  )),
+                  ?pageNumber,
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+
       return Padding(
         padding: margin,
         child: Container(
-          decoration: BoxDecoration(
-            color: paper.paper,
-            borderRadius: radius,
-            border: Border.all(color: paper.line),
-          ),
-          foregroundDecoration: spineShade == null
-              ? null
-              : BoxDecoration(borderRadius: radius, gradient: spineShade),
-          padding: roomy
-              ? const EdgeInsets.fromLTRB(22, 18, 22, 10)
-              : const EdgeInsets.fromLTRB(6, 6, 6, 4),
+          decoration: decoration,
+          foregroundDecoration: foreground,
+          padding: padding,
           child: Column(
             children: [
               Expanded(
                 child: framed(Column(
                   children: [
                     if (showHeader) _pageHeader(context),
-                    Expanded(
-                      // Isolates the word grid's paint layer from the page
-                      // frame above: every recitation word-highlight tick
-                      // repaints this subtree, and without this boundary the
-                      // frame would be redrawn on every tick even though its
-                      // own inputs never change.
-                      child: RepaintBoundary(
-                        child: LayoutBuilder(
-                          builder: (context, c) =>
-                              _grid(context, lines, c.maxWidth, c.maxHeight),
-                        ),
-                      ),
-                    ),
+                    Expanded(child: grid(null)),
                   ],
                 )),
               ),
-              if (showHeader)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(_ar(page),
-                      textDirection: TextDirection.rtl,
-                      style: arabicStyle(context,
-                          size: 13, height: 1.3, color: paper.sub)),
-                ),
+              ?pageNumber,
             ],
           ),
         ),
@@ -2235,6 +2451,14 @@ class _MushafPageView extends StatelessWidget {
                   style: quranicStyle(context,
                       size: 14, height: 1.5, color: paper.acc)),
             ),
+            if (compact)
+              Expanded(
+                child: Text(_ar(page),
+                    textAlign: TextAlign.center,
+                    textDirection: TextDirection.rtl,
+                    style: arabicStyle(context,
+                        size: 13, height: 1.3, color: paper.sub)),
+              ),
             Text(context.l10n.juzOnly(juz),
                 style: uiStyle(context,
                     size: 11.5, weight: FontWeight.w600, color: paper.sub)),
@@ -2244,99 +2468,37 @@ class _MushafPageView extends StatelessWidget {
     );
   }
 
-  // Font size and line slot for a page depend only on (script, page,
-  // viewport, layout mode) — never on playback state, so recitation ticks
-  // don't recompute them. See [MushafGeometry] for the sizing rule.
-  static final Map<String, (double, double, double)> _scaleCache = {};
-
-  // Rounds a viewport dimension to the nearest 4px before it goes into a
-  // cache key: an interactive window resize would otherwise mint one entry
-  // per pixel of drag, since the caches are never evicted.
-  static double _roundPx(double x) => (x / 4).round() * 4.0;
-
   Widget _grid(
       BuildContext context, List<MushafLine> lines, double vw, double vh) {
     final ink = paper.ink;
-    final fam = MushafRepo.fontFamily(script);
-    final n = lines.isEmpty ? 1 : lines.length;
-
     // A short-and-wide viewport (phone landscape) lays the page out to the
-    // FULL width and lets it run taller than the viewport — the page then
-    // scrolls vertically instead of being squeezed down to fit the short side.
+    // FULL width and lets it run taller than the viewport (see _page, which
+    // scrolls it); [vh] is 0 then.
     final fitWidth = wideLayout;
-    final targetW = vw;
+    mushafLastViewport = (Size(vw, vh), fitWidth);
+    final (fs, slotH, contentH) =
+        mushafPageGeometry(script, page, lines, vw, vh, fitWidth: fitWidth);
+    if (kMushafPerf) PerfLog.pageFontSize = fs;
 
-    final cacheKey =
-        '$script/$page/${_roundPx(targetW)}/${_roundPx(vh)}/$fitWidth';
-    final double fs;
-    final double slotH;
-    final double contentH;
-    final cached = _scaleCache[cacheKey];
-    if (cached != null) {
-      (fs, slotH, contentH) = cached;
-    } else {
-      // The page's widest line fills the width; lines sit about
-      // MushafGeometry.pitch apart (never tighter than minPitch, which caps
-      // the font on pages with short lines).
-      final sw = kMushafPerf ? (Stopwatch()..start()) : null;
-      final widest = MushafGeometry.widestEm(script, page, lines);
-      if (sw != null && sw.elapsedMicroseconds > 50) {
-        PerfLog.measured(page, 'widest-pass lines',
-            sw, lines.where((l) => l.isText).length);
-      }
-      final byWidth = targetW / widest;
-      if (fitWidth) {
-        fs = byWidth.clamp(8.0, 200.0);
-        slotH = fs * MushafGeometry.pitch;
-      } else {
-        slotH = vh / n;
-        final byHeight = slotH / MushafGeometry.minPitch;
-        // Rounded DOWN to 0.5 px: neighbouring pages then share font sizes,
-        // and the renderer's glyph cache (kept per size) is reused instead
-        // of rasterising every glyph anew on each page. Rounding down keeps
-        // the text inside the line; justification absorbs the difference.
-        final raw = (byWidth < byHeight ? byWidth : byHeight).clamp(8.0, 200.0);
-        fs = (raw * 2).floorToDouble() / 2;
-      }
-      contentH = fitWidth ? slotH * n : vh;
-      _scaleCache[cacheKey] = (fs, slotH, contentH);
-    }
-    final base = TextStyle(
-        fontFamily: fam,
-        fontSize: fs,
-        color: ink,
-        height: slotH / fs,
-        leadingDistribution: TextLeadingDistribution.even);
-
-    final pageBody = SizedBox(
-      height: contentH,
-      width: targetW,
-      child: Column(
-        children: [
-          for (final l in lines)
-            Expanded(
-                child: Center(
-                    child: _slot(context, l, base, targetW, slotH, ink))),
-        ],
+    final pageBody = MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: SizedBox(
+        height: contentH,
+        width: vw,
+        child: Column(
+          children: [
+            for (var i = 0; i < lines.length; i++)
+              Expanded(
+                  child: Center(
+                      child: _slot(context, i, lines[i], fs, vw, slotH, ink))),
+          ],
+        ),
       ),
     );
-    if (!fitWidth) return pageBody;
-
-    // Flutter desktop only drags scrollables with touch by default — extend
-    // that to mouse and trackpad so the tall page can be panned with a
-    // pointer too.
-    return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(context).copyWith(dragDevices: {
-        PointerDeviceKind.touch,
-        PointerDeviceKind.mouse,
-        PointerDeviceKind.stylus,
-        PointerDeviceKind.trackpad,
-      }),
-      child: SingleChildScrollView(child: pageBody),
-    );
+    return pageBody;
   }
 
-  Widget _slot(BuildContext context, MushafLine l, TextStyle base,
+  Widget _slot(BuildContext context, int index, MushafLine l, double fs,
       double targetW, double slotH, Color ink) {
     if (l.isHeader) {
       final glyph = (l.surah >= 1 && l.surah <= surahGlyphCodes.length)
@@ -2366,244 +2528,30 @@ class _MushafPageView extends StatelessWidget {
         child: Text(MushafRepo.bismillahChar,
             textDirection: TextDirection.rtl,
             style: TextStyle(
-                fontFamily: 'Bismillah',
-                fontSize: slotH * 0.62,
-                color: ink)),
+                fontFamily: 'Bismillah', fontSize: slotH * 0.62, color: ink)),
       );
     }
-    return _textLine(context, l, base, targetW, slotH, ink);
-  }
-
-  // Per-line geometry depends only on the line's text, font size and target
-  // width — never on which word is highlighted — so recitation ticks and
-  // marking reuse it. Keyed on the MushafLine's identity (pageSync returns
-  // the same line objects every call) plus width and font size.
-  static final Map<String, double> _lineGeomCache = {};
-
-  /// The justified line laid out once more: its size, baseline and every
-  /// token's horizontal extent. Only built for lines that need it — those
-  /// with an āyah marker (enlarged hit targets) or a marked word (pattern
-  /// lines).
-  static final Map<String,
-      (double tpW, double tpH, double baseline, List<(double, double)> boxes)>
-      _lineBoxCache = {};
-
-  /// Whether [token] holds characters that bidi treats as numbers — the
-  /// āyah marker ۝ and its digits, or the disputed-end sign U+08E2 some
-  /// Indo-Pak words carry — and so splits off a run of its own.
-  static bool _numberRun(String token) {
-    for (final c in token.codeUnits) {
-      if (c == 0x06DD || c == 0x08E2 || (c >= 0x0660 && c <= 0x0669) ||
-          (c >= 0x06F0 && c <= 0x06F9)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  Widget _textLine(BuildContext context, MushafLine l, TextStyle base,
-      double targetW, double slotH, Color ink) {
-    final strongBg = paper.hl2;
-    final verseBg = paper.hl;
-
-    // Natural width of the line with plain spaces (colours and marks don't
-    // change it).
-    final geomKey =
-        '${identityHashCode(l)}_${_roundPx(targetW)}_${base.fontSize!.toStringAsFixed(2)}';
-    var natural = _lineGeomCache[geomKey];
-    // Usually known already: the page's sizing pass shaped every line once.
-    final em = MushafGeometry.lineEm(l);
-    if (natural == null && em != null) {
-      natural = em * base.fontSize!;
-      _lineGeomCache[geomKey] = natural;
-    }
-    if (natural == null) {
-      final sw = kMushafPerf ? (Stopwatch()..start()) : null;
-      final measure = TextPainter(
-          text: TextSpan(
-              text: l.words.map((w) => w.text).join(' '), style: base),
-          textDirection: TextDirection.rtl,
-          maxLines: 1)
-        ..layout();
-      natural = measure.width;
-      measure.dispose();
-      _lineGeomCache[geomKey] = natural;
-      if (sw != null) PerfLog.measured(page, 'width-pass', sw, 1);
-    }
-
-    // Justify by widening each space (the paragraph's wordSpacing; Skia
-    // ignores letterSpacing on these runs, and wordSpacing on a child span).
-    final spaces = l.words.length - 1;
-    final justified = natural >= targetW * 0.45 && spaces > 0;
-    final gapExtra =
-        justified ? ((targetW - natural) / spaces).clamp(0.0, 1e6) : 0.0;
-    final rootStyle =
-        gapExtra > 0 ? base.copyWith(wordSpacing: gapExtra) : base;
-
-    final spans = <InlineSpan>[];
-    // Character range of every token, and which are āyah markers (enlarged
-    // hit targets) or carry a mark (pattern line under the word).
-    final ranges = <(int start, int end)>[];
-    final markers = <(int token, int ayah)>[];
-    final marked = <(int token, MarkVisual v)>[];
-    var chars = 0;
-    for (var i = 0; i < l.words.length; i++) {
-      final wd = l.words[i];
-      final onVerse = reciting && wd.ayah == playAyah;
-      final active = wd.ayah == playAyah &&
-          !wd.isMarker &&
-          playWord >= 0 &&
-          qcWordOf(wd.ayah, wd.wordIdx) == qcWordOf(wd.ayah, playWord);
-      final mp = markPal;
-      final mv = marks.isEmpty || mp == null
-          ? null
-          : marks[WordRef.fromGlobal(wd.ayah, wd.isMarker ? -1 : wd.wordIdx)
-              .key];
-      final over = active ? strongBg : (onVerse ? verseBg : null);
-      final style = mv == null
-          ? base.copyWith(
-              color: active ? paper.acc : ink, backgroundColor: over)
-          : markSpanStyle(
-              base.copyWith(color: active ? paper.acc : ink), mv, mp!,
-              overBg: over);
-      ranges.add((chars, chars + wd.text.length));
-      if (wd.isMarker) markers.add((i, wd.ayah));
-      if (mv != null) marked.add((i, mv));
-      spans.add(TextSpan(
-        text: wd.text,
-        style: style,
-        // Both branches use the SAME recognizer: it invokes onTap straight
-        // from the pointer-up, instead of waiting to win the gesture arena
-        // the way a plain TapGestureRecognizer does. That arena wait is what
-        // swallowed clicks on the āyah circles with a mouse, while the words
-        // beside them (already on this recognizer) kept working.
-        mouseCursor: SystemMouseCursors.click,
-        recognizer: recognizers.of(page, wd),
-      ));
-      chars += wd.text.length;
-      if (i != spaces) {
-        // An āyah marker (۝ + digits) is a run of its own, and Skia never
-        // widens the spaces at the edges of the runs around it — those lines
-        // came out short, the circle touching its neighbours. A
-        // right-to-left mark between the space and the marker keeps the
-        // space inside the word's run, where it widens like any other.
-        final gap = _numberRun(wd.text)
-            ? (_numberRun(l.words[i + 1].text) ? '\u200f \u200f' : '\u200f ')
-            : (_numberRun(l.words[i + 1].text) ? ' \u200f' : ' ');
-        spans.add(TextSpan(text: gap, style: base));
-        chars += gap.length;
-      }
-    }
-
-    // NOTE textScaler.noScaling: the page sizes its own text to fit the
-    // printed geometry, but Text.rich would additionally inherit the SYSTEM
-    // font scale that TextPainter above knows nothing about.
-    final text = Text.rich(
-      TextSpan(children: spans),
-      textDirection: TextDirection.rtl,
-      textScaler: TextScaler.noScaling,
-      softWrap: false,
-      maxLines: 1,
-      // Tall stacks of marks reach past the line box into the gap between
-      // lines, as in print; they must not be clipped.
-      overflow: TextOverflow.visible,
-      style: rootStyle,
+    return MushafLineView(
+      handlers: handlers,
+      spec: MushafLineSpec(
+        script: script,
+        page: page,
+        index: index,
+        line: l,
+        fontSize: fs,
+        slotH: slotH,
+        targetW: targetW,
+        ink: ink,
+        accent: paper.acc,
+        strongBg: paper.hl2,
+        verseBg: paper.hl,
+        playAyah: playAyah,
+        playWord: playWord,
+        reciting: reciting,
+        marks: marks,
+        markPal: markPal,
+        tajwid: tajwid,
+      ),
     );
-
-    if (markers.isEmpty && marked.isEmpty) {
-      return justified
-          ? SizedBox(width: targetW, child: text)
-          : Center(child: text);
-    }
-
-    var lb = _lineBoxCache[geomKey];
-    if (lb == null) {
-      final sw = kMushafPerf ? (Stopwatch()..start()) : null;
-      final tp = TextPainter(
-          text: TextSpan(children: spans, style: rootStyle),
-          textDirection: TextDirection.rtl,
-          maxLines: 1)
-        ..layout();
-      final boxes = <(double, double)>[];
-      for (final r in ranges) {
-        final bs = tp.getBoxesForSelection(
-            TextSelection(baseOffset: r.$1, extentOffset: r.$2));
-        if (bs.isEmpty) {
-          boxes.add((0, 0));
-          continue;
-        }
-        var left = bs.first.left, right = bs.first.right;
-        for (final b in bs) {
-          if (b.left < left) left = b.left;
-          if (b.right > right) right = b.right;
-        }
-        boxes.add((left, right));
-      }
-      lb = (
-        tp.width,
-        tp.height,
-        tp.computeDistanceToActualBaseline(TextBaseline.alphabetic),
-        boxes
-      );
-      tp.dispose();
-      _lineBoxCache[geomKey] = lb;
-      if (sw != null) PerfLog.measured(page, 'box-pass', sw, 1);
-    }
-
-    final tpWidth = lb.$1, tpHeight = lb.$2;
-    final lineW = justified ? targetW : tpWidth;
-    final extra = slotH - tpHeight;
-    final vPad = extra > 0 ? (extra / 2).clamp(0.0, 14.0) : 0.0;
-    final boxH = tpHeight + vPad * 2;
-    final hPad = (8.0 + gapExtra / 2).clamp(8.0, 26.0);
-    final xOff = (lineW - tpWidth) / 2;
-
-    final hits = <Positioned>[];
-    for (final (token, ayah) in markers) {
-      final (left, right) = lb.$4[token];
-      if (right <= left) continue;
-      hits.add(Positioned(
-        left: (xOff + left - hPad).clamp(0.0, lineW),
-        top: 0,
-        width: (right - left) + hPad * 2,
-        height: boxH,
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => onTapVerse(ayah),
-          ),
-        ),
-      ));
-    }
-
-    final stack = Stack(
-      alignment: Alignment.center,
-      clipBehavior: Clip.none,
-      children: [
-        SizedBox(width: lineW, height: boxH),
-        text,
-        if (marked.isNotEmpty)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: CustomPaint(
-                painter: _MarkLinePainter(
-                  lines: [
-                    for (final (token, v) in marked)
-                      if (lb.$4[token].$2 > lb.$4[token].$1)
-                        (lb.$4[token].$1, lb.$4[token].$2, v)
-                  ],
-                  pal: markPal!,
-                  dx: xOff,
-                  baseline: (boxH - tpHeight) / 2 + lb.$3,
-                  fontSize: base.fontSize!,
-                ),
-              ),
-            ),
-          ),
-        ...hits,
-      ],
-    );
-    return justified ? stack : Center(child: stack);
   }
 }

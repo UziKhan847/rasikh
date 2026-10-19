@@ -76,6 +76,10 @@ class AppSettings extends ChangeNotifier {
   /// Desktop muṣḥaf view: 'spread' (two pages), 'single' (one page at 1.6×,
   /// scrolls) or 'fill' (one page as wide as the window, scrolls).
   String mushafView = 'spread';
+  /// Phone muṣḥaf on its side: two facing pages instead of one page across
+  /// the full width.
+  bool mushafPhoneSpread = false;
+  bool mushafTajwid = false; // tajwīd colours on the muṣḥaf page
   bool immersive = false; // hide system bars app-wide (edge-to-edge reading)
   double quranFontScale = 30 / 26; // reader Arabic size ÷ 26 (default 30px)
   double traceTolerance = 1.0; // 0.6 strict – 1.8 lenient (Tracing Studio guidance radius)
@@ -217,6 +221,8 @@ class AppSettings extends ChangeNotifier {
     mushafView = m['mushafView'] ??
         ((m['mushafFillW'] ?? false) == true ? 'fill' : 'spread');
     immersive = m['immersive'] ?? false;
+    mushafPhoneSpread = m['mushafPhoneSpread'] ?? false;
+    mushafTajwid = m['mushafTajwid'] ?? false;
     reciter = m['reciter'] ?? 'tunaiji';
     readerLayout = m['readerLayout'] ?? 'cards';
     reciteFlow = m['reciteFlow'] ?? 'single';
@@ -272,6 +278,8 @@ class AppSettings extends ChangeNotifier {
         'syncServer': syncServer,
         'mushafView': mushafView,
         'immersive': immersive,
+        'mushafPhoneSpread': mushafPhoneSpread,
+        'mushafTajwid': mushafTajwid,
         'qfont': quranFontScale,
         'traceTol': traceTolerance,
         'reciter': reciter,

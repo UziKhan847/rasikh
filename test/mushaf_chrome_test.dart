@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
 import 'package:qiraah_arabiyyah/data/quran.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
 
@@ -71,7 +70,7 @@ void main() {
   setUpAll(() async {
     mockAudioPlugins();
     await QuranRepo.meta();
-    await MushafRepo.ensure('uthmani');
+    await loadMushaf('uthmani');
   });
 
   testWidgets('phone: tap toggles the bars, page colour cycles the theme', (

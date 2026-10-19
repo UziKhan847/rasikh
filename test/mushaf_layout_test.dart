@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -7,6 +6,7 @@ import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/mushaf.dart';
 import 'package:qiraah_arabiyyah/data/quran.dart';
+import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_line.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
 
 import 'shots/shots_test.dart' show loadFonts;
@@ -49,11 +49,12 @@ Future<void> _pump(WidgetTester tester,
   }
 }
 
-/// One rendered muṣḥaf line: its paragraph and its tokens' character ranges.
+/// One rendered muṣḥaf line: its width and each token's extent and kind.
 class _Line {
-  final RenderParagraph para;
-  final List<(int, int, bool marker)> tokens;
-  _Line(this.para, this.tokens);
+  final double width;
+  final List<(double, double)> extents;
+  final List<bool> markers;
+  _Line(this.width, this.extents, this.markers);
 }
 
 List<List<_Line>> _pages(WidgetTester tester) {
@@ -62,39 +63,21 @@ List<List<_Line>> _pages(WidgetTester tester) {
   final out = <List<_Line>>[];
   for (final pg in pages.evaluate()) {
     final lines = <_Line>[];
-    for (final rt in find
-        .descendant(of: find.byWidget(pg.widget), matching: find.byType(RichText))
+    for (final el in find
+        .descendant(
+            of: find.byWidget(pg.widget), matching: find.byType(MushafLineView))
         .evaluate()) {
-      final root = (rt.widget as RichText).text as TextSpan;
-      final kids = (root.children?.length == 1
-              ? (root.children!.first as TextSpan).children
-              : root.children) ??
-          const <InlineSpan>[];
-      final tokens = <(int, int, bool)>[];
-      var pos = 0;
-      for (final k in kids) {
-        final t = (k as TextSpan).text ?? '';
-        if (k.recognizer != null) {
-          tokens.add((pos, pos + t.length, t.startsWith('۝')));
-        }
-        pos += t.length;
-      }
-      if (tokens.length < 2) continue; // header, basmala, page furniture
-      lines.add(_Line(rt.renderObject! as RenderParagraph, tokens));
+      final r = el.renderObject! as RenderMushafLine;
+      final laid = r.laidLine;
+      if (laid == null) continue;
+      final words = r.spec.line.words;
+      if (words.length < 2) continue;
+      lines.add(_Line(laid.width, laid.boxes,
+          [for (final w in words) w.isMarker]));
     }
     if (lines.isNotEmpty) out.add(lines);
   }
   return out;
-}
-
-(double, double) _extent(RenderParagraph p, (int, int, bool) t) {
-  final bs = p.getBoxesForSelection(TextSelection(baseOffset: t.$1, extentOffset: t.$2));
-  var l = bs.first.left, r = bs.first.right;
-  for (final b in bs) {
-    if (b.left < l) l = b.left;
-    if (b.right > r) r = b.right;
-  }
-  return (l, r);
 }
 
 void main() {
@@ -105,8 +88,8 @@ void main() {
     // Real glyph widths: the default test font would make every glyph 1 em.
     await loadFonts();
     await QuranRepo.meta();
-    await MushafRepo.ensure('uthmani');
-    await MushafRepo.ensure('indopak');
+    await loadMushaf('uthmani');
+    await loadMushaf('indopak');
   });
 
   const cases = [
@@ -123,30 +106,29 @@ void main() {
           expect(pages, isNotEmpty);
           var markerLines = 0;
           for (final lines in pages) {
-            final target = lines
-                .map((l) => l.para.size.width)
-                .reduce((a, b) => a > b ? a : b);
+            final target =
+                lines.map((l) => l.width).reduce((a, b) => a > b ? a : b);
             for (final line in lines) {
-              final w = line.para.size.width;
+              final w = line.width;
               // Lines under ~45% natural width are centred, not justified.
               if (w < target * .6) continue;
               expect(w, closeTo(target, 1.5),
                   reason: 'line not full width ($w vs $target)');
               // Gaps between neighbouring tokens (RTL: token i+1 is left).
-              final ext = [for (final t in line.tokens) _extent(line.para, t)];
+              final ext = line.extents;
               final gaps = [
                 for (var i = 0; i + 1 < ext.length; i++)
                   ext[i].$1 - ext[i + 1].$2
               ];
               final plain = [
                 for (var i = 0; i < gaps.length; i++)
-                  if (!line.tokens[i].$3 && !line.tokens[i + 1].$3) gaps[i]
+                  if (!line.markers[i] && !line.markers[i + 1]) gaps[i]
               ];
               if (plain.isEmpty) continue;
               plain.sort();
               final median = plain[plain.length ~/ 2];
               for (var i = 0; i < gaps.length; i++) {
-                if (line.tokens[i].$3 || line.tokens[i + 1].$3) {
+                if (line.markers[i] || line.markers[i + 1]) {
                   markerLines++;
                   expect(gaps[i], greaterThan(median * .6),
                       reason: 'gap beside an āyah marker collapsed '

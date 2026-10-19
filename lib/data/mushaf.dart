@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show compute;
+import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'quran.dart';
@@ -19,14 +19,19 @@ class MushafLine {
   final int kind; // 0 = surah header, 1 = basmala, 2 = text
   final int surah; // 1-based surah number (header lines only)
   final List<MushafWord> words; // text lines only
+  /// Index of the line's first token in the script's token stream (text
+  /// lines; the glyph atlas is indexed by it).
+  final int firstTok;
   const MushafLine.header(this.surah)
       : kind = 0,
-        words = const [];
+        words = const [],
+        firstTok = -1;
   const MushafLine.basmala()
       : kind = 1,
         surah = 0,
-        words = const [];
-  const MushafLine.text(this.words)
+        words = const [],
+        firstTok = -1;
+  const MushafLine.text(this.words, {this.firstTok = -1})
       : kind = 2,
         surah = 0;
   bool get isHeader => kind == 0;
@@ -177,7 +182,7 @@ class MushafRepo {
           for (var t = e[1]; t < e[2]; t++) {
             ws.add(MushafWord(tok[t], tokAyah[t], tokWord[t]));
           }
-          lines.add(MushafLine.text(ws));
+          lines.add(MushafLine.text(ws, firstTok: e[1]));
         }
       }
       pages.add(lines);
@@ -219,9 +224,16 @@ class MushafRepo {
     }
     final data = _ScriptData(tok, tokAyah, tokWord, rwc, ayahFirstTok,
         tokPage, pages, pageFirst, surahFirstPage);
+    await MushafGeometry._loadEmTable(s);
+    await MushafGeometry._loadRatios(s);
     _data[s] = data;
     return data;
   }
+
+  /// The script's token stream (after [ensure]); the glyph atlas is
+  /// indexed by it.
+  static List<String> tokensSync(String script) =>
+      _data[_norm(script)]?.tok ?? const [];
 
   static Future<int> pageCount(String script) async =>
       (await _ensure(script)).pages.length;
@@ -515,27 +527,54 @@ abstract final class MushafGeometry {
   /// Wider pages get roomier padding.
   static const roomyWidth = 520.0;
 
-  static double chromeW({required bool roomy, required bool ornate}) =>
-      2 + (roomy ? 44 : 12) + (ornate ? 26 : 18);
+  /// [compact]: the phone's two-page spread — thinner padding, and the page
+  /// number in the running head instead of a line of its own.
+  static double chromeW(
+          {required bool roomy, required bool ornate, bool compact = false}) =>
+      2 +
+      (roomy ? 44 : (compact ? 8 : 12)) +
+      (ornate ? (compact ? 22 : 26) : (compact ? 14 : 18));
 
   static double chromeH(
-          {required bool roomy, required bool ornate, required bool header}) =>
-      2 + (roomy ? 28 : 10) + (ornate ? 18 : 10) + (header ? 30 + 19.5 : 0);
+          {required bool roomy,
+          required bool ornate,
+          required bool header,
+          bool compact = false}) =>
+      2 +
+      (roomy ? 28 : (compact ? 7 : 10)) +
+      (ornate ? (compact ? 14 : 18) : (compact ? 6 : 10)) +
+      (header ? (compact ? 30 : 30 + 19.5) : 0);
 
-  /// The page box that fits in [avail] with its text sized for the median
-  /// page. [heightBudget] replaces avail.height when the page may scroll
-  /// (zoomed single page); with [byWidthOnly] the height follows the width.
+  /// The page box that fits in [avail]. With [page] and a scanned shape for
+  /// it ([pageRatio]), its text block has exactly the printed page's
+  /// proportions; otherwise its text is sized for the median page, and every
+  /// page of a view shares the box. [heightBudget] replaces avail.height when
+  /// the page may scroll (zoomed single page); with [byWidthOnly] the height
+  /// follows the width.
   static Size pageBox(Size avail, String script,
       {required bool ornate,
       required bool header,
+      int? page,
       double? heightBudget,
-      bool byWidthOnly = false}) {
+      bool byWidthOnly = false,
+      bool compact = false}) {
+    final ratio = page == null ? null : pageRatio(script, page);
     Size fit(bool roomy) {
-      final cw = chromeW(roomy: roomy, ornate: ornate);
-      final ch = chromeH(roomy: roomy, ornate: ornate, header: header);
+      final cw = chromeW(roomy: roomy, ornate: ornate, compact: compact);
+      final ch = chromeH(
+          roomy: roomy, ornate: ornate, header: header, compact: compact);
+      final h = (heightBudget ?? avail.height) - ch;
+      if (ratio != null) {
+        final byH = h * ratio;
+        final tw = (byWidthOnly || avail.width - cw < byH
+                ? avail.width - cw
+                : byH)
+            .clamp(40.0, 1e5);
+        return Size(tw + cw, tw / ratio + ch);
+      }
       final em = refEmOf(script);
       final byW = (avail.width - cw) / em;
-      final byH = ((heightBudget ?? avail.height) - ch) / (lines * pitch);
+      final byH = h / (lines * pitch);
       final fs = (byWidthOnly ? byW : (byW < byH ? byW : byH)).clamp(6.0, 400.0);
       return Size(em * fs + cw, lines * pitch * fs + ch);
     }
@@ -544,34 +583,116 @@ abstract final class MushafGeometry {
     return roomy.width > roomyWidth ? roomy : fit(false);
   }
 
+  /// The text area inside a page box from [pageBox] (what the page's line
+  /// grid gets) — for preparing a page's lines before it's on screen.
+  static Size textArea(Size box, {required bool ornate, required bool header}) {
+    final roomy = box.width > roomyWidth;
+    return Size(box.width - chromeW(roomy: roomy, ornate: ornate),
+        box.height - chromeH(roomy: roomy, ornate: ornate, header: header));
+  }
+
+  /// Width ÷ height of [page]'s text block as printed, from the scanned
+  /// Madani muṣḥaf (`tool/gen_mushaf_page_ratios.py`); null for scripts or
+  /// pages without a scan.
+  static double? pageRatio(String script, int page) =>
+      _ratios[MushafRepo._norm(script)]?[page];
+
+  static final Map<String, Map<int, double>> _ratios = {};
+
+  static Future<void> _loadRatios(String script) async {
+    if (_ratios.containsKey(script)) return;
+    try {
+      final raw = await rootBundle
+          .loadString('assets/quran/mushaf_page_ratio_$script.json');
+      final pages =
+          (jsonDecode(raw) as Map<String, dynamic>)['pages'] as Map<String, dynamic>;
+      _ratios[script] = {
+        for (final e in pages.entries) int.parse(e.key): (e.value as num).toDouble(),
+      };
+    } catch (_) {
+      _ratios[script] = const {}; // no scan for this script
+    }
+  }
+
   static final Map<String, double> _widestEm = {};
   static final Expando<double> _lineEm = Expando('lineEm');
 
-  /// The page's widest text line in em. Every line is shaped once per page,
-  /// at 44 px; text width scales with font size, so the result holds for
-  /// any viewport (and gives each line's width too — see [lineEm]).
+  /// Every text line's natural width in em, per page (0 for header and
+  /// basmala lines), precomputed by `tool/gen_mushaf_widths_test.dart` from
+  /// the bundled fonts — so opening a page doesn't shape every line once just
+  /// to measure it. Missing (or stale) pages fall back to measuring.
+  static final Map<String, Map<int, List<double>>> _emTable = {};
+
+  /// How many lines were shaped to be measured (not taken from the table).
+  @visibleForTesting
+  static int debugMeasuredLines = 0;
+
+  static Future<void> _loadEmTable(String script) async {
+    if (_emTable.containsKey(script)) return;
+    try {
+      final raw =
+          await rootBundle.loadString('assets/quran/mushaf_line_em_$script.json');
+      final m = jsonDecode(raw) as Map<String, dynamic>;
+      final pages = m['pages'] as Map<String, dynamic>;
+      _emTable[script] = {
+        for (final e in pages.entries)
+          int.parse(e.key): [
+            for (final v in e.value as List) (v as num).toDouble()
+          ],
+      };
+    } catch (_) {
+      _emTable[script] = const {};
+    }
+  }
+
+  /// Shapes [line] at 44 px and returns its natural width in em.
+  static double measureLineEm(String script, MushafLine line) {
+    const ref = 44.0;
+    debugMeasuredLines++;
+    final tp = TextPainter(
+        text: TextSpan(
+            text: line.words.map((e) => e.text).join(' '),
+            style: TextStyle(
+                fontFamily: MushafRepo.fontFamily(script),
+                fontSize: ref,
+                height: 1.0)),
+        textDirection: TextDirection.rtl,
+        maxLines: 1)
+      ..layout();
+    final em = tp.width / ref;
+    tp.dispose();
+    return em;
+  }
+
+  /// The page's widest text line in em. Text width scales with font size, so
+  /// the result holds for any viewport (and gives each line's width too —
+  /// see [lineEm]). Read from the precomputed table when it covers the page;
+  /// otherwise every line is shaped once.
   static double widestEm(String script, int page, List<MushafLine> lines) {
-    final key = '${MushafRepo._norm(script)}/$page';
+    final norm = MushafRepo._norm(script);
+    final key = '$norm/$page';
     final cached = _widestEm[key];
     if (cached != null) return cached;
-    const ref = 44.0;
-    final style = TextStyle(
-        fontFamily: MushafRepo.fontFamily(script), fontSize: ref, height: 1.0);
-    var widest = 1.0 / ref;
-    for (final l in lines) {
+    final table = _emTable[norm]?[page];
+    final useTable = table != null && table.length == lines.length;
+    var widest = 1.0 / 44;
+    for (var i = 0; i < lines.length; i++) {
+      final l = lines[i];
       if (!l.isText) continue;
-      final tp = TextPainter(
-          text: TextSpan(
-              text: l.words.map((e) => e.text).join(' '), style: style),
-          textDirection: TextDirection.rtl,
-          maxLines: 1)
-        ..layout();
-      final em = tp.width / ref;
+      final em = _lineEm[l] ??
+          (useTable && table[i] > 0 ? table[i] : measureLineEm(norm, l));
       _lineEm[l] = em;
       if (em > widest) widest = em;
-      tp.dispose();
     }
     return _widestEm[key] = widest;
+  }
+
+  /// Whether [page]'s widths are known without shaping (table or cache).
+  static bool hasWidths(String script, int page, List<MushafLine> lines) {
+    final norm = MushafRepo._norm(script);
+    if (_widestEm.containsKey('$norm/$page')) return true;
+    final table = _emTable[norm]?[page];
+    return table != null && table.length == lines.length;
   }
 
   /// A text line's natural width (plain spaces) in em, from [widestEm]'s

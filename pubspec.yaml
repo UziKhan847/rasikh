@@ -34,6 +34,7 @@ flutter:
   assets:
     - assets/brand/
     - assets/quran/
+    - assets/quran/atlas/
     - assets/quran/u/
     - assets/quran/i/
     - assets/quran/t/

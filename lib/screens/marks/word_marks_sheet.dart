@@ -107,18 +107,21 @@ class _MarkTile extends StatelessWidget {
         mark.sessionId == null ? null : store.session(mark.bookId, mark.sessionId!);
     final replies = store.commentsOn(mark);
     final color = fix != null ? mp.fixed : mp.colorOf(mark.type);
+    // A rounded card with the mark's colour as a stripe down its leading
+    // edge. (One border with a radius must be a single colour — a stripe
+    // drawn as a differently coloured side failed to paint at all.)
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
       decoration: BoxDecoration(
         color: p.card,
         borderRadius: BorderRadius.circular(14),
-        border: BorderDirectional(
-          start: BorderSide(color: color, width: 4),
-          top: BorderSide(color: p.line2),
-          end: BorderSide(color: p.line2),
-          bottom: BorderSide(color: p.line2),
-        ),
+        border: Border.all(color: p.line2),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 4, 6),
+      decoration: BoxDecoration(
+        border: BorderDirectional(start: BorderSide(color: color, width: 4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,22 +137,14 @@ class _MarkTile extends StatelessWidget {
                 style: uiStyle(context, size: 14.5, weight: FontWeight.w700),
               ),
             ),
-            PopupMenuButton<String>(
-              icon: Icon(AppIcons.more, color: p.ink3),
-              tooltip: '',
-              onSelected: (v) => _action(context, v),
-              itemBuilder: (_) => [
-                if (canFix && mark.type.fixable)
-                  PopupMenuItem(
-                      value: 'fix',
-                      child: Text(fix == null
-                          ? context.l10n.mkMarkFixed
-                          : context.l10n.mkMarkNotFixed)),
-                if (canEdit)
-                  PopupMenuItem(
-                      value: 'comment', child: Text(context.l10n.mkComment)),
-                PopupMenuItem(value: 'reply', child: Text(context.l10n.mkReply)),
-                if (canEdit)
+            // Changing the type stays in a menu; the everyday actions are
+            // buttons below.
+            if (canEdit)
+              PopupMenuButton<String>(
+                icon: Icon(AppIcons.more, color: p.ink3),
+                tooltip: '',
+                onSelected: (v) => _action(context, v),
+                itemBuilder: (_) => [
                   for (final t in MarkType.values)
                     if (t != mark.type)
                       PopupMenuItem(
@@ -159,11 +154,8 @@ class _MarkTile extends StatelessWidget {
                             const SizedBox(width: 8),
                             Text(markTypeLabel(context, t)),
                           ])),
-                if (canEdit)
-                  PopupMenuItem(
-                      value: 'delete', child: Text(context.l10n.mkDelete)),
-              ],
-            ),
+                ],
+              ),
           ]),
           Text(
             [
@@ -193,7 +185,36 @@ class _MarkTile extends StatelessWidget {
                 TextSpan(text: r.text, style: uiStyle(context, size: 13)),
               ])),
             ),
+          const SizedBox(height: 4),
+          Wrap(spacing: 2, runSpacing: 0, children: [
+            if (canFix && mark.type.fixable)
+              _act(context, AppIcons.check,
+                  fix == null ? context.l10n.mkMarkFixed : context.l10n.mkMarkNotFixed,
+                  'fix', color: fix == null ? mp.fixed : null),
+            if (canEdit)
+              _act(context, AppIcons.pen, context.l10n.mkComment, 'comment'),
+            _act(context, AppIcons.comment, context.l10n.mkReply, 'reply'),
+            if (canEdit)
+              _act(context, AppIcons.delete, context.l10n.mkDelete, 'delete'),
+          ]),
         ],
+      ),
+      ),
+    );
+  }
+
+  Widget _act(BuildContext context, IconData icon, String label, String v,
+      {Color? color}) {
+    final c = color ?? pal(context).ink2;
+    return TextButton.icon(
+      onPressed: () => _action(context, v),
+      icon: Icon(icon, size: 16, color: c),
+      label: Text(label,
+          style: uiStyle(context, size: 13, weight: FontWeight.w600, color: c)),
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        minimumSize: const Size(0, 34),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }

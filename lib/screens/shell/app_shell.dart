@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/l10n.dart';
 import '../../core/responsive.dart';
@@ -97,9 +98,32 @@ class _AppShellState extends State<AppShell> {
   final _focus = ValueNotifier(false);
 
   @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
     _focus.dispose();
     super.dispose();
+  }
+
+  /// Ctrl+Shift+L switches between the desktop and phone layouts. A global
+  /// handler rather than a Shortcuts widget, so it works whatever has focus
+  /// (the muṣḥaf keeps focus for its arrow keys).
+  bool _onKey(KeyEvent e) {
+    if (e is! KeyDownEvent || e.logicalKey != LogicalKeyboardKey.keyL) {
+      return false;
+    }
+    final k = HardwareKeyboard.instance;
+    if (!k.isShiftPressed || !(k.isControlPressed || k.isMetaPressed)) {
+      return false;
+    }
+    if (!mounted || !canUseDesktopShell(context)) return false;
+    toggleLayout(context);
+    return true;
   }
 
   void _go(AppSection s) {
@@ -348,6 +372,15 @@ class _Sidebar extends StatelessWidget {
               const AppLogoTile(),
               const SizedBox(width: 12),
               const Expanded(child: AppWordmark()),
+              QIconButton(
+                icon: AppIcons.phone,
+                size: 32,
+                iconSize: 18,
+                border: false,
+                color: Colors.transparent,
+                tooltip: '${context.l10n.switchToPhoneLayout} (Ctrl+Shift+L)',
+                onTap: () => toggleLayout(context),
+              ),
               QIconButton(
                 icon: AppIcons.sidebarHide,
                 size: 32,

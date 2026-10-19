@@ -62,6 +62,42 @@ void main() {
     expect(store.marksAt(b, w1), hasLength(3));
   });
 
+  test('cycle: a tap steps the mark mistake → tajwīd → hesitation → doubt → off',
+      () async {
+    final (:store, files: _, clock: _) = _make();
+    await store.load();
+    final b = store.ensureActiveBook('b').id;
+    final s = store.startSession(bookId: b, script: 'uthmani').id;
+    final ops = <MarkOp>[];
+    for (final want in [...MarkType.pens, null]) {
+      final (op, type) = store.cycle(b, w1, sessionId: s);
+      ops.add(op);
+      expect(type, want);
+      final marks = store.marksAt(b, w1);
+      if (want == null) {
+        expect(marks, isEmpty);
+      } else {
+        expect(marks.single.type, want, reason: 'one mark, re-typed');
+      }
+    }
+    // Undo walks back through the same steps.
+    for (final want in [...MarkType.pens.reversed]) {
+      store.undo(ops.removeLast());
+      expect(store.marksAt(b, w1).single.type, want);
+    }
+
+    // Another session's mark, and a fixed mark, are left alone: the tap
+    // starts a fresh mark of this session's.
+    final s2 = store.startSession(bookId: b, script: 'uthmani').id;
+    store.cycle(b, w2, sessionId: s2);
+    store.fix(b, w2, sessionId: s2);
+    final (_, type) = store.cycle(b, w2, sessionId: s2);
+    expect(type, MarkType.mistake);
+    expect(store.marksAt(b, w2), hasLength(2));
+    expect(store.cycle(b, w1, sessionId: s2).$2, MarkType.mistake);
+    expect(store.marksAt(b, w1), hasLength(2));
+  });
+
   test('fix promotes open marks; fixed shows when nothing else is open',
       () async {
     final (:store, files: _, :clock) = _make();

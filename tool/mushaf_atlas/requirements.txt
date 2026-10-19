@@ -1,0 +1,5 @@
+uharfbuzz
+freetype-py
+pillow
+numpy
+fonttools
