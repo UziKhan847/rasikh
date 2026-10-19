@@ -1820,5 +1820,30 @@
       }
     }
   },
-  "rvDone": "Done"
+  "rvDone": "Done",
+  "mzMemorize": "Memorize",
+  "mzStart": "Memorize from this page",
+  "mzStartSub": "Hide the page and reveal it word by word",
+  "mzHint": "Tap the page for the next word",
+  "mzNextWord": "Next word",
+  "mzPrevWord": "Previous word",
+  "mzNextVerse": "Rest of the āyah",
+  "mzPrevVerse": "Hide the āyah again",
+  "mzNextPage": "Rest of the page, then turn",
+  "mzShowPage": "Show the page",
+  "mzHidePage": "Hide the page",
+  "mzPlay": "Hear what's showing (hold: the page so far)",
+  "mzWhere": "{ref} · word {n}",
+  "mzAllShown": "All revealed",
+  "mzNoTimings": "Word timings aren't available offline yet — playing the revealed words one by one",
+  "@mzWhere": {
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      },
+      "n": {
+        "type": "int"
+      }
+    }
+  }
 }

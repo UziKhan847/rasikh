@@ -16,6 +16,9 @@ import '../core/settings.dart';
 import '../core/theme.dart';
 import '../data/mushaf_atlas.dart';
 import 'mushaf/mushaf_index_sheet.dart';
+import '../core/memorize.dart';
+import '../core/recite_back.dart';
+import 'mushaf/memorize_bar.dart';
 import '../core/marks/review.dart';
 import 'marks/review_bar.dart';
 import 'marks/review_cards_screen.dart';
@@ -157,6 +160,11 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   WordRef? _focus;
 
   bool get _reviewing => _review?.active ?? false;
+
+  // ── memorize ──
+  MemorizeController? _memo;
+  bool get _memorizing => _memo != null;
+  bool _warnedTimings = false;
   final _handlers = MushafTapHandlers();
 
   /// The page the pager moved to mid-swipe, settled once the swipe ends.
@@ -290,8 +298,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       _script, w.globalAyah, w.word <= 0 ? 0 : w.word - 1);
 
   /// Turns to the page (or spread) holding [w], unless it's showing.
-  void _goToWord(WordRef w) {
-    final pg = _pageOfWord(w);
+  void _goToWord(WordRef w) => _showPage(_pageOfWord(w));
+
+  /// Turns to [pg] (or its spread), unless it's showing.
+  void _showPage(int pg) {
     final s = SettingsScope.of(context);
     final shown = (_desktop && _view(s) == 'spread') || _phoneSpread
         ? _spreadStart(pg) == _spreadStart(_page)
@@ -307,6 +317,92 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   void _focusWord(WordRef w) {
     setState(() => _focus = w);
     _goToWord(w);
+  }
+
+  /// Memorize: everything from the page in view (the spread's first page)
+  /// on is hidden, and revealed word by word.
+  void _startMemorize() {
+    _stopAudio();
+    if (_marking.active) _marking.stop();
+    _review?.end();
+    final s = SettingsScope.of(context);
+    final spread = (_desktop && _view(s) == 'spread') || _phoneSpread;
+    final page = _pendingPage ?? _page;
+    _memo = MemorizeController.startAt(_script, spread ? _spreadStart(page) : page)
+      ..addListener(_onMemo);
+    _setChrome(true);
+    setState(() {});
+  }
+
+  void _onMemo() {
+    final m = _memo;
+    if (m == null || !mounted) return;
+    _showPage(m.viewPage);
+    setState(() {});
+  }
+
+  void _endMemorize() {
+    ReciteBack.instance.stop();
+    _memo?.removeListener(_onMemo);
+    setState(() => _memo = null);
+  }
+
+  /// Ḥuṣarī reciting what's showing: the āyah being memorized up to the
+  /// last revealed word ([page]: everything revealed on the page). Again
+  /// while it plays: stop.
+  Future<void> _playRevealed({bool page = false}) async {
+    final m = _memo;
+    if (m == null) return;
+    if (ReciteBack.instance.playing.value) {
+      await ReciteBack.instance.stop();
+      return;
+    }
+    final clips = page
+        ? m.pageClips()
+        : [?m.currentClip];
+    if (clips.isEmpty) return;
+    _stopAudio();
+    final s = SettingsScope.of(context);
+    final err = await ReciteBack.instance.play(clips, rate: s.playbackSpeed);
+    if (!mounted) return;
+    if (err != null) {
+      showQToast(context, err);
+    } else if (AyahAudio.instance.fellBack && !_warnedTimings) {
+      _warnedTimings = true;
+      showQToast(context, context.l10n.mzNoTimings);
+    }
+  }
+
+  Widget _memorizeBar(MushafPaper paper, {bool floating = false}) =>
+      MemorizeBar(
+        controller: _memo!,
+        surahNames: _tnames,
+        bg: paper.chrome,
+        ink: paper.ink,
+        sub: paper.sub,
+        line: paper.line,
+        accent: paper.id == 'mono' ? paper.ink : paper.acc,
+        floating: floating,
+        onPlay: _playRevealed,
+        onPlayPage: () => _playRevealed(page: true),
+        onEnd: _endMemorize,
+      );
+
+  /// Memorizing: a tap anywhere reveals the next word; holding a word
+  /// already showing opens its sheet.
+  void _memoTap(MushafWord _) {
+    _lastWordTap = DateTime.now();
+    _memo?.nextWord();
+  }
+
+  void _memoHold(MushafWord wd) {
+    final m = _memo;
+    if (m == null) return;
+    if (m.isRevealed(MushafRepo.tokenOf(_script, wd.ayah, wd.wordIdx))) {
+      _showWord(wd);
+    } else {
+      _memoTap(wd);
+    }
   }
 
   Future<void> _startReview() async {
@@ -411,6 +507,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     // A review left by closing the muṣḥaf ends (its session closes).
     _review?.removeListener(_onReview);
     _review?.end();
+    if (_memo != null) {
+      _memo!.removeListener(_onMemo);
+      ReciteBack.instance.stop();
+    }
     _marking.dispose();
     MushafLineScheduler.reset();
     MushafAtlas.of(_script)?.releaseLarge();
@@ -671,6 +771,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     if (DateTime.now().difference(_lastWordTap).inMilliseconds < 250) return;
     // While marking, the pen bar stays put: a near-miss on a word must not
     // hide it.
+    if (_memorizing) {
+      _memo!.nextWord();
+      return;
+    }
     if (_marking.active || _reviewing) return;
     _setChrome(!_chrome);
   }
@@ -924,7 +1028,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
               : () {
                   Navigator.pop(sheet);
                   if (_marking.active) _marking.stop();
+                  if (_memorizing) _endMemorize();
                   _startReview();
+                },
+          onMemorize: _memorizing
+              ? null
+              : () {
+                  Navigator.pop(sheet);
+                  _startMemorize();
                 },
         ),
       ),
@@ -1065,23 +1176,30 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       // holding it opens the sheet to fix, comment, reply or delete.
       // Reviewing: a tap plays the word (any word on the page), holding it
       // opens its sheet.
-      ..onTapWord = _marking.active ? _markWord : _playWordAudio
-      ..onLongPressWord =
-          _marking.active || _reviewing ? _showWord : _playAndShowWord
-      ..onTapVerse = _onTapVerse;
+      ..onTapWord = _memorizing
+          ? _memoTap
+          : (_marking.active ? _markWord : _playWordAudio)
+      ..onLongPressWord = _memorizing
+          ? _memoHold
+          : (_marking.active || _reviewing ? _showWord : _playAndShowWord)
+      ..onTapVerse = _memorizing ? ((_) => _memo?.nextWord()) : _onTapVerse;
     final (lo, hi) = _ayahsOn(page);
     final mine = _playAyah >= 0 && _playAyah >= lo && _playAyah <= hi;
-    final marks = _visuals(s);
+    // Memorizing shows the words alone: no marks, and the hidden ones blank
+    // (each page gets only its own cut, so pages away from it keep theirs).
+    final marks = _memorizing ? const <int, MarkVisual>{} : _visuals(s);
     final markPal = markPaletteForPaper(paper);
     // Only the page holding the focused word gets it: the others' lines
     // keep their cached look.
     final f = _focus;
-    final focus = f != null && _pageOfWord(f) == page ? f.key : -1;
+    final focus =
+        f != null && !_memorizing && _pageOfWord(f) == page ? f.key : -1;
+    final hideFrom = _memo?.hideFromOn(page) ?? -1;
     final tajwid = s.mushafTajwid ? tajwidColorsForDark(paper.dark) : null;
     final inputs = <Object?>[
       _script, paper, s.useOrnate, fitWidth, s.mushafHeader, margin, spine,
       _names, mine ? _playAyah : -1, mine ? _playWord : -1,
-      mine && _reciting, marks, markPal, tajwid, compact, focus,
+      mine && _reciting, marks, markPal, tajwid, compact, focus, hideFrom,
     ];
     final key = '$page/${spine ?? ''}';
     final memo = _pageMemo[key];
@@ -1105,6 +1223,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       tajwid: tajwid,
       compact: compact,
       focus: focus,
+      hideFrom: hideFrom,
     );
     if (_pageMemo.length > 12) _pageMemo.clear();
     _pageMemo[key] = (inputs, w);
@@ -1131,7 +1250,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// The pen button for the bars (starts or ends marking).
   Widget? _penButton(BuildContext context, MushafPaper paper,
       {double size = 40, bool shadow = false}) {
-    if (MarksScope.maybeOf(context) == null || _reviewing) return null;
+    if (MarksScope.maybeOf(context) == null || _reviewing || _memorizing) {
+      return null;
+    }
     return _PaperButton(
         paper: paper,
         icon: _marking.active ? AppIcons.check : AppIcons.pen,
@@ -1342,7 +1463,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             _progressLine(paper),
             const SizedBox(height: 2),
-            if (_reviewing)
+            if (_memorizing)
+              _memorizeBar(paper)
+            else if (_reviewing)
               _reviewBar(paper)
             else if (_marking.active)
               _markingBar(paper)
@@ -1613,7 +1736,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           _reciteButton(context, paper, size: 46),
         ])),
       ),
-      if (_reviewing)
+      if (_memorizing)
+        Positioned(
+          bottom: pad.bottom + 10,
+          left: 80,
+          right: 80,
+          child: Center(child: _memorizeBar(paper, floating: true)),
+        )
+      else if (_reviewing)
         Positioned(
           bottom: pad.bottom + 10,
           left: 96,
@@ -1694,6 +1824,35 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     }
     final k = e.logicalKey;
     final keys = HardwareKeyboard.instance;
+    final mz = _memo;
+    if (mz != null) {
+      // Memorizing: ← (onward, as the text runs) or Space reveals the next
+      // word, → hides it again; with Shift, a whole āyah. PageDown: the rest
+      // of the page. P: hear what's showing. Esc: end.
+      final shift = keys.isShiftPressed;
+      if (k == LogicalKeyboardKey.arrowLeft ||
+          (k == LogicalKeyboardKey.space && e is KeyDownEvent)) {
+        shift ? mz.nextVerse() : mz.nextWord();
+        return KeyEventResult.handled;
+      }
+      if (k == LogicalKeyboardKey.arrowRight ||
+          k == LogicalKeyboardKey.backspace) {
+        shift ? mz.prevVerse() : mz.prevWord();
+        return KeyEventResult.handled;
+      }
+      if (k == LogicalKeyboardKey.pageDown && e is KeyDownEvent) {
+        mz.nextPage();
+        return KeyEventResult.handled;
+      }
+      if (e is KeyDownEvent && k == LogicalKeyboardKey.keyP) {
+        _playRevealed(page: shift);
+        return KeyEventResult.handled;
+      }
+      if (e is KeyDownEvent && k == LogicalKeyboardKey.escape) {
+        _endMemorize();
+        return KeyEventResult.handled;
+      }
+    }
     final r = _review;
     if (r != null && _reviewing) {
       // Reviewing: the arrows step through the marks (← is onward, as the
@@ -2033,7 +2192,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
               ),
             ),
           ),
-          if (_reviewing)
+          if (_memorizing)
+            Positioned(
+              bottom: 12,
+              left: 0,
+              right: 0,
+              child: Center(child: _memorizeBar(paper, floating: true)),
+            )
+          else if (_reviewing)
             Positioned(
               bottom: 12,
               left: 0,
@@ -2273,11 +2439,15 @@ class _MushafSettingsSheet extends StatelessWidget {
 
   /// Starts a review of the marks (null: no mark book to review).
   final VoidCallback? onReview;
+
+  /// Starts memorizing from the page in view.
+  final VoidCallback? onMemorize;
   const _MushafSettingsSheet(
       {required this.controller,
       required this.script,
       required this.onScript,
-      this.onReview});
+      this.onReview,
+      this.onMemorize});
 
   @override
   Widget build(BuildContext context) {
@@ -2287,17 +2457,24 @@ class _MushafSettingsSheet extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
       children: [
         Text(context.l10n.mushafSettings, style: displayStyle(context, size: 24)),
-        if (onReview != null) ...[
-          const SizedBox(height: 12),
-          QGroup(children: [
+        const SizedBox(height: 12),
+        QGroup(children: [
+          if (onMemorize != null)
+            QRow(
+              leading: Icon(AppIcons.memorize, color: pal(context).acc),
+              title: context.l10n.mzStart,
+              subtitle: context.l10n.mzStartSub,
+              chevron: true,
+              onTap: onMemorize,
+            ),
+          if (onReview != null)
             QRow(
               leading: Icon(AppIcons.review, color: pal(context).acc),
               title: context.l10n.rvSetupTitle,
               chevron: true,
               onTap: onReview,
             ),
-          ]),
-        ],
+        ]),
         QSectionLabel(context.l10n.reading),
         QGroup(children: [
           QRow(
@@ -2453,6 +2630,9 @@ class _MushafPageView extends StatelessWidget {
 
   /// The word in focus on this page ([WordRef.key]), or -1.
   final int focus;
+
+  /// Memorize: the first hidden token on this page, or -1.
+  final int hideFrom;
   const _MushafPageView({
     required this.page,
     required this.script,
@@ -2472,6 +2652,7 @@ class _MushafPageView extends StatelessWidget {
     this.tajwid,
     this.compact = false,
     this.focus = -1,
+    this.hideFrom = -1,
   });
 
   @override
@@ -2761,6 +2942,7 @@ class _MushafPageView extends StatelessWidget {
         markPal: markPal,
         tajwid: tajwid,
         focus: focus,
+        hideFrom: hideFrom,
       ),
     );
   }

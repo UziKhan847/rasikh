@@ -57,6 +57,11 @@ The app's icons all go through `lib/ui/app_icons.dart`. Most already use the red
 | 39 | `more` | U+E056 | More actions | `more_horiz_rounded` |
 | 40 | `review` | U+E057 | Hifz / muṣḥaf: review your marks | `fact_check_outlined` |
 | 41 | `cards` | U+E058 | Review: show as verse cards | `view_carousel_outlined` |
+| 42 | `memorize` | U+E059 | Muṣḥaf: memorize (hide the page) | `visibility_off_outlined` |
+| 43 | `show` | U+E05A | Memorize: show the page | `visibility_outlined` |
+| 44 | `nextVerse` | U+E05B | Memorize: reveal the rest of the āyah (points left: the text runs right to left) | `keyboard_double_arrow_left_rounded` |
+| 45 | `prevVerse` | U+E05C | Memorize: hide the āyah again | `keyboard_double_arrow_right_rounded` |
+| 46 | `pageOn` | U+E05D | Memorize: rest of the page, then turn (points left: onward) | `first_page_rounded` |
 
 ## Not icons (already done)
 

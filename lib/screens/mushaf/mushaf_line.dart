@@ -108,6 +108,11 @@ class MushafLineSpec {
   /// takes a plain space.
   final bool rewrap;
 
+  /// Memorize mode: tokens from this index of the token stream on are
+  /// hidden — left out of the sprite lists entirely (no glyphs, colours,
+  /// highlights or marks), their boxes kept so nothing moves. -1: none.
+  final int hideFrom;
+
   /// Tajwīd rule colours (by rule index) when tajwīd colouring is on — drawn
   /// from the glyph atlas only; the text fallback ignores it.
   final List<Color>? tajwid;
@@ -141,8 +146,16 @@ class MushafLineSpec {
     List<Color>? tajwid,
     int focus = -1,
     bool rewrap = false,
+    int hideFrom = -1,
   }) {
     final variant = StringBuffer();
+    // Only how much of THIS line is hidden matters: lines wholly before the
+    // cursor keep their key (and their cached look).
+    final t0 = line.firstTok, n = line.words.length;
+    final hide = hideFrom < 0 || t0 < 0 || hideFrom >= t0 + n
+        ? -1
+        : (hideFrom <= t0 ? 0 : hideFrom - t0);
+    if (hide >= 0) variant.write('h$hide,');
     for (var i = 0; i < line.words.length; i++) {
       final wd = line.words[i];
       final st = _tokenState(wd, playAyah, playWord, reciting);
@@ -186,6 +199,7 @@ class MushafLineSpec {
       tajwid,
       focus,
       rewrap,
+      hide < 0 ? -1 : t0 + hide,
       key,
       plain,
     );
@@ -211,9 +225,13 @@ class MushafLineSpec {
     this.tajwid,
     this.focus,
     this.rewrap,
+    this.hideFrom,
     this.key,
     this.plain,
   );
+
+  /// Whether the line's token [i] is hidden (memorize mode).
+  bool isHidden(int i) => hideFrom >= 0 && line.firstTok + i >= hideFrom;
 
   /// [wd]'s [WordRef.key] (the ۝ is word 0).
   static int _wordKey(MushafWord wd) =>
@@ -238,7 +256,11 @@ class MushafLineSpec {
     return reciting ? 2 : 0;
   }
 
-  String get text => line.words.map((w) => w.text).join(' ');
+  /// The line's words as read out (hidden ones left out).
+  String get text => [
+        for (var i = 0; i < line.words.length; i++)
+          if (!isHidden(i)) line.words[i].text,
+      ].join(' ');
 }
 
 /// A line ready to paint: its size, each token's horizontal extent within
@@ -356,6 +378,7 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
     final w = tokenWord[t0 + i];
     natural += wordAdvance[w];
     if (i < n - 1) natural += gapAfter(t0 + i);
+    if (s.isHidden(i)) continue; // no sprites for a hidden word
     for (var g = wordStart[w]; g < wordStart[w + 1]; g++) {
       final sh = sheetOf[glyphId[g]];
       if (sh != 255) perSheet[sh]++;
@@ -395,6 +418,13 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
     final w = tokenWord[tok];
     final left = x - wordAdvance[w] * k;
     boxes.add((left, x));
+    if (s.isHidden(i)) {
+      // Blank: its box only (taps and layout), nothing drawn.
+      tokenColors.add(const Color(0x00000000));
+      glyphColors.add(const []);
+      x = left - (i < n - 1 ? gapAfter(tok) * k + gapExtra : 0);
+      continue;
+    }
     final st = MushafLineSpec._tokenState(wd, s.playAyah, s.playWord, s.reciting);
     final mv = s.marks.isEmpty || mp == null
         ? null
@@ -524,17 +554,24 @@ LaidLine _shape(MushafLineSpec s) {
             wd.ayah,
             wd.isMarker ? -1 : wd.wordIdx,
           ).key];
-    final f = s.isFocus(wd);
+    final hidden = s.isHidden(i);
+    final f = !hidden && s.isFocus(wd);
     if (f) focusAt = i;
-    final over = st == 1 || f ? s.strongBg : (st == 2 ? s.verseBg : null);
-    final color = st == 1 ? s.accent : s.ink;
-    final style = mv == null
+    final over = hidden
+        ? null
+        : (st == 1 || f ? s.strongBg : (st == 2 ? s.verseBg : null));
+    final color = hidden
+        ? const Color(0x00000000)
+        : (st == 1 ? s.accent : s.ink);
+    final style = hidden
+        ? base.copyWith(color: color)
+        : mv == null
         ? (st == 0 && !f
             ? base
             : base.copyWith(color: color, backgroundColor: over))
         : markSpanStyle(base.copyWith(color: color), mv, mp!, overBg: over);
     ranges.add((chars, chars + wd.text.length));
-    if (mv != null) marked.add((i, mv));
+    if (mv != null && !hidden) marked.add((i, mv));
     spans.add(TextSpan(text: wd.text, style: style));
     chars += wd.text.length;
     if (i != spaces) {

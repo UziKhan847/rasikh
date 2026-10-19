@@ -332,6 +332,59 @@ class MushafRepo {
     );
   }
 
+  // ── the token stream (memorize mode walks it word by word) ──
+
+  /// How many tokens [script]'s text has (words and ۝ markers); 0 if not
+  /// loaded.
+  static int tokenCount(String script) => _data[_norm(script)]?.tok.length ?? 0;
+
+  /// Token [t]'s (global āyah, word index; -1 for the ۝).
+  static (int, int) tokenAt(String script, int t) {
+    final d = _data[_norm(script)];
+    if (d == null || t < 0 || t >= d.tok.length) return (-1, -1);
+    return (d.tokAyah[t], d.tokWord[t]);
+  }
+
+  /// The token of word [word0] of [globalAyah] (word -1: its ۝); -1 if
+  /// unknown.
+  static int tokenOf(String script, int globalAyah, int word0) {
+    final d = _data[_norm(script)];
+    if (d == null || globalAyah < 0 || globalAyah >= d.realWordCount.length) {
+      return -1;
+    }
+    final w = word0 < 0 ? d.realWordCount[globalAyah] : word0;
+    return d.ayahFirstTok[globalAyah] + w;
+  }
+
+  /// The 1-based page token [t] is printed on.
+  static int pageOfToken(String script, int t) {
+    final d = _data[_norm(script)];
+    if (d == null || d.tok.isEmpty) return 1;
+    return d.tokPage[t.clamp(0, d.tok.length - 1)];
+  }
+
+  /// The tokens printed on [page]: [first, end). Empty (first == end) for a
+  /// page of headers only.
+  static (int, int) pageTokens(String script, int page) {
+    final d = _data[_norm(script)];
+    if (d == null || page < 1 || page > d.pages.length) return (0, 0);
+    var first = -1, end = -1;
+    for (final ln in d.pages[page - 1]) {
+      if (!ln.isText || ln.words.isEmpty || ln.firstTok < 0) continue;
+      if (first < 0) first = ln.firstTok;
+      end = ln.firstTok + ln.words.length;
+    }
+    if (first < 0) {
+      // Headers only: an empty range where the next page's text begins.
+      for (var p = page; p < d.pages.length; p++) {
+        final (f, _) = pageTokens(script, p + 1);
+        if (f > 0) return (f, f);
+      }
+      return (d.tok.length, d.tok.length);
+    }
+    return (first, end);
+  }
+
   /// The word's text as printed in [script], or '' if unknown.
   static String wordText(String script, int globalAyah, int word0) {
     final d = _data[_norm(script)];

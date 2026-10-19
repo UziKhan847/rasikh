@@ -936,5 +936,20 @@
   "rvTapHint": "Toca una palabra para oírla",
   "rvAlreadyFixed": "Corregida",
   "rvOf": "{type} {n}",
-  "rvDone": "Listo"
+  "rvDone": "Listo",
+  "mzMemorize": "Memorizar",
+  "mzStart": "Memorizar desde esta página",
+  "mzStartSub": "Oculta la página y revélala palabra a palabra",
+  "mzHint": "Toca la página para la siguiente palabra",
+  "mzNextWord": "Siguiente palabra",
+  "mzPrevWord": "Palabra anterior",
+  "mzNextVerse": "Resto de la aleya",
+  "mzPrevVerse": "Ocultar la aleya",
+  "mzNextPage": "Resto de la página y pasar",
+  "mzShowPage": "Mostrar la página",
+  "mzHidePage": "Ocultar la página",
+  "mzPlay": "Escuchar lo visible (mantén: la página hasta aquí)",
+  "mzWhere": "{ref} · palabra {n}",
+  "mzAllShown": "Todo revelado",
+  "mzNoTimings": "Los tiempos de palabra aún no están disponibles sin conexión: se reproducen las palabras reveladas una a una"
 }

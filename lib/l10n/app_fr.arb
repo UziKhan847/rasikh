@@ -936,5 +936,20 @@
   "rvTapHint": "Touchez un mot pour l'entendre",
   "rvAlreadyFixed": "Corrigée",
   "rvOf": "{type} {n}",
-  "rvDone": "Terminé"
+  "rvDone": "Terminé",
+  "mzMemorize": "Mémoriser",
+  "mzStart": "Mémoriser depuis cette page",
+  "mzStartSub": "Masquer la page et la révéler mot à mot",
+  "mzHint": "Touchez la page pour le mot suivant",
+  "mzNextWord": "Mot suivant",
+  "mzPrevWord": "Mot précédent",
+  "mzNextVerse": "Reste du verset",
+  "mzPrevVerse": "Masquer le verset",
+  "mzNextPage": "Reste de la page, puis tourner",
+  "mzShowPage": "Afficher la page",
+  "mzHidePage": "Masquer la page",
+  "mzPlay": "Écouter ce qui s'affiche (appui long : la page jusqu'ici)",
+  "mzWhere": "{ref} · mot {n}",
+  "mzAllShown": "Tout est révélé",
+  "mzNoTimings": "Les minutages des mots ne sont pas encore disponibles hors ligne — lecture des mots révélés un par un"
 }

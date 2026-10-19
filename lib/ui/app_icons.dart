@@ -111,4 +111,9 @@ abstract final class AppIcons {
   static const more = Icons.more_horiz_rounded; // stand-in
   static const review = Icons.fact_check_outlined; // stand-in
   static const cards = Icons.view_carousel_outlined; // stand-in
+  static const memorize = Icons.visibility_off_outlined; // stand-in
+  static const show = Icons.visibility_outlined; // stand-in
+  static const nextVerse = Icons.keyboard_double_arrow_left_rounded; // stand-in
+  static const prevVerse = Icons.keyboard_double_arrow_right_rounded; // stand-in
+  static const pageOn = Icons.first_page_rounded; // stand-in (points left: onward)
 }
