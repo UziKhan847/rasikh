@@ -889,5 +889,20 @@
   "liteModeSub": "للأجهزة الأبطأ: بلا حركات ولا ظلال ولا تدرّجات",
   "liteOffNote": "معطّل أثناء تشغيل الوضع الخفيف",
   "liteSuggest": "يبدو هذا الجهاز بطيئًا — هل تشغّل الوضع الخفيف؟",
-  "liteTurnOn": "تشغيل"
+  "liteTurnOn": "تشغيل",
+  "idxPage": "الصفحة",
+  "idxSurah": "السورة",
+  "idxJuz": "الجزء",
+  "idxHizb": "الحزب",
+  "idxRub": "الربع",
+  "idxManzil": "المنزل",
+  "idxRuku": "الركوع",
+  "idxHizbN": "الحزب {n}",
+  "idxRubN": "الربع {n}",
+  "idxManzilN": "المنزل {n}",
+  "idxRukuN": "الركوع {n}",
+  "idxQuarterOf": "{quarter} الحزب {hizb}",
+  "idxStartsAt": "{ref} · صفحة {page}",
+  "idxFixedN": "{n} مُصلَح",
+  "idxIndex": "الفهرس"
 }

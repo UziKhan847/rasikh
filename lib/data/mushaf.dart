@@ -350,6 +350,14 @@ class MushafRepo {
     return p == 0 ? 1 : p;
   }
 
+  /// [pageForSurah] once [script] is loaded (1 before).
+  static int surahPageSync(String script, int surah) {
+    final d = _data[_norm(script)];
+    if (d == null || surah < 1 || surah >= d.surahFirstPage.length) return 1;
+    final p = d.surahFirstPage[surah];
+    return p == 0 ? 1 : p;
+  }
+
   /// First (surah, ayah) that appears as text on [page]; falls back to a header.
   static (int, int) firstVerseOfPage(String script, int page) {
     final info = _pageInfo(script, page);

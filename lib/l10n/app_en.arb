@@ -1678,5 +1678,75 @@
   "liteModeSub": "For slower devices: no animations, shadows or gradients",
   "liteOffNote": "Off while Lite mode is on",
   "liteSuggest": "This device seems slow — turn on Lite mode?",
-  "liteTurnOn": "Turn on"
+  "liteTurnOn": "Turn on",
+  "idxPage": "Page",
+  "idxSurah": "Sūrah",
+  "idxJuz": "Juzʼ",
+  "idxHizb": "Ḥizb",
+  "idxRub": "Rubʿ",
+  "idxManzil": "Manzil",
+  "idxRuku": "Rukūʿ",
+  "idxHizbN": "Ḥizb {n}",
+  "idxRubN": "Rubʿ {n}",
+  "idxManzilN": "Manzil {n}",
+  "idxRukuN": "Rukūʿ {n}",
+  "idxQuarterOf": "{quarter} of Ḥizb {hizb}",
+  "idxStartsAt": "{ref} · page {page}",
+  "idxFixedN": "{n} fixed",
+  "idxIndex": "Index",
+  "@idxHizbN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@idxRubN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@idxManzilN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@idxRukuN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@idxQuarterOf": {
+    "placeholders": {
+      "quarter": {
+        "type": "String"
+      },
+      "hizb": {
+        "type": "int"
+      }
+    }
+  },
+  "@idxStartsAt": {
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      },
+      "page": {
+        "type": "int"
+      }
+    }
+  },
+  "@idxFixedN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  }
 }

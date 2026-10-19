@@ -15,6 +15,7 @@ import '../core/responsive.dart';
 import '../core/settings.dart';
 import '../core/theme.dart';
 import '../data/mushaf_atlas.dart';
+import 'mushaf/mushaf_index_sheet.dart';
 import '../ui/tajwid_colors.dart';
 import '../data/mushaf.dart';
 import '../data/quran.dart';
@@ -752,101 +753,15 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   /// Go to page, or to the start of a sūrah.
   void _showIndex() {
-    final field = TextEditingController();
-    void go(BuildContext sheet) {
-      final n = int.tryParse(field.text.trim());
-      if (n == null) return;
-      Navigator.pop(sheet);
-      _jump(n);
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheet) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: .7,
-        maxChildSize: .94,
-        builder: (sheet, scroll) {
-          final p = pal(sheet);
-          return ListView.builder(
-            controller: scroll,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            itemCount: 115,
-            itemBuilder: (sheet, i) {
-              if (i == 0) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(context.l10n.goToPage,
-                          style: displayStyle(sheet, size: 24)),
-                      const SizedBox(height: 12),
-                      Row(children: [
-                        Expanded(
-                          child: TextField(
-                            controller: field,
-                            keyboardType: TextInputType.number,
-                            textInputAction: TextInputAction.go,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly
-                            ],
-                            onSubmitted: (_) => go(sheet),
-                            decoration: InputDecoration(
-                                hintText: context.l10n.pageNumberHint(_total)),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        QPrimaryButton(context.l10n.go,
-                            onTap: () => go(sheet)),
-                      ]),
-                      QSectionLabel(context.l10n.surahsTab),
-                    ],
-                  ),
-                );
-              }
-              final n = i;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: QCard(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  radius: 16,
-                  onTap: () async {
-                    final pg = await MushafRepo.pageForSurah(_script, n);
-                    if (!sheet.mounted) return;
-                    Navigator.pop(sheet);
-                    _jump(pg);
-                  },
-                  child: Row(children: [
-                    SizedBox(
-                      width: 34,
-                      child: Text('$n',
-                          style: uiStyle(sheet,
-                              size: 13,
-                              weight: FontWeight.w700,
-                              color: p.accInk)),
-                    ),
-                    Expanded(
-                      child: Text(_tnames[n] ?? '',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: uiStyle(sheet,
-                              size: 15, weight: FontWeight.w700)),
-                    ),
-                    Text(_names[n] ?? '',
-                        textDirection: TextDirection.rtl,
-                        style: quranicStyle(sheet, size: 20, color: p.ink)),
-                  ]),
-                ),
-              );
-            },
-          );
-        },
-      ),
-    ).whenComplete(field.dispose);
+    showMushafIndex(
+      context,
+      script: _script,
+      currentPage: _pendingPage ?? _page,
+      onPage: (p) => _jump(p),
+      // A count pill: to the first mark of that kind in the division.
+      onWord: (w) => _jump(MushafRepo.pageOfWord(
+          _script, w.globalAyah, w.word <= 0 ? 0 : w.word - 1)),
+    );
   }
 
   void _showSettings() {
@@ -1525,6 +1440,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
               shadow: true,
               tooltip: context.l10n.pageColour,
               onTap: () => _cyclePaper(s)),
+          const SizedBox(height: 8),
+          _PaperButton(
+              paper: paper,
+              icon: AppIcons.indexList,
+              size: 46,
+              shadow: true,
+              tooltip: context.l10n.idxIndex,
+              onTap: _showIndex),
           const SizedBox(height: 8),
           if (_penButton(context, paper, size: 46, shadow: true)
               case final pen?) ...[

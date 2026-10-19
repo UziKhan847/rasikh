@@ -889,5 +889,20 @@
   "liteModeSub": "Pour les appareils lents : sans animations, ombres ni dégradés",
   "liteOffNote": "Désactivé tant que le mode léger est actif",
   "liteSuggest": "Cet appareil semble lent — activer le mode léger ?",
-  "liteTurnOn": "Activer"
+  "liteTurnOn": "Activer",
+  "idxPage": "Page",
+  "idxSurah": "Sourate",
+  "idxJuz": "Juzʼ",
+  "idxHizb": "Ḥizb",
+  "idxRub": "Rubʿ",
+  "idxManzil": "Manzil",
+  "idxRuku": "Rukūʿ",
+  "idxHizbN": "Ḥizb {n}",
+  "idxRubN": "Rubʿ {n}",
+  "idxManzilN": "Manzil {n}",
+  "idxRukuN": "Rukūʿ {n}",
+  "idxQuarterOf": "{quarter} du ḥizb {hizb}",
+  "idxStartsAt": "{ref} · page {page}",
+  "idxFixedN": "{n} corrigé(s)",
+  "idxIndex": "Index"
 }

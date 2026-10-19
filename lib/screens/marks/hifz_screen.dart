@@ -8,11 +8,13 @@ import '../../core/marks/word_ref.dart';
 import '../../core/responsive.dart';
 import '../../core/settings.dart';
 import '../../core/theme.dart';
+import '../../data/divisions.dart';
 import '../../data/mushaf.dart';
 import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
 import '../shell/app_shell.dart';
+import '../mushaf/mushaf_index_sheet.dart';
 import 'charts.dart';
 import 'mark_books_screen.dart';
 import 'marking.dart';
@@ -22,6 +24,27 @@ import 'sync_section.dart';
 /// The Hifz section: whose recitation (the active mark book), "Start
 /// listening", a summary of the marks, recent sessions, and — once signed in —
 /// sharing books with listeners.
+/// The muṣḥaf index over the Hifz screen: its count pills show where the
+/// active book's marks are; a pick opens the muṣḥaf there.
+Future<void> _openIndex(BuildContext context) async {
+  final script = SettingsScope.of(context).mushafScript;
+  final prog = ProgressScope.read(context);
+  await MushafRepo.ensure(script);
+  if (!context.mounted) return;
+  final here = prog.lastMushafScript == script ? prog.lastMushafPage ?? 1 : 1;
+  await showMushafIndex(
+    context,
+    script: script,
+    currentPage: here,
+    initial: Division.juz,
+    onPage: (p) => openMushaf(context, page: p, script: script),
+    onWord: (w) => openMushaf(context,
+        page: MushafRepo.pageOfWord(
+            script, w.globalAyah, w.word <= 0 ? 0 : w.word - 1),
+        script: script),
+  );
+}
+
 class HifzScreen extends StatelessWidget {
   const HifzScreen({super.key});
 
@@ -55,6 +78,11 @@ class HifzScreen extends StatelessWidget {
     return QPage(
       title: context.l10n.mkHifzTitle,
       actions: [
+        QIconButton(
+          icon: AppIcons.indexList,
+          tooltip: context.l10n.idxIndex,
+          onTap: () => _openIndex(context),
+        ),
         QIconButton(
           icon: AppIcons.group,
           tooltip: context.l10n.mkManageBooks,

@@ -889,5 +889,20 @@
   "liteModeSub": "سست آلات کے لیے: نہ حرکت، نہ سائے، نہ گریڈیئنٹ",
   "liteOffNote": "ہلکا موڈ چلنے تک بند",
   "liteSuggest": "یہ آلہ سست لگ رہا ہے — ہلکا موڈ چلائیں؟",
-  "liteTurnOn": "چلائیں"
+  "liteTurnOn": "چلائیں",
+  "idxPage": "صفحہ",
+  "idxSurah": "سورت",
+  "idxJuz": "پارہ",
+  "idxHizb": "حزب",
+  "idxRub": "ربع",
+  "idxManzil": "منزل",
+  "idxRuku": "رکوع",
+  "idxHizbN": "حزب {n}",
+  "idxRubN": "ربع {n}",
+  "idxManzilN": "منزل {n}",
+  "idxRukuN": "رکوع {n}",
+  "idxQuarterOf": "حزب {hizb} کا {quarter}",
+  "idxStartsAt": "{ref} · صفحہ {page}",
+  "idxFixedN": "{n} درست",
+  "idxIndex": "فہرست"
 }
