@@ -317,6 +317,21 @@ class MushafRepo {
     return t < to.tokPage.length ? to.tokPage[t] : to.pages.length;
   }
 
+  /// [globalAyah]'s tokens as [script] prints them (its words, then its ۝)
+  /// and the first one's index in the token stream (which the glyph atlas
+  /// is indexed by); (-1, []) if the script isn't loaded.
+  static (int, List<MushafWord>) ayahTokens(String script, int globalAyah) {
+    final d = _data[_norm(script)];
+    if (d == null || globalAyah < 0 || globalAyah >= d.realWordCount.length) {
+      return (-1, const []);
+    }
+    final a = d.ayahFirstTok[globalAyah], b = d.ayahFirstTok[globalAyah + 1];
+    return (
+      a,
+      [for (var t = a; t < b; t++) MushafWord(d.tok[t], globalAyah, d.tokWord[t])],
+    );
+  }
+
   /// The word's text as printed in [script], or '' if unknown.
   static String wordText(String script, int globalAyah, int word0) {
     final d = _data[_norm(script)];

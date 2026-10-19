@@ -19,6 +19,7 @@ import 'charts.dart';
 import 'mark_books_screen.dart';
 import 'marking.dart';
 import 'marks_stats_screen.dart';
+import 'review_cards_screen.dart';
 import 'sync_section.dart';
 
 /// The Hifz section: whose recitation (the active mark book), "Start
@@ -43,6 +44,16 @@ Future<void> _openIndex(BuildContext context) async {
             script, w.globalAyah, w.word <= 0 ? 0 : w.word - 1),
         script: script),
   );
+}
+
+/// Review the active book's marks, around the last page read.
+Future<void> _openReview(BuildContext context) async {
+  final script = SettingsScope.of(context).mushafScript;
+  final prog = ProgressScope.read(context);
+  await MushafRepo.ensure(script);
+  if (!context.mounted) return;
+  final page = prog.lastMushafScript == script ? prog.lastMushafPage ?? 1 : 1;
+  await startReview(context, script: script, page: page);
 }
 
 class HifzScreen extends StatelessWidget {
@@ -166,6 +177,18 @@ class HifzScreen extends StatelessWidget {
                   ],
                 ]),
           ),
+          if (st != null && !st.isEmpty) ...[
+            const SizedBox(height: 10),
+            QGroup(children: [
+              QRow(
+                leading: Icon(AppIcons.review, color: p.acc),
+                title: context.l10n.rvSetupTitle,
+                subtitle: context.l10n.rvTapHint,
+                chevron: true,
+                onTap: () => _openReview(context),
+              ),
+            ]),
+          ],
         ],
         QSectionLabel(context.l10n.mkRecentSessions),
         if (sessions.isEmpty)

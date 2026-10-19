@@ -28,7 +28,9 @@ enum SessionKind {
   sabaq('sabaq'),
   sabqi('sabqi'),
   manzil('manzil'),
-  other('other');
+  other('other'),
+  // Going back over marked words (review mode); fixes made then count here.
+  review('review');
 
   final String code;
   const SessionKind(this.code);

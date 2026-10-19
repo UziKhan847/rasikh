@@ -1748,5 +1748,77 @@
         "type": "int"
       }
     }
-  }
+  },
+  "mkKindReview": "Review",
+  "rvReview": "Review",
+  "rvSetupTitle": "Review your marks",
+  "rvTypes": "What to review",
+  "rvAll": "All",
+  "rvScope": "Where",
+  "rvWholeBook": "Everywhere",
+  "rvStatus": "Which",
+  "rvOpen": "Not fixed yet",
+  "rvFixed": "Fixed",
+  "rvAny": "Both",
+  "rvView": "Show in",
+  "rvViewMushaf": "Muṣḥaf",
+  "rvViewCards": "Verse cards",
+  "rvStart": "Start review",
+  "rvCountN": "{n, plural, =0{No marks} =1{1 mark} other{{n} marks}}",
+  "rvNone": "Nothing to review here",
+  "rvPos": "{i} / {n}",
+  "rvPrev": "Previous",
+  "rvNext": "Next",
+  "rvRepeatWord": "Repeat word",
+  "rvRepeatVerse": "Repeat verse",
+  "rvRepeatHint": "Repeat the word (hold for the verse)",
+  "rvSkip": "Skip",
+  "rvOpenMushaf": "Open in muṣḥaf",
+  "rvDoneTitle": "Review done",
+  "rvDoneSummary": "{seen} reviewed · {fixed} fixed · {left} still open",
+  "rvAgain": "Review again",
+  "rvTapHint": "Tap any word to hear it",
+  "rvAlreadyFixed": "Fixed",
+  "rvOf": "{type} {n}",
+  "@rvCountN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@rvPos": {
+    "placeholders": {
+      "i": {
+        "type": "int"
+      },
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@rvDoneSummary": {
+    "placeholders": {
+      "seen": {
+        "type": "int"
+      },
+      "fixed": {
+        "type": "int"
+      },
+      "left": {
+        "type": "int"
+      }
+    }
+  },
+  "@rvOf": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      },
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "rvDone": "Done"
 }

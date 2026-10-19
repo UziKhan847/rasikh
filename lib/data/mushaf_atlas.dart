@@ -21,6 +21,10 @@ import 'package:flutter/services.dart' show rootBundle;
 class MushafAtlas {
   final int upem;
   final int ascender, descender; // font units (descender negative)
+
+  /// A plain space's advance, font units (verse cards re-wrap words, so a
+  /// word that ended a muṣḥaf line needs one).
+  final int space;
   final List<AtlasTier> tiers;
   final Uint16List wordAdvance;
   final Uint32List wordGlyphStart;
@@ -35,6 +39,7 @@ class MushafAtlas {
     this.upem,
     this.ascender,
     this.descender,
+    this.space,
     this.tiers,
     this.wordAdvance,
     this.wordGlyphStart,
@@ -182,7 +187,7 @@ class MushafAtlas {
 
     u16(); // version
     final upem = u16(), asc = i16(), desc = i16();
-    u16(); // space advance (gaps are stored per token)
+    final space = u16(); // gaps are stored per token; this is for re-wraps
     final tokenCount = u32();
     u32(); // text checksum (see _crc)
     final glyphCount = u32();
@@ -237,6 +242,7 @@ class MushafAtlas {
       upem,
       asc,
       desc,
+      space,
       tiers,
       adv,
       starts,

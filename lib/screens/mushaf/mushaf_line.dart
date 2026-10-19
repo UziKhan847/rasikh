@@ -97,6 +97,17 @@ class MushafLineSpec {
   final Map<int, MarkVisual> marks;
   final MarkPalette? markPal;
 
+  /// The word in focus (review: the mark being looked at), as a
+  /// [WordRef.key] (word 0 = the āyah's ۝); -1 for none. It's drawn on its
+  /// strong background with an outline — rectangles beside the glyphs, which
+  /// stay atlas sprites like any other word.
+  final int focus;
+
+  /// The words were re-wrapped from their muṣḥaf lines (a verse card): a
+  /// word that ended a muṣḥaf line has no stored gap to the next, so it
+  /// takes a plain space.
+  final bool rewrap;
+
   /// Tajwīd rule colours (by rule index) when tajwīd colouring is on — drawn
   /// from the glyph atlas only; the text fallback ignores it.
   final List<Color>? tajwid;
@@ -128,20 +139,22 @@ class MushafLineSpec {
     Map<int, MarkVisual> marks = const {},
     MarkPalette? markPal,
     List<Color>? tajwid,
+    int focus = -1,
+    bool rewrap = false,
   }) {
     final variant = StringBuffer();
     for (var i = 0; i < line.words.length; i++) {
       final wd = line.words[i];
       final st = _tokenState(wd, playAyah, playWord, reciting);
-      final mv = marks.isEmpty || markPal == null
-          ? null
-          : marks[WordRef.fromGlobal(
-              wd.ayah,
-              wd.isMarker ? -1 : wd.wordIdx,
-            ).key];
-      if (st == 0 && mv == null) continue;
+      final key = (marks.isEmpty || markPal == null) && focus < 0
+          ? -1
+          : _wordKey(wd);
+      final mv = marks.isEmpty || markPal == null ? null : marks[key];
+      final f = focus >= 0 && key == focus;
+      if (st == 0 && mv == null && !f) continue;
       variant.write('$i:$st');
       if (mv != null) variant.write(':${mv.hashCode}');
+      if (f) variant.write(':f');
       variant.write(',');
     }
     final plain = variant.isEmpty;
@@ -171,6 +184,8 @@ class MushafLineSpec {
       marks,
       markPal,
       tajwid,
+      focus,
+      rewrap,
       key,
       plain,
     );
@@ -194,9 +209,18 @@ class MushafLineSpec {
     this.marks,
     this.markPal,
     this.tajwid,
+    this.focus,
+    this.rewrap,
     this.key,
     this.plain,
   );
+
+  /// [wd]'s [WordRef.key] (the ۝ is word 0).
+  static int _wordKey(MushafWord wd) =>
+      WordRef.fromGlobal(wd.ayah, wd.isMarker ? -1 : wd.wordIdx).key;
+
+  /// Whether [wd] is the word in focus.
+  bool isFocus(MushafWord wd) => focus >= 0 && _wordKey(wd) == focus;
 
   /// 0 plain, 1 the word being recited/played, 2 inside the recited āyah.
   static int _tokenState(
@@ -227,6 +251,9 @@ abstract interface class MushafLineLayout {
   double get gapExtra;
   List<(double left, double right)> get boxes;
   List<(double left, double right, MarkVisual v)> get markLines;
+
+  /// The word in focus, outlined (at most one).
+  List<(double left, double right)> get focusBoxes;
 }
 
 /// A shaped line: its painter, each token's horizontal extent within it, and
@@ -241,13 +268,16 @@ class LaidLine implements MushafLineLayout {
   final double gapExtra;
   @override
   final List<(double left, double right, MarkVisual v)> markLines;
+  @override
+  final List<(double left, double right)> focusBoxes;
   const LaidLine(
     this.painter,
     this.boxes,
     this.baseline,
     this.gapExtra,
-    this.markLines,
-  );
+    this.markLines, [
+    this.focusBoxes = const [],
+  ]);
 
   @override
   double get width => painter.width;
@@ -265,6 +295,8 @@ class AtlasLine implements MushafLineLayout {
   final List<(double, double)> boxes;
   @override
   final List<(double, double, MarkVisual)> markLines;
+  @override
+  final List<(double, double)> focusBoxes;
   final List<(double left, double right, Color c)> backgrounds;
   final int tier;
   final List<(int sheet, Float32List xforms, Float32List rects, Int32List colors)>
@@ -290,8 +322,9 @@ class AtlasLine implements MushafLineLayout {
     this.tier,
     this.batches,
     this.tokenColors,
-    this.glyphColors,
-  );
+    this.glyphColors, [
+    this.focusBoxes = const [],
+  ]);
 }
 
 /// Lays [s] out from [atlas] at [tier]: the same justification as the text
@@ -312,12 +345,17 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
   final wordAdvance = atlas.wordAdvance, wordStart = atlas.wordGlyphStart;
   final glyphId = atlas.glyphId, sheetOf = t.sheet;
 
+  int gapAfter(int tok) {
+    final g = tokenGap[tok];
+    return g == 0 && s.rewrap ? atlas.space : g;
+  }
+
   var natural = 0.0;
   final perSheet = List<int>.filled(t.sheetCount, 0);
   for (var i = 0; i < n; i++) {
     final w = tokenWord[t0 + i];
     natural += wordAdvance[w];
-    if (i < n - 1) natural += tokenGap[t0 + i];
+    if (i < n - 1) natural += gapAfter(t0 + i);
     for (var g = wordStart[w]; g < wordStart[w + 1]; g++) {
       final sh = sheetOf[glyphId[g]];
       if (sh != 255) perSheet[sh]++;
@@ -347,6 +385,7 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
   final boxes = <(double, double)>[];
   final backgrounds = <(double, double, Color)>[];
   final marked = <(double, double, MarkVisual)>[];
+  final focused = <(double, double)>[];
   final tokenColors = <Color>[];
   final glyphColors = <List<Color>>[];
   var x = width;
@@ -360,7 +399,9 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
     final mv = s.marks.isEmpty || mp == null
         ? null
         : s.marks[WordRef.fromGlobal(wd.ayah, wd.isMarker ? -1 : wd.wordIdx).key];
-    final over = st == 1 ? s.strongBg : (st == 2 ? s.verseBg : null);
+    final f = s.isFocus(wd);
+    if (f) focused.add((left, x));
+    final over = st == 1 || f ? s.strongBg : (st == 2 ? s.verseBg : null);
     final tint = mv == null || mv.open == null ? null : mp!.tintOf(mv.open!);
     final bg = over ?? tint;
     if (bg != null) backgrounds.add((left, x, bg));
@@ -401,7 +442,7 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
       colors[sheet][f] = argb;
     }
     glyphColors.add(debugColors ?? const []);
-    x = left - (i < n - 1 ? tokenGap[tok] * k + gapExtra : 0);
+    x = left - (i < n - 1 ? gapAfter(tok) * k + gapExtra : 0);
   }
   return AtlasLine(
     width,
@@ -418,6 +459,7 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
     ],
     tokenColors,
     glyphColors,
+    focused,
   );
 }
 
@@ -465,6 +507,7 @@ LaidLine _shape(MushafLineSpec s) {
   final spans = <InlineSpan>[];
   final ranges = <(int, int)>[];
   final marked = <(int, MarkVisual)>[];
+  var focusAt = -1;
   var chars = 0;
   for (var i = 0; i < l.words.length; i++) {
     final wd = l.words[i];
@@ -481,10 +524,14 @@ LaidLine _shape(MushafLineSpec s) {
             wd.ayah,
             wd.isMarker ? -1 : wd.wordIdx,
           ).key];
-    final over = st == 1 ? s.strongBg : (st == 2 ? s.verseBg : null);
+    final f = s.isFocus(wd);
+    if (f) focusAt = i;
+    final over = st == 1 || f ? s.strongBg : (st == 2 ? s.verseBg : null);
     final color = st == 1 ? s.accent : s.ink;
     final style = mv == null
-        ? (st == 0 ? base : base.copyWith(color: color, backgroundColor: over))
+        ? (st == 0 && !f
+            ? base
+            : base.copyWith(color: color, backgroundColor: over))
         : markSpanStyle(base.copyWith(color: color), mv, mp!, overBg: over);
     ranges.add((chars, chars + wd.text.length));
     if (mv != null) marked.add((i, mv));
@@ -553,6 +600,7 @@ LaidLine _shape(MushafLineSpec s) {
       for (final (i, v) in marked)
         if (boxes[i].$2 > boxes[i].$1) (boxes[i].$1, boxes[i].$2, v),
     ],
+    [if (focusAt >= 0) boxes[focusAt]],
   );
 }
 
@@ -963,6 +1011,25 @@ class RenderMushafLine extends RenderBox {
       canvas.restore();
     }
     _paintMarks(canvas, o, l);
+    _paintFocus(canvas, o, l);
+  }
+
+  /// The focused word's outline: a rounded box in the accent colour.
+  void _paintFocus(Canvas canvas, Offset o, MushafLineLayout l) {
+    if (l.focusBoxes.isEmpty) return;
+    final w = (_spec.fontSize * .07).clamp(1.5, 3.0);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w
+      ..color = _spec.accent;
+    for (final (left, right) in l.focusBoxes) {
+      if (right <= left) continue;
+      final r = Rect.fromLTRB(o.dx + left - w, o.dy + w / 2,
+          o.dx + right + w, o.dy + l.height - w / 2);
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(r, Radius.circular(_spec.fontSize * .25)),
+          paint);
+    }
   }
 
   void _paintMarks(Canvas canvas, Offset o, MushafLineLayout l) {
@@ -1011,6 +1078,7 @@ class RenderMushafLine extends RenderBox {
     final o = offset + textOffset;
     l.painter.paint(context.canvas, o);
     _paintMarks(context.canvas, o, l);
+    _paintFocus(context.canvas, o, l);
   }
 
   // ── taps ──

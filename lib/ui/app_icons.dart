@@ -109,4 +109,6 @@ abstract final class AppIcons {
   static const hifz = Icons.hearing_rounded; // stand-in
   static const add = Icons.add_rounded; // stand-in
   static const more = Icons.more_horiz_rounded; // stand-in
+  static const review = Icons.fact_check_outlined; // stand-in
+  static const cards = Icons.view_carousel_outlined; // stand-in
 }

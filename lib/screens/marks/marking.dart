@@ -30,6 +30,7 @@ String sessionKindLabel(BuildContext context, SessionKind k) => switch (k) {
       SessionKind.sabqi => context.l10n.mkKindSabqi,
       SessionKind.manzil => context.l10n.mkKindManzil,
       SessionKind.other => context.l10n.mkKindOther,
+      SessionKind.review => context.l10n.mkKindReview,
     };
 
 /// Display name for an author id (marks made on this device say "You").

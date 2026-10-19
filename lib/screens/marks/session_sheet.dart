@@ -157,8 +157,10 @@ class _StartSessionState extends State<_StartSession> {
             QSectionLabel(context.l10n.mkKind),
             QSegmented<SessionKind>(
               options: [
+                // Review sessions are started by review mode, not picked.
                 for (final k in SessionKind.values)
-                  (k, sessionKindLabel(context, k), null)
+                  if (k != SessionKind.review)
+                    (k, sessionKindLabel(context, k), null)
               ],
               value: _kind,
               onChanged: (k) => setState(() => _kind = k),

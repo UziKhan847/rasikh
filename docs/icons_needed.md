@@ -55,6 +55,8 @@ The app's icons all go through `lib/ui/app_icons.dart`. Most already use the red
 | 37 | `hifz` | U+E054 | Hifz section tab | `hearing_rounded` |
 | 38 | `add` | U+E055 | Add a mark / book | `add_rounded` |
 | 39 | `more` | U+E056 | More actions | `more_horiz_rounded` |
+| 40 | `review` | U+E057 | Hifz / muṣḥaf: review your marks | `fact_check_outlined` |
+| 41 | `cards` | U+E058 | Review: show as verse cards | `view_carousel_outlined` |
 
 ## Not icons (already done)
 
