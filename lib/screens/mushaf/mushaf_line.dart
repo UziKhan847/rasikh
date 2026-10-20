@@ -16,7 +16,7 @@ import '../../core/perf_log.dart';
 import '../../core/tap_longpress.dart';
 import '../../data/mushaf.dart';
 import '../../data/mushaf_atlas.dart';
-import '../../ui/classic_ornaments.dart';
+import '../../ui/ornaments/ayah_markers.dart';
 import '../../ui/mark_style.dart';
 
 /// One text line of the 15-line muṣḥaf, shaped once.
@@ -133,9 +133,13 @@ class MushafLineSpec {
   /// The opening pages' lines keep their natural width.
   final bool justify;
 
-  /// Classic ornaments: the āyah markers' circle is the traced artwork in
-  /// this colour (the atlas path; the text fallback keeps the font's).
+  /// Traced āyah markers: the circle is [markerArt]'s drawing ('madani' or
+  /// 'indopak') in this colour, [markerScale] its size and [markerDy] its
+  /// offset (a fraction of its height) — on the atlas path; the text
+  /// fallback keeps the font's circle.
   final Color? ornament;
+  final String markerArt;
+  final double markerScale, markerDy;
 
   /// White-filled papers: the circle's hole is filled with this.
   final Color? ornamentFill;
@@ -182,6 +186,9 @@ class MushafLineSpec {
     bool justify = true,
     Color? ornament,
     Color? ornamentFill,
+    String markerArt = 'madani',
+    double markerScale = 1,
+    double markerDy = 0,
   }) {
     final variant = StringBuffer();
     // Only how much of THIS line is hidden matters: lines wholly before the
@@ -213,7 +220,7 @@ class MushafLineSpec {
         '${plain ? 'p' : '${accent.toARGB32()}|${strongBg.toARGB32()}|'
                   '${verseBg.toARGB32()}|${identityHashCode(markPal)}|$variant'}'
         '${tajwid == null ? '' : '|tj${identityHashCode(tajwid)}'}'
-        '${ornament == null ? '' : '|o${ornament.toARGB32()}'}'
+        '${ornament == null ? '' : '|o$markerArt${ornament.toARGB32()}/$markerScale/$markerDy'}'
         '${ornament == null || ornamentFill == null ? '' : '/${ornamentFill.toARGB32()}'}'
         // Atlas or text: the line redraws when the atlas arrives.
         '|${MushafAtlas.of(script) == null ? 't' : 'a'}';
@@ -240,6 +247,9 @@ class MushafLineSpec {
       hide < 0 ? -1 : t0 + hide,
       justify,
       ornament,
+      markerArt,
+      markerScale,
+      markerDy,
       ornamentFill,
       key,
       plain,
@@ -269,6 +279,9 @@ class MushafLineSpec {
     this.hideFrom,
     this.justify,
     this.ornament,
+    this.markerArt,
+    this.markerScale,
+    this.markerDy,
     this.ornamentFill,
     this.key,
     this.plain,
@@ -473,7 +486,7 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
   ui.Image? circleImg;
   final circleXf = <double>[], circleRc = <double>[], circleCol = <int>[];
   final discs = <(Offset, double)>[];
-  final cc = ClassicCircle.of(s.script);
+  final cc = ClassicCircle.of(s.markerArt);
   var x = width;
   for (var i = 0; i < n; i++) {
     final wd = l.words[i];
@@ -513,12 +526,13 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
       // The traced circle, its ring over the font circle's (the number
       // sits in both alike).
       final a = glyphId[circle];
-      final img = circleImg ??=
-          cc.sprite((shh[a] / cc.ringDiameter).round().clamp(4, 1024));
+      final img = circleImg ??= cc.sprite(
+          (shh[a] * s.markerScale / cc.ringDiameter).round().clamp(4, 1024));
       final dh = (img.height - 2) * scale, dw = (img.width - 2) * scale;
       final cx = left + gx[circle] * k + bl[a] * scale + sw[a] * scale / 2;
       final cy = baseline - gy[circle] * k - bt[a] * scale + shh[a] * scale / 2;
-      final x0 = cx - dw * cc.holeCentre.dx, y0 = cy - dh * cc.ringCentreY;
+      final x0 = cx - dw * cc.holeCentre.dx,
+          y0 = cy - dh * (cc.ringCentreY - s.markerDy);
       circleXf.addAll([scale, 0, x0 - scale, y0 - scale]);
       if (s.ornamentFill != null) {
         discs.add((

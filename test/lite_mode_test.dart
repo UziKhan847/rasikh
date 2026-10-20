@@ -51,7 +51,9 @@ void main() {
     expect((s.useOrnate, s.useGradients), (true, true));
     s.lite = true;
     expect((s.useOrnate, s.useGradients), (false, false));
-    expect((s.ornaments, s.gradients), ('classic', true)); // back when Lite is off
+    expect((s.orHeader, s.gradients), ('auto', true)); // back when Lite is off
+    final look = s.mushafLook('uthmani');
+    expect((look.header, look.marker, look.margin), ('plain', 'font', 'text'));
     await s.save();
     final again = AppSettings();
     await again.load();

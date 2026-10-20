@@ -579,3 +579,40 @@ Colours: Muṣḥaf uses the paper's `frame` colour; reader uses gold (`#C9A253`
 - Madani: border motifs, sūrah-header cartouche, āyah-circle centre and lantern body are filled with the `inner` colour (white) — paint a white shape behind each ornament (header ≈ centre 86%×62%, circle ≈ 40% radius, lantern ≈ centre 50%×62%).
 - White paper `frame` desaturated to `#5C8C7C`.
 - **Mono paper** (Muṣḥaf page colour → Mono): bg `#E8E8E8`, margin `#F1F1F0`, inside border `#FFFFFF`, ornaments `#4A4A4A`, ink `#111111`, accent `#222222`. Same white-filled ornament treatment as Madani.
+
+
+## Update 10 — Tiled colour frames, Indo-Pak header set
+
+**New assets** (`flutter/assets/ornaments/`):
+- `tile_page_border_1/2/3.png` — slim full-colour Madani page frames (Turquoise / Green / Soft blue), originals cropped to 988×1350 (band 51 px). Reference only — use the `tile_frame_*` nine-slice below.
+- `tile_frame_1/2/3.png` — **ratio-preserving nine-slice** built from the frames (263×286). Slices (px): top 120, right 94, bottom 91, left 96. The four edge tiles are exactly one motif period (73 px horizontal, 75 px vertical) — **repeat them, never stretch** (CSS `round`: whole tiles, scaled slightly to fit). Flutter: CustomPainter that draws the 4 corners at scale `s = band/51`, then tiles each edge `n = round(edgeLen / (period·s))` times. Interior is transparent. Do not tint.
+- `tile_surah_border_1/2/3.png` — matching full-colour sūrah headers (2288×279), recoloured from `surah_border_madani_coloured.png` to each frame's palette. White cartouche is baked in. Use `BoxFit.contain` (keep 8.2:1 ratio), centred in the header line.
+- `indopak_surah_header.svg` — single-tier Indo-Pak sūrah header (from `surah_border_tawbah.svg`, viewBox 1607×198). Single colour, tint with `frame`.
+
+**Tiled frame papers** (Settings → Reading → *Tiled frame*; selecting one also sets Ornaments = Classic):
+
+| Key | Label | frame (āyah circles, lantern) | accent (numbers, juz’) | bg | margin / inside |
+|---|---|---|---|---|---|
+| tile1 | Turquoise | `#1BA6C4` | `#C0281E` | `#E4ECEC` | `#FFFFFF` |
+| tile2 | Green | `#4FA56C` | `#2F7A49` | `#E6ECE7` | `#FFFFFF` |
+| tile3 | Soft blue | `#5AAFC2` | `#A04A44` | `#E5EBEC` | `#FFFFFF` |
+
+- Border thickness ≈ **1.35 ×** the normal Classic border (0.48 × font, min 9px). Lantern sits outside it as before.
+- Āyah markers: `verse_circle.svg` tinted with `frame`, white centre. Sūrah names in `ink`.
+
+**Indo-Pak Classic (script = Indo-Pak)** — refined header rules:
+- Sūrah header line **followed by a basmala line** → one `indopak_surah_border.svg` (two-tier) spans both lines: top tier (0–56.4% of the art) behind the header line, bottom tier (56.4–100%) behind the basmala line. In Flutter, easiest is to paint the SVG once across the combined height of the two rows.
+- Header **without** a following basmala (Al-Fātiḥah, where basmala is āyah 1, and **At-Tawbah**) → `indopak_surah_header.svg`.
+- Page border `indopak_page_border.svg`: nine-slice ≈ 2.3% (left/right) × 1.6% (top/bottom) of the art; thickness ≈ 0.8 × normal Classic border.
+- Āyah markers `indopak_verse_circle.svg`. Reader banner uses `indopak_surah_header.svg`.
+- Tiled frames are Madani-style and override the Indo-Pak page set when selected.
+
+Register in `pubspec.yaml` (already covered if `assets/ornaments/` is listed as a folder).
+
+- `surah_border.svg` (Madani, single colour) replaced with the updated artwork (viewBox 605×74).
+
+**Ratio rules (all Classic ornaments)** — keep artwork proportions, don't distort:
+- Sūrah headers (Madani SVG, tile PNG, Indo-Pak single-tier, reader banner): `BoxFit.contain`, centred. For Madani/Mono papers, paint the white cartouche *inside the art's own box* (≈ x 7%, y 19%, 86%×62% of the artwork), not the line box.
+- Indo-Pak two-tier header + basmala: size the art by the header row height (art height = 1.773 × row height, width follows ratio); top tier fills the header row, bottom tier sits directly under it at the top of the basmala row.
+- `indopak_page_border.svg`: nine-slice with corners 20% (w) × 14.4% (h) of the art kept at true ratio; edge tiles (bar + centre motif) repeat/round rather than stretch. Band ≈ 0.2 × font size.
+- Āyah circles and lanterns: `BoxFit.contain` (unchanged).

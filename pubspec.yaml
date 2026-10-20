@@ -37,6 +37,7 @@ flutter:
   generate: true
   assets:
     - assets/brand/
+    - assets/ornaments/
     - assets/quran/
     - assets/quran/atlas/
     - assets/quran/u/

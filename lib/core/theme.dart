@@ -309,6 +309,23 @@ const kMushafPapers = <String, MushafPaper>{
       Color(0xFFE2DED3), Color(0xFF1A211E), Color(0xFF46B592),
       Color(0xFFBE9A4E), Color(0xFF0A0F0D), Color(0xFF14201B),
       Color(0xFF173A2F), Color(0xF7000000), Color(0xFF878F8B)),
+  // The tiled frames' palettes (Update 10): white pages, the frame's colour
+  // on the āyah circles and lantern, its accent on numbers and the juzʼ.
+  'tile1': MushafPaper('tile1', Color(0xFFE4ECEC), Color(0xFFFFFFFF),
+      Color(0xFF1D2420), Color(0xFFDDE5E5), Color(0xFFC0281E),
+      Color(0xFF1BA6C4), Color(0xFFF2F6F6), Color(0xFFE3F3F7),
+      Color(0xFFC8E8F0), Color(0xF7FFFFFF), Color(0xFF6F7671),
+      inner: Color(0xFFFFFFFF)),
+  'tile2': MushafPaper('tile2', Color(0xFFE6ECE7), Color(0xFFFFFFFF),
+      Color(0xFF1D2420), Color(0xFFDDE5DF), Color(0xFF2F7A49),
+      Color(0xFF4FA56C), Color(0xFFF2F6F3), Color(0xFFE6F2EA),
+      Color(0xFFCFE6D6), Color(0xF7FFFFFF), Color(0xFF6F7671),
+      inner: Color(0xFFFFFFFF)),
+  'tile3': MushafPaper('tile3', Color(0xFFE5EBEC), Color(0xFFFFFFFF),
+      Color(0xFF1D2420), Color(0xFFDDE4E6), Color(0xFFA04A44),
+      Color(0xFF5AAFC2), Color(0xFFF2F6F6), Color(0xFFE5F3F6),
+      Color(0xFFCDE7EE), Color(0xF7FFFFFF), Color(0xFF6F7671),
+      inner: Color(0xFFFFFFFF)),
   // The dark themes' mono pages: everything on the page white.
   'night_mono': MushafPaper('night_mono', Color(0xFF0A0A0A), Color(0xFF121212),
       Color(0xFFF2F2F2), Color(0xFF2A2A2A), Color(0xFFFFFFFF),

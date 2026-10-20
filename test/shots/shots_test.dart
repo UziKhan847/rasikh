@@ -54,7 +54,9 @@ final tweaks = <String, void Function(AppSettings)>{
   'mushaf_desk_fill_night': (s) => s.mushafView = 'fill',
   'mushaf_phone_white_plain': (s) {
     s.mushafPaper = 'white';
-    s.ornaments = 'plain';
+    s.orHeader = 'plain';
+    s.orMarker = 'font';
+    s.orMargin = 'none';
   },
 };
 

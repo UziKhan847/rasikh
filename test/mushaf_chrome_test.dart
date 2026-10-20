@@ -98,7 +98,7 @@ void main() {
     expect(s.appTheme, 'light');
     expect(s.mushafPaper, 'cream');
     final colour = find.byTooltip('Page colour');
-    for (final paper in ['white', 'madani']) {
+    for (final paper in ['white', 'madani', 'tile1', 'tile2', 'tile3']) {
       await tester.tap(colour);
       await tester.pump();
       expect((s.appTheme, s.mushafPaper), ('light', paper));
@@ -180,7 +180,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(_barOpacity(tester), 0, reason: 'the bars start hidden');
     expect(s.mushafHeaderShown, isFalse);
-    expect(s.mushafOrnaments, 'plain');
+    final look = s.mushafLook('uthmani');
+    expect((look.header, look.marker, look.border, look.margin),
+        ('plain', 'font', 'none', 'none'));
 
     // A tap in the margin brings the bars back; memorize from the sheet.
     await tester.tapAt(const Offset(12, 420));

@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/mushaf.dart' show MushafLook;
+import '../ui/ornaments/tuning.dart';
 import 'marks/marks_store.dart';
 import 'theme.dart' show AppTheme, appThemeFrom;
 
@@ -45,7 +47,8 @@ class AppSettings extends ChangeNotifier {
   String appTheme = 'light';
   AppTheme get theme => appThemeFrom(appTheme);
 
-  /// Muṣḥaf page colour in the light theme: 'cream' | 'white'. The other
+  /// Muṣḥaf page colours in the light theme: 'cream' | 'white' | 'madani'
+  /// | 'mono' | 'tile1'…'tile3' (the tiled frames' palettes). The other
   /// themes have their own paper.
   String mushafPaper = 'cream';
 
@@ -53,23 +56,26 @@ class AppSettings extends ChangeNotifier {
   /// (everything on it white).
   String mushafPaperDark = 'default';
 
-  /// Settings → Style → Ornaments: 'plain' | 'modern' (the drawn rosette
-  /// headers) | 'classic' (the traced artwork: sūrah border, āyah circle,
-  /// juzʼ lantern). Then the slight gradients on hero cards, primary buttons
-  /// and backgrounds.
-  String ornaments = 'classic';
+  /// The muṣḥaf's ornaments, each chosen on its own (Settings → Muṣḥaf
+  /// style; see MushafLook). 'auto' takes the script's own artwork.
+  /// - [orHeader], the sūrah header: 'plain' | 'rosette' | 'auto' |
+  ///   'madani' | 'indopak' | 'tile1'…'tile3';
+  /// - [orMarker], the āyah marker: 'font' | 'auto' | 'madani' | 'indopak';
+  /// - [orBorder], the page border: 'none' | 'line' | 'double' | 'auto' |
+  ///   'madani' | 'indopak' | 'tile1'…'tile3';
+  /// - [orMargin], the juzʼ in the margin: 'none' | 'auto' | 'lantern' |
+  ///   'text'.
+  String orHeader = 'auto';
+  String orMarker = 'auto';
+  String orBorder = 'none';
+  String orMargin = 'auto';
+
+  /// The ornaments' tuning overrides (the style screen's tuning panel).
+  Map<String, double> orTune = {};
+  OrnamentTuning get ornamentTuning => OrnamentTuning(orTune);
+
+  /// The slight gradients on hero cards, primary buttons and backgrounds.
   bool gradients = true;
-
-  /// The muṣḥaf's page border (its thin frame), whatever the ornaments.
-  bool mushafBorder = false;
-
-  /// Classic: the juzʼ lantern in each page's outer margin.
-  bool mushafMarginInfo = true;
-
-  /// The page border's style, whatever the script or ornaments: 'auto'
-  /// (follows them), 'line', 'double', 'madani' or 'indopak' (the Classic
-  /// artwork).
-  String mushafBorderStyle = 'auto';
 
   /// Lite mode, for slow devices: no animations (page fades, entrances,
   /// the tracing pulse), no blurred shadows, no gradients or ornaments, and
@@ -94,22 +100,38 @@ class AppSettings extends ChangeNotifier {
   /// only its essential controls. A tap still brings the muṣḥaf's bars back.
   bool focusMode = false;
 
-  /// The muṣḥaf's ornaments, border and running head, focus mode applied.
-  String get mushafOrnaments => focusMode ? 'plain' : ornamentStyle;
-  bool get mushafBorderShown => mushafBorder && !focusMode;
-  bool get mushafMarginShown => mushafMarginInfo && !focusMode;
+  /// The muṣḥaf's running head, focus mode applied.
   bool get mushafHeaderShown => mushafHeader && !focusMode;
+
+  /// The muṣḥaf's look for [script]: the ornaments as chosen, Lite mode
+  /// applied (plain headers and markers, artwork borders as a line, the
+  /// juzʼ as text) and — with [focus] — focus mode's bare page.
+  MushafLook mushafLook(String script, {bool focus = true}) {
+    if (focus && focusMode) return MushafLook(script: script);
+    return MushafLook.resolve(
+      script,
+      header: headerStyle,
+      marker: markerStyle,
+      border: lite && !const ['none', 'line', 'double'].contains(orBorder)
+          ? 'line'
+          : orBorder,
+      margin: lite && orMargin != 'none' ? 'text' : orMargin,
+      tune: ornamentTuning,
+    );
+  }
 
   /// The one-time "this device seems slow — turn on Lite mode?" offer has
   /// been made (see core/jank_watch.dart).
   bool liteSuggested = false;
 
-  /// What to draw, Lite mode applied: read these, not
-  /// [gradients]/[ornaments].
+  /// What to draw, Lite mode applied: read these, not [gradients],
+  /// [orHeader], [orMarker].
   bool get useGradients => gradients && !lite;
-  String get ornamentStyle => lite ? 'plain' : ornaments;
-  bool get useOrnate => ornamentStyle != 'plain';
-  bool get useClassic => ornamentStyle == 'classic';
+  String get headerStyle => lite ? 'plain' : orHeader;
+  String get markerStyle => lite ? 'font' : orMarker;
+
+  /// Any ornament at all (the reader's gold markers follow it).
+  bool get useOrnate => headerStyle != 'plain' || markerStyle != 'font';
 
   /// The first-launch welcome has been finished or skipped.
   bool onboarded = false;
@@ -219,6 +241,44 @@ class AppSettings extends ChangeNotifier {
     super.dispose();
   }
 
+  /// The ornament slots, or — from before they were separate — what the
+  /// one "ornaments" style (and earlier, "ornate borders") and the border
+  /// and margin switches meant.
+  void _loadOrnaments(Map<String, dynamic> m) {
+    if (m.containsKey('orHeader')) {
+      orHeader = m['orHeader'] as String? ?? 'auto';
+      orMarker = m['orMarker'] as String? ?? 'auto';
+      orBorder = m['orBorder'] as String? ?? 'none';
+      orMargin = m['orMargin'] as String? ?? 'auto';
+      orTune = {
+        for (final e in ((m['orTune'] as Map?) ?? const {}).entries)
+          if (e.value is num) e.key as String: (e.value as num).toDouble(),
+      };
+      return;
+    }
+    final style = m['ornaments'] as String? ??
+        (m['ornate'] == false ? 'plain' : 'classic');
+    final classic = style == 'classic';
+    orHeader = switch (style) {
+      'classic' => 'auto',
+      'modern' => 'rosette',
+      _ => 'plain',
+    };
+    orMarker = classic ? 'auto' : 'font';
+    final border = m['mushafBorder'] == true;
+    final borderStyle = m['mushafBorderStyle'] as String? ?? 'auto';
+    orBorder = !border
+        ? 'none'
+        : borderStyle != 'auto'
+            ? borderStyle
+            : switch (style) {
+                'classic' => 'auto',
+                'modern' => 'double',
+                _ => 'line',
+              };
+    orMargin = classic && (m['mushafMarginInfo'] ?? true) ? 'auto' : 'none';
+  }
+
   Future<void> load() async {
     final p = await SharedPreferences.getInstance();
     final raw = p.getString(_key);
@@ -238,12 +298,7 @@ class AppSettings extends ChangeNotifier {
         switch (m['mode']) { 'dark' => 'night', 'oled' => 'oled', _ => 'light' };
     mushafPaper = m['mushafPaper'] ?? 'cream';
     mushafPaperDark = m['mushafPaperDark'] as String? ?? 'default';
-    // Before the three styles: an on/off "ornate borders".
-    ornaments = m['ornaments'] as String? ??
-        (m['ornate'] == false ? 'plain' : 'classic');
-    mushafBorder = m['mushafBorder'] ?? false;
-    mushafMarginInfo = m['mushafMarginInfo'] ?? true;
-    mushafBorderStyle = m['mushafBorderStyle'] as String? ?? 'auto';
+    _loadOrnaments(m);
     gradients = m['gradients'] ?? true;
     lite = m['lite'] ?? false;
     memorizeCardFont = (m['memorizeCardFont'] as num?)?.toDouble() ?? 36;
@@ -326,10 +381,11 @@ class AppSettings extends ChangeNotifier {
         'theme': appTheme,
         'mushafPaper': mushafPaper,
         'mushafPaperDark': mushafPaperDark,
-        'ornaments': ornaments,
-        'mushafBorder': mushafBorder,
-        'mushafMarginInfo': mushafMarginInfo,
-        'mushafBorderStyle': mushafBorderStyle,
+        'orHeader': orHeader,
+        'orMarker': orMarker,
+        'orBorder': orBorder,
+        'orMargin': orMargin,
+        'orTune': orTune,
         'gradients': gradients,
         'lite': lite,
         'memorizeCardFont': memorizeCardFont,

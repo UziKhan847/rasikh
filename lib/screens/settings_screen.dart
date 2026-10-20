@@ -15,6 +15,7 @@ import 'downloads_screen.dart';
 import 'marks/mark_books_screen.dart';
 import 'marks/sync_section.dart';
 import 'mushaf/mushaf_style_screen.dart';
+import 'mushaf_screen.dart' show mushafPaperName;
 import 'onboarding_screen.dart';
 
 /// Settings: theme and style, reading, recitation, learning, the app itself,
@@ -283,21 +284,15 @@ class _Reading extends StatelessWidget {
     final px = readerPx(s).clamp(kReaderMinPx, maxPx);
     return _Section(context.l10n.reading, [
       QGroup(children: [
+        // The light theme's papers (seven, with the tiled frames' colours)
+        // are chosen on the style screen, beside a live page.
         if (s.theme == AppTheme.light)
           QRow(
             title: context.l10n.mushafPaper,
-            subtitle: context.l10n.mushafPaperSub,
-            control: QSegmented<String>(
-              expand: false,
-              options: [
-                ('cream', context.l10n.paperCream, null),
-                ('white', context.l10n.paperWhite, null),
-                ('madani', context.l10n.paperMadani, null),
-                ('mono', context.l10n.paperMono, null),
-              ],
-              value: s.mushafPaper,
-              onChanged: (v) => s.update(() => s.mushafPaper = v),
-            ),
+            subtitle: mushafPaperName(context, mushafPaperOf(s).id),
+            chevron: true,
+            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => const MushafStyleScreen())),
           ),
         if (s.theme == AppTheme.night || s.theme == AppTheme.oled)
           QRow(

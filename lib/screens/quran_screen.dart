@@ -18,9 +18,9 @@ import '../core/theme.dart';
 import '../data/mushaf.dart';
 import '../data/quran.dart';
 import '../ui/app_icons.dart';
-import '../ui/classic_ornaments.dart';
 import '../ui/kit.dart';
 import '../ui/mark_style.dart';
+import '../ui/ornaments/ornaments.dart';
 import '../ui/qiraah_ornaments.dart';
 import 'marks/marking.dart';
 import 'marks/marking_bar.dart';
@@ -79,7 +79,14 @@ String arabicIndic(int n) => [
       for (final d in '$n'.runes) String.fromCharCode(0x0660 + d - 0x30),
     ].join();
 
-/// The āyah marker's stroke: gold with Ornate borders on, else the accent.
+/// The reader's āyah markers: the muṣḥaf's marker choice ('font' draws
+/// the star and ring).
+String _markerArt(BuildContext context) {
+  final s = SettingsScope.of(context);
+  return s.mushafLook(s.quranScript, focus: false).marker;
+}
+
+/// The āyah marker's stroke: gold with ornaments on, else the accent.
 Color ayahMarkerStroke(BuildContext context) {
   final p = pal(context);
   if (!SettingsScope.of(context).useOrnate) return p.acc;
@@ -1085,7 +1092,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
               numeralAr: arabicIndic(i + 1),
               size: 30,
               stroke: ayahMarkerStroke(context),
-              classic: SettingsScope.of(context).useClassic,
+              art: _markerArt(context),
               fill: isActive ? p.hl : _ayahFill(i, p.card),
               textColor: p.ink,
             ),
@@ -1155,7 +1162,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
                   numeralAr: arabicIndic(i + 1),
                   size: size * 1.2,
                   stroke: ayahMarkerStroke(context),
-                  classic: SettingsScope.of(context).useClassic,
+                  art: _markerArt(context),
                   fill: recitingAyah && playingAyah == i
                       ? p.hl
                       : _ayahFill(i, p.card),
@@ -1585,16 +1592,27 @@ class _Banner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
-    final ornate = SettingsScope.of(context).useOrnate;
-    final classic = SettingsScope.of(context).useClassic;
+    final s = SettingsScope.of(context);
+    // The reader's banner follows the muṣḥaf's sūrah header choice.
+    final kind = s.mushafLook(s.quranScript, focus: false).header;
+    final ornate = kind == 'rosette';
     final gold = ayahMarkerStroke(context);
     final name = Text('سورة ${meta.name}',
         textDirection: TextDirection.rtl,
         maxLines: 1,
         style: TextStyle(
             fontFamily: 'UthmanicHafs', fontSize: 26, height: 1.7, color: p.acc));
-    final band = classic
-        ? ClassicSurahBorder(height: 64, color: gold, child: name)
+    final band = kind != 'plain' && !ornate
+        ? MushafSurahHeader(
+            kind: kind,
+            lineHeight: 64,
+            title: name,
+            plainTitle: '',
+            frame: gold,
+            paper: p.card,
+            soft: p.card,
+            ink: p.acc,
+          )
         : ornate
         ? Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

@@ -42,6 +42,7 @@ void main() {
     ('style_phone', const Size(393, 852), null),
     ('style_phone_madani', const Size(393, 852), 'Classic Madani'),
     ('style_desk_indopak', const Size(1400, 900), 'Classic Indo-Pak'),
+    ('style_desk_tall_tune', const Size(1400, 3000), 'Turquoise'),
   ];
   for (final (name, size, preset) in shots) {
     testWidgets(name, (tester) async {
@@ -78,13 +79,17 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
       }
       if (preset != null) {
-        await tester.tap(find.text(preset));
+        await tester.tap(find.text(preset).first);
         for (var i = 0; i < 6; i++) {
           await tester.runAsync(
               () => Future<void>.delayed(const Duration(milliseconds: 30)));
           await tester.pump(const Duration(milliseconds: 100));
         }
-        expect((s.ornaments, s.mushafBorder), ('classic', true));
+        expect(s.orBorder, isNot('none'));
+      }
+      if (name.contains('tune')) {
+        await tester.tap(find.text('Tuning'));
+        await tester.pumpAndSettle();
       }
       expect(find.byType(MushafPagePreview), findsOneWidget);
       final boundary =

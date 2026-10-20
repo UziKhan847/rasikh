@@ -1,0 +1,66 @@
+import 'package:flutter/foundation.dart';
+
+/// The ornaments' adjustable proportions: each one's size, offset or
+/// thickness, as a factor or a fraction. The defaults are what the
+/// artwork is drawn at; the style screen's tuning panel overrides them
+/// live (Settings), and settled values come back here as the defaults.
+@immutable
+class OrnamentTuning {
+  /// Each value, by key: what it means, its default and its range.
+  static const specs = <String, ({double def, double min, double max})>{
+    // Sūrah headers (Madani, Indo-Pak single tier, tiles): size within
+    // the line, and vertical offset as a fraction of the line's height.
+    'headerScale': (def: 1.0, min: .6, max: 1.4),
+    'headerDy': (def: 0.0, min: -.3, max: .3),
+    // The Indo-Pak two-tier header (it spans the header and basmala
+    // rows): its size.
+    'twoTierScale': (def: 1.0, min: .7, max: 1.2),
+    // Āyah circles, against the font's own circle: size, and vertical
+    // offset as a fraction of the circle's height.
+    'markerMadaniScale': (def: 1.0, min: .7, max: 1.4),
+    'markerMadaniDy': (def: 0.0, min: -.25, max: .25),
+    'markerIndopakScale': (def: 1.0, min: .7, max: 1.4),
+    'markerIndopakDy': (def: 0.0, min: -.25, max: .25),
+    // The juzʼ lantern in the margin: its size within the margin band.
+    'lanternScale': (def: 1.0, min: .5, max: 1.3),
+    // Page borders: thickness, against each one's own default.
+    'borderMadani': (def: 1.0, min: .5, max: 2.0),
+    'borderIndopak': (def: 1.0, min: .5, max: 3.0),
+    'borderTile': (def: 1.0, min: .5, max: 2.0),
+  };
+
+  final Map<String, double> _over;
+  const OrnamentTuning([this._over = const {}]);
+
+  static const defaults = OrnamentTuning();
+
+  double operator [](String key) =>
+      _over[key] ?? specs[key]?.def ?? (throw ArgumentError(key));
+
+  /// The values that differ from the defaults.
+  Map<String, double> get overrides => Map.unmodifiable(_over);
+
+  OrnamentTuning withValue(String key, double v) {
+    final m = Map<String, double>.of(_over);
+    if ((v - specs[key]!.def).abs() < 1e-9) {
+      m.remove(key);
+    } else {
+      m[key] = v;
+    }
+    return OrnamentTuning(m);
+  }
+
+  /// "key: value" lines for every value, to send back as new defaults.
+  String describe() => [
+    for (final k in specs.keys) '$k: ${this[k].toStringAsFixed(3)}',
+  ].join('\n');
+
+  @override
+  bool operator ==(Object other) =>
+      other is OrnamentTuning && mapEquals(other._over, _over);
+
+  @override
+  int get hashCode => Object.hashAllUnordered(
+    _over.entries.map((e) => Object.hash(e.key, e.value)),
+  );
+}

@@ -63,6 +63,12 @@ void main() {
     ('phone_modern_indopak_fatiha', 'indopak', 1, const Size(393, 852), null, 'light'),
     ('darkmono_border_spread', 'uthmani', 50, const Size(1400, 900), 'spread', 'night'),
     ('phone_darkmono_border_indopak', 'indopak', 50, const Size(393, 852), null, 'oled'),
+    ('tile1_spread', 'uthmani', 50, const Size(1400, 900), 'spread', 'light'),
+    ('phone_tile2', 'uthmani', 50, const Size(393, 852), null, 'light'),
+    ('tile3_indopak_spread', 'indopak', 50, const Size(1400, 900), 'spread', 'light'),
+    ('mix_spread', 'uthmani', 50, const Size(1400, 900), 'spread', 'light'),
+    ('phone_mix_indopak', 'indopak', 50, const Size(393, 852), null, 'light'),
+    ('classic_border_madani_tawbah', 'uthmani', 187, const Size(1400, 900), 'single', 'light'),
   ];
   for (final (name, script, page, size, view, theme) in shots) {
     testWidgets(name, (tester) async {
@@ -80,8 +86,29 @@ void main() {
       if (view != null) s.mushafView = view;
       s.mushafPhoneSpread = name.endsWith('_two');
       s.mushafTajwid = name.contains('tajwid');
-      s.mushafBorder = name.contains('border');
-      if (name.contains('_modern')) s.ornaments = 'modern';
+      s.orBorder = name.contains('border') ? 'auto' : 'none';
+      if (name.contains('_modern')) {
+        s.orHeader = 'rosette';
+        s.orMarker = 'font';
+        s.orMargin = 'none';
+      }
+      // The tiled presets: their header, frame and colours, the lantern.
+      final tile = RegExp(r'tile(\d)').firstMatch(name)?.group(1);
+      if (tile != null) {
+        s.orHeader = 'tile$tile';
+        s.orBorder = 'tile$tile';
+        s.orMargin = 'lantern';
+        s.mushafPaper = 'tile$tile';
+      }
+      // A mixed set: the other script's header and circle in a tiled frame.
+      if (name.contains('mix')) {
+        final other = script == 'indopak' ? 'madani' : 'indopak';
+        s.orHeader = other;
+        s.orMarker = other;
+        s.orBorder = 'tile1';
+        s.orMargin = 'text';
+        s.mushafPaper = 'madani';
+      }
       if (name.contains('darkmono')) s.mushafPaperDark = 'mono';
       if (name.contains('border_madani')) s.mushafPaper = 'madani';
       final key = GlobalKey();

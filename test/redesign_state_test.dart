@@ -84,9 +84,11 @@ void main() {
       s.update(() {
         s.appTheme = 'night';
         s.mushafPaper = 'white';
-        s.ornaments = 'modern';
-        s.mushafBorder = true;
-        s.mushafMarginInfo = false;
+        s.orHeader = 'rosette';
+        s.orMarker = 'indopak';
+        s.orBorder = 'tile2';
+        s.orMargin = 'text';
+        s.orTune = {'headerScale': 1.2};
         s.gradients = false;
         s.playerDock = 'floating';
         s.playbackSpeed = 1.25;
@@ -102,8 +104,9 @@ void main() {
       await again.load();
       expect(again.appTheme, 'night');
       expect(again.mushafPaper, 'white');
-      expect(again.ornaments, 'modern');
-      expect((again.mushafBorder, again.mushafMarginInfo), (true, false));
+      expect((again.orHeader, again.orMarker, again.orBorder, again.orMargin),
+          ('rosette', 'indopak', 'tile2', 'text'));
+      expect(again.ornamentTuning['headerScale'], 1.2);
       expect(again.gradients, isFalse);
       expect(again.playerDock, 'floating');
       expect(again.playbackSpeed, 1.25);

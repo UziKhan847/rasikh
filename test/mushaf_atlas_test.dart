@@ -170,7 +170,7 @@ void main() {
     Size box(bool compact) => MushafGeometry.pageBox(
       avail,
       'uthmani',
-      deco: MushafDeco.framed,
+      look: MushafLook.framed,
       header: true,
       page: 50,
       compact: compact,

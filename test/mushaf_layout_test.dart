@@ -147,12 +147,12 @@ void main() {
     // Short room: height-limited, so the page is narrower than the room
     // instead of stretching its lines.
     final tall = MushafGeometry.pageBox(const Size(700, 900), 'uthmani',
-        deco: MushafDeco.framed, header: true);
+        look: MushafLook.framed, header: true);
     expect(tall.height, closeTo(900, .01));
     expect(tall.width, lessThan(690));
     // Tall room: width-limited, so the page is shorter than the room.
     final wide = MushafGeometry.pageBox(const Size(700, 3000), 'uthmani',
-        deco: MushafDeco.framed, header: true);
+        look: MushafLook.framed, header: true);
     expect(wide.width, closeTo(700, .01));
     expect(wide.height, lessThan(3000));
   });

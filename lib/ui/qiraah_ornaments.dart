@@ -2,9 +2,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-import 'classic_ornaments.dart';
-
 import '../core/theme.dart' show AppTheme;
+import 'ornaments/ayah_markers.dart';
 
 /// Very slight, dark gradients. When Settings → Gradients is off, use the flat fallbacks.
 class QGradients {
@@ -155,8 +154,9 @@ class AyahMarker extends StatelessWidget {
   final double size;
   final Color stroke, fill, textColor;
 
-  /// Classic: the traced āyah circle (Update 8).
-  final bool classic;
+  /// The marker's drawing: 'font' (this star and ring), or the traced
+  /// āyah circle 'madani' / 'indopak'.
+  final String art;
   const AyahMarker({
     super.key,
     required this.numeralAr,
@@ -164,16 +164,17 @@ class AyahMarker extends StatelessWidget {
     required this.stroke,
     required this.fill,
     required this.textColor,
-    this.classic = false,
+    this.art = 'font',
   });
   @override
-  Widget build(BuildContext context) => classic
+  Widget build(BuildContext context) => art != 'font'
       ? ClassicAyahMarker(
           numeralAr: numeralAr,
           size: size,
           stroke: stroke,
           fill: fill,
-          textColor: textColor)
+          textColor: textColor,
+          art: art)
       : SizedBox.square(
     dimension: size,
     child: CustomPaint(
@@ -221,46 +222,24 @@ class _MarkerPainter extends CustomPainter {
 class SurahHeader extends StatelessWidget {
   final String title;
   final bool ornate;
-
-  /// Classic: the traced sūrah border (Update 8) instead of the drawn one.
-  final bool classic;
   final double lineHeight;
   final Color frame, paper, soft, accent;
-
-  /// Classic on white-filled papers: what the cartouche is filled with.
-  final Color? fill;
   final TextStyle textStyle;
   const SurahHeader({
     super.key,
     required this.title,
     required this.ornate,
-    this.classic = false,
     required this.lineHeight,
     required this.frame,
     required this.paper,
     required this.soft,
     required this.accent,
-    this.fill,
     required this.textStyle,
   });
   @override
   Widget build(BuildContext context) {
     final fs = textStyle.fontSize ?? 22;
     final h = math.min(lineHeight * (ornate ? .96 : .78), fs * 2.5);
-    if (classic) {
-      return ClassicSurahBorder(
-        height: h,
-        color: frame,
-        fill: fill,
-        child: Text(
-          title,
-          maxLines: 1,
-          softWrap: false,
-          textDirection: TextDirection.rtl,
-          style: textStyle.copyWith(color: accent, height: 1.6),
-        ),
-      );
-    }
     final band = Container(
       height: h,
       padding: EdgeInsets.symmetric(horizontal: ornate ? fs * .3 : 0),
