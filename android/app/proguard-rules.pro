@@ -8,8 +8,13 @@
 # never gets past the splash screen.
 -keep class io.flutter.plugins.sharedpreferences.** { *; }
 -keep class io.flutter.plugins.pathprovider.** { *; }
-# Kotlin runtime types those JNI signatures name.
--keep class kotlin.coroutines.Continuation { *; }
+# Kotlin runtime types reached the same way — by the plugins' signatures,
+# and by package:jni when it awaits a Kotlin suspend function
+# (CoroutineSingletons, IntrinsicsKt, Result). All of them, from the jni
+# 1.1 / shared_preferences 2.5 / path_provider 2.3 sources:
+-keep class kotlin.coroutines.** { *; }
+-keep class kotlin.Result { *; }
+-keep class kotlin.Result$Failure { *; }
 -keep class kotlin.Unit { *; }
 -keep class kotlin.enums.EnumEntries { *; }
 -keep class kotlin.jvm.internal.DefaultConstructorMarker { *; }
