@@ -47,6 +47,12 @@ android {
     }
     buildTypes {
         release {
+            // Keep rules for what R8 can't see is used (plugins reached
+            // through JNI, Gson): see proguard-rules.pro.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             // Must be the real release key — Play Console pins the upload
             // certificate after the first release, so a debug-signed AAB
             // would only fail late (at upload, or worse, silently produce a
