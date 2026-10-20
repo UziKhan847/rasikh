@@ -49,6 +49,10 @@ class AppSettings extends ChangeNotifier {
   /// themes have their own paper.
   String mushafPaper = 'cream';
 
+  /// The night and OLED themes' muṣḥaf page: 'default' (theirs) or 'mono'
+  /// (everything on it white).
+  String mushafPaperDark = 'default';
+
   /// Settings → Style → Ornaments: 'plain' | 'modern' (the drawn rosette
   /// headers) | 'classic' (the traced artwork: sūrah border, āyah circle,
   /// juzʼ lantern). Then the slight gradients on hero cards, primary buttons
@@ -233,6 +237,7 @@ class AppSettings extends ChangeNotifier {
     appTheme = m['theme'] as String? ??
         switch (m['mode']) { 'dark' => 'night', 'oled' => 'oled', _ => 'light' };
     mushafPaper = m['mushafPaper'] ?? 'cream';
+    mushafPaperDark = m['mushafPaperDark'] as String? ?? 'default';
     // Before the three styles: an on/off "ornate borders".
     ornaments = m['ornaments'] as String? ??
         (m['ornate'] == false ? 'plain' : 'classic');
@@ -320,6 +325,7 @@ class AppSettings extends ChangeNotifier {
         'haptics': haptics,
         'theme': appTheme,
         'mushafPaper': mushafPaper,
+        'mushafPaperDark': mushafPaperDark,
         'ornaments': ornaments,
         'mushafBorder': mushafBorder,
         'mushafMarginInfo': mushafMarginInfo,

@@ -1025,5 +1025,7 @@
   "msBorderDouble": "Double",
   "msMarginClassicOnly": "Avec les ornements classiques",
   "msPaperLight": "Les papiers du thème clair ; les autres thèmes ont le leur",
-  "msNote": "Les changements s’appliquent tout de suite au muṣḥaf. Le mode concentration masque les ornements tant qu’il est actif."
+  "msNote": "Les changements s’appliquent tout de suite au muṣḥaf. Le mode concentration masque les ornements tant qu’il est actif.",
+  "paperDefault": "Par défaut",
+  "paperDarkSub": "Mono : tout sur la page en blanc"
 }

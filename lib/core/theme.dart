@@ -309,15 +309,27 @@ const kMushafPapers = <String, MushafPaper>{
       Color(0xFFE2DED3), Color(0xFF1A211E), Color(0xFF46B592),
       Color(0xFFBE9A4E), Color(0xFF0A0F0D), Color(0xFF14201B),
       Color(0xFF173A2F), Color(0xF7000000), Color(0xFF878F8B)),
+  // The dark themes' mono pages: everything on the page white.
+  'night_mono': MushafPaper('night_mono', Color(0xFF0A0A0A), Color(0xFF121212),
+      Color(0xFFF2F2F2), Color(0xFF2A2A2A), Color(0xFFFFFFFF),
+      Color(0xFFE6E6E6), Color(0xFF1A1A1A), Color(0xFF262626),
+      Color(0xFF3A3A3A), Color(0xF7121212), Color(0xFF9A9A9A)),
+  'oled_mono': MushafPaper('oled_mono', Color(0xFF000000), Color(0xFF000000),
+      Color(0xFFF2F2F2), Color(0xFF1E1E1E), Color(0xFFFFFFFF),
+      Color(0xFFE0E0E0), Color(0xFF0D0D0D), Color(0xFF1C1C1C),
+      Color(0xFF333333), Color(0xF7000000), Color(0xFF8C8C8C)),
 };
 
 /// The muṣḥaf paper for the current settings: the light theme offers cream,
-/// white, Madani or mono, every other theme has its own.
+/// white, Madani or mono; night and OLED their own page or a mono one, all
+/// white on the dark; the mono theme its own.
 MushafPaper mushafPaperOf(AppSettings s) => switch (s.theme) {
       AppTheme.light => kMushafPapers[s.mushafPaper] ?? kMushafPapers['cream']!,
       AppTheme.mono => kMushafPapers['mono']!,
-      AppTheme.night => kMushafPapers['night']!,
-      AppTheme.oled => kMushafPapers['oled']!,
+      AppTheme.night =>
+        kMushafPapers[s.mushafPaperDark == 'mono' ? 'night_mono' : 'night']!,
+      AppTheme.oled =>
+        kMushafPapers[s.mushafPaperDark == 'mono' ? 'oled_mono' : 'oled']!,
     };
 
 final Map<String, ThemeData> _themeCache = {};

@@ -98,6 +98,8 @@ String _paperName(BuildContext context, String id) => switch (id) {
       'mono' => context.l10n.themeMono,
       'night' => context.l10n.themeNight,
       'oled' => context.l10n.themeOled,
+      'night_mono' => '${context.l10n.themeNight} · ${context.l10n.paperMono}',
+      'oled_mono' => '${context.l10n.themeOled} · ${context.l10n.paperMono}',
       _ => context.l10n.paperCream,
     };
 
@@ -894,18 +896,26 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         .catchError((_) {});
   }
 
-  /// Cream → white → Madani → mono → night → oled, setting the app theme as
-  /// it goes (cream, white and Madani are the light theme).
+  /// Cream → white → Madani → mono → night → night mono → OLED → OLED mono,
+  /// setting the app theme as it goes (cream, white and Madani are the light
+  /// theme; the mono pages of night and OLED are theirs).
   void _cyclePaper(AppSettings s) {
-    const order = ['cream', 'white', 'madani', 'mono', 'night', 'oled'];
+    const order = [
+      'cream', 'white', 'madani', 'mono', //
+      'night', 'night_mono', 'oled', 'oled_mono',
+    ];
     final cur = mushafPaperOf(s).id;
     final next = order[(order.indexOf(cur) + 1) % order.length];
     s.update(() {
       if (next == 'cream' || next == 'white' || next == 'madani') {
         s.appTheme = 'light';
         s.mushafPaper = next;
+      } else if (next.endsWith('_mono')) {
+        s.appTheme = next.substring(0, next.length - 5);
+        s.mushafPaperDark = 'mono';
       } else {
         s.appTheme = next;
+        if (next != 'mono') s.mushafPaperDark = 'default';
       }
     });
   }

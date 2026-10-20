@@ -299,6 +299,20 @@ class _Reading extends StatelessWidget {
               onChanged: (v) => s.update(() => s.mushafPaper = v),
             ),
           ),
+        if (s.theme == AppTheme.night || s.theme == AppTheme.oled)
+          QRow(
+            title: context.l10n.mushafPaper,
+            subtitle: context.l10n.paperDarkSub,
+            control: QSegmented<String>(
+              expand: false,
+              options: [
+                ('default', context.l10n.paperDefault, null),
+                ('mono', context.l10n.paperMono, null),
+              ],
+              value: s.mushafPaperDark,
+              onChanged: (v) => s.update(() => s.mushafPaperDark = v),
+            ),
+          ),
         QRow(
           title: context.l10n.arabicScript,
           control: QSegmented<String>(

@@ -61,6 +61,8 @@ void main() {
     ('classic_indopak_tawbah', 'indopak', 187, const Size(1400, 900), 'single', 'light'),
     ('phone_classic_indopak_fatiha', 'indopak', 1, const Size(393, 852), null, 'light'),
     ('phone_modern_indopak_fatiha', 'indopak', 1, const Size(393, 852), null, 'light'),
+    ('darkmono_border_spread', 'uthmani', 50, const Size(1400, 900), 'spread', 'night'),
+    ('phone_darkmono_border_indopak', 'indopak', 50, const Size(393, 852), null, 'oled'),
   ];
   for (final (name, script, page, size, view, theme) in shots) {
     testWidgets(name, (tester) async {
@@ -80,6 +82,7 @@ void main() {
       s.mushafTajwid = name.contains('tajwid');
       s.mushafBorder = name.contains('border');
       if (name.contains('_modern')) s.ornaments = 'modern';
+      if (name.contains('darkmono')) s.mushafPaperDark = 'mono';
       if (name.contains('border_madani')) s.mushafPaper = 'madani';
       final key = GlobalKey();
       await tester.pumpWidget(SettingsScope(

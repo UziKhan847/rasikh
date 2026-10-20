@@ -232,6 +232,7 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
       ],
     );
     final light = s.theme == AppTheme.light;
+    final dark = s.theme == AppTheme.night || s.theme == AppTheme.oled;
     return [
       QSectionLabel(context.l10n.msPreviewScript),
       QSegmented<String>(
@@ -316,20 +317,36 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
       QSectionLabel(context.l10n.mushafPaper),
       QGroup(
         children: [
-          full(
-            context.l10n.mushafPaper,
-            choices(
-              [
-                ('cream', context.l10n.paperCream),
-                ('white', context.l10n.paperWhite),
-                ('madani', context.l10n.paperMadani),
-                ('mono', context.l10n.paperMono),
-              ],
-              s.mushafPaper,
-              light ? (v) => s.update(() => s.mushafPaper = v) : null,
+          if (dark)
+            full(
+              context.l10n.mushafPaper,
+              choices(
+                [
+                  ('default', context.l10n.paperDefault),
+                  ('mono', context.l10n.paperMono),
+                ],
+                s.mushafPaperDark,
+                (v) => s.update(() => s.mushafPaperDark = v),
+              ),
+              sub: context.l10n.paperDarkSub,
+            )
+          else
+            full(
+              context.l10n.mushafPaper,
+              choices(
+                [
+                  ('cream', context.l10n.paperCream),
+                  ('white', context.l10n.paperWhite),
+                  ('madani', context.l10n.paperMadani),
+                  ('mono', context.l10n.paperMono),
+                ],
+                s.mushafPaper,
+                light ? (v) => s.update(() => s.mushafPaper = v) : null,
+              ),
+              sub: light
+                  ? context.l10n.mushafPaperSub
+                  : context.l10n.msPaperLight,
             ),
-            sub: light ? context.l10n.mushafPaperSub : context.l10n.msPaperLight,
-          ),
           full(
             context.l10n.theme,
             choices(

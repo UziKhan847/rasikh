@@ -1994,5 +1994,7 @@
   "msBorderDouble": "Double",
   "msMarginClassicOnly": "With Classic ornaments",
   "msPaperLight": "The light theme’s papers; the other themes have their own",
-  "msNote": "Changes apply to the muṣḥaf straight away. Focus mode still hides the ornaments while it’s on."
+  "msNote": "Changes apply to the muṣḥaf straight away. Focus mode still hides the ornaments while it’s on.",
+  "paperDefault": "Default",
+  "paperDarkSub": "Mono: everything on the page white"
 }

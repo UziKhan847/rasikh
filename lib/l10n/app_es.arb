@@ -1025,5 +1025,7 @@
   "msBorderDouble": "Doble",
   "msMarginClassicOnly": "Con ornamentos clásicos",
   "msPaperLight": "Los papeles del tema claro; los demás temas tienen el suyo",
-  "msNote": "Los cambios se aplican al muṣḥaf de inmediato. El modo enfoque oculta los ornamentos mientras está activo."
+  "msNote": "Los cambios se aplican al muṣḥaf de inmediato. El modo enfoque oculta los ornamentos mientras está activo.",
+  "paperDefault": "Predeterminado",
+  "paperDarkSub": "Mono: todo en la página en blanco"
 }
