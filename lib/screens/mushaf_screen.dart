@@ -252,6 +252,13 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     ProgressScope.read(context).setLastMushafPage(_page, _script);
     _pageN.value = _page;
     _prewarm(_page);
+    // Focus mode: the page opens bare (a tap brings the bars back).
+    if (!_focusApplied && SettingsScope.of(context).focusMode) {
+      _focusApplied = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _setChrome(false);
+      });
+    }
     if (widget.startMarking && !_marking.active && !_startedMarking) {
       _startedMarking = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -264,6 +271,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   /// [MushafPageScreen.pageScript] has been applied (only on first load).
   bool _mappedStart = false;
+
+  /// Focus mode's bare start has been applied (on first load only).
+  bool _focusApplied = false;
 
   void _onMarking() {
     if (mounted) setState(() {});
@@ -336,7 +346,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     final page = _pendingPage ?? _page;
     _memo = MemorizeController.startAt(_script, spread ? _spreadStart(page) : page)
       ..addListener(_onMemo);
-    _setChrome(true);
+    // Focus mode keeps the page bare: its small floating bar is enough.
+    if (!s.focusMode) _setChrome(true);
     setState(() {});
   }
 
@@ -390,8 +401,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     }
   }
 
-  Widget _memorizeBar(MushafPaper paper, {bool floating = false}) =>
-      MemorizeBar(
+  Widget _memorizeBar(MushafPaper paper, {bool floating = false}) {
+    final s = SettingsScope.of(context);
+    return MemorizeBar(
         controller: _memo!,
         surahNames: _tnames,
         bg: paper.chrome,
@@ -404,7 +416,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         onPlayPage: () => _playRevealed(page: true),
         onSwitchView: _memorizeAsCards,
         onEnd: _endMemorize,
+        minimal: s.focusMode,
+        onExitFocus: () => s.update(() => s.focusMode = false),
       );
+  }
 
   /// Memorizing, with "tap to reveal" on: a tap anywhere reveals the next
   /// word.
@@ -1251,7 +1266,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     final hideFrom = _memo?.hideFromOn(page) ?? -1;
     final tajwid = s.mushafTajwid ? tajwidColorsForDark(paper.dark) : null;
     final inputs = <Object?>[
-      _script, paper, s.useOrnate, fitWidth, s.mushafHeader, margin, spine,
+      _script, paper, s.mushafOrnate, fitWidth, s.mushafHeaderShown, margin, spine,
       _names, mine ? _playAyah : -1, mine ? _playWord : -1,
       mine && _reciting, marks, markPal, tajwid, compact, focus, hideFrom,
     ];
@@ -1263,9 +1278,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       script: _script,
       names: _names,
       paper: paper,
-      ornate: s.useOrnate,
+      ornate: s.mushafOrnate,
       wideLayout: fitWidth,
-      showHeader: s.mushafHeader,
+      showHeader: s.mushafHeaderShown,
       margin: margin,
       spine: spine,
       playAyah: mine ? _playAyah : -1,
@@ -1418,7 +1433,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           Size(c.maxWidth - margin.horizontal, c.maxHeight - margin.vertical);
       Size box(int p) {
         final b = MushafGeometry.pageBox(avail, _script,
-            ornate: s.useOrnate, header: s.mushafHeader, page: p);
+            ornate: s.mushafOrnate, header: s.mushafHeaderShown, page: p);
         return MushafGeometry.pageRatio(_script, p) == null
             ? Size(b.width, avail.height)
             : b;
@@ -1517,7 +1532,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             _progressLine(paper),
             const SizedBox(height: 2),
-            if (_memorizing)
+            if (_memorizing && !s.focusMode)
               _memorizeBar(paper)
             else if (_reviewing)
               _reviewBar(paper)
@@ -1565,6 +1580,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           ]),
         )),
       ),
+      // Focus mode: memorize's small pill floats over the bare page.
+      if (_memorizing && s.focusMode)
+        Positioned(
+          bottom: pad.bottom + 12,
+          left: 12,
+          right: 12,
+          child: Center(child: _memorizeBar(paper, floating: true)),
+        ),
     ]);
   }
 
@@ -2110,7 +2133,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       {bool compact = false}) {
     final first = _spreadStart(page);
     Size fit(int p, Size a) => MushafGeometry.pageBox(a, _script,
-        ornate: s.useOrnate, header: s.mushafHeader, page: p, compact: compact);
+        ornate: s.mushafOrnate, header: s.mushafHeaderShown, page: p, compact: compact);
     final r = fit(first, avail), l = fit(first + 1, avail);
     final h = r.height < l.height ? r.height : l.height;
     return fit(page, Size(avail.width, h));
@@ -2159,8 +2182,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         Size box(Size avail, int page,
                 {double? heightBudget, bool byWidthOnly = false}) =>
             MushafGeometry.pageBox(avail, _script,
-                ornate: s.useOrnate,
-                header: s.mushafHeader,
+                ornate: s.mushafOrnate,
+                header: s.mushafHeaderShown,
                 page: page,
                 heightBudget: heightBudget,
                 byWidthOnly: byWidthOnly);
@@ -2533,6 +2556,13 @@ class _MushafSettingsSheet extends StatelessWidget {
               chevron: true,
               onTap: onMemorizeCards,
             ),
+          QRow(
+            title: context.l10n.fcFocus,
+            subtitle: context.l10n.fcFocusSub,
+            control: QSwitch(
+                value: s.focusMode,
+                onChanged: (v) => s.update(() => s.focusMode = v)),
+          ),
           QRow(
             title: context.l10n.mzTapReveals,
             subtitle: context.l10n.mzTapRevealsSub,

@@ -990,5 +990,9 @@
   "mzSmaller": "Letra más pequeña",
   "mzTapReveals": "Tocar para revelar la siguiente palabra",
   "mzTapRevealsSub": "Desactivado: tocar una palabra la reproduce y «Siguiente palabra» revela",
-  "mzHintPlay": "Toca una palabra para oírla"
+  "mzHintPlay": "Toca una palabra para oírla",
+  "rpSavedTo": "Guardado en {path}",
+  "fcFocus": "Modo concentración",
+  "fcFocusSub": "Solo la página: sin barras, encabezado ni marco — memorizar conserva lo esencial",
+  "fcExit": "Salir del modo concentración"
 }

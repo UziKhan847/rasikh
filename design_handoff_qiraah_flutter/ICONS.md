@@ -3,7 +3,7 @@
 All the line icons from the prototype are packaged as a TrueType icon font, and you use them exactly like Flutter's `Icons.*`.
 
 ## Files
-- `flutter/assets/fonts/QiraahIcons.ttf`: the icon font (47 glyphs, Private Use Area U+E001 and up)
+- `flutter/assets/fonts/QiraahIcons.ttf`: the icon font (96 glyphs, Private Use Area U+E001–U+E060)
 - `flutter/lib/qiraah_icons.dart`: the `QiraahIcons` class with `IconData` constants, plus a `QiraahIcons.all` map
 - `flutter/lib/qiraah_icons_example.dart`: a gallery widget for checking every glyph
 - `flutter/pubspec_snippet.yaml`: font and asset declarations to merge into `pubspec.yaml`
@@ -85,3 +85,53 @@ Where they appear:
 
 ## Adding icons later
 Add a 24×24 SVG to `icons/svg/`, then regenerate the font with any SVG-to-font tool that expands strokes (for example `icon_font_generator` after running the SVG through `picosvg`). Keep codepoints U+E001–U+E02F stable and append new icons from U+E030.
+
+| `QiraahIcons.coach` | 0xe030 | coach |
+| `QiraahIcons.stop` | 0xe031 | stop |
+| `QiraahIcons.mic` | 0xe032 | mic |
+| `QiraahIcons.video` | 0xe033 | video |
+| `QiraahIcons.lock` | 0xe034 | lock |
+| `QiraahIcons.textSize` | 0xe035 | text_size |
+| `QiraahIcons.gridView` | 0xe036 | grid_view |
+| `QiraahIcons.shapeHeight` | 0xe037 | shape_height |
+| `QiraahIcons.shapeJoin` | 0xe038 | shape_join |
+| `QiraahIcons.shapeRoute` | 0xe039 | shape_route |
+| `QiraahIcons.shapeStack` | 0xe03a | shape_stack |
+| `QiraahIcons.bolt` | 0xe03b | bolt |
+| `QiraahIcons.comfort` | 0xe03c | comfort |
+| `QiraahIcons.dots` | 0xe03d | dots |
+| `QiraahIcons.zoom` | 0xe03e | zoom |
+| `QiraahIcons.dot` | 0xe03f | dot |
+| `QiraahIcons.speed` | 0xe040 | speed |
+| `QiraahIcons.bell` | 0xe041 | bell |
+| `QiraahIcons.download` | 0xe042 | download |
+| `QiraahIcons.upload` | 0xe043 | upload |
+| `QiraahIcons.delete` | 0xe044 | delete |
+| `QiraahIcons.sync` | 0xe045 | sync |
+| `QiraahIcons.partial` | 0xe046 | partial |
+| `QiraahIcons.devices` | 0xe047 | devices |
+| `QiraahIcons.phone` | 0xe048 | phone |
+| `QiraahIcons.desktop` | 0xe049 | desktop |
+| `QiraahIcons.brush` | 0xe04a | brush |
+| `QiraahIcons.document` | 0xe04b | document |
+| `QiraahIcons.pen` | 0xe04c | pen |
+| `QiraahIcons.undo` | 0xe04d | undo |
+| `QiraahIcons.chart` | 0xe04e | chart |
+| `QiraahIcons.person` | 0xe04f | person |
+| `QiraahIcons.group` | 0xe050 | group |
+| `QiraahIcons.comment` | 0xe051 | comment |
+| `QiraahIcons.link` | 0xe052 | link |
+| `QiraahIcons.cloud` | 0xe053 | cloud |
+| `QiraahIcons.hifz` | 0xe054 | hifz |
+| `QiraahIcons.add` | 0xe055 | add |
+| `QiraahIcons.more` | 0xe056 | more |
+| `QiraahIcons.review` | 0xe057 | review |
+| `QiraahIcons.cards` | 0xe058 | cards |
+| `QiraahIcons.memorize` | 0xe059 | memorize |
+| `QiraahIcons.show` | 0xe05a | show |
+| `QiraahIcons.nextVerse` | 0xe05b | next_verse |
+| `QiraahIcons.prevVerse` | 0xe05c | prev_verse |
+| `QiraahIcons.pageOn` | 0xe05d | page_on |
+| `QiraahIcons.pdf` | 0xe05e | pdf |
+| `QiraahIcons.textBigger` | 0xe05f | text_bigger |
+| `QiraahIcons.textSmaller` | 0xe060 | text_smaller |

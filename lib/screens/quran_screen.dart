@@ -47,9 +47,11 @@ List<Color> tajwidColorsFor(Palette p) => tajwidColorsForDark(p.isDark);
 String readerFont(AppSettings s, [String? script]) =>
     (script ?? s.quranScript) == 'indopak' ? s.fontIndopak : 'DigitalKhattV2';
 
-/// The largest reader size for this layout: 120 on desktop, 64 on a phone.
-double readerMaxPx(BuildContext context) =>
-    useDesktop(context) ? kReaderMaxDesktop : kReaderMaxMobile;
+/// The largest reader size for this layout: on desktop it grows with the
+/// window (at least 120); 64 on a phone.
+double readerMaxPx(BuildContext context) => useDesktop(context)
+    ? readerMaxDesktopFor(MediaQuery.sizeOf(context).width)
+    : kReaderMaxMobile;
 
 TextStyle quranStyle(BuildContext context,
     {Color? color,
@@ -672,7 +674,12 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
         : store!.visuals(markBook, showFixed: s.showFixedMarks);
     _markPal = markPaletteFor(p, mono: s.appTheme == 'mono');
     final desktop = useDesktop(context);
-    final maxW = desktop && s.sidebarCollapsed ? 1080.0 : 760.0;
+    // The reading measure: the window's width on desktop (word grid, verse
+    // cards), full width on phones.
+    // Past the old 120 cap, the measure widens with the text so a huge size
+    // isn't squeezed into the same column.
+    final maxW = math.max(contentMaxWidth(context, ContentKind.reading),
+        readerPx(s).clamp(kReaderMinPx, readerMaxPx(context)) * 9);
     final hidden = s.readerHeaderCollapsed;
     return Scaffold(
       backgroundColor: p.bg,
@@ -1770,7 +1777,9 @@ class _ReaderPlayer extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 760),
+                    // The docked player spans the content; its controls
+                    // stay together, centred.
+                    constraints: const BoxConstraints(maxWidth: 960),
                     child: body,
                   ),
                 ),

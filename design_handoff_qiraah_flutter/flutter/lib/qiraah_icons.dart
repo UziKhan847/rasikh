@@ -1,5 +1,5 @@
 // GENERATED — Qiraah icon font. Do not edit by hand.
-// Font: assets/fonts/QiraahIcons.ttf  (family: QiraahIcons)
+// Font: assets/fonts/QiraahIcons.ttf  (family: QiraahIcons) — 96 glyphs, U+E001–U+E060
 import 'package:flutter/widgets.dart';
 
 @staticIconProvider
@@ -101,6 +101,104 @@ class QiraahIcons {
   static const IconData starFilled = IconData(0xe02e, fontFamily: _family);
   /// bookmark_filled
   static const IconData bookmarkFilled = IconData(0xe02f, fontFamily: _family);
+  /// coach
+  static const IconData coach = IconData(0xe030, fontFamily: _family);
+  /// stop
+  static const IconData stop = IconData(0xe031, fontFamily: _family);
+  /// mic
+  static const IconData mic = IconData(0xe032, fontFamily: _family);
+  /// video
+  static const IconData video = IconData(0xe033, fontFamily: _family);
+  /// lock
+  static const IconData lock = IconData(0xe034, fontFamily: _family);
+  /// text_size
+  static const IconData textSize = IconData(0xe035, fontFamily: _family);
+  /// grid_view
+  static const IconData gridView = IconData(0xe036, fontFamily: _family);
+  /// shape_height
+  static const IconData shapeHeight = IconData(0xe037, fontFamily: _family);
+  /// shape_join
+  static const IconData shapeJoin = IconData(0xe038, fontFamily: _family);
+  /// shape_route
+  static const IconData shapeRoute = IconData(0xe039, fontFamily: _family);
+  /// shape_stack
+  static const IconData shapeStack = IconData(0xe03a, fontFamily: _family);
+  /// bolt
+  static const IconData bolt = IconData(0xe03b, fontFamily: _family);
+  /// comfort
+  static const IconData comfort = IconData(0xe03c, fontFamily: _family);
+  /// dots
+  static const IconData dots = IconData(0xe03d, fontFamily: _family);
+  /// zoom
+  static const IconData zoom = IconData(0xe03e, fontFamily: _family);
+  /// dot
+  static const IconData dot = IconData(0xe03f, fontFamily: _family);
+  /// speed
+  static const IconData speed = IconData(0xe040, fontFamily: _family);
+  /// bell
+  static const IconData bell = IconData(0xe041, fontFamily: _family);
+  /// download
+  static const IconData download = IconData(0xe042, fontFamily: _family);
+  /// upload
+  static const IconData upload = IconData(0xe043, fontFamily: _family);
+  /// delete
+  static const IconData delete = IconData(0xe044, fontFamily: _family);
+  /// sync
+  static const IconData sync = IconData(0xe045, fontFamily: _family);
+  /// partial
+  static const IconData partial = IconData(0xe046, fontFamily: _family);
+  /// devices
+  static const IconData devices = IconData(0xe047, fontFamily: _family);
+  /// phone
+  static const IconData phone = IconData(0xe048, fontFamily: _family);
+  /// desktop
+  static const IconData desktop = IconData(0xe049, fontFamily: _family);
+  /// brush
+  static const IconData brush = IconData(0xe04a, fontFamily: _family);
+  /// document
+  static const IconData document = IconData(0xe04b, fontFamily: _family);
+  /// pen
+  static const IconData pen = IconData(0xe04c, fontFamily: _family);
+  /// undo
+  static const IconData undo = IconData(0xe04d, fontFamily: _family, matchTextDirection: true);
+  /// chart
+  static const IconData chart = IconData(0xe04e, fontFamily: _family);
+  /// person
+  static const IconData person = IconData(0xe04f, fontFamily: _family);
+  /// group
+  static const IconData group = IconData(0xe050, fontFamily: _family);
+  /// comment
+  static const IconData comment = IconData(0xe051, fontFamily: _family);
+  /// link
+  static const IconData link = IconData(0xe052, fontFamily: _family);
+  /// cloud
+  static const IconData cloud = IconData(0xe053, fontFamily: _family);
+  /// hifz
+  static const IconData hifz = IconData(0xe054, fontFamily: _family);
+  /// add
+  static const IconData add = IconData(0xe055, fontFamily: _family);
+  /// more
+  static const IconData more = IconData(0xe056, fontFamily: _family);
+  /// review
+  static const IconData review = IconData(0xe057, fontFamily: _family);
+  /// cards
+  static const IconData cards = IconData(0xe058, fontFamily: _family);
+  /// memorize
+  static const IconData memorize = IconData(0xe059, fontFamily: _family);
+  /// show
+  static const IconData show = IconData(0xe05a, fontFamily: _family);
+  /// next_verse
+  static const IconData nextVerse = IconData(0xe05b, fontFamily: _family, matchTextDirection: true);
+  /// prev_verse
+  static const IconData prevVerse = IconData(0xe05c, fontFamily: _family, matchTextDirection: true);
+  /// page_on
+  static const IconData pageOn = IconData(0xe05d, fontFamily: _family, matchTextDirection: true);
+  /// pdf
+  static const IconData pdf = IconData(0xe05e, fontFamily: _family);
+  /// text_bigger
+  static const IconData textBigger = IconData(0xe05f, fontFamily: _family);
+  /// text_smaller
+  static const IconData textSmaller = IconData(0xe060, fontFamily: _family);
 
   static const Map<String, IconData> all = {
     'sidebar_show': sidebarShow,
@@ -150,5 +248,54 @@ class QiraahIcons {
     'fit_width': fitWidth,
     'star_filled': starFilled,
     'bookmark_filled': bookmarkFilled,
+    'coach': coach,
+    'stop': stop,
+    'mic': mic,
+    'video': video,
+    'lock': lock,
+    'text_size': textSize,
+    'grid_view': gridView,
+    'shape_height': shapeHeight,
+    'shape_join': shapeJoin,
+    'shape_route': shapeRoute,
+    'shape_stack': shapeStack,
+    'bolt': bolt,
+    'comfort': comfort,
+    'dots': dots,
+    'zoom': zoom,
+    'dot': dot,
+    'speed': speed,
+    'bell': bell,
+    'download': download,
+    'upload': upload,
+    'delete': delete,
+    'sync': sync,
+    'partial': partial,
+    'devices': devices,
+    'phone': phone,
+    'desktop': desktop,
+    'brush': brush,
+    'document': document,
+    'pen': pen,
+    'undo': undo,
+    'chart': chart,
+    'person': person,
+    'group': group,
+    'comment': comment,
+    'link': link,
+    'cloud': cloud,
+    'hifz': hifz,
+    'add': add,
+    'more': more,
+    'review': review,
+    'cards': cards,
+    'memorize': memorize,
+    'show': show,
+    'next_verse': nextVerse,
+    'prev_verse': prevVerse,
+    'page_on': pageOn,
+    'pdf': pdf,
+    'text_bigger': textBigger,
+    'text_smaller': textSmaller,
   };
 }

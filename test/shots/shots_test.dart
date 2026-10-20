@@ -68,6 +68,7 @@ final shotList = <Shot>[
   ('settings_desk_mono', () => const SettingsScreen(), 1440, 1400, 'mono'),
   ('onboarding_phone', () => const OnboardingScreen(), 390, 844, 'light'),
   ('quran_phone_light', () => const SurahListScreen(), 390, 844, 'light'),
+  ('quran_desk_light', () => const SurahListScreen(), 1440, 900, 'light'),
   ('reader_phone_light', () => SurahReaderScreen(meta: _meta[0]), 390, 844, 'light'),
   ('reader_phone_grid', () => SurahReaderScreen(meta: _meta[0]), 390, 844, 'light'),
   ('reader_phone_float', () => SurahReaderScreen(meta: _meta[111]), 390, 844, 'oled'),

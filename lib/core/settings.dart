@@ -63,10 +63,22 @@ class AppSettings extends ChangeNotifier {
   /// Memorize as verse cards: the āyah's font size (they're for large text).
   double memorizeCardFont = 36;
 
+  /// Review as verse cards: the āyah's font size.
+  double reviewCardFont = 30;
+
   /// Memorize: a tap reveals the next word (anywhere on the page or card).
   /// Off (the default), tapping a revealed word plays it, and revealing is
   /// done from the bar.
   bool memorizeTapReveals = false;
+
+  /// Focus mode: the muṣḥaf and memorize, bare — just the page (no bars,
+  /// running head or frame; the system bars hidden too), and memorize with
+  /// only its essential controls. A tap still brings the muṣḥaf's bars back.
+  bool focusMode = false;
+
+  /// The muṣḥaf's frame and running head, focus mode applied.
+  bool get mushafOrnate => useOrnate && !focusMode;
+  bool get mushafHeaderShown => mushafHeader && !focusMode;
 
   /// The one-time "this device seems slow — turn on Lite mode?" offer has
   /// been made (see core/jank_watch.dart).
@@ -206,7 +218,9 @@ class AppSettings extends ChangeNotifier {
     gradients = m['gradients'] ?? true;
     lite = m['lite'] ?? false;
     memorizeCardFont = (m['memorizeCardFont'] as num?)?.toDouble() ?? 36;
+    reviewCardFont = (m['reviewCardFont'] as num?)?.toDouble() ?? 30;
     memorizeTapReveals = m['memorizeTapReveals'] ?? false;
+    focusMode = m['focusMode'] ?? false;
     liteSuggested = m['liteSuggested'] ?? false;
     // An install from before the welcome existed has already found its way.
     onboarded = m['onboarded'] ?? true;
@@ -284,7 +298,9 @@ class AppSettings extends ChangeNotifier {
         'gradients': gradients,
         'lite': lite,
         'memorizeCardFont': memorizeCardFont,
+        'reviewCardFont': reviewCardFont,
         'memorizeTapReveals': memorizeTapReveals,
+        'focusMode': focusMode,
         'liteSuggested': liteSuggested,
         'onboarded': onboarded,
         'lang': language,
@@ -333,6 +349,8 @@ class SettingsScope extends InheritedNotifier<AppSettings> {
       : super(notifier: settings);
   static AppSettings of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<SettingsScope>()!.notifier!;
+  static AppSettings? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<SettingsScope>()?.notifier;
 }
 
 /// Stars-per-activity progress, persisted as JSON.

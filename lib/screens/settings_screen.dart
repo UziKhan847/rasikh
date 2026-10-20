@@ -47,7 +47,7 @@ class SettingsScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
               children: [
                 QColumn(
-                  maxWidth: wide ? 1200 : 760,
+                  kind: ContentKind.form,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -277,8 +277,9 @@ class _Reading extends StatelessWidget {
     final layout = s.readerLayout == 'mushaf'
         ? 'flow'
         : (s.wordByWord ? 'grid' : 'cards');
-    final desktop = useDesktop(context);
-    final maxPx = desktop ? kReaderMaxDesktop : kReaderMaxMobile;
+    final maxPx = useDesktop(context)
+        ? readerMaxDesktopFor(MediaQuery.sizeOf(context).width)
+        : kReaderMaxMobile;
     final px = readerPx(s).clamp(kReaderMinPx, maxPx);
     return _Section(context.l10n.reading, [
       QGroup(children: [

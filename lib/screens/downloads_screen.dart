@@ -246,7 +246,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             ? Center(child: CircularProgressIndicator(color: pal(context).acc))
             : Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 900),
+                  constraints: BoxConstraints(
+                      maxWidth: contentMaxWidth(context, ContentKind.list)),
                   child: Column(children: [
                     if (_bulkActive) _bulkBanner(context),
                     Expanded(

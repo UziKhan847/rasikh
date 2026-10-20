@@ -14,6 +14,7 @@ import '../../data/divisions.dart';
 import '../../data/mushaf.dart';
 import '../../data/mushaf_atlas.dart';
 import '../../data/quran.dart';
+import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
 import '../mushaf/mushaf_line.dart';
@@ -283,6 +284,16 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
         appBar: AppBar(
           title: Text(context.l10n.rvReview),
           actions: [
+            IconButton(
+                tooltip: context.l10n.mzSmaller,
+                onPressed: () => s.update(() => s.reviewCardFont =
+                    (s.reviewCardFont - 4).clamp(20, 72)),
+                icon: const Icon(AppIcons.textSmaller)),
+            IconButton(
+                tooltip: context.l10n.mzBigger,
+                onPressed: () => s.update(() => s.reviewCardFont =
+                    (s.reviewCardFont + 4).clamp(20, 72)),
+                icon: const Icon(AppIcons.textBigger)),
             TextButton(
                 onPressed: _openInMushaf,
                 child: Text(context.l10n.rvOpenMushaf)),
@@ -368,7 +379,8 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
       children: [
         Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
+            constraints: BoxConstraints(
+                maxWidth: contentMaxWidth(context, ContentKind.reading)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -386,7 +398,7 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
                   child: VerseView(
                     script: widget.script,
                     globalAyah: r.globalAyah,
-                    fontSize: 30,
+                    fontSize: SettingsScope.of(context).reviewCardFont,
                     ink: paper.ink,
                     accent: paper.acc,
                     strongBg: paper.hl2,

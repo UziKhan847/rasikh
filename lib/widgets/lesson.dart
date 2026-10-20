@@ -380,7 +380,7 @@ class LessonIndexScreen extends StatelessWidget with DesktopAware {
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
               children: [
                 for (final w in children)
-                  QColumn(maxWidth: wide ? 1080 : 760, child: w),
+                  QColumn(kind: ContentKind.reading, child: w),
               ],
             ),
           );

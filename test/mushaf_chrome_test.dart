@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/quran.dart';
+import 'package:qiraah_arabiyyah/screens/mushaf/memorize_bar.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
 
 import 'test_support.dart';
@@ -157,5 +158,41 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byTooltip('Close Muṣḥaf').hitTestable(), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 300)); // settings save
+  });
+
+  testWidgets('focus mode: the page opens bare; memorize keeps a small pill',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (s, p) = await _boot(desktop: false);
+    s.focusMode = true;
+    await _pump(tester, s, p, page: 50);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(_barOpacity(tester), 0, reason: 'the bars start hidden');
+    expect(s.mushafHeaderShown, isFalse);
+    expect(s.mushafOrnate, isFalse);
+
+    // A tap in the margin brings the bars back; memorize from the sheet.
+    await tester.tapAt(const Offset(12, 420));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(_barOpacity(tester), 1);
+    await tester.tap(find.byTooltip('Muṣḥaf settings').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Memorize from this page'));
+    await tester.pumpAndSettle();
+    final bar = tester.widget<MemorizeBar>(find.byType(MemorizeBar));
+    expect(bar.minimal, isTrue, reason: 'only the essentials');
+    expect(find.text('Next word'), findsOneWidget);
+    expect(find.text('Rest of the āyah'), findsNothing);
+
+    // Leaving focus mode brings the full bar back.
+    await tester.tap(find.byTooltip('Leave focus mode'));
+    await tester.pumpAndSettle();
+    expect(s.focusMode, isFalse);
+    expect(tester.widget<MemorizeBar>(find.byType(MemorizeBar)).minimal,
+        isFalse);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 1));
   });
 }

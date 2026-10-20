@@ -109,9 +109,13 @@ void main() {
   }
 
   group('largest Arabic', () {
-    for (final (name, size, px) in const [
-      ('desktop 120px', Size(1440, 900), kReaderMaxDesktop),
-      ('phone 64px', Size(360, 780), kReaderMaxMobile),
+    for (final (name, size, px) in [
+      ('desktop 120px', const Size(1440, 900), kReaderMaxDesktop),
+      // The desktop cap grows with the window: a sixth of its width.
+      ('desktop max (240px)', const Size(1440, 900), readerMaxDesktopFor(1440)),
+      ('big screen max (427px)', const Size(2560, 1440),
+          readerMaxDesktopFor(2560)),
+      ('phone 64px', const Size(360, 780), kReaderMaxMobile),
     ]) {
       for (final grid in [false, true]) {
         testWidgets('reader at $name${grid ? ' (word grid)' : ''}', (

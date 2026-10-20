@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart' show DateFormat;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 
 import '../../core/l10n.dart';
@@ -283,8 +285,39 @@ Future<void> makeReport(BuildContext context, Report report, String script,
       '${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf';
   if (print) {
     await Printing.layoutPdf(name: name, onLayout: (_) async => bytes!);
+  } else if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+    // On desktop there's no share sheet to hand it to (and the printing
+    // plugin's Linux "share" waits on xdg-open on the UI thread, freezing
+    // the window until the viewer closes): save it and open it, unblocked.
+    final path = await _saveAndOpen(bytes, name);
+    if (context.mounted) {
+      showQToast(context,
+          path == null ? context.l10n.rpShare : context.l10n.rpSavedTo(path));
+    }
   } else {
     await Printing.sharePdf(bytes: bytes, filename: name);
+  }
+}
+
+/// Writes [bytes] to the Downloads folder (else Documents) as [name] and
+/// opens it in the desktop's PDF viewer without waiting for it. Returns the
+/// path, or null if it couldn't be written.
+Future<String?> _saveAndOpen(Uint8List bytes, String name) async {
+  try {
+    final dir = await getDownloadsDirectory() ??
+        await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}${Platform.pathSeparator}$name');
+    await file.writeAsBytes(bytes, flush: true);
+    final (cmd, args) = Platform.isMacOS
+        ? ('open', [file.path])
+        : Platform.isWindows
+            ? ('cmd', ['/c', 'start', '', file.path])
+            : ('xdg-open', [file.path]);
+    await Process.start(cmd, args, mode: ProcessStartMode.detached);
+    return file.path;
+  } catch (e) {
+    debugPrint('[report] save failed: $e');
+    return null;
   }
 }
 

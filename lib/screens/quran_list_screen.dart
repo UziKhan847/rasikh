@@ -170,6 +170,31 @@ class _SurahListScreenState extends State<SurahListScreen> {
                   ),
                 ),
               )
+            else if (MediaQuery.sizeOf(context).width >= 840)
+              // Desktop: the sūrahs in a grid across the content width (two
+              // columns at about 1100 px).
+              SliverLayoutBuilder(builder: (context, c) {
+                final maxW = contentMaxWidth(context, ContentKind.list);
+                final side = ((c.crossAxisExtent - maxW) / 2).clamp(20.0, 1e9);
+                return SliverPadding(
+                  padding: EdgeInsets.fromLTRB(side, 0, side, 32),
+                  sliver: SliverGrid.builder(
+                    // Each tile is as tall as a row needs: two lines of text
+                    // (at the reader's text scale) and the card's padding —
+                    // the handoff's fixed 76 clipped them.
+                    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 520,
+                      mainAxisExtent:
+                          MediaQuery.textScalerOf(context).scale(58) + 26,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 8,
+                    ),
+                    itemCount: rows.length,
+                    itemBuilder: (context, i) =>
+                        _SurahRow(m: rows[i], onTap: () => _open(rows[i])),
+                  ),
+                );
+              })
             else
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),

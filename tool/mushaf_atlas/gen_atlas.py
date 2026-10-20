@@ -77,6 +77,21 @@ def is_number(c):
     return o == 0x06DD or 0x0660 <= o <= 0x0669 or 0x06F0 <= o <= 0x06F9
 
 
+def number_flags(text):
+    """Per character, whether it's shaped in a number run. A combining
+    mark right after a number run stays in it: Indo-Pak puts waqf signs
+    (ۙ ۚ ج …) and the rukūʿ sign ࣖ after an āyah's digits, and only shaped
+    together with the ligature does the font seat them above the circle —
+    split off into the next run they land on their own, through it."""
+    out = []
+    for c in text:
+        num = is_number(c)
+        if not num and out and out[-1] and unicodedata.category(c) == 'Mn':
+            num = True
+        out.append(num)
+    return out
+
+
 def fnv1a(tokens):
     """FNV-1a over the UTF-16 code units of the tokens joined by '\\n' —
     mirrored in Dart to detect a muṣḥaf text that drifted from the atlas."""
@@ -142,9 +157,10 @@ class Shaper:
         sign and its digits) are shaped on their own, left to right, the way
         Flutter's bidi splits them; spaces stay with the text around them."""
         runs, start = [], 0
+        flags = number_flags(text)
         for i in range(1, len(text) + 1):
-            if i == len(text) or is_number(text[i]) != is_number(text[start]):
-                runs.append((start, text[start:i], not is_number(text[start])))
+            if i == len(text) or flags[i] != flags[start]:
+                runs.append((start, text[start:i], not flags[start]))
                 start = i
         out = []
         for st, run, rtl in reversed(runs):
@@ -158,9 +174,10 @@ class Shaper:
         """Glyphs of [token] left to right: (gid, x, y, char index), and the
         token's advance — all in font units, origin at its left edge."""
         runs, start = [], 0
+        flags = number_flags(token)
         for i in range(1, len(token) + 1):
-            if i == len(token) or is_number(token[i]) != is_number(token[start]):
-                runs.append((start, token[start:i], not is_number(token[start])))
+            if i == len(token) or flags[i] != flags[start]:
+                runs.append((start, token[start:i], not flags[start]))
                 start = i
         glyphs, x = [], 0
         # A right-to-left line shows its runs right to left: the last run is

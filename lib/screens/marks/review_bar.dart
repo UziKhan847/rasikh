@@ -192,7 +192,13 @@ class ReviewBar extends StatelessWidget {
           const SizedBox(height: 2),
           FittedBox(fit: BoxFit.scaleDown, child: actions),
         ]);
-        if (!floating) return body;
+        // Docked: centred, at most 720 wide on a wide window.
+        if (!floating) {
+          return Center(
+              child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: body));
+        }
         return Container(
           constraints: const BoxConstraints(maxWidth: 560),
           padding: const EdgeInsets.fromLTRB(12, 8, 8, 6),

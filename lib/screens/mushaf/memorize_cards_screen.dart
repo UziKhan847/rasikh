@@ -195,7 +195,10 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
     final (su, ay) = MushafRepo.surahAyahOf(g);
     return Scaffold(
       backgroundColor: paper.bg,
-      appBar: AppBar(
+      // Focus mode: the āyah alone (its pill below has the essentials).
+      appBar: s.focusMode
+          ? null
+          : AppBar(
         backgroundColor: paper.chrome,
         title: Text(context.l10n.mzMemorize),
         actions: [
@@ -215,9 +218,15 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
                 checked: s.memorizeTapReveals,
                 child: Text(context.l10n.mzTapReveals),
               ),
+              CheckedPopupMenuItem(
+                value: 'focus',
+                checked: s.focusMode,
+                child: Text(context.l10n.fcFocus),
+              ),
             ],
-            onSelected: (_) => s.update(
-                () => s.memorizeTapReveals = !s.memorizeTapReveals),
+            onSelected: (v) => s.update(() => v == 'focus'
+                ? s.focusMode = !s.focusMode
+                : s.memorizeTapReveals = !s.memorizeTapReveals),
           ),
         ],
       ),
@@ -235,16 +244,22 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
                     children: [
                       Center(
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 820),
+                          constraints: BoxConstraints(
+                              maxWidth: contentMaxWidth(
+                                  context, ContentKind.reading)),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Text('${_tnames[su] ?? ''} $su:$ay',
-                                  style: uiStyle(context,
-                                      size: 14,
-                                      weight: FontWeight.w700,
-                                      color: paper.sub)),
-                              const SizedBox(height: 10),
+                              if (!s.focusMode) ...[
+                                Text('${_tnames[su] ?? ''} $su:$ay',
+                                    style: uiStyle(context,
+                                        size: 14,
+                                        weight: FontWeight.w700,
+                                        color: paper.sub)),
+                                const SizedBox(height: 10),
+                              ] else
+                                SizedBox(
+                                    height: MediaQuery.paddingOf(context).top),
                               Container(
                                 padding:
                                     const EdgeInsets.fromLTRB(16, 14, 16, 14),
@@ -279,12 +294,18 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
               SafeArea(
                 top: false,
                 child: Container(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 8, 6),
-                  decoration: BoxDecoration(
-                    color: paper.chrome,
-                    border: Border(top: BorderSide(color: paper.line)),
-                  ),
+                  padding: s.focusMode
+                      ? const EdgeInsets.only(bottom: 12)
+                      : const EdgeInsets.fromLTRB(12, 8, 8, 6),
+                  decoration: s.focusMode
+                      ? null
+                      : BoxDecoration(
+                          color: paper.chrome,
+                          border: Border(top: BorderSide(color: paper.line)),
+                        ),
                   child: MemorizeBar(
+                    minimal: s.focusMode,
+                    onExitFocus: () => s.update(() => s.focusMode = false),
                     controller: _c,
                     surahNames: _tnames,
                     bg: paper.chrome,

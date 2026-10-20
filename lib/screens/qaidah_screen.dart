@@ -401,7 +401,7 @@ class LettersExplorer extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 6, 20, 100),
           children: [
             QColumn(
-              maxWidth: desk ? 1080 : 760,
+              kind: ContentKind.list,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -739,7 +739,7 @@ class LetterDetail extends StatelessWidget with DesktopAware {
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
             children: [
               QColumn(
-                maxWidth: wide ? 1080 : 760,
+                kind: ContentKind.list,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [

@@ -1952,5 +1952,16 @@
   "mzSmaller": "Smaller text",
   "mzTapReveals": "Tap to reveal the next word",
   "mzTapRevealsSub": "Off: tapping a word plays it, and Next word reveals",
-  "mzHintPlay": "Tap a word to hear it"
+  "mzHintPlay": "Tap a word to hear it",
+  "rpSavedTo": "Saved to {path}",
+  "@rpSavedTo": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "fcFocus": "Focus mode",
+  "fcFocusSub": "Just the page: no bars, running head or frame — memorize keeps only its essentials",
+  "fcExit": "Leave focus mode"
 }

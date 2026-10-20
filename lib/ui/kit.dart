@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../core/settings.dart';
 import '../core/theme.dart';
 import 'app_icons.dart';
+import 'layout/content_width.dart';
+export 'layout/content_width.dart';
 import 'qiraah_ornaments.dart';
 
 /// The redesign's building blocks (design_handoff_qiraah_flutter). Every
@@ -113,19 +115,26 @@ const kHeroGold = Color(0xFFE3C27A);
 
 // ───────────────────────────────────────────────────────── layout
 
-/// A content column: max 760px (1080 with the desktop sidebar collapsed),
-/// centred, with side padding of at least 16.
+/// A content column, centred: [maxWidth], or else the [kind]'s width —
+/// full width on phones, a comfortable measure on desktop (see
+/// layout/content_width.dart; it used to be a fixed 760 phone column).
 class QColumn extends StatelessWidget {
   final Widget child;
-  final double maxWidth;
-  const QColumn({super.key, required this.child, this.maxWidth = 760});
+  final double? maxWidth;
+  final ContentKind kind;
+  const QColumn(
+      {super.key,
+      required this.child,
+      this.maxWidth,
+      this.kind = ContentKind.list});
 
   // The child always gets the column's full width, so a narrow child (a Wrap
   // of chips, a short label) starts at the column's edge instead of centring.
   @override
   Widget build(BuildContext context) => Center(
     child: ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxWidth),
+      constraints: BoxConstraints(
+          maxWidth: maxWidth ?? contentMaxWidth(context, kind)),
       child: SizedBox(width: double.infinity, child: child),
     ),
   );
@@ -139,7 +148,8 @@ class QPage extends StatelessWidget {
   final List<Widget> children;
   final Widget? leading;
   final List<Widget> actions;
-  final double maxWidth;
+  final double? maxWidth;
+  final ContentKind kind;
   final EdgeInsets padding;
   final ScrollController? controller;
   const QPage({
@@ -149,7 +159,8 @@ class QPage extends StatelessWidget {
     required this.children,
     this.leading,
     this.actions = const [],
-    this.maxWidth = 760,
+    this.maxWidth,
+    this.kind = ContentKind.list,
     this.padding = const EdgeInsets.fromLTRB(20, 16, 20, 32),
     this.controller,
   });
@@ -166,6 +177,7 @@ class QPage extends StatelessWidget {
           children: [
             QColumn(
               maxWidth: maxWidth,
+              kind: kind,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -193,7 +205,8 @@ class QScreen extends StatelessWidget {
   final String? subtitle;
   final List<Widget> children;
   final List<Widget> actions;
-  final double maxWidth;
+  final double? maxWidth;
+  final ContentKind kind;
   final bool back;
   const QScreen({
     super.key,
@@ -201,7 +214,8 @@ class QScreen extends StatelessWidget {
     this.subtitle,
     required this.children,
     this.actions = const [],
-    this.maxWidth = 760,
+    this.maxWidth,
+    this.kind = ContentKind.list,
     this.back = true,
   });
 
@@ -212,6 +226,7 @@ class QScreen extends StatelessWidget {
       title: title,
       subtitle: subtitle,
       maxWidth: maxWidth,
+      kind: kind,
       leading: back && Navigator.of(context).canPop()
           ? QIconButton(
               icon: AppIcons.back,

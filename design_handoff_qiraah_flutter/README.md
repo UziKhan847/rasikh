@@ -494,3 +494,52 @@ Two toggles, default ON. No background patterns anywhere.
 6. Learn: Qāʿidah path, letters, quiz, Tajwīd Academy, tracing.
 7. Settings: every toggle, including Style, two columns on wide screens and "Show welcome again".
 8. Check Light / Mono / Night / OLED × ornate on/off × gradients on/off on a phone, a 1024px window and a 1440px window. No text below 4.5:1, and no clipped Arabic at a 120px text size.
+
+
+---
+
+## Update 7: desktop content width + 49 new icons (overrides anything above)
+
+### 7.1 Desktop content must fill the window (fixes "mobile-width" tiles)
+On desktop every screen was capped at the 760px phone column, so word tiles, cards and lists sat in a narrow strip. Replace every hard `maxWidth: 760` / `ConstrainedBox(maxWidth: 760)` with one shared helper:
+
+```dart
+/// lib/ui/layout/content_width.dart
+enum ContentKind { reading, list, form }
+double contentMaxWidth(BuildContext c, ContentKind k, {bool sidebarCollapsed = false}) {
+  final w = MediaQuery.sizeOf(c).width;
+  if (w < 840) return double.infinity;                 // phone/tablet portrait: full width, 16–20px gutters
+  switch (k) {
+    case ContentKind.reading: return sidebarCollapsed ? 1520 : 1280; // reader, word grid, memorize, review, recite
+    case ContentKind.list:    return 1200;              // Qur'ān list, Learn, Hifz books, bookmarks, downloads
+    case ContentKind.form:    return 1200;              // Settings (2 columns ≥1280, see 6.4)
+  }
+}
+class ContentColumn extends StatelessWidget {
+  final ContentKind kind; final Widget child; final bool sidebarCollapsed;
+  const ContentColumn({super.key, required this.kind, required this.child, this.sidebarCollapsed = false});
+  @override Widget build(BuildContext context) {
+    final desk = MediaQuery.sizeOf(context).width >= 840;
+    return Align(alignment: Alignment.topCenter, child: ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: contentMaxWidth(context, kind, sidebarCollapsed: sidebarCollapsed)),
+      child: Padding(padding: EdgeInsets.symmetric(horizontal: desk ? 32 : 16), child: child)));
+  }
+}
+```
+
+Apply per screen (wrap the scroll body; headers/toolbars use the same width so they line up):
+- **Reader – word grid:** `ContentKind.reading`. Tiles are a `Wrap` (RTL, spacing = gap setting) inside the full width, so more tiles fit per row. The surah banner and tajwīd key card use the same width.
+- **Reader – verse cards:** `reading`; the card fills the width, and the Arabic line uses the full card width (no inner 760 cap).
+- **Memorize (verse cards):** `reading`. The card fills the width with its height = content (no fixed 380px box). The bottom control bar is centred with a max 720.
+- **Review:** `reading`. Mark cards fill the width; the filter chips and action bar stay centred (max 720).
+- **Qur'ān list:** `list`. Surah rows go into a responsive grid with `SliverGrid` + `SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 520, mainAxisExtent: 76, crossAxisSpacing: 12, mainAxisSpacing: 8)`, giving 2 columns at about 1100px and 1 on phone. The search field, tabs and "Last read" stay full content width.
+- **Hifz books / Learn / Downloads / Bookmarks:** `list` with the same grid delegate for cards.
+- **Muṣḥaf:** unchanged (it has its own spread / single / fill-width modes).
+- **Bottom sheets and dialogs:** keep max 640, centred.
+- **Floating player:** unchanged. The docked player bar spans the content area, with its controls centred at max 960.
+
+### 7.2 Icons: 49 new glyphs (U+E030–U+E060)
+- `QiraahIcons.ttf` now has **96 glyphs**: the original 47 are untouched, and the 49 from `icons_needed.md` use the exact suggested codepoints.
+- `qiraah_icons.dart` was regenerated (all constants plus `QiraahIcons.all`). `nextVerse`, `prevVerse`, `pageOn` and `undo` set `matchTextDirection: true` and are drawn pointing forward.
+- `icons/svg/<name>.svg` holds a source for each, `icons/codepoints.json` is updated, and `icons/preview.png` is a contact sheet rendered from the font.
+- To swap the stand-ins, in `lib/ui/app_icons.dart` replace each Material stand-in with the matching constant, e.g. `static const coach = QiraahIcons.coach;`, `static const textSize = QiraahIcons.textSize;` and `static const nextVerse = QiraahIcons.nextVerse;`. Names map snake_case → camelCase, the same as `AppIcons`.

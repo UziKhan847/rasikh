@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show compute;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -144,7 +146,8 @@ void main() {
     expect(hes.comment!.image, isNotNull);
     expect(hes.replies.single.text, 'You: Again tomorrow');
 
-    final bytes = (await tester.runAsync(() => buildReportPdf(input)))!;
+    final bytes = (await tester.runAsync(() => compute(buildReportPdf, input)
+        .timeout(const Duration(seconds: 60))))!;
     expect(String.fromCharCodes(bytes.sublist(0, 4)), '%PDF');
     expect(bytes.length, greaterThan(20000));
     if (_keep.isNotEmpty) File(_keep).writeAsBytesSync(bytes);

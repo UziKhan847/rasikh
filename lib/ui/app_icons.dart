@@ -1,12 +1,11 @@
-import 'package:flutter/material.dart' show Icons;
 import 'qiraah_icons.dart';
 
 /// Every icon the app shows, by what it is for.
 ///
-/// Most come from the redesign's `QiraahIcons` font. The ones that font does
-/// not cover yet are marked `// stand-in`: a neutral Material Rounded icon used
-/// until the matching Qiraah icon is drawn (see docs/icons_needed.md). Swapping
-/// one in is a one-line change here.
+/// All come from the redesign's `QiraahIcons` font (96 glyphs; the 49 that
+/// were Material stand-ins were drawn in handoff update 7 — see
+/// docs/icons_needed.md). A new icon gets a glyph there first, or a
+/// `// stand-in` Material icon here until it does.
 abstract final class AppIcons {
   // ── navigation ──
   static const today = QiraahIcons.home;
@@ -18,7 +17,7 @@ abstract final class AppIcons {
   static const tajweed = QiraahIcons.tajweed;
   static const sidebarShow = QiraahIcons.sidebarShow;
   static const sidebarHide = QiraahIcons.sidebarHide;
-  static const coach = Icons.remove_red_eye_rounded; // stand-in
+  static const coach = QiraahIcons.coach;
 
   // ── moving around ──
   static const back = QiraahIcons.back;
@@ -33,7 +32,7 @@ abstract final class AppIcons {
   // ── audio ──
   static const play = QiraahIcons.play;
   static const pause = QiraahIcons.pause;
-  static const stop = Icons.stop_rounded; // stand-in
+  static const stop = QiraahIcons.stop;
   static const skipPrevious = QiraahIcons.skipPrevious;
   static const skipNext = QiraahIcons.skipNext;
   static const repeat = QiraahIcons.repeat;
@@ -43,8 +42,8 @@ abstract final class AppIcons {
   static const unpin = QiraahIcons.unpin;
   static const dock = QiraahIcons.dockBottom;
   static const dragHandle = QiraahIcons.dragHandle;
-  static const mic = Icons.mic_none_rounded; // stand-in
-  static const video = Icons.ondemand_video_rounded; // stand-in
+  static const mic = QiraahIcons.mic;
+  static const video = QiraahIcons.video;
 
   // ── reading ──
   static const tune = QiraahIcons.tune;
@@ -69,54 +68,54 @@ abstract final class AppIcons {
   static const streak = QiraahIcons.streak;
   static const timer = QiraahIcons.timer;
   static const reset = QiraahIcons.reset;
-  static const lock = Icons.lock_outline_rounded; // stand-in
-  static const textSize = Icons.text_fields_rounded; // stand-in
-  static const gridView = Icons.grid_view_rounded; // stand-in
+  static const lock = QiraahIcons.lock;
+  static const textSize = QiraahIcons.textSize;
+  static const gridView = QiraahIcons.gridView;
   static const listView = QiraahIcons.indexList;
-  static const shapeHeight = Icons.height_rounded; // stand-in
-  static const shapeJoin = Icons.link_rounded; // stand-in
-  static const shapeRoute = Icons.route_rounded; // stand-in
-  static const shapeStack = Icons.layers_rounded; // stand-in
-  static const bolt = Icons.bolt_rounded; // stand-in
-  static const comfort = Icons.auto_fix_high_rounded; // stand-in
-  static const dots = Icons.blur_on_rounded; // stand-in
-  static const zoom = Icons.zoom_out_map_rounded; // stand-in
-  static const dot = Icons.brightness_1; // stand-in
-  static const speed = Icons.speed_rounded; // stand-in
+  static const shapeHeight = QiraahIcons.shapeHeight;
+  static const shapeJoin = QiraahIcons.shapeJoin;
+  static const shapeRoute = QiraahIcons.shapeRoute;
+  static const shapeStack = QiraahIcons.shapeStack;
+  static const bolt = QiraahIcons.bolt;
+  static const comfort = QiraahIcons.comfort;
+  static const dots = QiraahIcons.dots;
+  static const zoom = QiraahIcons.zoom;
+  static const dot = QiraahIcons.dot;
+  static const speed = QiraahIcons.speed;
 
   // ── settings & data ──
-  static const bell = Icons.notifications_none_rounded; // stand-in
-  static const download = Icons.download_rounded; // stand-in
-  static const upload = Icons.upload_rounded; // stand-in
-  static const delete = Icons.delete_outline_rounded; // stand-in
-  static const sync = Icons.sync_rounded; // stand-in
-  static const partial = Icons.incomplete_circle_rounded; // stand-in
-  static const devices = Icons.devices_rounded; // stand-in
-  static const phone = Icons.smartphone_rounded; // stand-in
-  static const desktop = Icons.desktop_windows_rounded; // stand-in
-  static const brush = Icons.brush_rounded; // stand-in
-  static const document = Icons.description_outlined; // stand-in
+  static const bell = QiraahIcons.bell;
+  static const download = QiraahIcons.download;
+  static const upload = QiraahIcons.upload;
+  static const delete = QiraahIcons.delete;
+  static const sync = QiraahIcons.sync;
+  static const partial = QiraahIcons.partial;
+  static const devices = QiraahIcons.devices;
+  static const phone = QiraahIcons.phone;
+  static const desktop = QiraahIcons.desktop;
+  static const brush = QiraahIcons.brush;
+  static const document = QiraahIcons.document;
 
   // ── hifz marks ──
-  static const pen = Icons.edit_rounded; // stand-in
-  static const undo = Icons.undo_rounded; // stand-in
-  static const chart = Icons.insights_rounded; // stand-in
-  static const person = Icons.person_outline_rounded; // stand-in
-  static const group = Icons.group_outlined; // stand-in
-  static const comment = Icons.chat_bubble_outline_rounded; // stand-in
-  static const link = Icons.link_rounded; // stand-in
-  static const cloud = Icons.cloud_outlined; // stand-in
-  static const hifz = Icons.hearing_rounded; // stand-in
-  static const add = Icons.add_rounded; // stand-in
-  static const more = Icons.more_horiz_rounded; // stand-in
-  static const review = Icons.fact_check_outlined; // stand-in
-  static const cards = Icons.view_carousel_outlined; // stand-in
-  static const memorize = Icons.visibility_off_outlined; // stand-in
-  static const show = Icons.visibility_outlined; // stand-in
-  static const nextVerse = Icons.keyboard_double_arrow_left_rounded; // stand-in
-  static const prevVerse = Icons.keyboard_double_arrow_right_rounded; // stand-in
-  static const pdf = Icons.picture_as_pdf_outlined; // stand-in
-  static const textBigger = Icons.text_increase_rounded; // stand-in
-  static const textSmaller = Icons.text_decrease_rounded; // stand-in
-  static const pageOn = Icons.first_page_rounded; // stand-in (points left: onward)
+  static const pen = QiraahIcons.pen;
+  static const undo = QiraahIcons.undo;
+  static const chart = QiraahIcons.chart;
+  static const person = QiraahIcons.person;
+  static const group = QiraahIcons.group;
+  static const comment = QiraahIcons.comment;
+  static const link = QiraahIcons.link;
+  static const cloud = QiraahIcons.cloud;
+  static const hifz = QiraahIcons.hifz;
+  static const add = QiraahIcons.add;
+  static const more = QiraahIcons.more;
+  static const review = QiraahIcons.review;
+  static const cards = QiraahIcons.cards;
+  static const memorize = QiraahIcons.memorize;
+  static const show = QiraahIcons.show;
+  static const nextVerse = QiraahIcons.nextVerse;
+  static const prevVerse = QiraahIcons.prevVerse;
+  static const pdf = QiraahIcons.pdf;
+  static const textBigger = QiraahIcons.textBigger;
+  static const textSmaller = QiraahIcons.textSmaller;
+  static const pageOn = QiraahIcons.pageOn;
 }

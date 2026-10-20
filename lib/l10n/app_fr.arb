@@ -990,5 +990,9 @@
   "mzSmaller": "Texte plus petit",
   "mzTapReveals": "Toucher pour révéler le mot suivant",
   "mzTapRevealsSub": "Désactivé : toucher un mot le fait entendre, « Mot suivant » révèle",
-  "mzHintPlay": "Touchez un mot pour l'entendre"
+  "mzHintPlay": "Touchez un mot pour l'entendre",
+  "rpSavedTo": "Enregistré dans {path}",
+  "fcFocus": "Mode concentration",
+  "fcFocusSub": "La page seule : ni barres, ni en-tête, ni cadre — la mémorisation garde l'essentiel",
+  "fcExit": "Quitter le mode concentration"
 }

@@ -1,4 +1,6 @@
-# Icons still needed (for Claude Design)
+# Icons needed (for Claude Design)
+
+> **Done (handoff update 7):** all 49 below are now drawn in `QiraahIcons.ttf` (U+E030–U+E060) and used in `lib/ui/app_icons.dart`. Kept as the record of what each is for; add new requests below the table.
 
 The app's icons all go through `lib/ui/app_icons.dart`. Most already use the redesign's **QiraahIcons** font (47 glyphs, U+E001–U+E02F). The ones below are still **stand-ins** — a neutral Material Rounded icon — until a matching Qiraah glyph is drawn.
 

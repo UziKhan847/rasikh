@@ -29,6 +29,11 @@ class MemorizeBar extends StatelessWidget {
 
   /// Switches between the muṣḥaf page and verse cards, keeping the place.
   final VoidCallback? onSwitchView;
+
+  /// Focus mode: a small floating pill with only back a word, the next
+  /// word, play, leave focus and close.
+  final bool minimal;
+  final VoidCallback? onExitFocus;
   const MemorizeBar({
     super.key,
     required this.controller,
@@ -44,6 +49,8 @@ class MemorizeBar extends StatelessWidget {
     this.floating = false,
     this.cards = false,
     this.onSwitchView,
+    this.minimal = false,
+    this.onExitFocus,
   });
 
   @override
@@ -64,10 +71,23 @@ class MemorizeBar extends StatelessWidget {
               .mzWhere('${surahNames[s] ?? ''} $s:$a', w < 0 ? 1 : w + 1);
         }
         final hidden = cards ? c.ayahHidden : c.hideFromOn(c.viewPage) >= 0;
+        // The controls are laid out left to right with onward on the left
+        // (as the text runs). The verse and page glyphs (» « →|) are drawn
+        // for left-to-right reading and mirror in right-to-left, so they're
+        // set right to left here to point the way the text runs. (The
+        // chevrons are already picked by their literal direction.)
         IconButton icon(IconData i, String tip, VoidCallback? on) => IconButton(
               tooltip: tip,
               onPressed: on,
-              icon: Icon(i, color: on == null ? sub.withValues(alpha: .5) : ink),
+              icon: Directionality(
+                textDirection: i == AppIcons.nextVerse ||
+                        i == AppIcons.prevVerse ||
+                        i == AppIcons.pageOn
+                    ? TextDirection.rtl
+                    : TextDirection.ltr,
+                child: Icon(i,
+                    color: on == null ? sub.withValues(alpha: .5) : ink),
+              ),
             );
         final caption = Row(children: [
           Expanded(
@@ -156,18 +176,65 @@ class MemorizeBar extends StatelessWidget {
             ),
           ]),
         );
-        final body = Column(mainAxisSize: MainAxisSize.min, children: [
-          caption,
-          const SizedBox(height: 4),
-          FittedBox(fit: BoxFit.scaleDown, child: controls),
-        ]);
-        if (!floating) return body;
+        final body = minimal
+            ? FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Directionality(
+                textDirection: TextDirection.ltr,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  FilledButton.icon(
+                    onPressed: c.atEnd ? null : c.nextWord,
+                    icon: const Icon(AppIcons.chevronLeft, size: 20),
+                    label: Text(context.l10n.mzNextWord),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: bg,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      minimumSize: const Size(0, 38),
+                    ),
+                  ),
+                  icon(AppIcons.chevronRight, context.l10n.mzPrevWord,
+                      c.atStart ? null : c.prevWord),
+                  Tooltip(
+                    message: cards ? context.l10n.mzPlayCards : context.l10n.mzPlay,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: c.atStart ? null : onPlay,
+                      onLongPress: c.atStart ? null : onPlayPage,
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Icon(playing ? AppIcons.pause : AppIcons.play,
+                            color: c.atStart
+                                ? sub.withValues(alpha: .5)
+                                : accent),
+                      ),
+                    ),
+                  ),
+                  if (onExitFocus != null)
+                    icon(AppIcons.focusExit, context.l10n.fcExit, onExitFocus),
+                  icon(AppIcons.close, context.l10n.mkEnd, onEnd),
+                ]),
+              ))
+            : Column(mainAxisSize: MainAxisSize.min, children: [
+                caption,
+                const SizedBox(height: 4),
+                FittedBox(fit: BoxFit.scaleDown, child: controls),
+              ]);
+        // Docked: centred, at most 720 wide on a wide window.
+        if (!floating && !minimal) {
+          return Center(
+              child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: body));
+        }
         return Container(
           constraints: const BoxConstraints(maxWidth: 620),
-          padding: const EdgeInsets.fromLTRB(12, 8, 8, 6),
+          padding: minimal
+              ? const EdgeInsets.fromLTRB(8, 4, 4, 4)
+              : const EdgeInsets.fromLTRB(12, 8, 8, 6),
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(minimal ? 999 : 22),
             border: Border.all(color: line),
             boxShadow: qShadows(context, const [
               BoxShadow(

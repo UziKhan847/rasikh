@@ -59,7 +59,7 @@ class _TodayScreenState extends State<TodayScreen> {
               padding: EdgeInsets.fromLTRB(20, 16, 20, wide ? 40 : 28),
               children: [
                 QColumn(
-                  maxWidth: wide ? 1200 : 760,
+                  kind: ContentKind.list,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
