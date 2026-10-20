@@ -987,5 +987,8 @@
   "mzAsCards": "Cartes de versets",
   "mzAsPage": "Page du muṣḥaf",
   "mzBigger": "Texte plus grand",
-  "mzSmaller": "Texte plus petit"
+  "mzSmaller": "Texte plus petit",
+  "mzTapReveals": "Toucher pour révéler le mot suivant",
+  "mzTapRevealsSub": "Désactivé : toucher un mot le fait entendre, « Mot suivant » révèle",
+  "mzHintPlay": "Touchez un mot pour l'entendre"
 }

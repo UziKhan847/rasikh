@@ -189,21 +189,42 @@ void main() {
     final shown = lines.where((r) => _sprites(r.laidLine! as AtlasLine) > 0);
     expect(shown, hasLength(1));
 
-    // Tapping the page itself reveals the next word too.
+    int revealed() => onScreen(tester)
+        .fold<int>(0, (n, x) => n + _sprites(x.laidLine! as AtlasLine));
     final r = shown.first;
-    final firstLen = _sprites(r.laidLine! as AtlasLine);
+    final firstLen = revealed();
+
+    // By default a tap on a revealed word plays it and reveals nothing; a
+    // tap on the page does nothing.
+    final w = r.spec.line.words.indexWhere((x) => !r.spec.isHidden(
+        r.spec.line.words.indexOf(x)));
+    final (left, right) = r.laidLine!.boxes[w];
+    await tester.tapAt(r.localToGlobal(
+        r.textOffset + Offset((left + right) / 2, r.laidLine!.height / 2)));
+    await settle(tester);
+    expect(revealed(), firstLen);
+    expect(onScreen(tester).any((x) =>
+            x.spec.playAyah == r.spec.line.words[w].ayah &&
+            x.spec.playWord == r.spec.line.words[w].wordIdx),
+        isTrue, reason: 'the tapped word plays');
     await tester.tapAt(r.localToGlobal(Offset(r.size.width / 2, -6)));
     await settle(tester);
-    final again = onScreen(tester)
-        .where((x) => _sprites(x.laidLine! as AtlasLine) > 0)
-        .fold<int>(0, (n, x) => n + _sprites(x.laidLine! as AtlasLine));
-    expect(again, greaterThan(firstLen));
+    expect(revealed(), firstLen);
+
+    // With "tap to reveal" on, a tap on the page reveals the next word.
+    s.update(() => s.memorizeTapReveals = true);
+    await settle(tester);
+    await tester.tapAt(r.localToGlobal(Offset(r.size.width / 2, -6)));
+    await settle(tester);
+    expect(revealed(), greaterThan(firstLen));
 
     await tester.tap(find.text('End'));
     await settle(tester);
     expect(find.byType(MemorizeBar), findsNothing);
     expect(
         onScreen(tester).every((x) => x.spec.hideFrom == -1), isTrue);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30)); // the word audio's timeout
   });
 
   testWidgets('spread: the page turns after both pages, not one',

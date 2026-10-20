@@ -987,5 +987,8 @@
   "mzAsCards": "Tarjetas de aleyas",
   "mzAsPage": "Página del muṣḥaf",
   "mzBigger": "Letra más grande",
-  "mzSmaller": "Letra más pequeña"
+  "mzSmaller": "Letra más pequeña",
+  "mzTapReveals": "Tocar para revelar la siguiente palabra",
+  "mzTapRevealsSub": "Desactivado: tocar una palabra la reproduce y «Siguiente palabra» revela",
+  "mzHintPlay": "Toca una palabra para oírla"
 }

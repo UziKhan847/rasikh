@@ -4,6 +4,7 @@ import '../../core/audio.dart';
 import '../../core/l10n.dart';
 import '../../core/marks/marks_model.dart';
 import '../../core/marks/marks_store.dart';
+import '../../core/marks/qc_words.dart';
 import '../../core/marks/word_ref.dart';
 import '../../core/memorize.dart';
 import '../../core/recite_back.dart';
@@ -55,12 +56,8 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
     super.initState();
     _c.addListener(_changed);
     _handlers
-      ..onTapWord = ((_) {
-        _c.nextWord();
-      })
-      ..onTapVerse = ((_) {
-        _c.nextWord();
-      })
+      ..onTapWord = _tapWord
+      ..onTapVerse = _tapVerse
       ..onLongPressWord = _hold;
     _load();
   }
@@ -88,11 +85,39 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
     super.dispose();
   }
 
-  /// Holding a revealed word opens its sheet (mark a stumble right there);
-  /// a hidden one just reveals the next word.
-  void _hold(MushafWord wd) {
-    if (!_c.isRevealed(MushafRepo.tokenOf(_script, wd.ayah, wd.wordIdx))) {
+  bool get _tapReveals => SettingsScope.of(context).memorizeTapReveals;
+
+  bool _shows(MushafWord wd) =>
+      _c.isRevealed(MushafRepo.tokenOf(_script, wd.ayah, wd.wordIdx));
+
+  /// A tap on a word: the next word when taps reveal; else (the default) a
+  /// revealed word plays — a hidden one gives nothing away.
+  void _tapWord(MushafWord wd) {
+    if (_tapReveals) {
       _c.nextWord();
+    } else if (_shows(wd)) {
+      ReciteBack.instance.stop();
+      final (s, a) = MushafRepo.surahAyahOf(wd.ayah);
+      final qc = qcWordOf(wd.ayah, wd.wordIdx) + 1;
+      WbwAudio.instance.playWords(s, a, qc, qc, (_) {});
+    }
+  }
+
+  /// A tap on a ۝: the next word when taps reveal; else, once it shows,
+  /// Ḥuṣarī recites the āyah.
+  void _tapVerse(int g) {
+    if (_tapReveals) {
+      _c.nextWord();
+    } else if (_shows(MushafWord('', g, -1))) {
+      ReciteBack.instance.play([(g, -1)],
+          rate: SettingsScope.of(context).playbackSpeed);
+    }
+  }
+
+  /// Holding a revealed word opens its sheet (mark a stumble right there).
+  void _hold(MushafWord wd) {
+    if (!_shows(wd)) {
+      if (_tapReveals) _c.nextWord();
       return;
     }
     if (MarksScope.maybeOf(context) == null) return;
@@ -182,16 +207,29 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
               tooltip: context.l10n.mzBigger,
               onPressed: () => _size(4),
               icon: const Icon(AppIcons.textBigger)),
+          PopupMenuButton<String>(
+            icon: const Icon(AppIcons.more),
+            itemBuilder: (_) => [
+              CheckedPopupMenuItem(
+                value: 'tap',
+                checked: s.memorizeTapReveals,
+                child: Text(context.l10n.mzTapReveals),
+              ),
+            ],
+            onSelected: (_) => s.update(
+                () => s.memorizeTapReveals = !s.memorizeTapReveals),
+          ),
         ],
       ),
       body: !_ready
           ? Center(child: CircularProgressIndicator(color: p.acc))
           : Column(children: [
               Expanded(
-                // A tap anywhere on the card reveals the next word.
+                // With "tap to reveal" on, a tap anywhere on the card reveals
+                // the next word.
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: _c.nextWord,
+                  onTap: s.memorizeTapReveals ? _c.nextWord : null,
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                     children: [

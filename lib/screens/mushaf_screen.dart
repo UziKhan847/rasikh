@@ -406,19 +406,37 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         onEnd: _endMemorize,
       );
 
-  /// Memorizing: a tap anywhere reveals the next word; holding a word
-  /// already showing opens its sheet.
+  /// Memorizing, with "tap to reveal" on: a tap anywhere reveals the next
+  /// word.
   void _memoTap(MushafWord _) {
     _lastWordTap = DateTime.now();
     _memo?.nextWord();
   }
 
+  bool _memoShows(MushafWord wd) =>
+      _memo?.isRevealed(MushafRepo.tokenOf(_script, wd.ayah, wd.wordIdx)) ??
+      false;
+
+  /// Memorizing (the default): a tap on a revealed word plays it; on a
+  /// revealed ۝, Ḥuṣarī recites that āyah. A hidden word gives nothing away.
+  void _memoPlayWord(MushafWord wd) {
+    _lastWordTap = DateTime.now();
+    if (_memoShows(wd)) _playWordAudio(wd);
+  }
+
+  void _memoPlayVerse(int g) {
+    _lastWordTap = DateTime.now();
+    if (!_memoShows(MushafWord('', g, -1))) return;
+    _stopAudio();
+    ReciteBack.instance.play([(g, -1)],
+        rate: SettingsScope.of(context).playbackSpeed);
+  }
+
+  /// Holding a revealed word opens its sheet (mark a stumble right there).
   void _memoHold(MushafWord wd) {
-    final m = _memo;
-    if (m == null) return;
-    if (m.isRevealed(MushafRepo.tokenOf(_script, wd.ayah, wd.wordIdx))) {
+    if (_memoShows(wd)) {
       _showWord(wd);
-    } else {
+    } else if (SettingsScope.of(context).memorizeTapReveals) {
       _memoTap(wd);
     }
   }
@@ -795,7 +813,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     // While marking, the pen bar stays put: a near-miss on a word must not
     // hide it.
     if (_memorizing) {
-      _memo!.nextWord();
+      // The page itself: the next word when taps reveal; else nothing (the
+      // bars stay put, the words wait for the bar's buttons).
+      if (SettingsScope.of(context).memorizeTapReveals) _memo!.nextWord();
       return;
     }
     if (_marking.active || _reviewing) return;
@@ -1208,12 +1228,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       // Reviewing: a tap plays the word (any word on the page), holding it
       // opens its sheet.
       ..onTapWord = _memorizing
-          ? _memoTap
+          ? (s.memorizeTapReveals ? _memoTap : _memoPlayWord)
           : (_marking.active ? _markWord : _playWordAudio)
       ..onLongPressWord = _memorizing
           ? _memoHold
           : (_marking.active || _reviewing ? _showWord : _playAndShowWord)
-      ..onTapVerse = _memorizing ? ((_) => _memo?.nextWord()) : _onTapVerse;
+      ..onTapVerse = _memorizing
+          ? (s.memorizeTapReveals ? ((_) => _memo?.nextWord()) : _memoPlayVerse)
+          : _onTapVerse;
     final (lo, hi) = _ayahsOn(page);
     final mine = _playAyah >= 0 && _playAyah >= lo && _playAyah <= hi;
     // Memorizing (revision too): a word's marks appear as the word does —
@@ -2511,6 +2533,13 @@ class _MushafSettingsSheet extends StatelessWidget {
               chevron: true,
               onTap: onMemorizeCards,
             ),
+          QRow(
+            title: context.l10n.mzTapReveals,
+            subtitle: context.l10n.mzTapRevealsSub,
+            control: QSwitch(
+                value: s.memorizeTapReveals,
+                onChanged: (v) => s.update(() => s.memorizeTapReveals = v)),
+          ),
           if (onReview != null)
             QRow(
               leading: Icon(AppIcons.review, color: pal(context).acc),

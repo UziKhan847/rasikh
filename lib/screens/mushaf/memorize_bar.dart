@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/l10n.dart';
 import '../../core/memorize.dart';
 import '../../core/recite_back.dart';
+import '../../core/settings.dart';
 import '../../core/theme.dart';
 import '../../data/mushaf.dart';
 import '../../ui/app_icons.dart';
@@ -77,7 +78,9 @@ class MemorizeBar extends StatelessWidget {
                     style: uiStyle(context,
                         size: 13, weight: FontWeight.w700, color: ink)),
                 TextSpan(
-                    text: context.l10n.mzHint,
+                    text: SettingsScope.of(context).memorizeTapReveals
+                        ? context.l10n.mzHint
+                        : context.l10n.mzHintPlay,
                     style: uiStyle(context, size: 12.5, color: sub)),
               ]),
               maxLines: 1,

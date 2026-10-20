@@ -1949,5 +1949,8 @@
   "mzAsCards": "Verse cards",
   "mzAsPage": "Muṣḥaf page",
   "mzBigger": "Larger text",
-  "mzSmaller": "Smaller text"
+  "mzSmaller": "Smaller text",
+  "mzTapReveals": "Tap to reveal the next word",
+  "mzTapRevealsSub": "Off: tapping a word plays it, and Next word reveals",
+  "mzHintPlay": "Tap a word to hear it"
 }

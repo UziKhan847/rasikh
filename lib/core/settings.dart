@@ -63,6 +63,11 @@ class AppSettings extends ChangeNotifier {
   /// Memorize as verse cards: the āyah's font size (they're for large text).
   double memorizeCardFont = 36;
 
+  /// Memorize: a tap reveals the next word (anywhere on the page or card).
+  /// Off (the default), tapping a revealed word plays it, and revealing is
+  /// done from the bar.
+  bool memorizeTapReveals = false;
+
   /// The one-time "this device seems slow — turn on Lite mode?" offer has
   /// been made (see core/jank_watch.dart).
   bool liteSuggested = false;
@@ -201,6 +206,7 @@ class AppSettings extends ChangeNotifier {
     gradients = m['gradients'] ?? true;
     lite = m['lite'] ?? false;
     memorizeCardFont = (m['memorizeCardFont'] as num?)?.toDouble() ?? 36;
+    memorizeTapReveals = m['memorizeTapReveals'] ?? false;
     liteSuggested = m['liteSuggested'] ?? false;
     // An install from before the welcome existed has already found its way.
     onboarded = m['onboarded'] ?? true;
@@ -278,6 +284,7 @@ class AppSettings extends ChangeNotifier {
         'gradients': gradients,
         'lite': lite,
         'memorizeCardFont': memorizeCardFont,
+        'memorizeTapReveals': memorizeTapReveals,
         'liteSuggested': liteSuggested,
         'onboarded': onboarded,
         'lang': language,
