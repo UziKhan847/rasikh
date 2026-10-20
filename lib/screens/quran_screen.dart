@@ -18,6 +18,7 @@ import '../core/theme.dart';
 import '../data/mushaf.dart';
 import '../data/quran.dart';
 import '../ui/app_icons.dart';
+import '../ui/classic_ornaments.dart';
 import '../ui/kit.dart';
 import '../ui/mark_style.dart';
 import '../ui/qiraah_ornaments.dart';
@@ -627,12 +628,26 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
     s.update(() => s.reciteFlow = order[(i + 1) % order.length]);
   }
 
+  /// The 15-line muṣḥaf, at the page of the āyah being read. It takes the
+  /// reader's place (its own toggle comes back here), so closing either
+  /// returns to where the reader was opened from.
   Future<void> _openMushaf() async {
     final script = SettingsScope.of(context).quranScript;
-    final p = await MushafRepo.pageForSurah(script, widget.meta.n);
-    if (mounted) {
-      pushAdaptive(context, MushafPageScreen(startPage: p, script: script));
-    }
+    final last = ProgressScope.read(context).lastRead;
+    await MushafRepo.ensure(script);
+    if (!mounted) return;
+    final p = last != null && last.$1 == widget.meta.n
+        ? MushafRepo.pageForGlobalAyah(
+            script,
+            MushafRepo.globalAyahOf(last.$1, last.$2),
+          )
+        : await MushafRepo.pageForSurah(script, widget.meta.n);
+    if (!mounted) return;
+    final nav = Navigator.of(context);
+    final route = MaterialPageRoute<void>(
+      builder: (_) => MushafPageScreen(startPage: p, script: script),
+    );
+    nav.canPop() ? nav.pushReplacement(route) : nav.push(route);
   }
 
   void _toggleTajwid() {
@@ -1070,6 +1085,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
               numeralAr: arabicIndic(i + 1),
               size: 30,
               stroke: ayahMarkerStroke(context),
+              classic: SettingsScope.of(context).useClassic,
               fill: isActive ? p.hl : _ayahFill(i, p.card),
               textColor: p.ink,
             ),
@@ -1139,6 +1155,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
                   numeralAr: arabicIndic(i + 1),
                   size: size * 1.2,
                   stroke: ayahMarkerStroke(context),
+                  classic: SettingsScope.of(context).useClassic,
                   fill: recitingAyah && playingAyah == i
                       ? p.hl
                       : _ayahFill(i, p.card),
@@ -1569,13 +1586,16 @@ class _Banner extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = pal(context);
     final ornate = SettingsScope.of(context).useOrnate;
+    final classic = SettingsScope.of(context).useClassic;
     final gold = ayahMarkerStroke(context);
     final name = Text('سورة ${meta.name}',
         textDirection: TextDirection.rtl,
         maxLines: 1,
         style: TextStyle(
             fontFamily: 'UthmanicHafs', fontSize: 26, height: 1.7, color: p.acc));
-    final band = ornate
+    final band = classic
+        ? ClassicSurahBorder(height: 64, color: gold, child: name)
+        : ornate
         ? Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(

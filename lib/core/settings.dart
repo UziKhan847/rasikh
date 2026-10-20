@@ -49,10 +49,18 @@ class AppSettings extends ChangeNotifier {
   /// themes have their own paper.
   String mushafPaper = 'cream';
 
-  /// Settings → Style: illuminated surah headers and page frames, and the
-  /// slight gradients on hero cards, primary buttons and backgrounds.
-  bool ornate = true;
+  /// Settings → Style → Ornaments: 'plain' | 'modern' (the drawn rosette
+  /// headers) | 'classic' (the traced artwork: sūrah border, āyah circle,
+  /// juzʼ lantern). Then the slight gradients on hero cards, primary buttons
+  /// and backgrounds.
+  String ornaments = 'classic';
   bool gradients = true;
+
+  /// The muṣḥaf's page border (its thin frame), whatever the ornaments.
+  bool mushafBorder = false;
+
+  /// Classic: the juzʼ lantern in each page's outer margin.
+  bool mushafMarginInfo = true;
 
   /// Lite mode, for slow devices: no animations (page fades, entrances,
   /// the tracing pulse), no blurred shadows, no gradients or ornaments, and
@@ -76,17 +84,22 @@ class AppSettings extends ChangeNotifier {
   /// only its essential controls. A tap still brings the muṣḥaf's bars back.
   bool focusMode = false;
 
-  /// The muṣḥaf's frame and running head, focus mode applied.
-  bool get mushafOrnate => useOrnate && !focusMode;
+  /// The muṣḥaf's ornaments, border and running head, focus mode applied.
+  String get mushafOrnaments => focusMode ? 'plain' : ornamentStyle;
+  bool get mushafBorderShown => mushafBorder && !focusMode;
+  bool get mushafMarginShown => mushafMarginInfo && !focusMode;
   bool get mushafHeaderShown => mushafHeader && !focusMode;
 
   /// The one-time "this device seems slow — turn on Lite mode?" offer has
   /// been made (see core/jank_watch.dart).
   bool liteSuggested = false;
 
-  /// What to draw, Lite mode applied: read these, not [gradients]/[ornate].
+  /// What to draw, Lite mode applied: read these, not
+  /// [gradients]/[ornaments].
   bool get useGradients => gradients && !lite;
-  bool get useOrnate => ornate && !lite;
+  String get ornamentStyle => lite ? 'plain' : ornaments;
+  bool get useOrnate => ornamentStyle != 'plain';
+  bool get useClassic => ornamentStyle == 'classic';
 
   /// The first-launch welcome has been finished or skipped.
   bool onboarded = false;
@@ -214,7 +227,11 @@ class AppSettings extends ChangeNotifier {
     appTheme = m['theme'] as String? ??
         switch (m['mode']) { 'dark' => 'night', 'oled' => 'oled', _ => 'light' };
     mushafPaper = m['mushafPaper'] ?? 'cream';
-    ornate = m['ornate'] ?? true;
+    // Before the three styles: an on/off "ornate borders".
+    ornaments = m['ornaments'] as String? ??
+        (m['ornate'] == false ? 'plain' : 'classic');
+    mushafBorder = m['mushafBorder'] ?? false;
+    mushafMarginInfo = m['mushafMarginInfo'] ?? true;
     gradients = m['gradients'] ?? true;
     lite = m['lite'] ?? false;
     memorizeCardFont = (m['memorizeCardFont'] as num?)?.toDouble() ?? 36;
@@ -294,7 +311,9 @@ class AppSettings extends ChangeNotifier {
         'haptics': haptics,
         'theme': appTheme,
         'mushafPaper': mushafPaper,
-        'ornate': ornate,
+        'ornaments': ornaments,
+        'mushafBorder': mushafBorder,
+        'mushafMarginInfo': mushafMarginInfo,
         'gradients': gradients,
         'lite': lite,
         'memorizeCardFont': memorizeCardFont,

@@ -16,6 +16,7 @@ import '../core/settings.dart';
 import '../core/theme.dart';
 import '../data/mushaf_atlas.dart';
 import 'mushaf/mushaf_index_sheet.dart';
+import 'quran_screen.dart';
 import '../core/memorize.dart';
 import '../core/recite_back.dart';
 import 'mushaf/memorize_bar.dart';
@@ -23,6 +24,7 @@ import 'mushaf/memorize_cards_screen.dart';
 import '../core/marks/review.dart';
 import 'marks/review_bar.dart';
 import 'marks/review_cards_screen.dart';
+import '../ui/classic_ornaments.dart';
 import '../ui/tajwid_colors.dart';
 import '../data/mushaf.dart';
 import '../data/quran.dart';
@@ -628,6 +630,11 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     MushafLineScheduler.addJob(_warm(order, _script, mushafPaperOf(s)));
   }
 
+  /// How the pages are dressed: ornaments and border, focus mode applied.
+  MushafDeco _deco(AppSettings s) =>
+      MushafDeco.of(_script, s.mushafOrnaments, s.mushafBorderShown,
+          s.mushafMarginShown);
+
   Iterable<void> _warm(List<int> pages, String script, MushafPaper paper) sync* {
     for (final p in pages) {
       if (!mounted || script != _script) return;
@@ -662,6 +669,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           accent: paper.acc,
           strongBg: paper.hl2,
           verseBg: paper.hl,
+          justify: !mushafOpeningPage(p, lines),
+          ornament: _deco(_settingsRef!).classic ? paper.frame : null,
         );
         if (MushafLineCache.has(spec.key)) continue;
         MushafLineCache.get(spec, why: 'prewarm');
@@ -1056,6 +1065,20 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     );
   }
 
+  /// The reader, at the first āyah on the page in view — the muṣḥaf's
+  /// counterpart of the reader's 15-line toggle. It takes the muṣḥaf's
+  /// place, so closing either returns to where the muṣḥaf was opened from.
+  Future<void> _openReader() async {
+    _stopAudio();
+    final (su, ay) = MushafRepo.firstVerseOfPage(_script, _pendingPage ?? _page);
+    final metas = await QuranRepo.meta();
+    if (!mounted) return;
+    final nav = Navigator.of(context);
+    final route = MaterialPageRoute<void>(
+        builder: (_) => SurahReaderScreen(meta: metas[su - 1], startAyah: ay));
+    nav.canPop() ? nav.pushReplacement(route) : nav.push(route);
+  }
+
   /// Go to page, or to the start of a sūrah.
   void _showIndex() {
     showMushafIndex(
@@ -1266,7 +1289,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     final hideFrom = _memo?.hideFromOn(page) ?? -1;
     final tajwid = s.mushafTajwid ? tajwidColorsForDark(paper.dark) : null;
     final inputs = <Object?>[
-      _script, paper, s.mushafOrnate, fitWidth, s.mushafHeaderShown, margin, spine,
+      _script, paper, _deco(s), fitWidth, s.mushafHeaderShown, margin, spine,
       _names, mine ? _playAyah : -1, mine ? _playWord : -1,
       mine && _reciting, marks, markPal, tajwid, compact, focus, hideFrom,
     ];
@@ -1278,7 +1301,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       script: _script,
       names: _names,
       paper: paper,
-      ornate: s.mushafOrnate,
+      deco: _deco(s),
       wideLayout: fitWidth,
       showHeader: s.mushafHeaderShown,
       margin: margin,
@@ -1433,7 +1456,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           Size(c.maxWidth - margin.horizontal, c.maxHeight - margin.vertical);
       Size box(int p) {
         final b = MushafGeometry.pageBox(avail, _script,
-            ornate: s.mushafOrnate, header: s.mushafHeaderShown, page: p);
+            deco: _deco(s), header: s.mushafHeaderShown, page: p);
         return MushafGeometry.pageRatio(_script, p) == null
             ? Size(b.width, avail.height)
             : b;
@@ -1510,6 +1533,12 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                 pen,
                 const SizedBox(width: 8),
               ],
+              _PaperButton(
+                  paper: paper,
+                  icon: AppIcons.reader,
+                  tooltip: context.l10n.navReader,
+                  onTap: _openReader),
+              const SizedBox(width: 8),
               _PaperButton(
                   paper: paper,
                   icon: AppIcons.tune,
@@ -1804,6 +1833,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
               shadow: true,
               tooltip: context.l10n.idxIndex,
               onTap: _showIndex),
+          const SizedBox(height: 8),
+          _PaperButton(
+              paper: paper,
+              icon: AppIcons.reader,
+              size: 46,
+              shadow: true,
+              tooltip: context.l10n.navReader,
+              onTap: _openReader),
           const SizedBox(height: 8),
           if (_penButton(context, paper, size: 46, shadow: true)
               case final pen?) ...[
@@ -2113,6 +2150,12 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         ],
         _PaperButton(
             paper: paper,
+            icon: AppIcons.reader,
+            tooltip: context.l10n.navReader,
+            onTap: _openReader),
+        const SizedBox(width: 10),
+        _PaperButton(
+            paper: paper,
             icon: AppIcons.tune,
             tooltip: context.l10n.mushafSettings,
             onTap: _showSettings),
@@ -2133,7 +2176,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       {bool compact = false}) {
     final first = _spreadStart(page);
     Size fit(int p, Size a) => MushafGeometry.pageBox(a, _script,
-        ornate: s.mushafOrnate, header: s.mushafHeaderShown, page: p, compact: compact);
+        deco: _deco(s), header: s.mushafHeaderShown, page: p, compact: compact);
     final r = fit(first, avail), l = fit(first + 1, avail);
     final h = r.height < l.height ? r.height : l.height;
     return fit(page, Size(avail.width, h));
@@ -2182,7 +2225,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         Size box(Size avail, int page,
                 {double? heightBudget, bool byWidthOnly = false}) =>
             MushafGeometry.pageBox(avail, _script,
-                ornate: s.mushafOrnate,
+                deco: _deco(s),
                 header: s.mushafHeaderShown,
                 page: page,
                 heightBudget: heightBudget,
@@ -2605,15 +2648,36 @@ class _MushafSettingsSheet extends StatelessWidget {
                 onChanged: (v) => s.update(() => s.mushafHeader = v)),
           ),
           QRow(
-            title: context.l10n.ornateBorders,
-            subtitle: s.lite
-                ? context.l10n.liteOffNote
-                : context.l10n.ornateBordersSub,
-            control: QSwitch(
-                value: s.useOrnate,
-                onChanged:
-                    s.lite ? null : (v) => s.update(() => s.ornate = v)),
+            title: context.l10n.ornaments,
+            subtitle: s.lite ? context.l10n.liteOffNote : context.l10n.ornamentsSub,
+            control: QSegmented<String>(
+              expand: false,
+              options: [
+                ('plain', context.l10n.ornPlain, null),
+                ('modern', context.l10n.ornModern, null),
+                ('classic', context.l10n.ornClassic, null),
+              ],
+              value: s.ornamentStyle,
+              onChanged: (v) {
+                if (!s.lite) s.update(() => s.ornaments = v);
+              },
+            ),
           ),
+          QRow(
+            title: context.l10n.pageBorder,
+            subtitle: context.l10n.pageBorderSub,
+            control: QSwitch(
+                value: s.mushafBorder,
+                onChanged: (v) => s.update(() => s.mushafBorder = v)),
+          ),
+          if (s.useClassic)
+            QRow(
+              title: context.l10n.marginInfo,
+              subtitle: context.l10n.marginInfoSub,
+              control: QSwitch(
+                  value: s.mushafMarginInfo,
+                  onChanged: (v) => s.update(() => s.mushafMarginInfo = v)),
+            ),
           QRow(
             title: context.l10n.liteMode,
             subtitle: context.l10n.liteModeSub,
@@ -2708,7 +2772,7 @@ class _MushafPageView extends StatelessWidget {
   final String script;
   final Map<int, String> names;
   final MushafPaper paper;
-  final bool ornate;
+  final MushafDeco deco;
   final bool wideLayout;
   final bool showHeader;
   final EdgeInsets margin;
@@ -2741,7 +2805,7 @@ class _MushafPageView extends StatelessWidget {
     required this.script,
     required this.names,
     required this.paper,
-    required this.ornate,
+    required this.deco,
     required this.wideLayout,
     required this.showHeader,
     this.margin = EdgeInsets.zero,
@@ -2777,20 +2841,24 @@ class _MushafPageView extends StatelessWidget {
       _ => const BorderRadius.all(r),
     };
     final frame = paper.frame.withValues(alpha: .6);
-    // The thin page frame: 1px frame colour at 60%, with a second rule 3px
-    // outside it when ornate borders are on.
+    final rules = deco.frameRules;
+    // The page border (a setting of its own): 1px frame colour at 60%, with
+    // a second rule 3px outside it with ornaments on; without it, just the
+    // inner padding.
     Widget framed(Widget child) {
       final inner = Container(
         padding: compact
             ? const EdgeInsets.symmetric(horizontal: 6, vertical: 2)
             : const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          border: Border.all(color: frame),
-          borderRadius: BorderRadius.circular(ornate ? 4 : 6),
-        ),
+        decoration: rules == 0
+            ? null
+            : BoxDecoration(
+                border: Border.all(color: frame),
+                borderRadius: BorderRadius.circular(rules == 2 ? 4 : 6),
+              ),
         child: child,
       );
-      if (!ornate) return inner;
+      if (rules < 2) return inner;
       return Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
@@ -2819,11 +2887,39 @@ class _MushafPageView extends StatelessWidget {
                 Colors.transparent,
               ],
             );
-      final padding = roomy
-          ? const EdgeInsets.fromLTRB(22, 18, 22, 10)
-          : (compact
-              ? const EdgeInsets.fromLTRB(4, 4, 4, 3)
-              : const EdgeInsets.fromLTRB(6, 6, 6, 4));
+      final band = deco.lantern
+          ? MushafGeometry.lanternBand(roomy: roomy, compact: compact)
+          : 0.0;
+      final padding = (roomy
+              ? const EdgeInsets.fromLTRB(22, 18, 22, 10)
+              : (compact
+                  ? const EdgeInsets.fromLTRB(4, 4, 4, 3)
+                  : const EdgeInsets.fromLTRB(6, 6, 6, 4))) +
+          EdgeInsets.symmetric(horizontal: band);
+      // Classic: the juzʼ lantern in the outer margin (right of an odd
+      // page, left of an even one), a little above the middle.
+      Widget lanterned(Widget child) {
+        if (!deco.lantern) return child;
+        final pad = padding - EdgeInsets.symmetric(horizontal: band);
+        return Stack(children: [
+          child,
+          Positioned.fill(
+            child: Padding(
+              padding: pad.copyWith(left: pad.left + 1, right: pad.right + 1),
+              child: Align(
+                alignment: Alignment(page.isOdd ? 1 : -1, -.56),
+                child: ClassicLantern(
+                  width: band * .9,
+                  number: _ar(MushafRepo.juzOfPage(script, page)),
+                  color: paper.frame,
+                  textColor: paper.acc,
+                ),
+              ),
+            ),
+          ),
+        ]);
+      }
+
       final decoration = BoxDecoration(
         color: paper.paper,
         borderRadius: radius,
@@ -2872,7 +2968,7 @@ class _MushafPageView extends StatelessWidget {
           }),
           child: SingleChildScrollView(
             padding: margin.copyWith(bottom: margin.bottom + 12),
-            child: Container(
+            child: lanterned(Container(
               decoration: decoration,
               foregroundDecoration: foreground,
               padding: padding,
@@ -2887,14 +2983,14 @@ class _MushafPageView extends StatelessWidget {
                   ?pageNumber,
                 ],
               ),
-            ),
+            )),
           ),
         );
       }
 
       return Padding(
         padding: margin,
-        child: Container(
+        child: lanterned(Container(
           decoration: decoration,
           foregroundDecoration: foreground,
           padding: padding,
@@ -2911,7 +3007,7 @@ class _MushafPageView extends StatelessWidget {
               ?pageNumber,
             ],
           ),
-        ),
+        )),
       );
     });
   }
@@ -2978,21 +3074,36 @@ class _MushafPageView extends StatelessWidget {
       child: SizedBox(
         height: contentH,
         width: vw,
-        child: Column(
-          children: [
-            for (var i = 0; i < lines.length; i++)
-              Expanded(
-                  child: Center(
-                      child: _slot(context, i, lines[i], fs, vw, slotH, ink))),
-          ],
-        ),
+        // The opening pages: their few lines close together in the middle.
+        child: mushafOpeningPage(page, lines)
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < lines.length; i++)
+                    SizedBox(
+                        height: slotH,
+                        child: Center(
+                            child: _slot(
+                                context, i, lines[i], fs, vw, slotH, ink,
+                                justify: false))),
+                ],
+              )
+            : Column(
+                children: [
+                  for (var i = 0; i < lines.length; i++)
+                    Expanded(
+                        child: Center(
+                            child: _slot(
+                                context, i, lines[i], fs, vw, slotH, ink))),
+                ],
+              ),
       ),
     );
     return pageBody;
   }
 
   Widget _slot(BuildContext context, int index, MushafLine l, double fs,
-      double targetW, double slotH, Color ink) {
+      double targetW, double slotH, Color ink, {bool justify = true}) {
     if (l.isHeader) {
       final glyph = (l.surah >= 1 && l.surah <= surahGlyphCodes.length)
           ? surahGlyphCodes[l.surah - 1]
@@ -3003,7 +3114,8 @@ class _MushafPageView extends StatelessWidget {
           title: glyph == null
               ? (names[l.surah] ?? '')
               : String.fromCharCodes([glyph, 0xe903]),
-          ornate: ornate,
+          ornate: deco.ornate,
+          classic: deco.classic,
           lineHeight: slotH,
           frame: paper.frame,
           paper: paper.paper,
@@ -3046,6 +3158,8 @@ class _MushafPageView extends StatelessWidget {
         tajwid: tajwid,
         focus: focus,
         hideFrom: hideFrom,
+        justify: justify,
+        ornament: deco.classic ? paper.frame : null,
       ),
     );
   }

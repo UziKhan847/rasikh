@@ -639,20 +639,36 @@ abstract final class MushafGeometry {
   /// [compact]: the phone's two-page spread — thinner padding, and the page
   /// number in the running head instead of a line of its own.
   static double chromeW(
-          {required bool roomy, required bool ornate, bool compact = false}) =>
+          {required bool roomy,
+          required MushafDeco deco,
+          bool compact = false}) =>
       2 +
       (roomy ? 44 : (compact ? 8 : 12)) +
-      (ornate ? (compact ? 22 : 26) : (compact ? 14 : 18));
+      switch (deco.frameRules) {
+        2 => compact ? 22 : 26,
+        1 => compact ? 14 : 18,
+        _ => compact ? 12 : 16,
+      } +
+      (deco.lantern ? 2 * lanternBand(roomy: roomy, compact: compact) : 0);
 
   static double chromeH(
           {required bool roomy,
-          required bool ornate,
+          required MushafDeco deco,
           required bool header,
           bool compact = false}) =>
       2 +
       (roomy ? 28 : (compact ? 7 : 10)) +
-      (ornate ? (compact ? 14 : 18) : (compact ? 6 : 10)) +
+      switch (deco.frameRules) {
+        2 => compact ? 14 : 18,
+        1 => compact ? 6 : 10,
+        _ => compact ? 4 : 8,
+      } +
       (header ? (compact ? 30 : 30 + 19.5) : 0);
+
+  /// Classic: the band each side of the text that the juzʼ lantern stands
+  /// in (both sides, so the text stays centred).
+  static double lanternBand({required bool roomy, bool compact = false}) =>
+      roomy ? 36 : (compact ? 12 : 20);
 
   /// The page box that fits in [avail]. With [page] and a scanned shape for
   /// it ([pageRatio]), its text block has exactly the printed page's
@@ -661,7 +677,7 @@ abstract final class MushafGeometry {
   /// the page may scroll (zoomed single page); with [byWidthOnly] the height
   /// follows the width.
   static Size pageBox(Size avail, String script,
-      {required bool ornate,
+      {required MushafDeco deco,
       required bool header,
       int? page,
       double? heightBudget,
@@ -669,9 +685,9 @@ abstract final class MushafGeometry {
       bool compact = false}) {
     final ratio = page == null ? null : pageRatio(script, page);
     Size fit(bool roomy) {
-      final cw = chromeW(roomy: roomy, ornate: ornate, compact: compact);
+      final cw = chromeW(roomy: roomy, deco: deco, compact: compact);
       final ch = chromeH(
-          roomy: roomy, ornate: ornate, header: header, compact: compact);
+          roomy: roomy, deco: deco, header: header, compact: compact);
       final h = (heightBudget ?? avail.height) - ch;
       if (ratio != null) {
         final byH = h * ratio;
@@ -694,10 +710,11 @@ abstract final class MushafGeometry {
 
   /// The text area inside a page box from [pageBox] (what the page's line
   /// grid gets) — for preparing a page's lines before it's on screen.
-  static Size textArea(Size box, {required bool ornate, required bool header}) {
+  static Size textArea(Size box,
+      {required MushafDeco deco, required bool header}) {
     final roomy = box.width > roomyWidth;
-    return Size(box.width - chromeW(roomy: roomy, ornate: ornate),
-        box.height - chromeH(roomy: roomy, ornate: ornate, header: header));
+    return Size(box.width - chromeW(roomy: roomy, deco: deco),
+        box.height - chromeH(roomy: roomy, deco: deco, header: header));
   }
 
   /// Width ÷ height of [page]'s text block as printed, from the scanned
@@ -808,4 +825,43 @@ abstract final class MushafGeometry {
   /// pass — so a line isn't shaped again just to be measured. Null until
   /// its page has been measured.
   static double? lineEm(MushafLine line) => _lineEm[line];
+}
+
+/// How a muṣḥaf page is dressed: its ornament style ('plain' | 'modern' |
+/// 'classic'), whether it has its border, and (Classic) the juzʼ lantern in
+/// its margin. Classic is drawn for the Madani script; Indo-Pak shows
+/// Modern until it has its own artwork.
+class MushafDeco {
+  final String style;
+  final bool border;
+  final bool margin;
+  const MushafDeco(this.style, this.border, [this.margin = true]);
+
+  /// The old "ornate borders" page: Modern, with its double frame.
+  static const framed = MushafDeco('modern', true);
+
+  factory MushafDeco.of(String script, String style, bool border,
+          [bool margin = true]) =>
+      MushafDeco(
+          style == 'classic' && script == 'indopak' ? 'modern' : style,
+          border,
+          margin);
+
+  bool get ornate => style != 'plain';
+  bool get classic => style == 'classic';
+
+  /// The page frame's rules: none, one, or two (ornate styles).
+  int get frameRules => !border ? 0 : (ornate ? 2 : 1);
+
+  /// Classic pages carry the juzʼ lantern in their outer margin.
+  bool get lantern => classic && margin;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MushafDeco &&
+      other.style == style &&
+      other.border == border &&
+      other.margin == margin;
+  @override
+  int get hashCode => Object.hash(style, border, margin);
 }

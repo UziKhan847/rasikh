@@ -93,11 +93,11 @@ void main() {
       final box = MushafGeometry.pageBox(
         const Size(380, 700),
         'uthmani',
-        ornate: true,
+        deco: MushafDeco.framed,
         header: true,
         page: p,
       );
-      final area = MushafGeometry.textArea(box, ornate: true, header: true);
+      final area = MushafGeometry.textArea(box, deco: MushafDeco.framed, header: true);
       expect(
         area.width / area.height,
         closeTo(MushafGeometry.pageRatio('uthmani', p)!, 1e-6),

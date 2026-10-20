@@ -1963,5 +1963,14 @@
   },
   "fcFocus": "Focus mode",
   "fcFocusSub": "Just the page: no bars, running head or frame — memorize keeps only its essentials",
-  "fcExit": "Leave focus mode"
+  "fcExit": "Leave focus mode",
+  "ornaments": "Ornaments",
+  "ornamentsSub": "Sūrah headers, āyah markers and the margin",
+  "ornPlain": "Plain",
+  "ornModern": "Modern",
+  "ornClassic": "Classic",
+  "pageBorder": "Page border",
+  "pageBorderSub": "A thin frame around the muṣḥaf page",
+  "marginInfo": "Juzʼ in the margin",
+  "marginInfoSub": "Classic: a lantern in the outer margin shows the juzʼ"
 }

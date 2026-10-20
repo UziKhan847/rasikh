@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:developer' show Timeline;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/rendering.dart';
@@ -15,6 +16,7 @@ import '../../core/perf_log.dart';
 import '../../core/tap_longpress.dart';
 import '../../data/mushaf.dart';
 import '../../data/mushaf_atlas.dart';
+import '../../ui/classic_ornaments.dart';
 import '../../ui/mark_style.dart';
 
 /// One text line of the 15-line muṣḥaf, shaped once.
@@ -33,6 +35,12 @@ import '../../ui/mark_style.dart';
 /// Font size, line slot and content height of a page for a viewport — a
 /// pure function of (script, page, viewport, layout mode), shared by the page
 /// and by background preparation so both build the same lines.
+/// The muṣḥaf's two opening pages (al-Fātiḥah, the start of al-Baqarah):
+/// a few short lines set close together in a rounded block in the middle of
+/// the page, not spread over a full page's height.
+bool mushafOpeningPage(int page, List<MushafLine> lines) =>
+    page <= 2 && lines.length < 12;
+
 (double fs, double slotH, double contentH) mushafPageGeometry(
   String script,
   int page,
@@ -44,6 +52,19 @@ import '../../ui/mark_style.dart';
   final key = '$script/$page/${_round4(vw)}/${_round4(vh)}/$fitWidth';
   final cached = _geomCache[key];
   if (cached != null) return cached;
+  if (mushafOpeningPage(page, lines)) {
+    // The text size of a regular page in this viewport (its full measure
+    // and fifteen lines), the lines at the usual pitch; the page centres
+    // the block.
+    final byWidth = vw / MushafGeometry.refEmOf(script);
+    final byHeight =
+        (fitWidth ? vw * 1.5 : vh) / 15 / MushafGeometry.minPitch;
+    final raw = (byWidth < byHeight ? byWidth : byHeight).clamp(8.0, 200.0);
+    final fs = (raw * 2).floorToDouble() / 2;
+    final slotH = fs * MushafGeometry.pitch;
+    final r = (fs, slotH, fitWidth ? slotH * 15 : vh);
+    return _geomCache[key] = r;
+  }
   final n = lines.isEmpty ? 1 : lines.length;
   // The page's widest line fills the width; lines sit about
   // MushafGeometry.pitch apart (never tighter than minPitch, which caps the
@@ -108,6 +129,14 @@ class MushafLineSpec {
   /// takes a plain space.
   final bool rewrap;
 
+  /// Whether the line may be justified (spaces widened to the measure).
+  /// The opening pages' lines keep their natural width.
+  final bool justify;
+
+  /// Classic ornaments: the āyah markers' circle is the traced artwork in
+  /// this colour (the atlas path; the text fallback keeps the font's).
+  final Color? ornament;
+
   /// Memorize mode: tokens from this index of the token stream on are
   /// hidden — left out of the sprite lists entirely (no glyphs, colours,
   /// highlights or marks), their boxes kept so nothing moves. -1: none.
@@ -147,6 +176,8 @@ class MushafLineSpec {
     int focus = -1,
     bool rewrap = false,
     int hideFrom = -1,
+    bool justify = true,
+    Color? ornament,
   }) {
     final variant = StringBuffer();
     // Only how much of THIS line is hidden matters: lines wholly before the
@@ -156,6 +187,7 @@ class MushafLineSpec {
         ? -1
         : (hideFrom <= t0 ? 0 : hideFrom - t0);
     if (hide >= 0) variant.write('h$hide,');
+    if (!justify) variant.write('nj,');
     for (var i = 0; i < line.words.length; i++) {
       final wd = line.words[i];
       final st = _tokenState(wd, playAyah, playWord, reciting);
@@ -177,6 +209,7 @@ class MushafLineSpec {
         '${plain ? 'p' : '${accent.toARGB32()}|${strongBg.toARGB32()}|'
                   '${verseBg.toARGB32()}|${identityHashCode(markPal)}|$variant'}'
         '${tajwid == null ? '' : '|tj${identityHashCode(tajwid)}'}'
+        '${ornament == null ? '' : '|o${ornament.toARGB32()}'}'
         // Atlas or text: the line redraws when the atlas arrives.
         '|${MushafAtlas.of(script) == null ? 't' : 'a'}';
     return MushafLineSpec._(
@@ -200,6 +233,8 @@ class MushafLineSpec {
       focus,
       rewrap,
       hide < 0 ? -1 : t0 + hide,
+      justify,
+      ornament,
       key,
       plain,
     );
@@ -226,6 +261,8 @@ class MushafLineSpec {
     this.focus,
     this.rewrap,
     this.hideFrom,
+    this.justify,
+    this.ornament,
     this.key,
     this.plain,
   );
@@ -324,6 +361,9 @@ class AtlasLine implements MushafLineLayout {
   final List<(int sheet, Float32List xforms, Float32List rects, Int32List colors)>
       batches;
 
+  /// Classic ornaments: the āyah circles, drawn from their own sprite.
+  final (ui.Image, Float32List, Float32List, Int32List)? circles;
+
   /// Each token's colour as drawn (tests).
   @visibleForTesting
   final List<Color> tokenColors;
@@ -346,6 +386,7 @@ class AtlasLine implements MushafLineLayout {
     this.tokenColors,
     this.glyphColors, [
     this.focusBoxes = const [],
+    this.circles,
   ]);
 }
 
@@ -366,6 +407,12 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
   final tokenWord = atlas.tokenWord, tokenGap = atlas.tokenGap;
   final wordAdvance = atlas.wordAdvance, wordStart = atlas.wordGlyphStart;
   final glyphId = atlas.glyphId, sheetOf = t.sheet;
+  // Classic ornaments: an āyah marker's first glyph (its plain circle) is
+  // swapped for the traced circle, from a sprite of its own.
+  final ornament = s.ornament;
+  int circleOf(int i) => ornament != null && l.words[i].isMarker
+      ? wordStart[tokenWord[t0 + i]]
+      : -1;
 
   int gapAfter(int tok) {
     final g = tokenGap[tok];
@@ -379,14 +426,16 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
     natural += wordAdvance[w];
     if (i < n - 1) natural += gapAfter(t0 + i);
     if (s.isHidden(i)) continue; // no sprites for a hidden word
+    final circle = circleOf(i);
     for (var g = wordStart[w]; g < wordStart[w + 1]; g++) {
+      if (g == circle) continue;
       final sh = sheetOf[glyphId[g]];
       if (sh != 255) perSheet[sh]++;
     }
   }
   natural *= k;
   final spaces = n - 1;
-  final justified = natural >= s.targetW * 0.45 && spaces > 0;
+  final justified = s.justify && natural >= s.targetW * 0.45 && spaces > 0;
   final gapExtra = justified
       ? ((s.targetW - natural) / spaces).clamp(0.0, 1e6)
       : 0.0;
@@ -411,6 +460,8 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
   final focused = <(double, double)>[];
   final tokenColors = <Color>[];
   final glyphColors = <List<Color>>[];
+  ui.Image? circleImg;
+  final circleXf = <double>[], circleRc = <double>[], circleCol = <int>[];
   var x = width;
   for (var i = 0; i < n; i++) {
     final wd = l.words[i];
@@ -445,7 +496,31 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
     final pEnd = tj != null && st != 1 ? tjStart[tok + 1] : 0;
     final g0 = wordStart[w], g1 = wordStart[w + 1];
     final debugColors = kDebugMode ? <Color>[] : null;
+    final circle = circleOf(i);
+    if (circle >= 0) {
+      // The traced circle, its ring over the font circle's (the number
+      // sits in both alike).
+      final a = glyphId[circle];
+      final img = circleImg ??= ClassicArt.circleSprite(
+          (shh[a] / ClassicArt.ringDiameter).round().clamp(4, 1024));
+      final dh = (img.height - 2) * scale, dw = (img.width - 2) * scale;
+      final cx = left + gx[circle] * k + bl[a] * scale + sw[a] * scale / 2;
+      final cy = baseline - gy[circle] * k - bt[a] * scale + shh[a] * scale / 2;
+      circleXf.addAll([
+        scale,
+        0,
+        cx - dw / 2 - scale,
+        cy - dh * ClassicArt.ringCentreY - scale,
+      ]);
+      circleRc.addAll(
+          [0, 0, img.width.toDouble(), img.height.toDouble()]);
+      circleCol.add((st == 1 ? s.accent : ornament!).toARGB32());
+    }
     for (var g = g0; g < g1; g++) {
+      if (g == circle) {
+        debugColors?.add(Color(baseArgb));
+        continue;
+      }
       var argb = baseArgb;
       while (p < pEnd && pairs[p * 2] < g - g0) {
         p++;
@@ -490,6 +565,14 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
     tokenColors,
     glyphColors,
     focused,
+    circleImg == null
+        ? null
+        : (
+            circleImg,
+            Float32List.fromList(circleXf),
+            Float32List.fromList(circleRc),
+            Int32List.fromList(circleCol),
+          ),
   );
 }
 
@@ -528,7 +611,7 @@ LaidLine _shape(MushafLineSpec s) {
   // Justify by widening each space (the paragraph's wordSpacing; Skia
   // ignores letterSpacing on these runs, and wordSpacing on a child span).
   final spaces = l.words.length - 1;
-  final justified = natural >= s.targetW * 0.45 && spaces > 0;
+  final justified = s.justify && natural >= s.targetW * 0.45 && spaces > 0;
   var gapExtra = justified
       ? ((s.targetW - natural) / spaces).clamp(0.0, 1e6)
       : 0.0;
@@ -1155,6 +1238,10 @@ void paintAtlasLine(Canvas canvas, Offset o, AtlasLine l, MushafAtlas atlas,
         null,
         paint,
       );
+    }
+    if (l.circles case (final img, final xf, final rects, final colors)) {
+      canvas.drawRawAtlas(
+          img, xf, rects, colors, BlendMode.modulate, null, paint);
     }
     canvas.restore();
   }

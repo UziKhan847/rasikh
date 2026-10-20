@@ -994,5 +994,14 @@
   "rpSavedTo": "Guardado en {path}",
   "fcFocus": "Modo concentración",
   "fcFocusSub": "Solo la página: sin barras, encabezado ni marco — memorizar conserva lo esencial",
-  "fcExit": "Salir del modo concentración"
+  "fcExit": "Salir del modo concentración",
+  "ornaments": "Ornamentos",
+  "ornamentsSub": "Encabezados de sura, marcadores de aleya y margen",
+  "ornPlain": "Sencillo",
+  "ornModern": "Moderno",
+  "ornClassic": "Clásico",
+  "pageBorder": "Borde de página",
+  "pageBorderSub": "Un marco fino alrededor de la página del muṣḥaf",
+  "marginInfo": "Juzʼ en el margen",
+  "marginInfoSub": "Clásico: una linterna en el margen exterior muestra el juzʼ"
 }

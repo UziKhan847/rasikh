@@ -994,5 +994,14 @@
   "rpSavedTo": "Enregistré dans {path}",
   "fcFocus": "Mode concentration",
   "fcFocusSub": "La page seule : ni barres, ni en-tête, ni cadre — la mémorisation garde l'essentiel",
-  "fcExit": "Quitter le mode concentration"
+  "fcExit": "Quitter le mode concentration",
+  "ornaments": "Ornements",
+  "ornamentsSub": "En-têtes de sourate, marqueurs de verset et marge",
+  "ornPlain": "Simple",
+  "ornModern": "Moderne",
+  "ornClassic": "Classique",
+  "pageBorder": "Cadre de page",
+  "pageBorderSub": "Un fin cadre autour de la page du muṣḥaf",
+  "marginInfo": "Juzʼ dans la marge",
+  "marginInfoSub": "Classique : une lanterne dans la marge extérieure indique le juzʼ"
 }

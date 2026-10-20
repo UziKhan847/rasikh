@@ -84,7 +84,9 @@ void main() {
       s.update(() {
         s.appTheme = 'night';
         s.mushafPaper = 'white';
-        s.ornate = false;
+        s.ornaments = 'modern';
+        s.mushafBorder = true;
+        s.mushafMarginInfo = false;
         s.gradients = false;
         s.playerDock = 'floating';
         s.playbackSpeed = 1.25;
@@ -100,7 +102,8 @@ void main() {
       await again.load();
       expect(again.appTheme, 'night');
       expect(again.mushafPaper, 'white');
-      expect(again.ornate, isFalse);
+      expect(again.ornaments, 'modern');
+      expect((again.mushafBorder, again.mushafMarginInfo), (true, false));
       expect(again.gradients, isFalse);
       expect(again.playerDock, 'floating');
       expect(again.playbackSpeed, 1.25);

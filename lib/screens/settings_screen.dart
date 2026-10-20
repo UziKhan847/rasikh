@@ -244,15 +244,36 @@ class _Style extends StatelessWidget {
               value: s.lite, onChanged: (v) => s.update(() => s.lite = v)),
         ),
         QRow(
-          title: context.l10n.ornateBorders,
-          subtitle: s.lite
-              ? context.l10n.liteOffNote
-              : context.l10n.ornateBordersSub,
-          control: QSwitch(
-              value: s.useOrnate,
-              onChanged:
-                  s.lite ? null : (v) => s.update(() => s.ornate = v)),
+          title: context.l10n.ornaments,
+          subtitle: s.lite ? context.l10n.liteOffNote : context.l10n.ornamentsSub,
+          control: QSegmented<String>(
+            expand: false,
+            options: [
+              ('plain', context.l10n.ornPlain, null),
+              ('modern', context.l10n.ornModern, null),
+              ('classic', context.l10n.ornClassic, null),
+            ],
+            value: s.ornamentStyle,
+            onChanged: (v) {
+              if (!s.lite) s.update(() => s.ornaments = v);
+            },
+          ),
         ),
+        QRow(
+          title: context.l10n.pageBorder,
+          subtitle: context.l10n.pageBorderSub,
+          control: QSwitch(
+              value: s.mushafBorder,
+              onChanged: (v) => s.update(() => s.mushafBorder = v)),
+        ),
+        if (s.useClassic)
+          QRow(
+            title: context.l10n.marginInfo,
+            subtitle: context.l10n.marginInfoSub,
+            control: QSwitch(
+                value: s.mushafMarginInfo,
+                onChanged: (v) => s.update(() => s.mushafMarginInfo = v)),
+          ),
         QRow(
           title: context.l10n.gradients,
           subtitle:

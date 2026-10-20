@@ -51,7 +51,7 @@ void main() {
     expect((s.useOrnate, s.useGradients), (true, true));
     s.lite = true;
     expect((s.useOrnate, s.useGradients), (false, false));
-    expect((s.ornate, s.gradients), (true, true)); // back when Lite is off
+    expect((s.ornaments, s.gradients), ('classic', true)); // back when Lite is off
     await s.save();
     final again = AppSettings();
     await again.load();

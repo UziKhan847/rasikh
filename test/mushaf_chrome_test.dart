@@ -171,7 +171,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(_barOpacity(tester), 0, reason: 'the bars start hidden');
     expect(s.mushafHeaderShown, isFalse);
-    expect(s.mushafOrnate, isFalse);
+    expect(s.mushafOrnaments, 'plain');
 
     // A tap in the margin brings the bars back; memorize from the sheet.
     await tester.tapAt(const Offset(12, 420));

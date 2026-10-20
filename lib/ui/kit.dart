@@ -649,6 +649,8 @@ class QOutlineButton extends StatelessWidget {
         child: Container(
           height: height,
           padding: const EdgeInsets.symmetric(horizontal: 18),
+          // Centred when the button is stretched wider than its label.
+          alignment: Alignment.center,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [

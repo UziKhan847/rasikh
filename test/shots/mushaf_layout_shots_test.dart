@@ -49,6 +49,10 @@ void main() {
     ('phone_tajwid', 'uthmani', 50, const Size(393, 852), null, 'light'),
     ('phone_tajwid_night', 'indopak', 50, const Size(393, 852), null, 'night'),
     ('phone_landscape_two', 'uthmani', 22, const Size(914, 412), null, 'light'),
+    ('opening_uthmani', 'uthmani', 1, const Size(1400, 900), 'spread', 'light'),
+    ('opening_indopak', 'indopak', 1, const Size(1400, 900), 'spread', 'light'),
+    ('phone_opening', 'uthmani', 1, const Size(393, 852), null, 'light'),
+    ('phone_opening_2', 'uthmani', 2, const Size(393, 852), null, 'light'),
   ];
   for (final (name, script, page, size, view, theme) in shots) {
     testWidgets(name, (tester) async {

@@ -543,3 +543,16 @@ Apply per screen (wrap the scroll body; headers/toolbars use the same width so t
 - `qiraah_icons.dart` was regenerated (all constants plus `QiraahIcons.all`). `nextVerse`, `prevVerse`, `pageOn` and `undo` set `matchTextDirection: true` and are drawn pointing forward.
 - `icons/svg/<name>.svg` holds a source for each, `icons/codepoints.json` is updated, and `icons/preview.png` is a contact sheet rendered from the font.
 - To swap the stand-ins, in `lib/ui/app_icons.dart` replace each Material stand-in with the matching constant, e.g. `static const coach = QiraahIcons.coach;`, `static const textSize = QiraahIcons.textSize;` and `static const nextVerse = QiraahIcons.nextVerse;`. Names map snake_case → camelCase, the same as `AppIcons`.
+
+
+## Update 8 — Classic ornament style
+
+Settings → **Ornaments** is now a 3-way choice: `Plain` / `Modern` / `Classic` (replaces the Ornate borders toggle).
+
+**Classic** uses hand-drawn traced artwork from `assets/ornaments/` (single-colour SVGs, fill `#000000` — tint at runtime, e.g. `flutter_svg` with `ColorFilter.mode(frameColor, BlendMode.srcIn)`):
+- `surah_border.svg` — sūrah header (Muṣḥaf header lines + reader banner). Stretch to the line box (`BoxFit.fill`); title centred over the middle cartouche.
+- `verse_circle.svg` — āyah marker, `BoxFit.contain`, Arabic numeral centred ~58% down. Active āyah: soft highlight disc behind the circle.
+- `lantern.svg` — margin marker showing جزء + number, on the outer margin of each page (right on odd pages, left on even), ~22% from top.
+- **No page frame** in Classic; page side padding widens to ~1.45em to make room for the lantern.
+
+Colours: Muṣḥaf uses the paper's `frame` colour; reader uses gold (`#C9A253`, night `#CFAE62`, mono `#9A9A9A`).
