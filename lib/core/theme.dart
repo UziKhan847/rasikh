@@ -271,8 +271,14 @@ String uiLanguage(BuildContext context) =>
 class MushafPaper {
   final String id;
   final Color bg, paper, ink, line, acc, frame, soft, hl, hl2, chrome, sub;
+
+  /// Inside the Classic page border, and what the Classic ornaments are
+  /// filled with (Update 9: the Madani and Mono papers — white within a
+  /// cream or grey margin); null: the paper shows through.
+  final Color? inner;
   const MushafPaper(this.id, this.bg, this.paper, this.ink, this.line, this.acc,
-      this.frame, this.soft, this.hl, this.hl2, this.chrome, this.sub);
+      this.frame, this.soft, this.hl, this.hl2, this.chrome, this.sub,
+      {this.inner});
   bool get dark => paper.computeLuminance() < .2;
 }
 
@@ -283,12 +289,18 @@ const kMushafPapers = <String, MushafPaper>{
       Color(0xFFCBE3D6), Color(0xF7FBF7EC), Color(0xFF6F6656)),
   'white': MushafPaper('white', Color(0xFFEDEFEC), Color(0xFFFFFFFF),
       Color(0xFF16201C), Color(0xFFE2E5E1), Color(0xFF0F7A62),
-      Color(0xFF0F7A62), Color(0xFFEEF6F2), Color(0xFFEEF3EF),
+      Color(0xFF5C8C7C), Color(0xFFEEF6F2), Color(0xFFEEF3EF),
       Color(0xFFCDE8DC), Color(0xF7FFFFFF), Color(0xFF6F7671)),
-  'mono': MushafPaper('mono', Color(0xFFE9E9E9), Color(0xFFFFFFFF),
-      Color(0xFF111111), Color(0xFFE2E2E2), Color(0xFF111111),
-      Color(0xFF555555), Color(0xFFF4F4F4), Color(0xFFEDEDED),
-      Color(0xFFDADADA), Color(0xF7FFFFFF), Color(0xFF6E6E6E)),
+  'madani': MushafPaper('madani', Color(0xFFE9EAE6), Color(0xFFF3EEDD),
+      Color(0xFF1D2420), Color(0xFFE2DAC4), Color(0xFF0F6E58),
+      Color(0xFFA58A5A), Color(0xFFF6F1E3), Color(0xFFEFE3C5),
+      Color(0xFFCBE3D6), Color(0xF7F3EEDD), Color(0xFF6F6656),
+      inner: Color(0xFFFFFFFF)),
+  'mono': MushafPaper('mono', Color(0xFFE8E8E8), Color(0xFFF1F1F0),
+      Color(0xFF111111), Color(0xFFE2E2E2), Color(0xFF222222),
+      Color(0xFF4A4A4A), Color(0xFFF4F4F4), Color(0xFFEDEDED),
+      Color(0xFFDADADA), Color(0xF7F1F1F0), Color(0xFF6E6E6E),
+      inner: Color(0xFFFFFFFF)),
   'night': MushafPaper('night', Color(0xFF090D0C), Color(0xFF121816),
       Color(0xFFE8E3D6), Color(0xFF25302C), Color(0xFF4DBB98),
       Color(0xFFCFAE62), Color(0xFF18211E), Color(0xFF1F2B27),
@@ -299,8 +311,8 @@ const kMushafPapers = <String, MushafPaper>{
       Color(0xFF173A2F), Color(0xF7000000), Color(0xFF878F8B)),
 };
 
-/// The muṣḥaf paper for the current settings: the light theme offers cream or
-/// white, every other theme has its own.
+/// The muṣḥaf paper for the current settings: the light theme offers cream,
+/// white, Madani or mono, every other theme has its own.
 MushafPaper mushafPaperOf(AppSettings s) => switch (s.theme) {
       AppTheme.light => kMushafPapers[s.mushafPaper] ?? kMushafPapers['cream']!,
       AppTheme.mono => kMushafPapers['mono']!,

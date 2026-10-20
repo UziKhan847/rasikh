@@ -65,7 +65,7 @@ void main() {
     expect(m.hideFromOn(3), MushafRepo.pageTokens(script, 3).$1);
   });
 
-  test('a finished page stays in view until the next page gets a word', () {
+  test('a finished page turns blank first, then revealing goes on', () {
     final m = MemorizeController.startAt(script, 2);
     final (_, end) = MushafRepo.pageTokens(script, 2);
     while (m.revealedEnd < end) {
@@ -73,9 +73,70 @@ void main() {
     }
     expect(m.viewPage, 2, reason: 'the last word is still being looked at');
     m.nextWord();
-    expect(m.viewPage, 3, reason: 'a word on page 3: the page turns');
+    expect(m.viewPage, 3, reason: 'the step turns the page');
+    expect(m.revealedEnd, end, reason: '…and reveals nothing on it');
+    expect(m.hideFromOn(3), end);
+    m.nextWord();
+    expect(m.revealedEnd, greaterThan(end), reason: 'then words come again');
+
+    // Back: the first word hides and page 3 stays, blank; the next step
+    // back turns to page 2, all of it still showing.
     m.prevWord();
-    expect(m.viewPage, 2);
+    expect((m.viewPage, m.revealedEnd), (3, end));
+    m.prevWord();
+    expect((m.viewPage, m.revealedEnd), (2, end));
+    m.prevWord();
+    expect(m.revealedEnd, lessThan(end));
+  });
+
+  test('back an āyah stops at the page edge, then turns back', () {
+    final m = MemorizeController.startAt(script, 3);
+    final (first3, end3) = MushafRepo.pageTokens(script, 3);
+    // Reveal page 3, turn, and reveal an āyah running onto page 4.
+    while (m.revealedEnd < end3) {
+      m.nextVerse();
+    }
+    m.nextWord(); // the turn
+    m.nextVerse();
+    expect(m.viewPage, 4);
+    m.prevVerse();
+    expect((m.viewPage, m.revealedEnd), (4, end3),
+        reason: 'page 4 goes blank; page 3 is untouched');
+    m.prevVerse();
+    expect((m.viewPage, m.revealedEnd), (3, end3), reason: 'the turn back');
+    m.prevVerse();
+    expect(m.revealedEnd, lessThan(end3));
+    expect(m.revealedEnd, greaterThanOrEqualTo(first3));
+  });
+
+  test('the next āyah turns first too, and a spread turns as one', () {
+    final m = MemorizeController.startAt(script, 3)
+      ..screenOf = (p) => p.isOdd ? (p, p + 1) : (p - 1, p);
+    final (_, end3) = MushafRepo.pageTokens(script, 3);
+    final (_, end4) = MushafRepo.pageTokens(script, 4);
+    while (m.revealedEnd < end3) {
+      m.nextVerse();
+    }
+    m.nextWord();
+    expect(m.revealedEnd, greaterThan(end3),
+        reason: 'page 4 is on screen too: no turn');
+    while (m.revealedEnd < end4) {
+      m.nextVerse();
+    }
+    expect(m.viewPage, 4);
+    m.nextVerse();
+    expect((m.viewPage, m.revealedEnd), (5, end4));
+  });
+
+  test('verse cards: a revealed āyah turns to the next card, blank', () {
+    final m = MemorizeController.startAt(script, 2)..cards = true;
+    final g = m.viewAyah;
+    m.nextVerse();
+    final end = m.revealedEnd;
+    m.nextWord();
+    expect((m.viewAyah, m.revealedEnd), (g + 1, end));
+    m.nextWord();
+    expect(m.revealedEnd, greaterThan(end));
   });
 
   test('show and hide the page', () {

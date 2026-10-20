@@ -15,6 +15,8 @@ import '../core/responsive.dart';
 import '../core/settings.dart';
 import '../core/theme.dart';
 import '../data/mushaf_atlas.dart';
+import 'mushaf/mushaf_style_screen.dart';
+import 'mushaf/trackpad_pager.dart';
 import 'mushaf/mushaf_index_sheet.dart';
 import 'quran_screen.dart';
 import '../core/memorize.dart';
@@ -92,6 +94,7 @@ String _ar(int n) => [
 /// The paper's display name.
 String _paperName(BuildContext context, String id) => switch (id) {
       'white' => context.l10n.paperWhite,
+      'madani' => context.l10n.paperMadani,
       'mono' => context.l10n.themeMono,
       'night' => context.l10n.themeNight,
       'oled' => context.l10n.themeOled,
@@ -206,7 +209,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     } else {
       _focus = widget.focus;
     }
-    _memo = widget.memorize?..addListener(_onMemo);
+    _memo = widget.memorize
+      ?..addListener(_onMemo)
+      ..screenOf = _screenOf;
     _load();
   }
 
@@ -347,7 +352,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     final spread = (_desktop && _view(s) == 'spread') || _phoneSpread;
     final page = _pendingPage ?? _page;
     _memo = MemorizeController.startAt(_script, spread ? _spreadStart(page) : page)
-      ..addListener(_onMemo);
+      ..addListener(_onMemo)
+      ..screenOf = _screenOf;
     // Focus mode keeps the page bare: its small floating bar is enough.
     if (!s.focusMode) _setChrome(true);
     setState(() {});
@@ -427,7 +433,28 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// word.
   void _memoTap(MushafWord _) {
     _lastWordTap = DateTime.now();
-    _memo?.nextWord();
+    _memoStep();
+  }
+
+  /// A tap's reveal: the next word or the next āyah (Settings), or turning
+  /// to the next page once the screen is all revealed.
+  void _memoStep() {
+    final m = _memo;
+    if (m == null) return;
+    SettingsScope.of(context).memorizeTap == 'verse'
+        ? m.nextVerse()
+        : m.nextWord();
+  }
+
+  /// The pages on screen with [p], (first, last): its spread when two
+  /// show.
+  (int, int) _screenOf(int p) {
+    final s = _settingsRef;
+    if (s == null) return (p, p);
+    final spread = (_desktop && _view(s) == 'spread') || _phoneSpread;
+    if (!spread) return (p, p);
+    final first = _spreadStart(p);
+    return (first, (first + 1).clamp(1, _total));
   }
 
   bool _memoShows(MushafWord wd) =>
@@ -633,7 +660,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// How the pages are dressed: ornaments and border, focus mode applied.
   MushafDeco _deco(AppSettings s) =>
       MushafDeco.of(_script, s.mushafOrnaments, s.mushafBorderShown,
-          s.mushafMarginShown);
+          s.mushafMarginShown, s.mushafBorderStyle);
 
   Iterable<void> _warm(List<int> pages, String script, MushafPaper paper) sync* {
     for (final p in pages) {
@@ -671,6 +698,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           verseBg: paper.hl,
           justify: !mushafOpeningPage(p, lines),
           ornament: _deco(_settingsRef!).classic ? paper.frame : null,
+          ornamentFill: _deco(_settingsRef!).classic ? paper.inner : null,
         );
         if (MushafLineCache.has(spec.key)) continue;
         MushafLineCache.get(spec, why: 'prewarm');
@@ -839,7 +867,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     if (_memorizing) {
       // The page itself: the next word when taps reveal; else nothing (the
       // bars stay put, the words wait for the bar's buttons).
-      if (SettingsScope.of(context).memorizeTapReveals) _memo!.nextWord();
+      if (SettingsScope.of(context).memorizeTapReveals) _memoStep();
       return;
     }
     if (_marking.active || _reviewing) return;
@@ -866,14 +894,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         .catchError((_) {});
   }
 
-  /// Cream → white → mono → night → oled, setting the app theme as it goes
-  /// (cream and white are both the light theme).
+  /// Cream → white → Madani → mono → night → oled, setting the app theme as
+  /// it goes (cream, white and Madani are the light theme).
   void _cyclePaper(AppSettings s) {
-    const order = ['cream', 'white', 'mono', 'night', 'oled'];
+    const order = ['cream', 'white', 'madani', 'mono', 'night', 'oled'];
     final cur = mushafPaperOf(s).id;
     final next = order[(order.indexOf(cur) + 1) % order.length];
     s.update(() {
-      if (next == 'cream' || next == 'white') {
+      if (next == 'cream' || next == 'white' || next == 'madani') {
         s.appTheme = 'light';
         s.mushafPaper = next;
       } else {
@@ -1272,7 +1300,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           ? _memoHold
           : (_marking.active || _reviewing ? _showWord : _playAndShowWord)
       ..onTapVerse = _memorizing
-          ? (s.memorizeTapReveals ? ((_) => _memo?.nextWord()) : _memoPlayVerse)
+          ? (s.memorizeTapReveals ? ((_) => _memoStep()) : _memoPlayVerse)
           : _onTapVerse;
     final (lo, hi) = _ayahsOn(page);
     final mine = _playAyah >= 0 && _playAyah >= lo && _playAyah <= hi;
@@ -2066,9 +2094,12 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           ),
         ),
         // Hover effects and tooltips in the bar mustn't repaint the pages.
+        // A two-finger sideways swipe on a trackpad turns the page.
         Expanded(
-            child: RepaintBoundary(
-                child: _stage(context, s, paper, view, first))),
+            child: TrackpadPager(
+                onTurn: _turn,
+                child: RepaintBoundary(
+                    child: _stage(context, s, paper, view, first)))),
       ]),
     );
   }
@@ -2607,11 +2638,18 @@ class _MushafSettingsSheet extends StatelessWidget {
                 onChanged: (v) => s.update(() => s.focusMode = v)),
           ),
           QRow(
-            title: context.l10n.mzTapReveals,
-            subtitle: context.l10n.mzTapRevealsSub,
-            control: QSwitch(
-                value: s.memorizeTapReveals,
-                onChanged: (v) => s.update(() => s.memorizeTapReveals = v)),
+            title: context.l10n.mzTap,
+            subtitle: context.l10n.mzTapSub,
+            control: QSegmented<String>(
+              expand: false,
+              options: [
+                ('play', context.l10n.mzTapPlay, null),
+                ('word', context.l10n.mzTapWord, null),
+                ('verse', context.l10n.mzTapVerse, null),
+              ],
+              value: s.memorizeTap,
+              onChanged: (v) => s.update(() => s.memorizeTap = v),
+            ),
           ),
           if (onReview != null)
             QRow(
@@ -2646,6 +2684,13 @@ class _MushafSettingsSheet extends StatelessWidget {
             control: QSwitch(
                 value: s.mushafHeader,
                 onChanged: (v) => s.update(() => s.mushafHeader = v)),
+          ),
+          QRow(
+            title: context.l10n.msTitle,
+            subtitle: context.l10n.msTitleSub,
+            chevron: true,
+            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => const MushafStyleScreen())),
           ),
           QRow(
             title: context.l10n.ornaments,
@@ -2767,6 +2812,52 @@ class _MushafSettingsSheet extends StatelessWidget {
   }
 }
 
+/// One muṣḥaf page drawn as the muṣḥaf draws it, for previewing its look
+/// (the style screen): the current settings' paper, ornaments, border and
+/// margin (focus mode aside), fitted to the space. It takes no taps.
+class MushafPagePreview extends StatelessWidget {
+  final String script;
+  final int page;
+  final Map<int, String> names;
+  const MushafPagePreview(
+      {super.key, required this.script, required this.page, required this.names});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = SettingsScope.of(context);
+    final paper = mushafPaperOf(s);
+    final deco = MushafDeco.of(script, s.ornamentStyle, s.mushafBorder,
+        s.mushafMarginInfo, s.mushafBorderStyle);
+    return LayoutBuilder(builder: (context, c) {
+      final box = MushafGeometry.pageBox(c.biggest, script,
+          deco: deco, header: s.mushafHeader, page: page);
+      return Center(
+        child: IgnorePointer(
+          child: SizedBox(
+            width: box.width,
+            height: box.height,
+            child: _MushafPageView(
+              page: page,
+              script: script,
+              names: names,
+              paper: paper,
+              deco: deco,
+              wideLayout: false,
+              showHeader: s.mushafHeader,
+              playAyah: -1,
+              playWord: -1,
+              reciting: false,
+              handlers: MushafTapHandlers(),
+              tajwid:
+                  s.mushafTajwid ? tajwidColorsForDark(paper.dark) : null,
+            ),
+          ),
+        ),
+      );
+    });
+  }
+}
+
 class _MushafPageView extends StatelessWidget {
   final int page;
   final String script;
@@ -2842,14 +2933,28 @@ class _MushafPageView extends StatelessWidget {
     };
     final frame = paper.frame.withValues(alpha: .6);
     final rules = deco.frameRules;
-    // The page border (a setting of its own): 1px frame colour at 60%, with
-    // a second rule 3px outside it with ornaments on; without it, just the
-    // inner padding.
-    Widget framed(Widget child) {
+    final innerPad = compact
+        ? const EdgeInsets.symmetric(horizontal: 6, vertical: 2)
+        : const EdgeInsets.symmetric(horizontal: 8, vertical: 4);
+    // The page border (a setting of its own): Classic draws its script's
+    // artwork, the text set inside it on the paper's inner colour; else
+    // 1px frame colour at 60%, with a second rule 3px outside it with
+    // ornaments on; without it, just the inner padding.
+    Widget framed(Widget child, double fs) {
+      if (deco.classicBorder) {
+        return ClassicPageBorder(
+          script: deco.borderArt == 'indopak' ? 'indopak' : 'uthmani',
+          thickness: MushafGeometry.classicBorder(fs),
+          band: paper.frame,
+          cut: paper.inner ?? paper.paper,
+          hairline: paper.paper,
+          inner: paper.inner,
+          padding: EdgeInsets.all(MushafGeometry.classicGap(fs)) + innerPad,
+          child: child,
+        );
+      }
       final inner = Container(
-        padding: compact
-            ? const EdgeInsets.symmetric(horizontal: 6, vertical: 2)
-            : const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: innerPad,
         decoration: rules == 0
             ? null
             : BoxDecoration(
@@ -2887,17 +2992,22 @@ class _MushafPageView extends StatelessWidget {
                 Colors.transparent,
               ],
             );
-      final band = deco.lantern
-          ? MushafGeometry.lanternBand(roomy: roomy, compact: compact)
+      // The Classic chrome follows the page's font size.
+      final fs = deco.scalesChrome
+          ? MushafGeometry.fontFor(
+              outer.maxWidth - margin.horizontal, script, deco,
+              compact: compact)
           : 0.0;
+      final band = deco.lantern ? MushafGeometry.lanternBand(fs) : 0.0;
       final padding = (roomy
               ? const EdgeInsets.fromLTRB(22, 18, 22, 10)
               : (compact
                   ? const EdgeInsets.fromLTRB(4, 4, 4, 3)
                   : const EdgeInsets.fromLTRB(6, 6, 6, 4))) +
           EdgeInsets.symmetric(horizontal: band);
-      // Classic: the juzʼ lantern in the outer margin (right of an odd
-      // page, left of an even one), a little above the middle.
+      // Classic: the juzʼ in the outer margin (right of an odd page, left of
+      // an even one), a little above the middle — Madani's lantern, the
+      // Indo-Pak muṣḥaf's plain text.
       Widget lanterned(Widget child) {
         if (!deco.lantern) return child;
         final pad = padding - EdgeInsets.symmetric(horizontal: band);
@@ -2909,10 +3019,12 @@ class _MushafPageView extends StatelessWidget {
               child: Align(
                 alignment: Alignment(page.isOdd ? 1 : -1, -.56),
                 child: ClassicLantern(
-                  width: band * .9,
+                  width: band * (script == 'indopak' ? .8 : .9),
                   number: _ar(MushafRepo.juzOfPage(script, page)),
                   color: paper.frame,
-                  textColor: paper.acc,
+                  textColor: script == 'indopak' ? paper.frame : paper.acc,
+                  fill: paper.inner,
+                  plain: script == 'indopak',
                 ),
               ),
             ),
@@ -2974,12 +3086,14 @@ class _MushafPageView extends StatelessWidget {
               padding: padding,
               child: Column(
                 children: [
-                  framed(Column(
-                    children: [
-                      if (showHeader) _pageHeader(context),
-                      grid(0),
-                    ],
-                  )),
+                  framed(
+                      Column(
+                        children: [
+                          if (showHeader) _pageHeader(context),
+                          grid(0),
+                        ],
+                      ),
+                      fs),
                   ?pageNumber,
                 ],
               ),
@@ -2997,12 +3111,14 @@ class _MushafPageView extends StatelessWidget {
           child: Column(
             children: [
               Expanded(
-                child: framed(Column(
-                  children: [
-                    if (showHeader) _pageHeader(context),
-                    Expanded(child: grid(null)),
-                  ],
-                )),
+                child: framed(
+                    Column(
+                      children: [
+                        if (showHeader) _pageHeader(context),
+                        Expanded(child: grid(null)),
+                      ],
+                    ),
+                    fs),
               ),
               ?pageNumber,
             ],
@@ -3068,6 +3184,26 @@ class _MushafPageView extends StatelessWidget {
     final (fs, slotH, contentH) =
         mushafPageGeometry(script, page, lines, vw, vh, fitWidth: fitWidth);
     if (kMushafPerf) PerfLog.pageFontSize = fs;
+    final opening = mushafOpeningPage(page, lines);
+    // Each row and the slots it spans: the Indo-Pak Classic sūrah border
+    // takes its header and basmala lines together, in its two tiers.
+    final twoTier = deco.classic && script == 'indopak';
+    final rows = <(int, Widget)>[];
+    for (var i = 0; i < lines.length; i++) {
+      final l = lines[i];
+      if (twoTier && l.isHeader) {
+        final both = i + 1 < lines.length && lines[i + 1].isBasmala;
+        rows.add((both ? 2 : 1, _indopakHeader(context, l, both)));
+        if (both) i++;
+        continue;
+      }
+      rows.add((
+        1,
+        Center(
+            child: _slot(context, i, l, fs, vw, slotH, ink,
+                justify: !opening)),
+      ));
+    }
 
     final pageBody = MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -3075,31 +3211,50 @@ class _MushafPageView extends StatelessWidget {
         height: contentH,
         width: vw,
         // The opening pages: their few lines close together in the middle.
-        child: mushafOpeningPage(page, lines)
+        child: opening
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  for (var i = 0; i < lines.length; i++)
-                    SizedBox(
-                        height: slotH,
-                        child: Center(
-                            child: _slot(
-                                context, i, lines[i], fs, vw, slotH, ink,
-                                justify: false))),
+                  for (final (n, w) in rows)
+                    SizedBox(height: slotH * n, child: w),
                 ],
               )
             : Column(
                 children: [
-                  for (var i = 0; i < lines.length; i++)
-                    Expanded(
-                        child: Center(
-                            child: _slot(
-                                context, i, lines[i], fs, vw, slotH, ink))),
+                  for (final (n, w) in rows) Expanded(flex: n, child: w),
                 ],
               ),
       ),
     );
     return pageBody;
+  }
+
+  /// The Indo-Pak Classic sūrah border: the name in its top tier and, with
+  /// [basmala], the basmala in its lower band; without, the top tier alone.
+  Widget _indopakHeader(BuildContext context, MushafLine l, bool basmala) {
+    final glyph = (l.surah >= 1 && l.surah <= surahGlyphCodes.length)
+        ? surahGlyphCodes[l.surah - 1]
+        : null;
+    return IndopakSurahBorder(
+      color: paper.frame,
+      fill: paper.inner,
+      topOnly: !basmala,
+      title: Text(
+        glyph == null
+            ? (names[l.surah] ?? '')
+            : String.fromCharCodes([glyph, 0xe903]),
+        textDirection: TextDirection.rtl,
+        style: glyph == null
+            ? quranicStyle(context, size: 40, color: paper.ink)
+            : TextStyle(fontFamily: 'SurahNames', fontSize: 60, color: paper.ink),
+      ),
+      basmala: basmala
+          ? Text(MushafRepo.bismillahChar,
+              textDirection: TextDirection.rtl,
+              style: TextStyle(
+                  fontFamily: 'Bismillah', fontSize: 60, color: paper.ink))
+          : null,
+    );
   }
 
   Widget _slot(BuildContext context, int index, MushafLine l, double fs,
@@ -3120,7 +3275,9 @@ class _MushafPageView extends StatelessWidget {
           frame: paper.frame,
           paper: paper.paper,
           soft: paper.soft,
-          accent: paper.acc,
+          // Update 9: sūrah names in the page's ink.
+          accent: paper.ink,
+          fill: paper.inner,
           textStyle: glyph == null
               ? quranicStyle(context, size: slotH * .5)
               : TextStyle(fontFamily: 'SurahNames', fontSize: slotH * .62),
@@ -3160,6 +3317,7 @@ class _MushafPageView extends StatelessWidget {
         hideFrom: hideFrom,
         justify: justify,
         ornament: deco.classic ? paper.frame : null,
+        ornamentFill: deco.classic ? paper.inner : null,
       ),
     );
   }

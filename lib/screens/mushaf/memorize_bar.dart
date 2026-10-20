@@ -98,9 +98,11 @@ class MemorizeBar extends StatelessWidget {
                     style: uiStyle(context,
                         size: 13, weight: FontWeight.w700, color: ink)),
                 TextSpan(
-                    text: SettingsScope.of(context).memorizeTapReveals
-                        ? context.l10n.mzHint
-                        : context.l10n.mzHintPlay,
+                    text: switch (SettingsScope.of(context).memorizeTap) {
+                      'word' => context.l10n.mzHint,
+                      'verse' => context.l10n.mzHintVerse,
+                      _ => context.l10n.mzHintPlay,
+                    },
                     style: uiStyle(context, size: 12.5, color: sub)),
               ]),
               maxLines: 1,

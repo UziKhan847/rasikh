@@ -212,7 +212,7 @@ void main() {
     expect(revealed(), firstLen);
 
     // With "tap to reveal" on, a tap on the page reveals the next word.
-    s.update(() => s.memorizeTapReveals = true);
+    s.update(() => s.memorizeTap = 'word');
     await settle(tester);
     await tester.tapAt(r.localToGlobal(Offset(r.size.width / 2, -6)));
     await settle(tester);
@@ -328,14 +328,19 @@ void main() {
     expect(lines.every((r) => _sprites(r.laidLine! as AtlasLine) == 0), isTrue);
     expect(lines.first.spec.fontSize, s.memorizeCardFont);
 
-    // 2:1 (one word and its ۝), then the card moves on to 2:2 with the
-    // next word — and the doubt on its second word shows once it's there.
+    // 2:1 (one word and its ۝); then the card turns to 2:2, blank; then its
+    // words — and the doubt on its second word shows once it's there.
     await tester.tap(find.text('Next word'));
     await settle(tester);
     expect(c.viewAyah, MushafRepo.globalAyahOf(2, 1));
     await tester.tap(find.text('Next word'));
     await settle(tester);
     expect(c.viewAyah, MushafRepo.globalAyahOf(2, 2));
+    lines = onScreen(tester);
+    expect(lines.every((r) => _sprites(r.laidLine! as AtlasLine) == 0), isTrue,
+        reason: 'the turn reveals nothing');
+    await tester.tap(find.text('Next word'));
+    await settle(tester);
     lines = onScreen(tester);
     expect(lines.expand((r) => r.laidLine!.markLines), isEmpty,
         reason: 'the marked word is still hidden');

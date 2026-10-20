@@ -14,6 +14,7 @@ import 'about_screen.dart';
 import 'downloads_screen.dart';
 import 'marks/mark_books_screen.dart';
 import 'marks/sync_section.dart';
+import 'mushaf/mushaf_style_screen.dart';
 import 'onboarding_screen.dart';
 
 /// Settings: theme and style, reading, recitation, learning, the app itself,
@@ -243,37 +244,15 @@ class _Style extends StatelessWidget {
           control: QSwitch(
               value: s.lite, onChanged: (v) => s.update(() => s.lite = v)),
         ),
+        // Ornaments, border, margin and paper: on their own screen, with a
+        // live page to judge them by.
         QRow(
-          title: context.l10n.ornaments,
-          subtitle: s.lite ? context.l10n.liteOffNote : context.l10n.ornamentsSub,
-          control: QSegmented<String>(
-            expand: false,
-            options: [
-              ('plain', context.l10n.ornPlain, null),
-              ('modern', context.l10n.ornModern, null),
-              ('classic', context.l10n.ornClassic, null),
-            ],
-            value: s.ornamentStyle,
-            onChanged: (v) {
-              if (!s.lite) s.update(() => s.ornaments = v);
-            },
-          ),
+          title: context.l10n.msTitle,
+          subtitle: context.l10n.msTitleSub,
+          chevron: true,
+          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => const MushafStyleScreen())),
         ),
-        QRow(
-          title: context.l10n.pageBorder,
-          subtitle: context.l10n.pageBorderSub,
-          control: QSwitch(
-              value: s.mushafBorder,
-              onChanged: (v) => s.update(() => s.mushafBorder = v)),
-        ),
-        if (s.useClassic)
-          QRow(
-            title: context.l10n.marginInfo,
-            subtitle: context.l10n.marginInfoSub,
-            control: QSwitch(
-                value: s.mushafMarginInfo,
-                onChanged: (v) => s.update(() => s.mushafMarginInfo = v)),
-          ),
         QRow(
           title: context.l10n.gradients,
           subtitle:
@@ -313,6 +292,8 @@ class _Reading extends StatelessWidget {
               options: [
                 ('cream', context.l10n.paperCream, null),
                 ('white', context.l10n.paperWhite, null),
+                ('madani', context.l10n.paperMadani, null),
+                ('mono', context.l10n.paperMono, null),
               ],
               value: s.mushafPaper,
               onChanged: (v) => s.update(() => s.mushafPaper = v),

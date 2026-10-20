@@ -137,6 +137,9 @@ class MushafLineSpec {
   /// this colour (the atlas path; the text fallback keeps the font's).
   final Color? ornament;
 
+  /// White-filled papers: the circle's hole is filled with this.
+  final Color? ornamentFill;
+
   /// Memorize mode: tokens from this index of the token stream on are
   /// hidden — left out of the sprite lists entirely (no glyphs, colours,
   /// highlights or marks), their boxes kept so nothing moves. -1: none.
@@ -178,6 +181,7 @@ class MushafLineSpec {
     int hideFrom = -1,
     bool justify = true,
     Color? ornament,
+    Color? ornamentFill,
   }) {
     final variant = StringBuffer();
     // Only how much of THIS line is hidden matters: lines wholly before the
@@ -210,6 +214,7 @@ class MushafLineSpec {
                   '${verseBg.toARGB32()}|${identityHashCode(markPal)}|$variant'}'
         '${tajwid == null ? '' : '|tj${identityHashCode(tajwid)}'}'
         '${ornament == null ? '' : '|o${ornament.toARGB32()}'}'
+        '${ornament == null || ornamentFill == null ? '' : '/${ornamentFill.toARGB32()}'}'
         // Atlas or text: the line redraws when the atlas arrives.
         '|${MushafAtlas.of(script) == null ? 't' : 'a'}';
     return MushafLineSpec._(
@@ -235,6 +240,7 @@ class MushafLineSpec {
       hide < 0 ? -1 : t0 + hide,
       justify,
       ornament,
+      ornamentFill,
       key,
       plain,
     );
@@ -263,6 +269,7 @@ class MushafLineSpec {
     this.hideFrom,
     this.justify,
     this.ornament,
+    this.ornamentFill,
     this.key,
     this.plain,
   );
@@ -361,8 +368,10 @@ class AtlasLine implements MushafLineLayout {
   final List<(int sheet, Float32List xforms, Float32List rects, Int32List colors)>
       batches;
 
-  /// Classic ornaments: the āyah circles, drawn from their own sprite.
+  /// Classic ornaments: the āyah circles, drawn from their own sprite, and
+  /// (white-filled papers) the discs filling their holes.
   final (ui.Image, Float32List, Float32List, Int32List)? circles;
+  final List<(Offset, double)> discs;
 
   /// Each token's colour as drawn (tests).
   @visibleForTesting
@@ -387,6 +396,7 @@ class AtlasLine implements MushafLineLayout {
     this.glyphColors, [
     this.focusBoxes = const [],
     this.circles,
+    this.discs = const [],
   ]);
 }
 
@@ -462,6 +472,8 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
   final glyphColors = <List<Color>>[];
   ui.Image? circleImg;
   final circleXf = <double>[], circleRc = <double>[], circleCol = <int>[];
+  final discs = <(Offset, double)>[];
+  final cc = ClassicCircle.of(s.script);
   var x = width;
   for (var i = 0; i < n; i++) {
     final wd = l.words[i];
@@ -501,17 +513,19 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
       // The traced circle, its ring over the font circle's (the number
       // sits in both alike).
       final a = glyphId[circle];
-      final img = circleImg ??= ClassicArt.circleSprite(
-          (shh[a] / ClassicArt.ringDiameter).round().clamp(4, 1024));
+      final img = circleImg ??=
+          cc.sprite((shh[a] / cc.ringDiameter).round().clamp(4, 1024));
       final dh = (img.height - 2) * scale, dw = (img.width - 2) * scale;
       final cx = left + gx[circle] * k + bl[a] * scale + sw[a] * scale / 2;
       final cy = baseline - gy[circle] * k - bt[a] * scale + shh[a] * scale / 2;
-      circleXf.addAll([
-        scale,
-        0,
-        cx - dw / 2 - scale,
-        cy - dh * ClassicArt.ringCentreY - scale,
-      ]);
+      final x0 = cx - dw * cc.holeCentre.dx, y0 = cy - dh * cc.ringCentreY;
+      circleXf.addAll([scale, 0, x0 - scale, y0 - scale]);
+      if (s.ornamentFill != null) {
+        discs.add((
+          Offset(x0 + dw * cc.holeCentre.dx, y0 + dh * cc.holeCentre.dy),
+          dh * cc.holeDiameter / 2 + .5,
+        ));
+      }
       circleRc.addAll(
           [0, 0, img.width.toDouble(), img.height.toDouble()]);
       circleCol.add((st == 1 ? s.accent : ornament!).toARGB32());
@@ -573,6 +587,7 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
             Float32List.fromList(circleRc),
             Int32List.fromList(circleCol),
           ),
+    discs,
   );
 }
 
@@ -1221,6 +1236,12 @@ void paintAtlasLine(Canvas canvas, Offset o, AtlasLine l, MushafAtlas atlas,
       Rect.fromLTWH(o.dx + left, o.dy, right - left, l.height),
       Paint()..color = c,
     );
+  }
+  if (l.discs.isNotEmpty && spec.ornamentFill != null) {
+    final fill = Paint()..color = spec.ornamentFill!;
+    for (final (c, r) in l.discs) {
+      canvas.drawCircle(c + o, r, fill);
+    }
   }
   final images = atlas.tiers[l.tier].images;
   if (images != null) {

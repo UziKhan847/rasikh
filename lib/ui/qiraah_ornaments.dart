@@ -226,6 +226,9 @@ class SurahHeader extends StatelessWidget {
   final bool classic;
   final double lineHeight;
   final Color frame, paper, soft, accent;
+
+  /// Classic on white-filled papers: what the cartouche is filled with.
+  final Color? fill;
   final TextStyle textStyle;
   const SurahHeader({
     super.key,
@@ -237,6 +240,7 @@ class SurahHeader extends StatelessWidget {
     required this.paper,
     required this.soft,
     required this.accent,
+    this.fill,
     required this.textStyle,
   });
   @override
@@ -247,6 +251,7 @@ class SurahHeader extends StatelessWidget {
       return ClassicSurahBorder(
         height: h,
         color: frame,
+        fill: fill,
         child: Text(
           title,
           maxLines: 1,

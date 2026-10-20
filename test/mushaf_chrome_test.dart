@@ -93,13 +93,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(_barOpacity(tester), 1);
 
-    // Cream → white → mono → night → oled → cream.
+    // Cream → white → Madani → mono → night → oled → cream.
     expect(s.appTheme, 'light');
     expect(s.mushafPaper, 'cream');
     final colour = find.byTooltip('Page colour');
-    await tester.tap(colour);
-    await tester.pump();
-    expect((s.appTheme, s.mushafPaper), ('light', 'white'));
+    for (final paper in ['white', 'madani']) {
+      await tester.tap(colour);
+      await tester.pump();
+      expect((s.appTheme, s.mushafPaper), ('light', paper));
+    }
     for (final t in ['mono', 'night', 'oled']) {
       await tester.tap(colour);
       await tester.pump();

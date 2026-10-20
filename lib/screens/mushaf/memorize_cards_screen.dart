@@ -55,6 +55,7 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
   void initState() {
     super.initState();
     _c.addListener(_changed);
+    _c.cards = true;
     _handlers
       ..onTapWord = _tapWord
       ..onTapVerse = _tapVerse
@@ -80,12 +81,19 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
   @override
   void dispose() {
     _c.removeListener(_changed);
+    _c.cards = false;
     // Leaving for good (not to the muṣḥaf, which carries on): stop playing.
     if (!_switching && !widget.fromMushaf) ReciteBack.instance.stop();
     super.dispose();
   }
 
   bool get _tapReveals => SettingsScope.of(context).memorizeTapReveals;
+
+  /// A tap's reveal: the next word or āyah (Settings) — or, the card all
+  /// revealed, the next card, blank.
+  void _step() => SettingsScope.of(context).memorizeTap == 'verse'
+      ? _c.nextVerse()
+      : _c.nextWord();
 
   bool _shows(MushafWord wd) =>
       _c.isRevealed(MushafRepo.tokenOf(_script, wd.ayah, wd.wordIdx));
@@ -94,7 +102,7 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
   /// revealed word plays — a hidden one gives nothing away.
   void _tapWord(MushafWord wd) {
     if (_tapReveals) {
-      _c.nextWord();
+      _step();
     } else if (_shows(wd)) {
       ReciteBack.instance.stop();
       final (s, a) = MushafRepo.surahAyahOf(wd.ayah);
@@ -107,7 +115,7 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
   /// Ḥuṣarī recites the āyah.
   void _tapVerse(int g) {
     if (_tapReveals) {
-      _c.nextWord();
+      _step();
     } else if (_shows(MushafWord('', g, -1))) {
       ReciteBack.instance.play([(g, -1)],
           rate: SettingsScope.of(context).playbackSpeed);
@@ -117,7 +125,7 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
   /// Holding a revealed word opens its sheet (mark a stumble right there).
   void _hold(MushafWord wd) {
     if (!_shows(wd)) {
-      if (_tapReveals) _c.nextWord();
+      if (_tapReveals) _step();
       return;
     }
     if (MarksScope.maybeOf(context) == null) return;
@@ -213,11 +221,16 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
           PopupMenuButton<String>(
             icon: const Icon(AppIcons.more),
             itemBuilder: (_) => [
-              CheckedPopupMenuItem(
-                value: 'tap',
-                checked: s.memorizeTapReveals,
-                child: Text(context.l10n.mzTapReveals),
-              ),
+              for (final (v, label) in [
+                ('play', context.l10n.mzTapPlay),
+                ('word', context.l10n.mzTapWord),
+                ('verse', context.l10n.mzTapVerse),
+              ])
+                CheckedPopupMenuItem(
+                  value: 'tap:$v',
+                  checked: s.memorizeTap == v,
+                  child: Text('${context.l10n.mzTap}: $label'),
+                ),
               CheckedPopupMenuItem(
                 value: 'focus',
                 checked: s.focusMode,
@@ -226,7 +239,7 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
             ],
             onSelected: (v) => s.update(() => v == 'focus'
                 ? s.focusMode = !s.focusMode
-                : s.memorizeTapReveals = !s.memorizeTapReveals),
+                : s.memorizeTap = v.substring(4)),
           ),
         ],
       ),
@@ -238,7 +251,7 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
                 // the next word.
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: s.memorizeTapReveals ? _c.nextWord : null,
+                  onTap: s.memorizeTapReveals ? _step : null,
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                     children: [

@@ -62,6 +62,11 @@ class AppSettings extends ChangeNotifier {
   /// Classic: the juzʼ lantern in each page's outer margin.
   bool mushafMarginInfo = true;
 
+  /// The page border's style, whatever the script or ornaments: 'auto'
+  /// (follows them), 'line', 'double', 'madani' or 'indopak' (the Classic
+  /// artwork).
+  String mushafBorderStyle = 'auto';
+
   /// Lite mode, for slow devices: no animations (page fades, entrances,
   /// the tracing pulse), no blurred shadows, no gradients or ornaments, and
   /// the muṣḥaf drawn from its smaller glyph sheets. What the reader needs —
@@ -74,10 +79,11 @@ class AppSettings extends ChangeNotifier {
   /// Review as verse cards: the āyah's font size.
   double reviewCardFont = 30;
 
-  /// Memorize: a tap reveals the next word (anywhere on the page or card).
-  /// Off (the default), tapping a revealed word plays it, and revealing is
-  /// done from the bar.
-  bool memorizeTapReveals = false;
+  /// Memorize: what a tap does — 'play' (a revealed word plays; revealing is
+  /// done from the bar), 'word' or 'verse' (a tap anywhere reveals the next
+  /// word or āyah).
+  String memorizeTap = 'play';
+  bool get memorizeTapReveals => memorizeTap != 'play';
 
   /// Focus mode: the muṣḥaf and memorize, bare — just the page (no bars,
   /// running head or frame; the system bars hidden too), and memorize with
@@ -232,11 +238,14 @@ class AppSettings extends ChangeNotifier {
         (m['ornate'] == false ? 'plain' : 'classic');
     mushafBorder = m['mushafBorder'] ?? false;
     mushafMarginInfo = m['mushafMarginInfo'] ?? true;
+    mushafBorderStyle = m['mushafBorderStyle'] as String? ?? 'auto';
     gradients = m['gradients'] ?? true;
     lite = m['lite'] ?? false;
     memorizeCardFont = (m['memorizeCardFont'] as num?)?.toDouble() ?? 36;
     reviewCardFont = (m['reviewCardFont'] as num?)?.toDouble() ?? 30;
-    memorizeTapReveals = m['memorizeTapReveals'] ?? false;
+    // Before the verse option: tap-to-reveal on or off.
+    memorizeTap = m['memorizeTap'] as String? ??
+        (m['memorizeTapReveals'] == true ? 'word' : 'play');
     focusMode = m['focusMode'] ?? false;
     liteSuggested = m['liteSuggested'] ?? false;
     // An install from before the welcome existed has already found its way.
@@ -314,11 +323,12 @@ class AppSettings extends ChangeNotifier {
         'ornaments': ornaments,
         'mushafBorder': mushafBorder,
         'mushafMarginInfo': mushafMarginInfo,
+        'mushafBorderStyle': mushafBorderStyle,
         'gradients': gradients,
         'lite': lite,
         'memorizeCardFont': memorizeCardFont,
         'reviewCardFont': reviewCardFont,
-        'memorizeTapReveals': memorizeTapReveals,
+        'memorizeTap': memorizeTap,
         'focusMode': focusMode,
         'liteSuggested': liteSuggested,
         'onboarded': onboarded,

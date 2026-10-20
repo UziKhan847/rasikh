@@ -556,3 +556,26 @@ Settings → **Ornaments** is now a 3-way choice: `Plain` / `Modern` / `Classic`
 - **No page frame** in Classic; page side padding widens to ~1.45em to make room for the lantern.
 
 Colours: Muṣḥaf uses the paper's `frame` colour; reader uses gold (`#C9A253`, night `#CFAE62`, mono `#9A9A9A`).
+
+
+## Update 9 — Madani page border, Madani paper, Indo-Pak classic set
+
+**Classic now has a page border per script** (all single-colour SVGs, fill `#000000`, tint with the paper's `frame` colour):
+
+| Script | Page border | Sūrah header | Āyah marker | Margin |
+|---|---|---|---|---|
+| Madani (Uthmani) | `madani_page_border.svg` | `surah_border.svg` | `verse_circle.svg` | `lantern.svg` |
+| Indo-Pak | `indopak_page_border.svg` | `indopak_surah_border.svg` | `indopak_verse_circle.svg` | `lantern.svg` |
+
+- When the reading script is Indo-Pak and Ornaments = Classic, use the Indo-Pak set by default.
+- `madani_page_border.svg` is a 90×90 nine-slice: 30-unit corners, 30-unit repeating edge tile. Flutter: render to an image and paint with `centerSlice: Rect.fromLTWH(30,30,30,30)` + `ImageRepeat`, or a CustomPainter that draws corners and tiles the edge (round to whole tiles). Border thickness ≈ 0.48 × page font size (min 9px).
+- `indopak_page_border.svg` is a full-page frame (viewBox 1729×2447) — stretch to the page box (`BoxFit.fill`).
+- `indopak_surah_border.svg` has two tiers: sūrah name goes in the top cartouche, basmala in the lower band (`BoxFit.fill`, viewBox 1607×351 — keep aspect where possible).
+- Lantern moves **outside** the page border into the outer margin (right on odd pages, left on even); widen the page card's side padding to ≈ 1.15 × font + 10px.
+
+**Madani paper** (Settings → Muṣḥaf page colour → Madani): app background `#E9EAE6` (whitish grey), page margin `#F3EEDD` (soft cream), inside the border `#FFFFFF`. Ornaments: `frame` muted gold-brown `#A58A5A` for page border, sūrah headers, āyah circles and lanterns; accent `#0F6E58`. `madani_page_border.svg` colour keys: `#000000` band (frame), `#111111` motifs and `#222222` hairlines (both = paper margin colour, cut-out look). Optional `frame2`/`orn` paper fields can override motif / header colours. Landscape/single page keeps the border.
+
+- Sūrah names in Muṣḥaf headers use the page `ink` colour (black on light papers), not the accent.
+- Madani: border motifs, sūrah-header cartouche, āyah-circle centre and lantern body are filled with the `inner` colour (white) — paint a white shape behind each ornament (header ≈ centre 86%×62%, circle ≈ 40% radius, lantern ≈ centre 50%×62%).
+- White paper `frame` desaturated to `#5C8C7C`.
+- **Mono paper** (Muṣḥaf page colour → Mono): bg `#E8E8E8`, margin `#F1F1F0`, inside border `#FFFFFF`, ornaments `#4A4A4A`, ink `#111111`, accent `#222222`. Same white-filled ornament treatment as Madani.
