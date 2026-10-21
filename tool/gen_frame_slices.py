@@ -14,11 +14,16 @@ from PIL import Image
 
 SRC = 'design_handoff_qiraah_flutter/flutter/assets/ornaments/'
 OUT = 'assets/ornaments/'
-# The same frame in three colourings: the slices are found on the first and
-# used for all.
-FRAMES = [('thin_frame_transparent', 'thin_frame_1'),
-          ('thin_frame_green_muted', 'thin_frame_2'),
-          ('thin_frame_blue_muted', 'thin_frame_3')]
+# Each group is one frame in three colourings: the slices are found on the
+# first and used for all.
+GROUPS = [
+    [('thin_frame_transparent', 'thin_frame_1'),
+     ('thin_frame_green_muted', 'thin_frame_2'),
+     ('thin_frame_blue_muted', 'thin_frame_3')],
+    [('thinnest_frame_transparent', 'thinnest_frame_1'),
+     ('thinnest_frame_green_muted', 'thinnest_frame_2'),
+     ('thinnest_frame_blue_muted', 'thinnest_frame_3')],
+]
 
 
 def bbox(a):
@@ -64,40 +69,45 @@ def cut(edge, p, band):
     return c, q, (len(edge) - c - band) // q, d
 
 
-slices = None
-for src, name in FRAMES:
-    img = np.array(Image.open(SRC + src + '.png').convert('RGBA'))
-    x0, y0, x1, y1 = bbox(img)
-    a = img[y0:y1, x0:x1]
-    h, w = a.shape[:2]
-    if slices is None:
-        band = band_width(a)
-        top = a[:band].transpose(1, 0, 2)          # along x
-        left = a[:, :band]                          # along y
-        ph, pv = period(top[band:-band]), period(left[band:-band])
-        cx, ph, _, wx = cut(top, ph, band)
-        cy, pv, _, wy = cut(left, pv, band)
-        # The far corners, found the same way from the far end (the motifs'
-        # spacing drifts, so the near tile's phase doesn't hold there).
-        right, _, _, wr = cut(top[::-1], ph, band)
-        bottom, _, _, wb = cut(left[::-1], pv, band)
-        wx, wy = max(wx, wr), max(wy, wb)
-        slices = (band, ph, pv, cx, cy, right, bottom, wx, wy)
-    band, ph, pv, cx, cy, right, bottom, wx, wy = slices
-    print(f'{name}: {w}x{h}, band {band}, periods {ph}x{pv}, '
-          f'corners L{cx} T{cy} R{right} B{bottom}, '
-          f'seams {wx:.1f}/{wy:.1f}')
-    if max(wx, wy) > 15:
-        raise SystemExit(f'{name}: the edge tiles don\'t repeat cleanly')
-    # Pack: the corners with one edge tile between them on each side.
-    cw, ch = cx + ph + right, cy + pv + bottom
-    out = np.zeros((ch, cw, 4), np.uint8)
-    xs = [(0, 0, cx), (cx, cx, ph), (cx + ph, w - right, right)]
-    ys = [(0, 0, cy), (cy, cy, pv), (cy + pv, h - bottom, bottom)]
-    for dy, sy, hh in ys:
-        for dx, sx, ww in xs:
-            out[dy:dy + hh, dx:dx + ww] = a[sy:sy + hh, sx:sx + ww]
-    out[cy:cy + pv, cx:cx + ph] = 0  # the inside stays clear
-    Image.fromarray(out).save(OUT + name + '.webp', quality=92, method=6)
-    print(f"  FrameArt('{name}', EdgeInsets.fromLTRB({cx}, {cy}, {right}, "
-          f'{bottom}), {band}),  // {cw}x{ch}')
+def slice_group(frames):
+  slices = None
+  for src, name in frames:
+      img = np.array(Image.open(SRC + src + '.png').convert('RGBA'))
+      x0, y0, x1, y1 = bbox(img)
+      a = img[y0:y1, x0:x1]
+      h, w = a.shape[:2]
+      if slices is None:
+          band = band_width(a)
+          top = a[:band].transpose(1, 0, 2)          # along x
+          left = a[:, :band]                          # along y
+          ph, pv = period(top[band:-band]), period(left[band:-band])
+          cx, ph, _, wx = cut(top, ph, band)
+          cy, pv, _, wy = cut(left, pv, band)
+          # The far corners, found the same way from the far end (the motifs'
+          # spacing drifts, so the near tile's phase doesn't hold there).
+          right, _, _, wr = cut(top[::-1], ph, band)
+          bottom, _, _, wb = cut(left[::-1], pv, band)
+          wx, wy = max(wx, wr), max(wy, wb)
+          slices = (band, ph, pv, cx, cy, right, bottom, wx, wy)
+      band, ph, pv, cx, cy, right, bottom, wx, wy = slices
+      print(f'{name}: {w}x{h}, band {band}, periods {ph}x{pv}, '
+            f'corners L{cx} T{cy} R{right} B{bottom}, '
+            f'seams {wx:.1f}/{wy:.1f}')
+      if max(wx, wy) > 15:
+          raise SystemExit(f'{name}: the edge tiles don\'t repeat cleanly')
+      # Pack: the corners with one edge tile between them on each side.
+      cw, ch = cx + ph + right, cy + pv + bottom
+      out = np.zeros((ch, cw, 4), np.uint8)
+      xs = [(0, 0, cx), (cx, cx, ph), (cx + ph, w - right, right)]
+      ys = [(0, 0, cy), (cy, cy, pv), (cy + pv, h - bottom, bottom)]
+      for dy, sy, hh in ys:
+          for dx, sx, ww in xs:
+              out[dy:dy + hh, dx:dx + ww] = a[sy:sy + hh, sx:sx + ww]
+      out[cy:cy + pv, cx:cx + ph] = 0  # the inside stays clear
+      Image.fromarray(out).save(OUT + name + '.webp', quality=92, method=6)
+      print(f"  FrameArt('{name}', EdgeInsets.fromLTRB({cx}, {cy}, {right}, "
+            f'{bottom}), {band}),  // {cw}x{ch}')
+
+
+for group in GROUPS:
+    slice_group(group)

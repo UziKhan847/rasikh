@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/mushaf.dart' show MushafLook;
 import '../ui/ornaments/tuning.dart';
+import 'mushaf_style.dart';
 import 'marks/marks_store.dart';
 import 'theme.dart' show AppTheme, appThemeFrom;
 
@@ -47,32 +48,41 @@ class AppSettings extends ChangeNotifier {
   String appTheme = 'light';
   AppTheme get theme => appThemeFrom(appTheme);
 
-  /// Muṣḥaf page colours in the light theme: 'cream' | 'white' | 'madani'
-  /// | 'mono' | 'tile1'…'tile3' (the tiled frames' palettes). The other
-  /// themes have their own paper.
-  String mushafPaper = 'cream';
+  /// Each script's muṣḥaf look (ornaments, border, margin, running head,
+  /// paper and tuning), as its printed muṣḥaf has its own.
+  final Map<String, MushafStyle> mushafStyles = {
+    'uthmani': MushafStyle.defaultsFor('uthmani'),
+    'indopak': MushafStyle.defaultsFor('indopak'),
+  };
+  MushafStyle styleFor(String script) =>
+      mushafStyles[script == 'indopak' ? 'indopak' : 'uthmani']!;
+
+  /// The muṣḥaf script's own look ([styleFor] [mushafScript]): its page
+  /// colours in the light theme ('cream' | 'white' | 'madani' | 'mono' |
+  /// 'tile1'…'tile3'; the other themes have their own paper) and its
+  /// ornaments, below.
+  MushafStyle get _style => styleFor(mushafScript);
+  String get mushafPaper => _style.paper;
+  set mushafPaper(String v) => _style.paper = v;
 
   /// The night and OLED themes' muṣḥaf page: 'default' (theirs) or 'mono'
   /// (everything on it white).
   String mushafPaperDark = 'default';
 
-  /// The muṣḥaf's ornaments, each chosen on its own (Settings → Muṣḥaf
-  /// style; see MushafLook). 'auto' takes the script's own artwork.
-  /// - [orHeader], the sūrah header: 'auto' | 'madani' | 'madaniColoured'
-  ///   | 'indopak' | 'tile1'…'tile3';
-  /// - [orMarker], the āyah marker: 'auto' | 'font' | 'indopak';
-  /// - [orBorder], the page border: 'none' | 'line' | 'double' | 'auto' |
-  ///   'madani' | 'indopak' | 'tile1'…'tile3' | 'thin1'…'thin3';
-  /// - [orMargin], the juzʼ in the margin: 'none' | 'auto' | 'lantern' |
-  ///   'text'.
-  String orHeader = 'auto';
-  String orMarker = 'auto';
-  String orBorder = 'none';
-  String orMargin = 'auto';
-
-  /// The ornaments' tuning overrides (the style screen's tuning panel).
-  Map<String, double> orTune = {};
-  OrnamentTuning get ornamentTuning => OrnamentTuning(orTune);
+  /// The muṣḥaf script's ornaments, each chosen on its own (see
+  /// MushafStyle): sūrah header, āyah marker, page border, margin, and the
+  /// tuning panel's overrides.
+  String get orHeader => _style.header;
+  set orHeader(String v) => _style.header = v;
+  String get orMarker => _style.marker;
+  set orMarker(String v) => _style.marker = v;
+  String get orBorder => _style.border;
+  set orBorder(String v) => _style.border = v;
+  String get orMargin => _style.margin;
+  set orMargin(String v) => _style.margin = v;
+  Map<String, double> get orTune => _style.tune;
+  set orTune(Map<String, double> v) => _style.tune = v;
+  OrnamentTuning get ornamentTuning => _style.tuning;
 
   /// The slight gradients on hero cards, primary buttons and backgrounds.
   bool gradients = true;
@@ -89,6 +99,10 @@ class AppSettings extends ChangeNotifier {
   /// Review as verse cards: the āyah's font size.
   double reviewCardFont = 30;
 
+  /// Review as verse cards: under the card, the marked word large, with
+  /// its comment and replies.
+  bool reviewCardWord = true;
+
   /// Memorize: what a tap does — 'play' (a revealed word plays; revealing is
   /// done from the bar), 'word' or 'verse' (a tap anywhere reveals the next
   /// word or āyah), or 'split' (the top half of the screen a word, the
@@ -102,22 +116,29 @@ class AppSettings extends ChangeNotifier {
   bool focusMode = false;
 
   /// The muṣḥaf's running head, focus mode applied.
-  bool get mushafHeaderShown => mushafHeader && !focusMode;
+  bool get mushafHeaderShown =>
+      mushafHeader && !focusMode && !styleFor(mushafScript).edge;
 
   /// The muṣḥaf's look for [script]: the ornaments as chosen, Lite mode
   /// applied (plain headers and markers, artwork borders as a line, the
   /// juzʼ as text) and — with [focus] — focus mode's bare page.
   MushafLook mushafLook(String script, {bool focus = true}) {
     if (focus && focusMode) return MushafLook(script: script);
+    final st = styleFor(script);
     return MushafLook.resolve(
       script,
-      header: headerStyle,
-      marker: markerStyle,
-      border: lite && !const ['none', 'line', 'double'].contains(orBorder)
+      header: lite ? 'plain' : st.header,
+      marker: lite ? 'font' : st.marker,
+      border: lite && !const ['none', 'line', 'double'].contains(st.border)
           ? 'line'
-          : orBorder,
-      margin: lite && orMargin != 'none' ? 'text' : orMargin,
-      tune: ornamentTuning,
+          : st.border,
+      margin: lite && st.margin != 'none' ? 'text' : st.margin,
+      head: st.head,
+      edgeTop: st.edgeTop,
+      edgeRuku: st.edgeRuku,
+      edgeBottom: st.edgeBottom,
+      edge: st.edge,
+      tune: st.tuning,
     );
   }
 
@@ -242,42 +263,25 @@ class AppSettings extends ChangeNotifier {
     super.dispose();
   }
 
-  /// The ornament slots, or — from before they were separate — what the
-  /// one "ornaments" style (and earlier, "ornate borders") and the border
-  /// and margin switches meant.
+  /// Each script's look. From before they were per script (one shared set
+  /// of ornament slots, or earlier still one "ornaments" style): the new
+  /// printed looks, once.
   void _loadOrnaments(Map<String, dynamic> m) {
-    if (m.containsKey('orHeader')) {
-      orHeader = m['orHeader'] as String? ?? 'auto';
-      orMarker = m['orMarker'] as String? ?? 'auto';
-      orBorder = m['orBorder'] as String? ?? 'none';
-      orMargin = m['orMargin'] as String? ?? 'auto';
-      orTune = {
-        for (final e in ((m['orTune'] as Map?) ?? const {}).entries)
-          if (e.value is num && OrnamentTuning.specs.containsKey(e.key))
-            e.key as String: (e.value as num).toDouble(),
-      };
-      // The plain and rosette headers and the Madani circle were dropped.
-      if (orHeader == 'plain' || orHeader == 'rosette') orHeader = 'auto';
-      if (orMarker == 'madani') orMarker = 'font';
-      return;
+    final saved = m['mushafStyles'];
+    for (final script in const ['uthmani', 'indopak']) {
+      final one = saved is Map ? saved[script] : null;
+      mushafStyles[script] = one is Map
+          ? MushafStyle.fromJson(script, one.cast<String, dynamic>())
+          : MushafStyle.defaultsFor(script);
     }
-    final style = m['ornaments'] as String? ??
-        (m['ornate'] == false ? 'plain' : 'classic');
-    final classic = style == 'classic';
-    orHeader = 'auto';
-    orMarker = classic ? 'auto' : 'font';
-    final border = m['mushafBorder'] == true;
-    final borderStyle = m['mushafBorderStyle'] as String? ?? 'auto';
-    orBorder = !border
-        ? 'none'
-        : borderStyle != 'auto'
-            ? borderStyle
-            : switch (style) {
-                'classic' => 'auto',
-                'modern' => 'double',
-                _ => 'line',
-              };
-    orMargin = classic && (m['mushafMarginInfo'] ?? true) ? 'auto' : 'none';
+    // The Madani default was its printed look (all "auto" on the Madani
+    // paper); it's now cream, and "auto" the new default.
+    final u = mushafStyles['uthmani']!;
+    if (u.paper == 'madani' &&
+        [u.header, u.marker, u.border, u.margin, u.head]
+            .every((v) => v == 'auto')) {
+      u.paper = 'cream';
+    }
   }
 
   Future<void> load() async {
@@ -297,13 +301,13 @@ class AppSettings extends ChangeNotifier {
     // two colour families.
     appTheme = m['theme'] as String? ??
         switch (m['mode']) { 'dark' => 'night', 'oled' => 'oled', _ => 'light' };
-    mushafPaper = m['mushafPaper'] ?? 'cream';
     mushafPaperDark = m['mushafPaperDark'] as String? ?? 'default';
     _loadOrnaments(m);
     gradients = m['gradients'] ?? true;
     lite = m['lite'] ?? false;
     memorizeCardFont = (m['memorizeCardFont'] as num?)?.toDouble() ?? 36;
     reviewCardFont = (m['reviewCardFont'] as num?)?.toDouble() ?? 30;
+    reviewCardWord = m['reviewCardWord'] ?? true;
     // Before the verse option: tap-to-reveal on or off.
     memorizeTap = m['memorizeTap'] as String? ??
         (m['memorizeTapReveals'] == true ? 'word' : 'play');
@@ -380,17 +384,15 @@ class AppSettings extends ChangeNotifier {
         'focus': focusWindow,
         'haptics': haptics,
         'theme': appTheme,
-        'mushafPaper': mushafPaper,
         'mushafPaperDark': mushafPaperDark,
-        'orHeader': orHeader,
-        'orMarker': orMarker,
-        'orBorder': orBorder,
-        'orMargin': orMargin,
-        'orTune': orTune,
+        'mushafStyles': {
+          for (final e in mushafStyles.entries) e.key: e.value.toJson(),
+        },
         'gradients': gradients,
         'lite': lite,
         'memorizeCardFont': memorizeCardFont,
         'reviewCardFont': reviewCardFont,
+        'reviewCardWord': reviewCardWord,
         'memorizeTap': memorizeTap,
         'focusMode': focusMode,
         'liteSuggested': liteSuggested,

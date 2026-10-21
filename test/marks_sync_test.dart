@@ -214,6 +214,24 @@ void main() {
     expect(reciter.store.marksAt(book, w1), hasLength(1));
   });
 
+  test('mutashābih links sync, unlinking too', () async {
+    final book = await sharedBook();
+    reciter.store.addMark(book, w1, MarkType.mutashabih);
+    final m = reciter.store.mutashabihatOf(book).single;
+    reciter.store.toggleLink(m, w2);
+    reciter.store.toggleLink(m, const WordRef(3, 2, 0));
+    await reciter.engine.syncNow();
+    await listener.engine.syncNow();
+    final got = listener.store.mutashabihatOf(book).single;
+    expect(listener.store.linksOf(got).map((l) => l.ref),
+        [w2, const WordRef(3, 2, 0)]);
+
+    reciter.store.toggleLink(m, w2);
+    await reciter.engine.syncNow();
+    await listener.engine.syncNow();
+    expect(listener.store.linksOf(got).single.ref, const WordRef(3, 2, 0));
+  });
+
   test('usernames are unique; wrong passwords fail', () async {
     await reciter.engine.signUp('zayd', 'pw-zayd-1');
     expect(() => listener.engine.signUp('zayd', 'x'),

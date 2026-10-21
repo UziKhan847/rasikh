@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
 import '../../core/l10n.dart';
+import '../../core/mushaf_style.dart';
 import '../../core/settings.dart';
 import '../../core/theme.dart';
 import '../../data/mushaf.dart';
@@ -12,30 +13,38 @@ import '../../ui/ornaments/ornaments.dart';
 import '../../ui/qiraah_ornaments.dart' show AyahMarker;
 import '../mushaf_screen.dart';
 
-/// A look for the muṣḥaf in one tap: every ornament and the paper. (The app
-/// theme is left alone; the paper applies to the light theme, the others
-/// having their own.)
+/// A look for the muṣḥaf in one tap, for the script being edited: every
+/// ornament and the paper. (The app theme is left alone; the paper applies
+/// to the light theme, the others having their own.) "Printed" is the
+/// script's own printed muṣḥaf.
 typedef MushafPreset = ({
   String id,
   String header,
   String marker,
   String border,
   String margin,
-  String paper,
-
-  /// The script whose artwork it shows off (the preview switches to it).
-  String? script,
+  String? paper,
+  String head,
 });
 
 final kMushafPresets = <MushafPreset>[
   (
-    id: 'indopak',
+    id: 'print',
     header: 'auto',
     marker: 'auto',
     border: 'auto',
     margin: 'auto',
-    paper: 'cream',
-    script: 'indopak',
+    paper: null,
+    head: 'auto',
+  ),
+  (
+    id: 'madaniPrint',
+    header: 'madaniColoured',
+    marker: 'font',
+    border: 'thinnest3',
+    margin: 'lantern1',
+    paper: 'madani',
+    head: 'frame',
   ),
   for (final n in [1, 2, 3])
     (
@@ -43,9 +52,9 @@ final kMushafPresets = <MushafPreset>[
       header: 'tile$n',
       marker: 'auto',
       border: 'tile$n',
-      margin: 'lantern',
+      margin: 'lantern1',
       paper: 'tile$n',
-      script: null,
+      head: 'auto',
     ),
   (
     id: 'plain',
@@ -54,7 +63,7 @@ final kMushafPresets = <MushafPreset>[
     border: 'none',
     margin: 'none',
     paper: 'white',
-    script: null,
+    head: 'inside',
   ),
 ];
 
@@ -120,27 +129,32 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
     _load(script);
   }
 
+  /// [p] on the script being edited (a preset's paper, or the script's own).
   void _apply(AppSettings s, MushafPreset p) {
+    final st = s.styleFor(_script);
     s.update(() {
-      s.orHeader = p.header;
-      s.orMarker = p.marker;
-      s.orBorder = p.border;
-      s.orMargin = p.margin;
-      s.mushafPaper = p.paper;
+      st.header = p.header;
+      st.marker = p.marker;
+      st.border = p.border;
+      st.margin = p.margin;
+      st.paper = p.paper ?? MushafStyle.defaultsFor(_script).paper;
+      st.head = p.head;
     });
-    final script = p.script;
-    if (script != null && script != _script) _showScript(script);
   }
 
-  bool _matches(AppSettings s, MushafPreset p) =>
-      s.orHeader == p.header &&
-      s.orMarker == p.marker &&
-      s.orBorder == p.border &&
-      s.orMargin == p.margin &&
-      s.mushafPaper == p.paper;
+  bool _matches(AppSettings s, MushafPreset p) {
+    final st = s.styleFor(_script);
+    return st.header == p.header &&
+        st.marker == p.marker &&
+        st.border == p.border &&
+        st.margin == p.margin &&
+        st.head == p.head &&
+        st.paper == (p.paper ?? MushafStyle.defaultsFor(_script).paper);
+  }
 
   String _presetName(BuildContext context, String id) => switch (id) {
-    'indopak' => context.l10n.msPresetIndopak,
+    'print' => context.l10n.msPresetPrint,
+    'madaniPrint' => context.l10n.msPresetMadaniPrint,
     'tile1' => context.l10n.paperTile1,
     'tile2' => context.l10n.paperTile2,
     'tile3' => context.l10n.paperTile3,
@@ -206,7 +220,9 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
 
   List<Widget> _controls(BuildContext context, AppSettings s) {
     final p = pal(context);
-    final paper = mushafPaperOf(s);
+    // The look being edited: the previewed script's own.
+    final st = s.styleFor(_script);
+    final paper = mushafPaperOf(s, _script);
     final l = context.l10n;
     final light = s.theme == AppTheme.light;
     final dark = s.theme == AppTheme.night || s.theme == AppTheme.oled;
@@ -218,7 +234,7 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
       border: 'auto',
       margin: 'auto',
     );
-    final tune = s.ornamentTuning;
+    final tune = st.tuning;
     final presetId = kMushafPresets
         .where((pr) => _matches(s, pr))
         .map((pr) => pr.id)
@@ -257,8 +273,8 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
       accent: p.acc,
       child: art,
     );
-    final header = s.orHeader, marker = s.orMarker;
-    final border = s.orBorder, margin = s.orMargin;
+    final header = st.header, marker = st.marker;
+    final border = st.border, margin = st.margin;
     void set(void Function() f) => s.update(f);
 
     Widget headerArt(String kind) => SizedBox(
@@ -313,7 +329,11 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
       height: 52,
       child: MushafPageBorder(
         kind: kind,
-        band: kind.startsWith('tile') || kind.startsWith('thin') ? 12 : 8,
+        band: kind.startsWith('thinnest')
+            ? 7
+            : kind.startsWith('tile') || kind.startsWith('thin')
+            ? 12
+            : 8,
         frame: paper.frame,
         cut: paper.inner ?? paper.paper,
         hairline: paper.paper,
@@ -324,17 +344,22 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
         child: const SizedBox.expand(),
       ),
     );
-    Widget marginArt(String kind) => kind == 'none'
-        ? Text('—', style: TextStyle(color: paper.sub, fontSize: 20))
-        : MarginJuz(
-            kind: kind,
-            width: 30,
-            number: '٣',
-            color: paper.frame,
-            textColor: kind == 'lantern' ? paper.acc : paper.frame,
-            fill: paper.inner,
-            scale: tune['lanternScale'],
-          );
+    Widget marginArt(String kind) => switch (kind) {
+      'none' => Text('—', style: TextStyle(color: paper.sub, fontSize: 20)),
+      'text' => EdgeLabel(
+          text: _script == 'indopak' ? 'سَيَقُوْلُ  ٢' : 'الجزء الثاني',
+          size: 11,
+          color: paper.ink,
+          quarterTurns: 3,
+        ),
+      _ => MarginLantern(
+          kind: kind,
+          width: 26,
+          text: 'ربع الحزب\n٣',
+          ink: paper.ink,
+          fill: paper.inner,
+        ),
+    };
     String autoLabel(String what) => '${l.msBorderAuto} · $what';
     String artName(String v) => switch (v) {
       'madani' => l.madani,
@@ -346,7 +371,11 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
       'thin1' => l.msThin1,
       'thin2' => l.msThin2,
       'thin3' => l.msThin3,
-      'lantern' => l.msLantern,
+      'thinnest1' => l.msThinnest1,
+      'thinnest2' => l.msThinnest2,
+      'thinnest3' => l.msThinnest3,
+      'lantern1' => l.msLantern1,
+      'lantern2' => l.msLantern2,
       'text' => l.msText,
       _ => v,
     };
@@ -385,6 +414,7 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
         runSpacing: 8,
         children: [
           for (final pr in kMushafPresets)
+            if (pr.id != 'madaniPrint' || _script != 'indopak')
             ChoiceChip(
               label: Text(_presetName(context, pr.id)),
               selected: presetId == pr.id,
@@ -398,6 +428,19 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
             ),
         ],
       ),
+
+      // ── edge to edge ──
+      const SizedBox(height: 12),
+      QGroup(children: [
+        QRow(
+          title: l.msEdgeToEdge,
+          subtitle: l.msEdgeToEdgeSub,
+          control: QSwitch(
+            value: st.edge,
+            onChanged: (v) => set(() => st.edge = v),
+          ),
+        ),
+      ]),
 
       // ── colours ──
       gallery(l.msColours, [
@@ -427,8 +470,8 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
           ])
             swatch(
               label,
-              light && s.mushafPaper == id,
-              light ? () => set(() => s.mushafPaper = id) : null,
+              light && st.paper == id,
+              light ? () => set(() => st.paper = id) : null,
               _PaperChip(kMushafPapers[id]!),
             ),
       ], sub: light || dark ? null : l.msPaperLight),
@@ -465,7 +508,7 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
           swatch(
             k == 'auto' ? autoLabel(artName(auto.header)) : artName(k),
             header == k,
-            s.lite ? null : () => set(() => s.orHeader = k),
+            s.lite ? null : () => set(() => st.header = k),
             headerArt(k == 'auto' ? auto.header : k),
             width: 152,
           ),
@@ -481,7 +524,7 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
               _ => artName(k),
             },
             marker == k,
-            s.lite ? null : () => set(() => s.orMarker = k),
+            s.lite ? null : () => set(() => st.marker = k),
             markerArt(k == 'auto' ? auto.marker : k),
           ),
       ]),
@@ -501,6 +544,9 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
           'thin1',
           'thin2',
           'thin3',
+          'thinnest1',
+          'thinnest2',
+          'thinnest3',
         ])
           swatch(
             switch (k) {
@@ -511,14 +557,14 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
               _ => artName(k),
             },
             border == k,
-            () => set(() => s.orBorder = k),
+            () => set(() => st.border = k),
             borderArt(k == 'auto' ? auto.border : k),
           ),
       ]),
 
-      // ── the juzʼ in the margin ──
+      // ── the margins ──
       gallery(l.marginInfo, [
-        for (final k in ['none', 'auto', 'lantern', 'text'])
+        for (final k in ['none', 'auto', 'lantern1', 'lantern2', 'text'])
           swatch(
             switch (k) {
               'none' => l.msNone,
@@ -526,13 +572,15 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
               _ => artName(k),
             },
             margin == k,
-            () => set(() => s.orMargin = k),
+            () => set(() => st.margin = k),
             marginArt(k == 'auto' ? auto.margin : k),
             width: 76,
             height: 72,
           ),
-      ]),
-      const SizedBox(height: 12),
+      ], sub: l.msMarginSub),
+
+      // ── the running head ──
+      QSectionLabel(l.pageHeader),
       QGroup(
         children: [
           QRow(
@@ -542,12 +590,61 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
               onChanged: (v) => set(() => s.mushafHeader = v),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final (id, label) in [
+                  ('auto', autoLabel(_script == 'indopak' ? l.msHeadEdges : l.msHeadInside)),
+                  ('inside', l.msHeadInside),
+                  ('frame', l.msHeadFrame),
+                  ('edges', l.msHeadEdges),
+                ])
+                  ChoiceChip(
+                    label: Text(label),
+                    selected: st.head == id,
+                    onSelected: (_) => set(() => st.head = id),
+                  ),
+              ],
+            ),
+          ),
+          if (MushafLook.resolve(_script,
+                  header: 'auto',
+                  marker: 'auto',
+                  border: 'auto',
+                  margin: 'auto',
+                  head: st.head)
+              .headOnEdges) ...[
+            QRow(
+              title: l.msEdgeTop,
+              control: QSwitch(
+                value: st.edgeTop,
+                onChanged: (v) => set(() => st.edgeTop = v),
+              ),
+            ),
+            QRow(
+              title: l.msEdgeRuku,
+              control: QSwitch(
+                value: st.edgeRuku,
+                onChanged: (v) => set(() => st.edgeRuku = v),
+              ),
+            ),
+            QRow(
+              title: l.msEdgeBottom,
+              control: QSwitch(
+                value: st.edgeBottom,
+                onChanged: (v) => set(() => st.edgeBottom = v),
+              ),
+            ),
+          ],
         ],
       ),
 
       // ── tuning ──
       const SizedBox(height: 12),
-      _TuningPanel(settings: s),
+      _TuningPanel(settings: s, style: st),
       const SizedBox(height: 8),
       Text(
         l.msNote,
@@ -674,7 +771,8 @@ class _PaperChip extends StatelessWidget {
 /// above redraws), with the numbers shown and a way to copy them all.
 class _TuningPanel extends StatelessWidget {
   final AppSettings settings;
-  const _TuningPanel({required this.settings});
+  final MushafStyle style;
+  const _TuningPanel({required this.settings, required this.style});
 
   String _label(BuildContext context, String key) {
     final l = context.l10n;
@@ -690,6 +788,9 @@ class _TuningPanel extends StatelessWidget {
       'borderIndopak' => l.tuneBorderIndopak,
       'borderTile' => l.tuneBorderTile,
       'borderThin' => l.tuneBorderThin,
+      'borderThinnest' => l.tuneBorderThinnest,
+      'basmalaScale' => l.tuneBasmalaScale,
+      'lanternGap' => l.tuneLanternGap,
       _ => key,
     };
   }
@@ -699,7 +800,7 @@ class _TuningPanel extends StatelessWidget {
     final s = settings;
     final p = pal(context);
     final l = context.l10n;
-    final tune = s.ornamentTuning;
+    final tune = style.tuning;
     return QGroup(
       children: [
         Theme(
@@ -744,7 +845,7 @@ class _TuningPanel extends StatelessWidget {
                   min: spec.min,
                   max: spec.max,
                   onChanged: (v) => s.update(
-                    () => s.orTune = Map.of(tune.withValue(key, v).overrides),
+                    () => style.tune = Map.of(tune.withValue(key, v).overrides),
                   ),
                 ),
               ],
@@ -753,7 +854,7 @@ class _TuningPanel extends StatelessWidget {
                   TextButton(
                     onPressed: tune.overrides.isEmpty
                         ? null
-                        : () => s.update(() => s.orTune = {}),
+                        : () => s.update(() => style.tune = {}),
                     child: Text(l.msTuneReset),
                   ),
                   const Spacer(),

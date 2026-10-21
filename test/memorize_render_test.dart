@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +13,7 @@ import 'package:qiraah_arabiyyah/core/memorize.dart';
 import 'package:qiraah_arabiyyah/ui/mark_style.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf/memorize_cards_screen.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf/verse_view.dart';
+import 'package:qiraah_arabiyyah/core/recite_back.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/core/theme.dart';
 import 'package:qiraah_arabiyyah/data/mushaf.dart';
@@ -225,6 +228,81 @@ void main() {
         onScreen(tester).every((x) => x.spec.hideFrom == -1), isTrue);
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 30)); // the word audio's timeout
+  });
+
+  testWidgets('a revealed ۝: a tap recites the āyah, holding it opens the '
+      'whole āyah to mark', (tester) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (s, p) = await boot();
+    await tester.pumpWidget(app(s, p, 50));
+    await settle(tester);
+    await startMemorize(tester);
+    await tester.tap(find.byTooltip('Rest of the āyah'));
+    await settle(tester);
+
+    // The revealed āyah's ۝, on screen.
+    final r = onScreen(tester).firstWhere((x) => x.spec.line.words.any(
+        (w) => w.isMarker && !x.spec.isHidden(x.spec.line.words.indexOf(w))));
+    final m = r.spec.line.words.indexWhere((w) => w.isMarker);
+    final (left, right) = r.laidLine!.boxes[m];
+    final at = r.localToGlobal(
+        r.textOffset + Offset((left + right) / 2, r.laidLine!.height / 2));
+
+    await tester.tapAt(at);
+    await tester.pump();
+    expect(ReciteBack.instance.playing.value, isTrue,
+        reason: 'Ḥuṣarī recites the āyah');
+    // Not awaited: the audio players' stops can wait on the last test's
+    // fake clock.
+    unawaited(ReciteBack.instance.stop());
+    await tester.pump();
+
+    await tester.longPressAt(at);
+    await settle(tester);
+    expect(find.textContaining('Whole āyah'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
+  });
+
+  testWidgets('"Show the page" shows the page on screen, not the first one',
+      (tester) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (s, p) = await boot();
+    await tester.pumpWidget(app(s, p, 50));
+    await settle(tester);
+    await startMemorize(tester);
+
+    // On to the next page (the pager turns right to left).
+    await tester.fling(find.byType(PageView), const Offset(300, 0), 1500);
+    await tester.pumpAndSettle();
+    await settle(tester);
+    expect(p.lastMushafPage, 51);
+
+    await tester.tap(find.byTooltip('Show the page'));
+    await settle(tester);
+    await tester.pumpAndSettle();
+    expect(p.lastMushafPage, 51, reason: 'it stays on the page shown');
+    final lines = onScreen(tester).where((r) => r.spec.page == 51).toList();
+    expect(lines, isNotEmpty);
+    expect(lines.every((r) => r.spec.hideFrom == -1), isTrue,
+        reason: 'page 51 shows in full');
+
+    await tester.tap(find.byTooltip('Hide the page'));
+    await settle(tester);
+    await tester.pumpAndSettle();
+    expect(p.lastMushafPage, 51);
+    expect(
+        onScreen(tester)
+            .where((r) => r.spec.page == 51)
+            .every((r) => r.spec.hideFrom >= 0 || r.spec.line.words.isEmpty),
+        isTrue,
+        reason: 'page 51 hidden again');
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 1));
   });
 
   testWidgets('spread: the page turns after both pages, not one',

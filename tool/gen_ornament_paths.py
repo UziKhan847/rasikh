@@ -22,7 +22,8 @@ OUT = 'lib/ui/ornaments/paths.dart'
 ART = [
     ('surah_border', 'surahBorder', None),
     ('surah_border_madani_coloured', 'surahBorderColoured', None),
-    ('madani_margin_lantern_mono', 'lantern', None),
+    ('madani_margin_lantern_1', 'lantern1', None),
+    ('madani_margin_lantern_2', 'lantern2', None),
     ('indopak_verse_circle', 'indopakVerseCircle', None),
     ('surah_border_with_basmala_indo_pak_2', 'indopakSurahBorder', 'border'),
     ('surah_border_with_basmala_indo_pak_2', 'indopakBasmala', 'basmala'),

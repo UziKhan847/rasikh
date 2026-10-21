@@ -37,6 +37,7 @@ class MarkPalette {
         MarkType.hesitation => TextDecorationStyle.dotted,
         MarkType.doubt => TextDecorationStyle.wavy,
         MarkType.note => TextDecorationStyle.dotted,
+        MarkType.mutashabih => TextDecorationStyle.dashed,
         null => TextDecorationStyle.double, // fixed
       };
 }
@@ -48,6 +49,7 @@ const _light = MarkPalette(
     MarkType.hesitation: Color(0xFFB87A00),
     MarkType.doubt: Color(0xFF7A4FD0),
     MarkType.note: Color(0xFF6F6656),
+    MarkType.mutashabih: Color(0xFF0B8A8F),
   },
   fixed: Color(0xFF16875A),
   tintAlpha: .16,
@@ -60,6 +62,7 @@ const _dark = MarkPalette(
     MarkType.hesitation: Color(0xFFBF861A),
     MarkType.doubt: Color(0xFF9580EA),
     MarkType.note: Color(0xFF929B96),
+    MarkType.mutashabih: Color(0xFF3FB6BA),
   },
   fixed: Color(0xFF2FA77A),
   tintAlpha: .24,
@@ -72,6 +75,7 @@ const _mono = MarkPalette(
     MarkType.hesitation: Color(0xFF555555),
     MarkType.doubt: Color(0xFF222222),
     MarkType.note: Color(0xFF6E6E6E),
+    MarkType.mutashabih: Color(0xFF4A4A4A),
   },
   fixed: Color(0xFF777777),
   tintAlpha: .10,

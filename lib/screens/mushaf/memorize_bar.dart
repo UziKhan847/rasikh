@@ -27,6 +27,10 @@ class MemorizeBar extends StatelessWidget {
   /// Verse cards: the āyah is the unit (show / hide the āyah; no page).
   final bool cards;
 
+  /// The pages on screen, (first, last): what "show / hide the page" acts
+  /// on. Unset: the page in view.
+  final (int, int)? screen;
+
   /// Switches between the muṣḥaf page and verse cards, keeping the place.
   final VoidCallback? onSwitchView;
 
@@ -48,6 +52,7 @@ class MemorizeBar extends StatelessWidget {
     required this.onEnd,
     this.floating = false,
     this.cards = false,
+    this.screen,
     this.onSwitchView,
     this.minimal = false,
     this.onExitFocus,
@@ -70,7 +75,8 @@ class MemorizeBar extends StatelessWidget {
           where = context.l10n
               .mzWhere('${surahNames[s] ?? ''} $s:$a', w < 0 ? 1 : w + 1);
         }
-        final hidden = cards ? c.ayahHidden : c.hideFromOn(c.viewPage) >= 0;
+        final (first, last) = screen ?? (c.viewPage, c.viewPage);
+        final hidden = cards ? c.ayahHidden : c.hideFromOn(last) >= 0;
         // The controls are laid out left to right with onward on the left
         // (as the text runs). The verse and page glyphs (» « →|) are drawn
         // for left-to-right reading and mirror in right-to-left, so they're
@@ -148,7 +154,9 @@ class MemorizeBar extends StatelessWidget {
             else
               icon(hidden ? AppIcons.show : AppIcons.memorize,
                   hidden ? context.l10n.mzShowPage : context.l10n.mzHidePage,
-                  hidden ? c.revealPage : c.hidePage),
+                  hidden
+                      ? () => c.revealPage(last)
+                      : () => c.hidePage(first)),
             if (onSwitchView != null)
               icon(cards ? AppIcons.mushaf : AppIcons.cards,
                   cards ? context.l10n.mzAsPage : context.l10n.mzAsCards,

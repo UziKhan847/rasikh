@@ -1012,6 +1012,10 @@ class MushafTapHandlers {
   void Function(MushafWord)? onTapWord;
   void Function(MushafWord)? onLongPressWord;
   void Function(int globalAyah)? onTapVerse;
+
+  /// Holding an āyah's ۝ (the whole āyah: its marks sheet); unset, a hold
+  /// is a tap.
+  void Function(MushafWord marker)? onLongPressVerse;
 }
 
 /// A muṣḥaf text line, painted from its cached shape.
@@ -1214,7 +1218,8 @@ class RenderMushafLine extends RenderBox {
     if (i >= words.length) return;
     final wd = words[i];
     if (wd.isMarker) {
-      handlers.onTapVerse?.call(wd.ayah);
+      final hold = handlers.onLongPressVerse;
+      long && hold != null ? hold(wd) : handlers.onTapVerse?.call(wd.ayah);
     } else if (long) {
       handlers.onLongPressWord?.call(wd);
     } else {

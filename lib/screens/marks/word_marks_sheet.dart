@@ -6,6 +6,7 @@ import '../../core/marks/marks_store.dart';
 import '../../core/marks/word_ref.dart';
 import '../../core/settings.dart';
 import '../../core/theme.dart';
+import '../../data/mushaf.dart';
 import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
@@ -19,7 +20,13 @@ class WordMarksPanel extends StatelessWidget {
 
   /// The open session on this device, if marking (new marks join it).
   final String? sessionId;
-  const WordMarksPanel({super.key, required this.ref, this.sessionId});
+
+  /// Links a mutashābih mark to the passages it's confused with (the
+  /// muṣḥaf's link mode): called with a new one, and by "Link another".
+  /// Null: no linking here.
+  final ValueChanged<Mark>? onLink;
+  const WordMarksPanel(
+      {super.key, required this.ref, this.sessionId, this.onLink});
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +58,12 @@ class WordMarksPanel extends StatelessWidget {
           )
         else
           for (final m in marks)
-            _MarkTile(mark: m, store: store, mp: mp, sessionId: sessionId),
+            _MarkTile(
+                mark: m,
+                store: store,
+                mp: mp,
+                sessionId: sessionId,
+                onLink: onLink),
         if (canMark) ...[
           const SizedBox(height: 6),
           Text(context.l10n.mkAddMark,
@@ -59,7 +71,10 @@ class WordMarksPanel extends StatelessWidget {
                   size: 12.5, weight: FontWeight.w700, color: p.ink3)),
           const SizedBox(height: 6),
           Wrap(spacing: 8, runSpacing: 8, children: [
+            // A mutashābih needs its likenesses tapped: only where the
+            // muṣḥaf can link them.
             for (final t in MarkType.values)
+              if (t != MarkType.mutashabih || onLink != null)
               ActionChip(
                 avatar: MarkSwatch(type: t, pal: mp, size: 14),
                 label: Text(markTypeLabel(context, t)),
@@ -78,6 +93,12 @@ class WordMarksPanel extends StatelessWidget {
       final text = await askText(context, title: context.l10n.mkNote);
       if (text == null || text.trim().isEmpty) return;
       store.addMark(book.id, ref, t, sessionId: sessionId, comment: text);
+    } else if (t == MarkType.mutashabih) {
+      // Then straight to tapping the passages it's confused with.
+      final op = store.addMark(book.id, ref, t, sessionId: sessionId);
+      final id = op.changes.single.$2;
+      final m = store.marksAt(book.id, ref).where((m) => m.id == id).single;
+      onLink?.call(m);
     } else {
       store.addMark(book.id, ref, t, sessionId: sessionId);
     }
@@ -89,11 +110,13 @@ class _MarkTile extends StatelessWidget {
   final MarksStore store;
   final MarkPalette mp;
   final String? sessionId;
+  final ValueChanged<Mark>? onLink;
   const _MarkTile(
       {required this.mark,
       required this.store,
       required this.mp,
-      required this.sessionId});
+      required this.sessionId,
+      this.onLink});
 
   @override
   Widget build(BuildContext context) {
@@ -169,8 +192,16 @@ class _MarkTile extends StatelessWidget {
             ].join(' · '),
             style: uiStyle(context, size: 12, color: p.ink3),
           ),
+          if (mark.type == MarkType.mutashabih) ...[
+            const SizedBox(height: 6),
+            MutashabihLinks(mark: mark, store: store, canEdit: canEdit),
+          ],
           if (mark.comment.isNotEmpty) ...[
             const SizedBox(height: 6),
+            if (mark.type == MarkType.mutashabih)
+              Text(context.l10n.mtTechnique,
+                  style: uiStyle(context,
+                      size: 12, weight: FontWeight.w700, color: p.ink3)),
             Text(mark.comment, style: uiStyle(context, size: 14)),
           ],
           for (final r in replies)
@@ -191,8 +222,16 @@ class _MarkTile extends StatelessWidget {
               _act(context, AppIcons.check,
                   fix == null ? context.l10n.mkMarkFixed : context.l10n.mkMarkNotFixed,
                   'fix', color: fix == null ? mp.fixed : null),
+            if (canEdit && mark.type == MarkType.mutashabih && onLink != null)
+              _act(context, AppIcons.add, context.l10n.mtLinkAnother, 'link'),
             if (canEdit)
-              _act(context, AppIcons.pen, context.l10n.mkComment, 'comment'),
+              _act(
+                  context,
+                  AppIcons.pen,
+                  mark.type == MarkType.mutashabih
+                      ? context.l10n.mtTechnique
+                      : context.l10n.mkComment,
+                  'comment'),
             _act(context, AppIcons.comment, context.l10n.mkReply, 'reply'),
             if (canEdit)
               _act(context, AppIcons.delete, context.l10n.mkDelete, 'delete'),
@@ -222,9 +261,15 @@ class _MarkTile extends StatelessWidget {
   Future<void> _action(BuildContext context, String v) async {
     if (v == 'fix') {
       store.setFixed(mark, store.fixOf(mark) == null, sessionId: sessionId);
+    } else if (v == 'link') {
+      onLink?.call(mark);
     } else if (v == 'comment') {
+      final technique = mark.type == MarkType.mutashabih;
       final t = await askText(context,
-          title: context.l10n.mkComment, initial: mark.comment);
+          title: technique ? context.l10n.mtTechnique : context.l10n.mkComment,
+          hint: technique ? context.l10n.mtTechniqueHint : null,
+          initial: mark.comment,
+          long: technique);
       if (t != null) store.setComment(mark, t);
     } else if (v == 'reply') {
       final t = await askText(context, title: context.l10n.mkReply);
@@ -249,4 +294,58 @@ class _MarkTile extends StatelessWidget {
       if (ok == true) store.deleteMark(mark);
     }
   }
+}
+
+/// A mutashābih mark's partners: each passage it's confused with, as a chip
+/// (its sūrah:āyah, and the word) — removable by whoever may edit the mark.
+class MutashabihLinks extends StatelessWidget {
+  final Mark mark;
+  final MarksStore store;
+  final bool canEdit;
+
+  /// A tap on a partner (open it); null: the chips only show.
+  final ValueChanged<WordRef>? onOpen;
+  const MutashabihLinks(
+      {super.key,
+      required this.mark,
+      required this.store,
+      this.canEdit = false,
+      this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final links = store.linksOf(mark);
+    final script = SettingsScope.of(context).mushafScript;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(context.l10n.mtLinked,
+            style: uiStyle(context,
+                size: 12, weight: FontWeight.w700, color: p.ink3)),
+        const SizedBox(height: 4),
+        if (links.isEmpty)
+          Text(context.l10n.mtNeedOne,
+              style: uiStyle(context, size: 13, color: p.ink3))
+        else
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            for (final l in links)
+              InputChip(
+                label: Text(linkLabel(script, l.ref),
+                    textDirection: TextDirection.rtl),
+                onPressed: onOpen == null ? null : () => onOpen!(l.ref),
+                onDeleted: canEdit ? () => store.removeLink(l) : null,
+              ),
+          ]),
+      ],
+    );
+  }
+}
+
+/// A linked passage in short: its sūrah:āyah and, for a word, the word.
+String linkLabel(String script, WordRef r) {
+  final at = '${r.surah}:${r.ayah}';
+  if (r.isWholeAyah) return at;
+  final w = MushafRepo.wordText(script, r.globalAyah, r.word0);
+  return w.isEmpty ? at : '$w  $at';
 }

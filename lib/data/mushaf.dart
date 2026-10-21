@@ -654,7 +654,9 @@ abstract final class MushafGeometry {
           required MushafLook look,
           bool compact = false,
           double fs = 0}) =>
-      2 +
+      look.edge
+          ? 2 + edgePad * 2 + 2
+          : 2 +
       (roomy ? 44 : (compact ? 8 : 12)) +
       switch (look.frameRules) {
         2 => compact ? 22 : 26,
@@ -662,7 +664,7 @@ abstract final class MushafGeometry {
         _ => compact ? 12 : 16,
       } +
       (look.artBorder ? 2 * (look.borderBand(fs) + classicGap(fs)) : 0) +
-      (look.hasMargin ? 2 * lanternBand(fs) : 0);
+      (look.sideBand ? 2 * lanternBand(fs, look.tune['lanternGap']) : 0);
 
   static double chromeH(
           {required bool roomy,
@@ -670,7 +672,9 @@ abstract final class MushafGeometry {
           required bool header,
           bool compact = false,
           double fs = 0}) =>
-      2 +
+      look.edge
+          ? 2 + edgePad * 2 + 2
+          : 2 +
       (roomy ? 28 : (compact ? 7 : 10)) +
       switch (look.frameRules) {
         2 => compact ? 14 : 18,
@@ -678,15 +682,32 @@ abstract final class MushafGeometry {
         _ => compact ? 4 : 8,
       } +
       (look.artBorder ? 2 * (look.borderBand(fs) + classicGap(fs)) : 0) +
-      (header ? (compact ? 30 : 30 + 19.5) : 0);
+      (!header
+          ? 0
+          // On the frame: only the page number below it.
+          : look.headOnFrame
+              ? (compact ? 0 : 19.5)
+              // Outside the frame, along it: the strips that are on.
+              : look.headOnEdges
+                  ? (look.edgeTop ? edgeStrip(fs) : 0) +
+                      (look.edgeBottom ? edgeStrip(fs) : 0)
+                  : (compact ? 30 : 30 + 19.5));
+
+  /// Edge to edge: the paper's padding each side (and a pixel inside it).
+  static const edgePad = 3.0;
+
+  /// A strip of page information outside the frame, above or below it.
+  static double edgeStrip(double fs) => 1.1 * fs + 6;
 
   /// The space between an artwork border (see [MushafLook.borderBand])
   /// and the text.
   static double classicGap(double fs) => fs * .3 < 4 ? 4 : fs * .3;
 
-  /// Classic: the band each side of the text that the juzʼ marker stands in
-  /// (both sides, so the text stays centred) — ≈ 1.15 × the font + 10px.
-  static double lanternBand(double fs) => 1.15 * fs + 10;
+  /// The band each side of the text that the margin's lanterns and labels
+  /// stand in (both sides, so the text stays centred) — ≈ 1.15 × the font
+  /// + 10px, and [gap] × the font between them and the frame.
+  static double lanternBand(double fs, [double gap = .5]) =>
+      (1.15 + gap) * fs + 10;
 
   /// The font size a page box [pageW] wide gives its text, chrome and all
   /// (the Classic chrome depends on it, so it's found by iterating).
@@ -878,10 +899,22 @@ abstract final class MushafGeometry {
 ///   'rosette' are left for focus mode and Lite.
 /// - [marker]: the āyah marker — 'font' (the text's own circle), 'indopak'.
 /// - [border]: the page border — 'none', 'line', 'double', 'madani',
-///   'indopak', 'tile1'…'tile3', 'thin1'…'thin3'.
-/// - [margin]: the juzʼ in the outer margin — 'none', 'lantern', 'text'.
+///   'indopak', 'tile1'…'tile3', 'thin1'…'thin3', 'thinnest1'…'thinnest3'.
+/// - [margin]: the margins — 'none', 'lantern1' / 'lantern2' (a lantern in
+///   the outer margin where a ḥizb quarter starts, level with its line),
+///   'text' (the juzʼ / para written along the frame on the inner side).
+/// - [head]: the running head — 'inside' (a line inside the frame),
+///   'frame' (white boxes on the frame, the Madani muṣḥaf's), 'edges'
+///   (outside the frame along it, the Indo-Pak muṣḥaf's: [edgeTop] para ·
+///   page · sūrah, [edgeRuku] the rukūʿ marks at their lines in the outer
+///   margin, [edgeBottom] the manzil).
 class MushafLook {
-  final String header, marker, border, margin;
+  final String header, marker, border, margin, head;
+  final bool edgeTop, edgeRuku, edgeBottom;
+
+  /// Edge to edge: no frame, margins or running head; the page fills the
+  /// screen with only a hair of margin.
+  final bool edge;
   final String script;
   final OrnamentTuning tune;
   const MushafLook({
@@ -889,6 +922,11 @@ class MushafLook {
     this.marker = 'font',
     this.border = 'none',
     this.margin = 'none',
+    this.head = 'inside',
+    this.edgeTop = false,
+    this.edgeRuku = false,
+    this.edgeBottom = false,
+    this.edge = false,
     this.script = 'uthmani',
     this.tune = OrnamentTuning.defaults,
   });
@@ -896,14 +934,21 @@ class MushafLook {
   /// The old "ornate borders" page: rosette headers in a double frame.
   static const framed = MushafLook(header: 'rosette', border: 'double');
 
-  /// [header], [marker], [border] and [margin] as chosen, "auto" taking the
-  /// script's own artwork (Madani's, or Indo-Pak's; the lantern, or text).
+  /// The parts as chosen, "auto" taking the script's default: Madani —
+  /// the line-art header in a thin double gold frame, the font's circles,
+  /// no margin, the running head inside; Indo-Pak — its printed artwork,
+  /// the para along the frame and the page's details on its edges.
   factory MushafLook.resolve(
     String script, {
     required String header,
     required String marker,
     required String border,
     required String margin,
+    String head = 'auto',
+    bool edgeTop = true,
+    bool edgeRuku = true,
+    bool edgeBottom = true,
+    bool edge = false,
     OrnamentTuning tune = OrnamentTuning.defaults,
   }) {
     final ip = script == 'indopak';
@@ -911,10 +956,14 @@ class MushafLook {
         v == 'auto' ? (ip ? indopak : madani) : v;
     return MushafLook(
       header: auto(header, 'madani', 'indopak'),
-      // Madani pages keep the font's own āyah circle.
       marker: auto(marker, 'font', 'indopak'),
-      border: auto(border, 'madani', 'indopak'),
-      margin: auto(margin, 'lantern', 'text'),
+      border: edge ? 'none' : auto(border, 'double', 'indopak'),
+      margin: edge ? 'none' : auto(margin, 'none', 'text'),
+      head: edge ? 'inside' : auto(head, 'inside', 'edges'),
+      edgeTop: edgeTop,
+      edgeRuku: edgeRuku,
+      edgeBottom: edgeBottom,
+      edge: edge,
       script: ip ? 'indopak' : 'uthmani',
       tune: tune,
     );
@@ -927,34 +976,46 @@ class MushafLook {
     _ => 0,
   };
 
-  /// A full-colour frame: tiled (1–3) or thin ('thin1'…'thin3'), or 0.
+  /// A full-colour frame: tiled, thin or thinnest (1–3), or 0.
   int get tileBorder => _tile(border);
-  bool get thinBorder => border.startsWith('thin');
+  bool get thinBorder => border.startsWith('thin') && !thinnestBorder;
+  bool get thinnestBorder => border.startsWith('thinnest');
 
   /// A tiled colour sūrah header (1–3), or 0.
   int get tileHeader => _tile(header);
   static int _tile(String v) => v.startsWith('tile') || v.startsWith('thin')
-      ? int.tryParse(v.substring(4)) ?? 0
+      ? int.tryParse(v.substring(v.length - 1)) ?? 0
       : 0;
 
-  /// An artwork border (Madani's tiles, the Indo-Pak frame, a tiled frame),
-  /// whose thickness follows the text.
+  /// An artwork border (Madani's tiles, the Indo-Pak frame, a full-colour
+  /// frame), whose thickness follows the text.
   bool get artBorder =>
       border == 'madani' || border == 'indopak' || tileBorder > 0;
 
   bool get hasMargin => margin != 'none';
+  bool get lantern => margin.startsWith('lantern');
+
+  /// The running head on the frame, in white boxes (an artwork border
+  /// carries them; without one the head is a line inside).
+  bool get headOnFrame => head == 'frame' && artBorder;
+  bool get headOnEdges => head == 'edges';
+
+  /// Whether the margins carry anything: lanterns, the juzʼ, rukūʿ marks.
+  bool get sideBand => hasMargin || (headOnEdges && edgeRuku);
 
   /// Whether the chrome follows the font size.
-  bool get scalesChrome => artBorder || hasMargin;
+  bool get scalesChrome => artBorder || sideBand || headOnEdges;
 
   /// An artwork border's band for text of size [fs]: Madani ≈ 0.48 × the
-  /// font (at least 9px), the Indo-Pak frame ≈ 0.2 ×, a tiled frame 1.35 ×
-  /// Madani's (Update 10) — each times its tuning.
+  /// font (at least 9px), the Indo-Pak frame ≈ 0.2 ×, the full-colour
+  /// frames by their art (tiled 1.35 × Madani's, thin .95 ×, thinnest .6 ×)
+  /// — each times its tuning.
   double borderBand(double fs) {
     final madani = fs * .48 < 9 ? 9.0 : fs * .48;
     return switch (border) {
       'madani' => madani * tune['borderMadani'],
       'indopak' => (fs * .2 < 4 ? 4.0 : fs * .2) * tune['borderIndopak'],
+      _ when thinnestBorder => madani * .6 * tune['borderThinnest'],
       _ when thinBorder => madani * .95 * tune['borderThin'],
       _ when tileBorder > 0 => madani * 1.35 * tune['borderTile'],
       _ => 0,
@@ -968,8 +1029,14 @@ class MushafLook {
       other.marker == marker &&
       other.border == border &&
       other.margin == margin &&
+      other.head == head &&
+      other.edgeTop == edgeTop &&
+      other.edgeRuku == edgeRuku &&
+      other.edgeBottom == edgeBottom &&
+      other.edge == edge &&
       other.script == script &&
       other.tune == tune;
   @override
-  int get hashCode => Object.hash(header, marker, border, margin, script, tune);
+  int get hashCode => Object.hash(header, marker, border, margin, head,
+      edgeTop, edgeRuku, edgeBottom, edge, script, tune);
 }

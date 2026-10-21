@@ -9,7 +9,12 @@ enum MarkType {
   tajwid('tajwid'),
   hesitation('hesitation'),
   doubt('doubt'),
-  note('note');
+  note('note'),
+
+  /// Mutashābih: a word or āyah confused with others like it — linked to
+  /// them ([MarkLink]), its comment the memory technique for telling them
+  /// apart.
+  mutashabih('mutashabih');
 
   final String code;
   const MarkType(this.code);
@@ -343,6 +348,56 @@ class MarkFix extends SyncRecord {
       )..readSync(j);
 }
 
+/// A passage a mutashābih mark is confused with: one word, or with word 0 a
+/// whole āyah. Its own record, so linking never rewrites the mark.
+class MarkLink extends SyncRecord {
+  @override
+  final String id;
+  final String markId;
+  @override
+  final String bookId;
+  final WordRef ref;
+  final String authorId;
+  final int createdAt;
+
+  MarkLink({
+    required this.id,
+    required this.markId,
+    required this.bookId,
+    required this.ref,
+    required this.authorId,
+    required this.createdAt,
+    required super.clientUpdated,
+    super.deleted,
+    super.serverUpdated,
+    super.dirty,
+  });
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'mark': markId,
+        'book': bookId,
+        's': ref.surah,
+        'a': ref.ayah,
+        'w': ref.word,
+        'author': authorId,
+        'at': createdAt,
+        ...syncJson(),
+      };
+
+  factory MarkLink.fromJson(Map<String, dynamic> j) => MarkLink(
+        id: j['id'] as String,
+        markId: j['mark'] as String,
+        bookId: j['book'] as String,
+        ref: WordRef((j['s'] as num).toInt(), (j['a'] as num).toInt(),
+            (j['w'] as num).toInt()),
+        authorId: j['author'] as String? ?? '',
+        createdAt: (j['at'] as num?)?.toInt() ?? 0,
+        clientUpdated: 0,
+      )..readSync(j);
+}
+
 /// A reply on a mark (listener ↔ reciter ↔ checker).
 class MarkComment extends SyncRecord {
   @override
@@ -441,6 +496,7 @@ class MarkVisual {
     MarkType.doubt,
     MarkType.tajwid,
     MarkType.hesitation,
+    MarkType.mutashabih,
     MarkType.note,
   ];
 

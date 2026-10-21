@@ -38,7 +38,10 @@ class ClassicArt {
   /// The Madani sūrah header in line art, and in colour.
   static final surahBorder = _of(surahBorderSvg);
   static final surahBorderColoured = _of(surahBorderColouredSvg);
-  static final lantern = _of(lanternSvg);
+  /// The Madani margin lanterns, in two styles: a lantern over a box, and
+  /// a box between two knots.
+  static final lantern1 = _of(lantern1Svg);
+  static final lantern2 = _of(lantern2Svg);
   static final indopakVerseCircle = _of(indopakVerseCircleSvg);
 
   /// The Indo-Pak header in two tiers (the name over the basmala; the
@@ -125,7 +128,7 @@ Rect containRect(Rect within, double ratio, {double scale = 1, double dy = 0}) {
 /// lengthened — by stretching a zone of straight lines ([stretch], as
 /// fractions of the art's width), or, where the middle has a repeating
 /// pattern (the Indo-Pak beads), by repeating a strip of whole periods
-/// ([repeat]: its start and width as fractions) as many times as fit.
+/// ([repeat]: its start and width as fractions) enough times to fill the width (each copy a little wider).
 ///
 /// [pieces] are what to draw — each a part of the art (fractions of it)
 /// and where it goes — and [x] maps a point of the art across onto the
@@ -172,19 +175,27 @@ class WideArt {
             : x0 + (f - a) / (b - a) * midW,
       );
     }
+    // Whole strips, enough to fill; each a little wider than drawn so they
+    // come out exactly (a few per cent at most).
     final (a, p) = repeat!;
-    final stripW = p * natural;
-    final n = (extra / stripW).floor();
+    final n = (extra / (p * natural)).floor().clamp(1, 1 << 20);
+    final stripW = extra / n;
     final w = natural + n * stripW;
-    final l = box.left + (box.width - w) / 2;
+    final l = box.left;
     final x0 = l + a * natural;
     return WideArt._(
       Rect.fromLTWH(l, top, w, height),
       [
-        (src(0, a + p), dst(l, x0 + stripW)),
-        for (var i = 1; i <= n; i++)
-          (src(a, a + p), dst(x0 + i * stripW, x0 + (i + 1) * stripW)),
-        (src(a + p, 1), dst(x0 + (n + 1) * stripW, l + w)),
+        (src(0, a + p), dst(l, x0 + p * natural)),
+        for (var i = 0; i < n; i++)
+          (
+            src(a, a + p),
+            dst(
+              x0 + p * natural + i * stripW,
+              x0 + p * natural + (i + 1) * stripW,
+            ),
+          ),
+        (src(a + p, 1), dst(x0 + p * natural + n * stripW, l + w)),
       ],
       (f) => f <= a + p
           ? l + f * natural

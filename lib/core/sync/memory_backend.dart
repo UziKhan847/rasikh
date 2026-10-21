@@ -36,6 +36,7 @@ class MemoryServer {
     'marks': 'author',
     'mark_fixes': 'fixed_by',
     'mark_comments': 'author',
+    'mark_links': 'author',
   };
 }
 

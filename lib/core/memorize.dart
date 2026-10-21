@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart' show Offset, Size;
 
 import '../data/mushaf.dart';
 
@@ -34,6 +35,11 @@ class MemorizeController extends ChangeNotifier {
     final (first, _) = MushafRepo.pageTokens(script, page);
     return MemorizeController._(script, first);
   }
+
+  /// Starts with everything from token [token] on hidden: memorizing from
+  /// a sūrah, juzʼ or any āyah, the words before it on its page showing.
+  factory MemorizeController.startAtToken(String script, int token) =>
+      MemorizeController._(script, token);
 
   int get revealedEnd => _end;
   int get viewToken => _view;
@@ -150,17 +156,38 @@ class MemorizeController extends ChangeNotifier {
     _set(e, view: e < _total ? e : _total - 1);
   }
 
-  /// Shows the whole page in view.
-  void revealPage() {
-    final (_, end) = MushafRepo.pageTokens(script, viewPage);
-    if (end > _end) _set(end);
+  /// Shows everything up to the end of [page] (default: the page in view)
+  /// — the page on screen, even if the reader turned to it — and stays
+  /// there.
+  void revealPage([int? page]) {
+    final (_, end) = MushafRepo.pageTokens(script, page ?? viewPage);
+    _set(end > _end ? end : _end, view: end - 1);
   }
 
-  /// Hides the whole page in view again.
-  void hidePage() {
-    final page = viewPage;
-    final (first, _) = MushafRepo.pageTokens(script, page);
-    if (first < _end) _set(first, view: first);
+  /// Hides [page] (default: the page in view) and everything after it
+  /// again, staying on it; pages before it are left as they are.
+  void hidePage([int? page]) {
+    final (first, _) = MushafRepo.pageTokens(script, page ?? viewPage);
+    _set(first < _end ? first : _end, view: first);
+  }
+
+  /// A tap's step with "tap to reveal" [mode] ('word', 'verse', 'split'),
+  /// at [at] on a [screen]: the left half goes on (as the text runs), the
+  /// right half goes back; split, the top half by words and the bottom
+  /// half by āyāt.
+  void tapStep(String mode, Offset at, Size screen) {
+    final back = at.dx > screen.width / 2;
+    final verse = mode == 'verse' || (mode == 'split' && at.dy > screen.height / 2);
+    switch ((verse, back)) {
+      case (false, false):
+        nextWord();
+      case (false, true):
+        prevWord();
+      case (true, false):
+        nextVerse();
+      case (true, true):
+        prevVerse();
+    }
   }
 
   // ── verse cards: one āyah at a time ──

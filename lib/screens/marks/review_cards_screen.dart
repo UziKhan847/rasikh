@@ -128,6 +128,7 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
     _handlers
       ..onTapWord = _playWordAudio
       ..onLongPressWord = _showWord
+      ..onLongPressVerse = _showWord
       ..onTapVerse = _playVerse;
     _load();
   }
@@ -297,6 +298,18 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
             TextButton(
                 onPressed: _openInMushaf,
                 child: Text(context.l10n.rvOpenMushaf)),
+            PopupMenuButton<String>(
+              icon: const Icon(AppIcons.more),
+              itemBuilder: (_) => [
+                CheckedPopupMenuItem(
+                  value: 'word',
+                  checked: s.reviewCardWord,
+                  child: Text(context.l10n.rvShowWord),
+                ),
+              ],
+              onSelected: (_) =>
+                  s.update(() => s.reviewCardWord = !s.reviewCardWord),
+            ),
           ],
         ),
         body: !_ready
@@ -413,6 +426,21 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                if (SettingsScope.of(context).reviewCardWord)
+                  _WordPanel(
+                    word: r.isWholeAyah
+                        ? null
+                        : MushafRepo.wordText(
+                            widget.script, r.globalAyah, r.word0),
+                    fontFamily: MushafRepo.fontFamily(widget.script),
+                    fontSize: SettingsScope.of(context).reviewCardFont * 1.8,
+                    tint: fix == null ? mp.tintOf(m.type) : null,
+                    line: fix == null ? mp.colorOf(m.type) : mp.fixed,
+                    paper: paper,
+                    onTap: () => _playWordAudio(_wordOf(r)),
+                  ),
+                if (SettingsScope.of(context).reviewCardWord)
+                  const SizedBox(height: 12),
                 Row(children: [
                   MarkSwatch(type: fix == null ? m.type : null, pal: mp),
                   const SizedBox(width: 8),
@@ -430,9 +458,18 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
                     ),
                   ),
                 ]),
+                // A mutashābih: what it's confused with, and the technique.
+                if (m.type == MarkType.mutashabih) ...[
+                  const SizedBox(height: 8),
+                  MutashabihLinks(mark: m, store: store),
+                ],
                 if (m.comment.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Text(m.comment, style: uiStyle(context, size: 15)),
+                  if (m.type == MarkType.mutashabih)
+                    Text(context.l10n.mtTechnique,
+                        style: uiStyle(context,
+                            size: 12, weight: FontWeight.w700, color: p.ink3)),
+                  Text(m.comment, style: uiStyle(context, size: 16)),
                 ],
                 for (final c in replies)
                   Padding(
@@ -451,6 +488,69 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The marked word under the verse card, large — what the student must fix
+/// — tinted and underlined as its mark is; a tap plays it. A whole-āyah
+/// mark says so instead.
+class _WordPanel extends StatelessWidget {
+  final String? word;
+  final String fontFamily;
+  final double fontSize;
+  final Color? tint;
+  final Color line;
+  final MushafPaper paper;
+  final VoidCallback onTap;
+  const _WordPanel({
+    required this.word,
+    required this.fontFamily,
+    required this.fontSize,
+    required this.tint,
+    required this.line,
+    required this.paper,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final w = word;
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+        decoration: BoxDecoration(
+          color: paper.paper,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: line, width: 1.5),
+        ),
+        child: Center(
+          child: w == null
+              ? Text(context.l10n.mkWholeAyah,
+                  style: uiStyle(context,
+                      size: 18, weight: FontWeight.w700, color: paper.ink))
+              : Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: tint,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border(bottom: BorderSide(color: line, width: 3)),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(w,
+                        textDirection: TextDirection.rtl,
+                        style: TextStyle(
+                            fontFamily: fontFamily,
+                            fontSize: fontSize,
+                            height: 1.9,
+                            color: paper.ink)),
+                  ),
+                ),
+        ),
+      ),
     );
   }
 }

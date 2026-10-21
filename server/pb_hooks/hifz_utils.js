@@ -4,7 +4,7 @@
 module.exports = {
   // No 0/O, 1/I: codes are read aloud and typed.
   ALPHABET: "ABCDEFGHJKLMNPQRSTUVWXYZ23456789",
-  DATA: ["sessions", "marks", "mark_fixes", "mark_comments"],
+  DATA: ["sessions", "marks", "mark_fixes", "mark_comments", "mark_links"],
 
   /** A Go []string as a JS array. */
   list(record, field) {

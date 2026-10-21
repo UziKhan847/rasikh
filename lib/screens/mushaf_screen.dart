@@ -28,7 +28,8 @@ import 'marks/review_bar.dart';
 import 'marks/review_cards_screen.dart';
 import '../ui/ornaments/ornaments.dart';
 import '../ui/tajwid_colors.dart';
-import '../data/divisions.dart' show rukuCountOf;
+import '../data/divisions.dart' show manzilOf, rukuCountOf;
+import '../data/page_details.dart';
 import '../data/mushaf.dart';
 import '../data/quran.dart';
 import '../ui/app_icons.dart';
@@ -36,6 +37,7 @@ import '../ui/kit.dart';
 import '../ui/mark_style.dart';
 import 'marks/marking.dart';
 import 'marks/marking_bar.dart';
+import 'marks/mutashabihat_screen.dart';
 import 'marks/word_marks_sheet.dart';
 import 'mushaf/mushaf_line.dart';
 import 'shell/app_shell.dart';
@@ -175,6 +177,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   WordRef? _focus;
 
   bool get _reviewing => _review?.active ?? false;
+
+  /// Mutashābih link mode: the mark whose likenesses are being tapped —
+  /// words and ۝ on any page — until Done.
+  Mark? _linking;
 
   // ── memorize ──
   MemorizeController? _memo;
@@ -348,20 +354,34 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   }
 
   /// Memorize: everything from the page in view (the spread's first page)
-  /// on is hidden, and revealed word by word.
-  void _startMemorize() {
+  /// — or from [token], a chosen start — on is hidden, and revealed word by
+  /// word.
+  void _startMemorize({int? token}) {
     _stopAudio();
     if (_marking.active) _marking.stop();
     _review?.end();
     final s = SettingsScope.of(context);
     final spread = (_desktop && _view(s) == 'spread') || _phoneSpread;
     final page = _pendingPage ?? _page;
-    _memo = MemorizeController.startAt(_script, spread ? _spreadStart(page) : page)
+    _memo = (token != null
+        ? MemorizeController.startAtToken(_script, token)
+        : MemorizeController.startAt(
+            _script, spread ? _spreadStart(page) : page))
       ..addListener(_onMemo)
       ..screenOf = _screenOf;
+    if (token != null) _showPage(_memo!.viewPage);
     // Focus mode keeps the page bare: its small floating bar is enough.
     if (!s.focusMode) _setChrome(true);
     setState(() {});
+  }
+
+  /// Memorize from a sūrah, juzʼ, page… chosen in the index.
+  Future<void> _memorizeFrom() async {
+    final t = await chooseMemorizeStart(context,
+        script: _script, currentPage: _pendingPage ?? _page);
+    if (t == null || !mounted) return;
+    if (_memorizing) _endMemorize();
+    _startMemorize(token: t);
   }
 
   /// Memorize as verse cards: from the page in view (or carrying on from
@@ -425,6 +445,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         line: paper.line,
         accent: paper.id == 'mono' ? paper.ink : paper.acc,
         floating: floating,
+        screen: _screenOf(_pendingPage ?? _page),
         onPlay: _playRevealed,
         onPlayPage: () => _playRevealed(page: true),
         onSwitchView: _memorizeAsCards,
@@ -434,29 +455,21 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       );
   }
 
-  /// Memorizing, with "tap to reveal" on: a tap anywhere reveals the next
-  /// word.
+  /// Memorizing, with "tap to reveal" on: a tap steps by its zone.
   void _memoTap(MushafWord _) {
     _lastWordTap = DateTime.now();
     _memoStep();
   }
 
-  /// Where the last touch came down on the screen (the split tap).
-  double _lastDownY = 0;
+  /// Where the last touch came down on the screen (the tap zones).
+  Offset _lastDown = Offset.zero;
 
-  /// A tap's reveal: the next word or the next āyah (Settings) — or, with
-  /// the split tap, a word in the screen's top half and an āyah in its
-  /// bottom — or turning to the next page once the screen is all revealed.
-  void _memoStep() {
-    final m = _memo;
-    if (m == null) return;
-    final verse = switch (SettingsScope.of(context).memorizeTap) {
-      'verse' => true,
-      'split' => _lastDownY > MediaQuery.sizeOf(context).height / 2,
-      _ => false,
-    };
-    verse ? m.nextVerse() : m.nextWord();
-  }
+  /// A tap's step (Settings): on in the screen's left half, back in its
+  /// right; by words, by āyāt, or (split) words in the top half and āyāt
+  /// in the bottom — or turning the page once the screen is all revealed
+  /// (or, going back, all hidden).
+  void _memoStep() => _memo?.tapStep(SettingsScope.of(context).memorizeTap,
+      _lastDown, MediaQuery.sizeOf(context));
 
   /// The pages on screen with [p], (first, last): its spread when two
   /// show.
@@ -579,6 +592,95 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     _marking.apply(context, WordRef.fromGlobal(wd.ayah, wd.wordIdx));
   }
 
+  /// Link mode on: [m]'s likenesses are tapped on any page.
+  void _startLinking(Mark m) {
+    _stopAudio();
+    setState(() => _linking = m);
+    _setChrome(false);
+  }
+
+  /// In link mode, a tap on a word (or, [ref] word 0, a ۝) links it to the
+  /// mutashābih — or unlinks it.
+  void _linkTap(WordRef ref) {
+    _lastWordTap = DateTime.now();
+    final m = _linking;
+    final store = MarksScope.maybeOf(context);
+    if (m == null || store == null || ref == m.ref) return;
+    store.toggleLink(m, ref);
+    if (SettingsScope.of(context).haptics) HapticFeedback.selectionClick();
+  }
+
+  /// Leaves link mode. A mutashābih with nothing linked isn't one: on
+  /// cancel it goes (Done needs a link).
+  void _endLinking() {
+    final m = _linking;
+    final store = MarksScope.maybeOf(context);
+    if (m != null && store != null && store.linksOf(m).isEmpty) {
+      store.deleteMark(m);
+    }
+    setState(() => _linking = null);
+  }
+
+  /// Link mode's banner: what to do, how many are linked, Cancel and Done.
+  Widget _linkBar(MushafPaper paper) {
+    final m = _linking!;
+    final store = MarksScope.of(context);
+    final n = store.linksOf(m).length;
+    final accent = paper.id == 'mono' ? paper.ink : paper.acc;
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 620),
+      padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: paper.chrome,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: paper.line),
+        boxShadow: qShadows(context, const [
+          BoxShadow(
+              color: Color(0x40000000),
+              blurRadius: 16,
+              offset: Offset(0, 6),
+              spreadRadius: -10),
+        ]),
+      ),
+      child: Row(children: [
+        Icon(AppIcons.link, color: accent, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                  '${context.l10n.mkMutashabih} · '
+                  '${linkLabel(_script, m.ref)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: uiStyle(context,
+                      size: 13, weight: FontWeight.w700, color: paper.ink)),
+              Text(context.l10n.mtLinkBanner,
+                  maxLines: 2,
+                  style: uiStyle(context, size: 12, color: paper.sub)),
+            ],
+          ),
+        ),
+        TextButton(
+          onPressed: _endLinking,
+          child: Text(context.l10n.cancel,
+              style: uiStyle(context, size: 13.5, color: paper.sub)),
+        ),
+        FilledButton(
+          onPressed: n == 0 ? null : () => setState(() => _linking = null),
+          style: FilledButton.styleFrom(
+            backgroundColor: accent,
+            foregroundColor: paper.chrome,
+            minimumSize: const Size(0, 38),
+          ),
+          child: Text(context.l10n.mtDone(n)),
+        ),
+      ]),
+    );
+  }
+
   /// A tap on ۝ while marking marks the whole āyah (e.g. skipped).
   void _markAyah(int global) {
     _lastWordTap = DateTime.now();
@@ -666,7 +768,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     final order = spread
         ? [first + 2, first + 3, first - 1, first - 2]
         : [page + 1, page - 1, page + 2, page - 2];
-    MushafLineScheduler.addJob(_warm(order, _script, mushafPaperOf(s)));
+    MushafLineScheduler.addJob(_warm(order, _script, mushafPaperOf(s, _script)));
   }
 
   /// How the pages are dressed: ornaments and border, focus mode applied.
@@ -876,11 +978,13 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// āyah number, whose own recognisers fire first on the same pointer-up.
   void _onPageTap() {
     if (DateTime.now().difference(_lastWordTap).inMilliseconds < 250) return;
+    // Linking: the page stays as it is (taps are for words and ۝).
+    if (_linking != null) return;
     // While marking, the pen bar stays put: a near-miss on a word must not
     // hide it.
     if (_memorizing) {
-      // The page itself: the next word when taps reveal; else nothing (the
-      // bars stay put, the words wait for the bar's buttons).
+      // The page itself: a step by its zone when taps reveal; else nothing
+      // (the bars stay put, the words wait for the bar's buttons).
       if (SettingsScope.of(context).memorizeTapReveals) _memoStep();
       return;
     }
@@ -917,7 +1021,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       ...light, 'mono', //
       'night', 'night_mono', 'oled', 'oled_mono',
     ];
-    final cur = mushafPaperOf(s).id;
+    final cur = mushafPaperOf(s, _script).id;
     final next = order[(order.indexOf(cur) + 1) % order.length];
     s.update(() {
       if (light.contains(next)) {
@@ -1076,17 +1180,21 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                         color: p.ink)),
                 const SizedBox(height: 6),
                 Text(
-                    context.l10n.wordN(_tnames[surah] ?? '',
-                        '$surah:$ayahInSurah', wd.wordIdx + 1),
+                    wd.isMarker
+                        ? '${_tnames[surah] ?? ''}  ·  $surah:$ayahInSurah  ·  '
+                            '${context.l10n.mkWholeAyah}'
+                        : context.l10n.wordN(_tnames[surah] ?? '',
+                            '$surah:$ayahInSurah', wd.wordIdx + 1),
                     style: uiStyle(sheet,
                         size: 13, weight: FontWeight.w600, color: p.ink3)),
                 const SizedBox(height: 16),
                 Wrap(spacing: 10, runSpacing: 10, children: [
-                  QPrimaryButton(context.l10n.playWord,
-                      icon: AppIcons.volume, onTap: () {
-                    Navigator.pop(sheet);
-                    _playWordAudio(wd);
-                  }),
+                  if (!wd.isMarker)
+                    QPrimaryButton(context.l10n.playWord,
+                        icon: AppIcons.volume, onTap: () {
+                      Navigator.pop(sheet);
+                      _playWordAudio(wd);
+                    }),
                   QOutlineButton(context.l10n.reciteFromHere,
                       icon: AppIcons.recite, onTap: () {
                     Navigator.pop(sheet);
@@ -1101,6 +1209,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                   sessionId: _marking.active
                       ? _marking.sessionId
                       : _review?.sessionId,
+                  onLink: (m) {
+                    Navigator.pop(sheet);
+                    _startLinking(m);
+                  },
                 ),
             ],
           ),
@@ -1173,6 +1285,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                   Navigator.pop(sheet);
                   _startMemorize();
                 },
+          onMemorizeFrom: () {
+            Navigator.pop(sheet);
+            _memorizeFrom();
+          },
           onMemorizeCards: () {
             Navigator.pop(sheet);
             _memorizeAsCards();
@@ -1216,15 +1332,15 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           : null;
     }
     _wasDesktop = desktop;
-    final paper = mushafPaperOf(s);
+    final paper = mushafPaperOf(s, _script);
     return PopScope(
       canPop: _chrome,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop && !_chrome) _setChrome(true);
       },
       child: Scaffold(
-        backgroundColor: paper.bg,
-        body: !_ready
+        backgroundColor: _look(s).edge ? paper.paper : paper.bg,
+        body: _withLinkBar(paper, !_ready
             ? Center(child: CircularProgressIndicator(color: paper.acc))
             : desktop
                 ? _desktopBody(context, s, paper)
@@ -1238,7 +1354,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                     final pager = !landscape
                         ? _pager(s, paper,
                             fitWidth: false,
-                            margin: const EdgeInsets.fromLTRB(8, 8, 8, 8))
+                            // Edge to edge: the page meets the screen's edges.
+                            margin: _look(s).edge
+                                ? EdgeInsets.zero
+                                : const EdgeInsets.fromLTRB(8, 8, 8, 8))
                         : _phoneSpread
                             ? _spreadPager(s, paper,
                                 margin: const EdgeInsets.fromLTRB(68, 4, 72, 4))
@@ -1255,9 +1374,23 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                           ? _landscapeBody(context, s, paper, pager!)
                           : _portraitBody(context, s, paper, pager!),
                     );
-                  }),
+                  })),
       ),
     );
+  }
+
+  /// [body], with link mode's banner floating over its top.
+  Widget _withLinkBar(MushafPaper paper, Widget body) {
+    if (_linking == null) return body;
+    return Stack(children: [
+      body,
+      Positioned(
+        top: MediaQuery.paddingOf(context).top + 10,
+        left: 12,
+        right: 12,
+        child: Center(child: _linkBar(paper)),
+      ),
+    ]);
   }
 
   Widget _pageView(int page, AppSettings s, MushafPaper paper,
@@ -1324,7 +1457,20 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           : (_marking.active || _reviewing ? _showWord : _playAndShowWord)
       ..onTapVerse = _memorizing
           ? (s.memorizeTapReveals ? ((_) => _memoStep()) : _memoPlayVerse)
-          : _onTapVerse;
+          : _onTapVerse
+      // Holding a ۝: the whole āyah's sheet, to mark it (memorizing: once
+      // it shows).
+      ..onLongPressVerse = _memorizing ? _memoHold : _showWord;
+    // Link mode: words and ۝ link (or unlink) whatever else is on.
+    if (_linking != null) {
+      WordRef word(MushafWord wd) => WordRef.fromGlobal(wd.ayah, wd.wordIdx);
+      WordRef ayah(int g) => WordRef.fromGlobal(g, -1);
+      _handlers
+        ..onTapWord = ((wd) => _linkTap(word(wd)))
+        ..onLongPressWord = ((wd) => _linkTap(word(wd)))
+        ..onTapVerse = ((g) => _linkTap(ayah(g)))
+        ..onLongPressVerse = ((wd) => _linkTap(word(wd)));
+    }
     final (lo, hi) = _ayahsOn(page);
     final mine = _playAyah >= 0 && _playAyah >= lo && _playAyah <= hi;
     // Memorizing (revision too): a word's marks appear as the word does —
@@ -1471,7 +1617,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       Listener(
         // A finger on the pages pauses background work until it lifts.
         onPointerDown: (e) {
-          _lastDownY = e.position.dy;
+          _lastDown = e.position;
           MushafLineScheduler.pointerDown();
         },
         onPointerUp: (_) => MushafLineScheduler.pointerUp(),
@@ -2123,7 +2269,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         // A two-finger sideways swipe on a trackpad turns the page.
         Expanded(
             child: Listener(
-              onPointerDown: (e) => _lastDownY = e.position.dy,
+              onPointerDown: (e) => _lastDown = e.position,
               child: TrackpadPager(
                 onTurn: _turn,
                 child: RepaintBoundary(
@@ -2265,12 +2411,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   Widget _stage(BuildContext context, AppSettings s, MushafPaper paper,
       String view, int first) {
-    final pad = _chrome ? 24.0 : 14.0;
+    // Edge to edge: the page reaches the window's edges (the arrows aside).
+    final edge = _look(s).edge;
+    final pad = edge ? 0.0 : (_chrome ? 24.0 : 14.0);
     final arrows = _chrome ? 60.0 : 0.0;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: paper.bg,
-        gradient: s.useGradients
+        color: edge ? paper.paper : paper.bg,
+        gradient: s.useGradients && !edge
             ? RadialGradient(
                 radius: .9,
                 colors: [paper.paper.withValues(alpha: .13), paper.bg])
@@ -2622,6 +2770,9 @@ class _MushafSettingsSheet extends StatelessWidget {
   /// Starts memorizing from the page in view.
   final VoidCallback? onMemorize;
 
+  /// Memorizing from a sūrah, juzʼ, page… chosen in the index.
+  final VoidCallback? onMemorizeFrom;
+
   /// The same, as verse cards.
   final VoidCallback? onMemorizeCards;
   const _MushafSettingsSheet(
@@ -2630,6 +2781,7 @@ class _MushafSettingsSheet extends StatelessWidget {
       required this.onScript,
       this.onReview,
       this.onMemorize,
+      this.onMemorizeFrom,
       this.onMemorizeCards});
 
   @override
@@ -2649,6 +2801,14 @@ class _MushafSettingsSheet extends StatelessWidget {
               subtitle: context.l10n.mzStartSub,
               chevron: true,
               onTap: onMemorize,
+            ),
+          if (onMemorizeFrom != null)
+            QRow(
+              leading: Icon(AppIcons.indexList, color: pal(context).acc),
+              title: context.l10n.mzStartFrom,
+              subtitle: context.l10n.mzStartFromSub,
+              chevron: true,
+              onTap: onMemorizeFrom,
             ),
           if (onMemorizeCards != null)
             QRow(
@@ -2714,6 +2874,21 @@ class _MushafSettingsSheet extends StatelessWidget {
                 value: s.mushafHeader,
                 onChanged: (v) => s.update(() => s.mushafHeader = v)),
           ),
+          QRow(
+            title: context.l10n.msEdgeToEdge,
+            subtitle: context.l10n.msEdgeToEdgeSub,
+            control: QSwitch(
+                value: s.styleFor(script).edge,
+                onChanged: (v) => s.update(() => s.styleFor(script).edge = v)),
+          ),
+          if (MarksScope.maybeOf(context)?.activeBook != null)
+            QRow(
+              leading: Icon(AppIcons.link, color: pal(context).acc),
+              title: context.l10n.mtTitle,
+              subtitle: context.l10n.mtTitleSub,
+              chevron: true,
+              onTap: () => pushAdaptive(context, const MutashabihatScreen()),
+            ),
           QRow(
             title: context.l10n.msTitle,
             subtitle: context.l10n.msTitleSub,
@@ -2839,7 +3014,7 @@ class MushafPagePreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = SettingsScope.of(context);
-    final paper = mushafPaperOf(s);
+    final paper = mushafPaperOf(s, script);
     final look = s.mushafLook(script, focus: false);
     return LayoutBuilder(builder: (context, c) {
       final box = MushafGeometry.pageBox(c.biggest, script,
@@ -2944,9 +3119,12 @@ class _MushafPageView extends StatelessWidget {
       'right' => const BorderRadius.horizontal(right: r),
       _ => const BorderRadius.all(r),
     };
-    final innerPad = compact
-        ? const EdgeInsets.symmetric(horizontal: 6, vertical: 2)
-        : const EdgeInsets.symmetric(horizontal: 8, vertical: 4);
+    // Edge to edge: a pixel inside the paper's hair of padding.
+    final innerPad = look.edge
+        ? const EdgeInsets.all(1)
+        : compact
+            ? const EdgeInsets.symmetric(horizontal: 6, vertical: 2)
+            : const EdgeInsets.symmetric(horizontal: 8, vertical: 4);
     // The page border (its own choice): none, one or two thin rules, or an
     // artwork border, the text set inside it on the paper's inner colour.
     Widget framed(Widget child, double fs) => MushafPageBorder(
@@ -2965,8 +3143,8 @@ class _MushafPageView extends StatelessWidget {
         );
 
     return LayoutBuilder(builder: (context, outer) {
-      final roomy =
-          outer.maxWidth - margin.horizontal > MushafGeometry.roomyWidth;
+      final pageW = outer.maxWidth - margin.horizontal;
+      final roomy = pageW > MushafGeometry.roomyWidth;
       final spineShade = spine == null ||
               !SettingsScope.of(context).useGradients
           ? null
@@ -2982,40 +3160,61 @@ class _MushafPageView extends StatelessWidget {
                 Colors.transparent,
               ],
             );
-      // The artwork border and the margin follow the page's font size.
+      // The artwork border, the margins and the edges follow the page's
+      // font size.
       final fs = look.scalesChrome
-          ? MushafGeometry.fontFor(
-              outer.maxWidth - margin.horizontal, script, look,
-              compact: compact)
+          ? MushafGeometry.fontFor(pageW, script, look, compact: compact)
           : 0.0;
-      final band = look.hasMargin ? MushafGeometry.lanternBand(fs) : 0.0;
-      final padding = (roomy
-              ? const EdgeInsets.fromLTRB(22, 18, 22, 10)
-              : (compact
-                  ? const EdgeInsets.fromLTRB(4, 4, 4, 3)
-                  : const EdgeInsets.fromLTRB(6, 6, 6, 4))) +
-          EdgeInsets.symmetric(horizontal: band);
-      // The juzʼ in the outer margin (right of an odd page, left of an even
-      // one), a little above the middle: the lantern, or plain text.
-      Widget lanterned(Widget child) {
-        if (!look.hasMargin) return child;
-        final pad = padding - EdgeInsets.symmetric(horizontal: band);
+      final gap = look.tune['lanternGap'] * fs;
+      final band = look.sideBand
+          ? MushafGeometry.lanternBand(fs, look.tune['lanternGap'])
+          : 0.0;
+      final basePad = look.edge
+          ? const EdgeInsets.all(MushafGeometry.edgePad)
+          : roomy
+          ? const EdgeInsets.fromLTRB(22, 18, 22, 10)
+          : (compact
+              ? const EdgeInsets.fromLTRB(4, 4, 4, 3)
+              : const EdgeInsets.fromLTRB(6, 6, 6, 4));
+      final padding = basePad + EdgeInsets.symmetric(horizontal: band);
+      // How the running head is set: a line inside the frame, white boxes
+      // on it (Madani), or along it outside (Indo-Pak).
+      final head = !showHeader || look.edge
+          ? 'none'
+          : look.headOnFrame
+              ? 'frame'
+              : look.headOnEdges
+                  ? 'edges'
+                  : 'inside';
+      final juz = MushafRepo.juzOfPage(script, page);
+      // The outer side: right of an odd page, left of an even one.
+      final outerRight = page.isOdd;
+      final small = fs * .55 < 9 ? 9.0 : fs * .55;
+
+      // The 'text' margin: the juzʼ (Indo-Pak: the para) written along the
+      // frame on the inner side.
+      Widget sideLabel(Widget child) {
+        if (look.margin != 'text' || band <= 0) return child;
+        final label = script == 'indopak'
+            ? '${indopakParaName(juz)}  ${_ar(juz)}'
+            : madaniJuzName(juz);
         return Stack(children: [
           child,
           Positioned.fill(
             child: Padding(
-              padding: pad.copyWith(left: pad.left + 1, right: pad.right + 1),
+              padding: basePad,
               child: Align(
-                alignment: Alignment(page.isOdd ? 1 : -1, -.56),
-                child: MarginJuz(
-                  kind: look.margin,
-                  width: band,
-                  number: _ar(MushafRepo.juzOfPage(script, page)),
-                  color: paper.frame,
-                  textColor:
-                      look.margin == 'lantern' ? paper.acc : paper.frame,
-                  fill: paper.inner,
-                  scale: look.tune['lanternScale'],
+                alignment: Alignment(outerRight ? -1 : 1, 0),
+                child: SizedBox(
+                  width: band - gap,
+                  child: Center(
+                    child: EdgeLabel(
+                      text: label,
+                      size: small,
+                      color: paper.ink,
+                      quarterTurns: outerRight ? 3 : 1,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -3023,15 +3222,119 @@ class _MushafPageView extends StatelessWidget {
         ]);
       }
 
+      // The Madani running head: the sūrah and the juzʼ in white boxes on
+      // the frame's top band.
+      Widget onFrame(Widget framedChild) {
+        if (head != 'frame') return framedChild;
+        final t = look.borderBand(fs);
+        final v = MushafRepo.firstVerseOfPage(script, page);
+        final boxH = small * 1.3 + 4;
+        // The words in the Quran's script; a number in Naskh (the Quran
+        // font draws digits as āyah markers).
+        Widget box(String text, [int? n]) => Container(
+              height: boxH,
+              alignment: Alignment.center,
+              padding: EdgeInsets.symmetric(horizontal: small * .8),
+              decoration: BoxDecoration(
+                color: paper.inner ?? paper.paper,
+                border: Border.all(
+                    color: paper.ink.withValues(alpha: .65), width: .8),
+                borderRadius: BorderRadius.circular(2),
+              ),
+              child: Text.rich(
+                  TextSpan(children: [
+                    TextSpan(text: text),
+                    if (n != null)
+                      TextSpan(
+                          text: ' ${_ar(n)}',
+                          style: const TextStyle(
+                              fontFamily: 'NotoNaskhArabic', height: 1.1)),
+                  ]),
+                  textDirection: TextDirection.rtl,
+                  style: TextStyle(
+                      fontFamily: 'UthmanicHafs',
+                      fontSize: small,
+                      height: 1.25,
+                      color: paper.ink)),
+            );
+        return Stack(
+            clipBehavior: Clip.none, fit: StackFit.passthrough, children: [
+          framedChild,
+          Positioned(
+            top: t / 2 - boxH / 2,
+            left: t * 6,
+            child: box('سورة ${names[v.$1] ?? ''}', v.$1),
+          ),
+          Positioned(
+            top: t / 2 - boxH / 2,
+            right: t * 6,
+            child: box(madaniJuzName(juz)),
+          ),
+        ]);
+      }
+
+      // The Indo-Pak edges: para · page · sūrah above the frame, the
+      // manzil below it.
+      final strip = MushafGeometry.edgeStrip(fs);
+      TextStyle edgeStyle() => TextStyle(
+          fontFamily: 'NotoNaskhArabic',
+          fontSize: small,
+          height: 1.3,
+          color: paper.ink);
+      Widget topStrip() => SizedBox(
+            height: strip,
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: Row(children: [
+                Expanded(
+                  child: Text(
+                    [
+                      for (final s in surahsOn(lines))
+                        '${names[s] ?? ''} ${_ar(s)}',
+                    ].join(' ـ '),
+                    textDirection: TextDirection.rtl,
+                    textAlign: TextAlign.left,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: edgeStyle(),
+                  ),
+                ),
+                Text(_ar(page), style: edgeStyle()),
+                Expanded(
+                  child: Text(
+                    '${indopakParaName(juz)}  ${_ar(juz)}',
+                    textDirection: TextDirection.rtl,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    style: edgeStyle(),
+                  ),
+                ),
+              ]),
+            ),
+          );
+      Widget bottomStrip() {
+        final (s, a) = MushafRepo.firstVerseOfPage(script, page);
+        return SizedBox(
+          height: strip,
+          child: Center(
+            child: Text('منزل ${_ar(manzilOf(s, a))}',
+                textDirection: TextDirection.rtl, style: edgeStyle()),
+          ),
+        );
+      }
+
+      // Edge to edge: just the paper, square (its border kept, unseen, so
+      // the geometry holds).
       final decoration = BoxDecoration(
         color: paper.paper,
-        borderRadius: radius,
-        border: Border.all(color: paper.line),
+        borderRadius: look.edge ? null : radius,
+        border: Border.all(
+            color: look.edge ? paper.paper : paper.line),
       );
       final foreground = spineShade == null
           ? null
           : BoxDecoration(borderRadius: radius, gradient: spineShade);
-      final pageNumber = showHeader && !compact
+      final pageNumber = (head == 'inside' || head == 'frame') && !compact
           ? Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Text(_ar(page),
@@ -3040,6 +3343,13 @@ class _MushafPageView extends StatelessWidget {
                       size: 13, height: 1.3, color: paper.sub)),
             )
           : null;
+      // Headers reach the frame's inner edge: past the text by the inner
+      // padding (and an artwork border's gap).
+      final bleed = look.border == 'none'
+          ? 0.0
+          : innerPad.horizontal / 2 +
+              (look.artBorder ? MushafGeometry.classicGap(fs) : 0);
+      final innerW = pageW - padding.horizontal;
       // Isolates the word grid's paint layer from the page frame around it:
       // every recitation word-highlight tick repaints this subtree, and
       // without this boundary the frame would be redrawn on every tick even
@@ -3052,9 +3362,22 @@ class _MushafPageView extends StatelessWidget {
                     outer.maxWidth - margin.horizontal - c.maxWidth,
                     outer.maxHeight - margin.vertical - vh);
               }
-              return _grid(context, lines, c.maxWidth, vh);
+              return _grid(context, lines, c.maxWidth, vh,
+                  bleed: bleed,
+                  // From the text's edge to the margin band's.
+                  toBand: (innerW - c.maxWidth) / 2,
+                  band: band,
+                  gap: gap,
+                  fs: fs,
+                  outerRight: outerRight);
             }),
           );
+      Widget inFrame(Widget g) => onFrame(framed(
+          Column(children: [
+            if (head == 'inside') _pageHeader(context),
+            g,
+          ]),
+          fs));
 
       if (wideLayout) {
         // A short-and-wide viewport (phone landscape): the page is laid out
@@ -3071,20 +3394,15 @@ class _MushafPageView extends StatelessWidget {
           }),
           child: SingleChildScrollView(
             padding: margin.copyWith(bottom: margin.bottom + 12),
-            child: lanterned(Container(
+            child: sideLabel(Container(
               decoration: decoration,
               foregroundDecoration: foreground,
               padding: padding,
               child: Column(
                 children: [
-                  framed(
-                      Column(
-                        children: [
-                          if (showHeader) _pageHeader(context),
-                          grid(0),
-                        ],
-                      ),
-                      fs),
+                  if (head == 'edges' && look.edgeTop) topStrip(),
+                  inFrame(grid(0)),
+                  if (head == 'edges' && look.edgeBottom) bottomStrip(),
                   ?pageNumber,
                 ],
               ),
@@ -3095,22 +3413,15 @@ class _MushafPageView extends StatelessWidget {
 
       return Padding(
         padding: margin,
-        child: lanterned(Container(
+        child: sideLabel(Container(
           decoration: decoration,
           foregroundDecoration: foreground,
           padding: padding,
           child: Column(
             children: [
-              Expanded(
-                child: framed(
-                    Column(
-                      children: [
-                        if (showHeader) _pageHeader(context),
-                        Expanded(child: grid(null)),
-                      ],
-                    ),
-                    fs),
-              ),
+              if (head == 'edges' && look.edgeTop) topStrip(),
+              Expanded(child: inFrame(Expanded(child: grid(null)))),
+              if (head == 'edges' && look.edgeBottom) bottomStrip(),
               ?pageNumber,
             ],
           ),
@@ -3164,38 +3475,97 @@ class _MushafPageView extends StatelessWidget {
     );
   }
 
-  Widget _grid(
-      BuildContext context, List<MushafLine> lines, double vw, double vh) {
+  /// The page's lines in a [vw] × [vh] text area, and — set out from them
+  /// into the outer margin ([toBand] from the text's edge to the margin
+  /// band, [band] wide, its first [gap] kept clear of the frame) — the
+  /// ḥizb-quarter lanterns and rukūʿ marks level with their lines. Sūrah
+  /// headers reach [bleed] past the text, to the frame.
+  Widget _grid(BuildContext context, List<MushafLine> lines, double vw,
+      double vh,
+      {double bleed = 0,
+      double toBand = 0,
+      double band = 0,
+      double gap = 0,
+      double fs = 0,
+      bool outerRight = true}) {
     final ink = paper.ink;
     // A short-and-wide viewport (phone landscape) lays the page out to the
     // FULL width and lets it run taller than the viewport (see _page, which
     // scrolls it); [vh] is 0 then.
     final fitWidth = wideLayout;
     mushafLastViewport = (Size(vw, vh), fitWidth);
-    final (fs, slotH, contentH) =
+    final (textFs, slotH, contentH) =
         mushafPageGeometry(script, page, lines, vw, vh, fitWidth: fitWidth);
-    if (kMushafPerf) PerfLog.pageFontSize = fs;
+    if (kMushafPerf) PerfLog.pageFontSize = textFs;
     final opening = mushafOpeningPage(page, lines);
     // Each row and the slots it spans: the Indo-Pak sūrah header takes a
     // heading and the basmala under it together, in its two tiers.
     final rows = <(int, Widget)>[];
     for (var i = 0; i < lines.length; i++) {
       final l = lines[i];
+      // A header runs out to the frame.
+      Widget wide(Widget child) => bleed <= 0
+          ? child
+          : OverflowBox(
+              maxWidth: vw + 2 * bleed,
+              minWidth: vw + 2 * bleed,
+              child: child);
       if (look.header == 'indopak' &&
           l.isHeader &&
           i + 1 < lines.length &&
           lines[i + 1].isBasmala) {
-        rows.add((2, _twoTierHeader(context, l, slotH)));
+        rows.add((2, wide(_twoTierHeader(context, l, slotH))));
         i++;
+        continue;
+      }
+      if (l.isHeader) {
+        rows.add((
+          1,
+          Center(
+              child: wide(_slot(
+                  context, i, l, textFs, vw + 2 * bleed, slotH, ink))),
+        ));
         continue;
       }
       rows.add((
         1,
         Center(
-            child: _slot(context, i, l, fs, vw, slotH, ink,
+            child: _slot(context, i, l, textFs, vw, slotH, ink,
                 justify: !opening)),
       ));
     }
+
+    // Where line [i]'s middle is, down the text area.
+    final lineCount = lines.length;
+    double lineY(int i) => opening
+        ? (contentH - lineCount * slotH) / 2 + (i + .5) * slotH
+        : (i + .5) * contentH / lineCount;
+    // The outer margin's marks, each [w] wide, at the band's outer side
+    // (away from the frame).
+    Positioned outerMark(int line, double w, double h, Widget child) =>
+        Positioned(
+          left: outerRight
+              ? vw + toBand + band - w - 2
+              : -(toBand + band) + 2,
+          top: lineY(line) - h / 2,
+          width: w,
+          height: h,
+          child: child,
+        );
+    final marks = <Widget>[
+      if (look.lantern && band > 0)
+        for (final (q, line) in hizbQuartersOn(lines))
+          _lanternAt(outerMark, line, q, band, gap),
+      if (look.headOnEdges && look.edgeRuku && band > 0)
+        for (final (line, number, ayahs) in rukuEndsOn(lines))
+          outerMark(
+            line,
+            band - gap,
+            fs * 1.9,
+            _RukuMark(
+                number: number, ayahs: ayahs, size: fs * .5, ink: paper.ink),
+          ),
+    ];
 
     final pageBody = MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -3218,7 +3588,32 @@ class _MushafPageView extends StatelessWidget {
               ),
       ),
     );
-    return pageBody;
+    if (marks.isEmpty) return pageBody;
+    return Stack(clipBehavior: Clip.none, children: [pageBody, ...marks]);
+  }
+
+  /// A ḥizb-quarter lantern ([quarter] 1…240) level with [line], in ink.
+  Widget _lanternAt(
+      Positioned Function(int, double, double, Widget) at,
+      int line,
+      int quarter,
+      double band,
+      double gap) {
+    final art =
+        look.margin == 'lantern2' ? ClassicArt.lantern2 : ClassicArt.lantern1;
+    final w = (band - gap) * .9 * look.tune['lanternScale'];
+    return at(
+      line,
+      w,
+      w / art.ratio,
+      MarginLantern(
+        kind: look.margin,
+        width: w,
+        text: hizbQuarterText(quarter),
+        ink: paper.ink,
+        fill: paper.inner,
+      ),
+    );
   }
 
   /// The sūrah's name for its header: in an Indo-Pak header, "sūrah" and
@@ -3272,7 +3667,7 @@ class _MushafPageView extends StatelessWidget {
         );
     return (
       t('اٰيَاتُهَا', MushafRepo.ayahCountOf(l.surah)),
-      t('رُكُوْعَاتُهَا', rukuCountOf(l.surah)),
+      t('رُكُوْعُهَا', rukuCountOf(l.surah)),
     );
   }
 
@@ -3320,12 +3715,20 @@ class _MushafPageView extends StatelessWidget {
       );
     }
     if (l.isBasmala) {
-      return FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(MushafRepo.bismillahChar,
-            textDirection: TextDirection.rtl,
-            style: TextStyle(
-                fontFamily: 'Bismillah', fontSize: slotH * 0.62, color: ink)),
+      // As printed: most of the line's height, at most 60% of its width.
+      return SizedBox(
+        width: targetW * .6,
+        height: slotH,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(MushafRepo.bismillahChar,
+              textDirection: TextDirection.rtl,
+              style: TextStyle(
+                  fontFamily: 'Bismillah',
+                  fontSize: slotH * .62 * look.tune['basmalaScale'],
+                  height: 1,
+                  color: ink)),
+        ),
       );
     }
     final marker = markerOf(look, paper);
@@ -3358,6 +3761,36 @@ class _MushafPageView extends StatelessWidget {
         markerScale: marker.scale,
         markerDy: marker.dy,
       ),
+    );
+  }
+}
+
+/// The Indo-Pak margin's rukūʿ mark, where a rukūʿ ends: «ع» with the
+/// rukūʿ's number in its sūrah above and its count of āyāt below.
+class _RukuMark extends StatelessWidget {
+  final int number, ayahs;
+  final double size;
+  final Color ink;
+  const _RukuMark(
+      {required this.number,
+      required this.ayahs,
+      required this.size,
+      required this.ink});
+
+  @override
+  Widget build(BuildContext context) {
+    TextStyle st(double k) => TextStyle(
+        fontFamily: 'NotoNaskhArabic',
+        fontSize: size * k,
+        height: 1.05,
+        color: ink);
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(_ar(number), style: st(.8)),
+        Text('ع', style: st(1.3).copyWith(fontWeight: FontWeight.w700)),
+        Text(_ar(ayahs), style: st(.8)),
+      ]),
     );
   }
 }

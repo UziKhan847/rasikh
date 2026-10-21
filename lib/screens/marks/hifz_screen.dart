@@ -17,10 +17,12 @@ import '../../ui/mark_style.dart';
 import '../shell/app_shell.dart';
 import '../mushaf/memorize_cards_screen.dart';
 import '../mushaf/mushaf_index_sheet.dart';
+import '../mushaf_screen.dart' show MushafPageScreen;
 import 'charts.dart';
 import 'mark_books_screen.dart';
 import 'marking.dart';
 import 'marks_stats_screen.dart';
+import 'mutashabihat_screen.dart';
 import 'report_pdf.dart';
 import 'review_cards_screen.dart';
 import 'sync_section.dart';
@@ -59,6 +61,23 @@ Future<void> _openMemorizeCards(BuildContext context) async {
   await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => MemorizeCardsScreen(
           controller: MemorizeController.startAt(script, page))));
+}
+
+/// Memorize in the muṣḥaf from a sūrah, juzʼ, page… chosen in the index.
+Future<void> _openMemorizeFrom(BuildContext context) async {
+  final script = SettingsScope.of(context).mushafScript;
+  final prog = ProgressScope.read(context);
+  await MushafRepo.ensure(script);
+  if (!context.mounted) return;
+  final here = prog.lastMushafScript == script ? prog.lastMushafPage ?? 1 : 1;
+  final t =
+      await chooseMemorizeStart(context, script: script, currentPage: here);
+  if (t == null || !context.mounted) return;
+  final c = MemorizeController.startAtToken(script, t);
+  await Navigator.of(context, rootNavigator: !useDesktop(context)).push(
+      MaterialPageRoute(
+          builder: (_) => MushafPageScreen(
+              startPage: c.viewPage, script: script, memorize: c)));
 }
 
 /// Review the active book's marks, around the last page read.
@@ -137,6 +156,20 @@ class HifzScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         QGroup(children: [
+          QRow(
+            leading: Icon(AppIcons.memorize, color: p.acc),
+            title: context.l10n.mzStartFrom,
+            subtitle: context.l10n.mzStartFromSub,
+            chevron: true,
+            onTap: () => _openMemorizeFrom(context),
+          ),
+          QRow(
+            leading: Icon(AppIcons.link, color: p.acc),
+            title: context.l10n.mtTitle,
+            subtitle: context.l10n.mtTitleSub,
+            chevron: true,
+            onTap: () => pushAdaptive(context, const MutashabihatScreen()),
+          ),
           QRow(
             leading: Icon(AppIcons.cards, color: p.acc),
             title: context.l10n.mzStartCards,

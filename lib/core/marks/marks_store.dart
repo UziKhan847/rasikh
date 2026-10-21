@@ -22,19 +22,22 @@ class ChangeSet {
   final List<Mark> marks;
   final List<MarkFix> fixes;
   final List<MarkComment> comments;
+  final List<MarkLink> links;
   ChangeSet({
     this.books = const [],
     this.sessions = const [],
     this.marks = const [],
     this.fixes = const [],
     this.comments = const [],
+    this.links = const [],
   });
   bool get isEmpty =>
       books.isEmpty &&
       sessions.isEmpty &&
       marks.isEmpty &&
       fixes.isEmpty &&
-      comments.isEmpty;
+      comments.isEmpty &&
+      links.isEmpty;
 }
 
 class MergeResult {
@@ -48,7 +51,8 @@ abstract final class MarkKinds {
   static const mark = 'marks';
   static const fix = 'mark_fixes';
   static const comment = 'mark_comments';
-  static const all = [session, mark, fix, comment];
+  static const link = 'mark_links';
+  static const all = [session, mark, fix, comment, link];
 }
 
 class _BookData {
@@ -57,6 +61,7 @@ class _BookData {
   final marks = <String, Mark>{};
   final fixes = <String, MarkFix>{};
   final comments = <String, MarkComment>{};
+  final links = <String, MarkLink>{};
 
   /// Pull cursor per collection kind (opaque to the store).
   final cursors = <String, String>{};
@@ -66,12 +71,29 @@ class _BookData {
   // ── derived, rebuilt lazily after any change ──
   Map<int, List<Mark>>? _byWord;
   Map<String, MarkFix>? _fixByMark;
+  Map<String, List<MarkLink>>? _linksByMark;
   final Map<bool, Map<int, MarkVisual>> _visuals = {};
 
   void invalidate() {
     _byWord = null;
     _fixByMark = null;
+    _linksByMark = null;
     _visuals.clear();
+  }
+
+  /// Each mark's live links, oldest first.
+  Map<String, List<MarkLink>> get linksByMark {
+    final cached = _linksByMark;
+    if (cached != null) return cached;
+    final out = <String, List<MarkLink>>{};
+    for (final l in links.values) {
+      if (l.deleted) continue;
+      (out[l.markId] ??= []).add(l);
+    }
+    for (final l in out.values) {
+      l.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    }
+    return _linksByMark = out;
   }
 
   Map<int, List<Mark>> get byWord {
@@ -106,6 +128,7 @@ class _BookData {
           },
         MarkKinds.mark => {for (final e in marks.entries) e.key: e.value.toJson()},
         MarkKinds.fix => {for (final e in fixes.entries) e.key: e.value.toJson()},
+        MarkKinds.link => {for (final e in links.entries) e.key: e.value.toJson()},
         _ => {for (final e in comments.entries) e.key: e.value.toJson()},
       };
 
@@ -113,6 +136,7 @@ class _BookData {
         MarkKinds.session => sessions[id],
         MarkKinds.mark => marks[id],
         MarkKinds.fix => fixes[id],
+        MarkKinds.link => links[id],
         _ => comments[id],
       };
 
@@ -127,6 +151,9 @@ class _BookData {
       case MarkKinds.fix:
         final r = MarkFix.fromJson(j);
         fixes[r.id] = r;
+      case MarkKinds.link:
+        final r = MarkLink.fromJson(j);
+        links[r.id] = r;
       default:
         final r = MarkComment.fromJson(j);
         comments[r.id] = r;
@@ -141,6 +168,8 @@ class _BookData {
         marks.remove(id);
       case MarkKinds.fix:
         fixes.remove(id);
+      case MarkKinds.link:
+        links.remove(id);
       default:
         comments.remove(id);
     }
@@ -153,6 +182,8 @@ class _BookData {
         'marks': [for (final r in marks.values) r.toJson()],
         'fixes': [for (final r in fixes.values) r.toJson()],
         'comments': [for (final r in comments.values) r.toJson()],
+        if (links.isNotEmpty)
+          'links': [for (final r in links.values) r.toJson()],
         if (cursors.isNotEmpty) 'cursors': cursors,
       };
 
@@ -169,14 +200,17 @@ class _BookData {
     for (final r in (j['comments'] as List? ?? const [])) {
       put(MarkKinds.comment, (r as Map).cast<String, dynamic>());
     }
+    for (final r in (j['links'] as List? ?? const [])) {
+      put(MarkKinds.link, (r as Map).cast<String, dynamic>());
+    }
     final c = j['cursors'];
     if (c is Map) cursors.addAll(c.cast<String, String>());
     invalidate();
   }
 }
 
-/// Every reciter's marks on this device: books, sessions, marks, fixes and
-/// comments. Local-first — it works fully offline; the sync engine (if the
+/// Every reciter's marks on this device: books, sessions, marks, fixes,
+/// comments and mutashābih links. Local-first — it works fully offline; the sync engine (if the
 /// user signs in) pushes and merges through [merge] / [dirtyRecords].
 class MarksStore extends ChangeNotifier {
   MarksStore({
@@ -359,6 +393,13 @@ class MarksStore extends ChangeNotifier {
             touched = true;
           }
         }
+        for (final l in d.links.values.toList()) {
+          if (l.authorId == old) {
+            d.links[l.id] = MarkLink.fromJson({...l.toJson(), 'author': neu})
+              ..dirty = true;
+            touched = true;
+          }
+        }
         for (final s in d.sessions.values.toList()) {
           if (s.createdBy == old) {
             d.sessions[s.id] =
@@ -442,6 +483,7 @@ class MarksStore extends ChangeNotifier {
       d.marks.clear();
       d.fixes.clear();
       d.comments.clear();
+      d.links.clear();
       d.cursors.clear();
     } else {
       _books.remove(id);
@@ -586,6 +628,16 @@ class MarksStore extends ChangeNotifier {
 
   bool hasMarks(String bookId) => marksOf(bookId).isNotEmpty;
 
+  /// The passages mutashābih mark [m] is linked to, oldest first.
+  List<MarkLink> linksOf(Mark m) =>
+      _books[m.bookId]?.linksByMark[m.id] ?? const [];
+
+  /// The open mutashābih marks in [bookId], oldest first.
+  List<Mark> mutashabihatOf(String bookId) => [
+        for (final m in marksOf(bookId))
+          if (m.type == MarkType.mutashabih) m
+      ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
   /// How each marked word in [bookId] should be drawn, by [WordRef.key].
   Map<int, MarkVisual> visuals(String bookId, {bool showFixed = true}) {
     final d = _books[bookId];
@@ -613,6 +665,16 @@ class MarksStore extends ChangeNotifier {
           fixed: anyFixed && showFixed,
           hasComment: comment,
           count: list.length);
+    });
+    // The passages an open mutashābih is confused with show as mutashābih
+    // too, so the likeness is seen from either side.
+    d.linksByMark.forEach((markId, links) {
+      final m = d.marks[markId];
+      if (m == null || m.deleted || fixed.containsKey(markId)) return;
+      for (final l in links) {
+        out.putIfAbsent(
+            l.ref.key, () => const MarkVisual(open: MarkType.mutashabih));
+      }
     });
     d._visuals[showFixed] = out;
     return out;
@@ -799,9 +861,50 @@ class MarksStore extends ChangeNotifier {
         _drop(d, MarkKinds.fix, f);
       }
     }
+    for (final l in d.links.values.toList()) {
+      if (l.markId == m.id && !l.deleted) {
+        changes.add(_snap(d, MarkKinds.link, l.id));
+        _drop(d, MarkKinds.link, l);
+      }
+    }
     _drop(d, MarkKinds.mark, live);
     _changed(m.bookId);
     return MarkOp(m.bookId, changes);
+  }
+
+  /// Links mutashābih mark [m] to [ref] (a passage it's confused with) —
+  /// or, if it's linked there already, takes the link off.
+  MarkOp toggleLink(Mark m, WordRef ref) {
+    final d = _data(m.bookId);
+    for (final l in d.linksByMark[m.id] ?? const <MarkLink>[]) {
+      if (l.ref == ref) {
+        final op = MarkOp(m.bookId, [_snap(d, MarkKinds.link, l.id)]);
+        _drop(d, MarkKinds.link, l);
+        _changed(m.bookId);
+        return op;
+      }
+    }
+    final t = now();
+    final l = MarkLink(
+      id: _newId(),
+      markId: m.id,
+      bookId: m.bookId,
+      ref: ref,
+      authorId: authorId,
+      createdAt: t,
+      clientUpdated: t,
+    );
+    d.links[l.id] = l;
+    _changed(m.bookId);
+    return MarkOp(m.bookId, [(MarkKinds.link, l.id, null)]);
+  }
+
+  void removeLink(MarkLink l) {
+    final d = _data(l.bookId);
+    final live = d.links[l.id];
+    if (live == null) return;
+    _drop(d, MarkKinds.link, live);
+    _changed(l.bookId);
   }
 
   MarkComment addComment(Mark m, String text) {
@@ -904,6 +1007,7 @@ class MarksStore extends ChangeNotifier {
     mergeKind(MarkKinds.mark, cs.marks);
     mergeKind(MarkKinds.fix, cs.fixes);
     mergeKind(MarkKinds.comment, cs.comments);
+    mergeKind(MarkKinds.link, cs.links);
     if (touched.isEmpty && !index) return res;
     _version++;
     for (final id in touched) {
@@ -944,6 +1048,7 @@ class MarksStore extends ChangeNotifier {
       MarkKinds.mark: [...d.marks.values.where((r) => r.dirty)],
       MarkKinds.fix: [...d.fixes.values.where((r) => r.dirty)],
       MarkKinds.comment: [...d.comments.values.where((r) => r.dirty)],
+      MarkKinds.link: [...d.links.values.where((r) => r.dirty)],
     };
   }
 
@@ -1067,6 +1172,7 @@ class MarksStore extends ChangeNotifier {
     final marks = <Mark>[];
     final fixes = <MarkFix>[];
     final comments = <MarkComment>[];
+    final links = <MarkLink>[];
     for (final raw in (j['books'] as List? ?? const [])) {
       final b = (raw as Map).cast<String, dynamic>();
       books.add(MarkBook.fromJson((b['book'] as Map).cast<String, dynamic>())
@@ -1082,6 +1188,9 @@ class MarksStore extends ChangeNotifier {
       }
       for (final r in (b['comments'] as List? ?? const [])) {
         comments.add(MarkComment.fromJson((r as Map).cast()));
+      }
+      for (final r in (b['links'] as List? ?? const [])) {
+        links.add(MarkLink.fromJson((r as Map).cast()));
       }
     }
     // A book we already have keeps its own sync state.
@@ -1099,7 +1208,8 @@ class MarksStore extends ChangeNotifier {
         sessions: sessions,
         marks: marks,
         fixes: fixes,
-        comments: comments));
+        comments: comments,
+        links: links));
   }
 }
 

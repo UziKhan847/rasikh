@@ -342,15 +342,22 @@ class FrameArt {
     FrameArt('tile_frame_2', EdgeInsets.fromLTRB(96, 120, 94, 91), 51),
     FrameArt('tile_frame_3', EdgeInsets.fromLTRB(96, 120, 94, 91), 51),
   ];
+  static const _thinnest = [
+    FrameArt('thinnest_frame_1', EdgeInsets.fromLTRB(113, 51, 85, 75), 22),
+    FrameArt('thinnest_frame_2', EdgeInsets.fromLTRB(113, 51, 85, 75), 22),
+    FrameArt('thinnest_frame_3', EdgeInsets.fromLTRB(113, 51, 85, 75), 22),
+  ];
   static const _thin = [
     FrameArt('thin_frame_1', EdgeInsets.fromLTRB(94, 148, 68, 98), 36),
     FrameArt('thin_frame_2', EdgeInsets.fromLTRB(94, 148, 68, 98), 36),
     FrameArt('thin_frame_3', EdgeInsets.fromLTRB(94, 148, 68, 98), 36),
   ];
 
-  /// The frame for [kind] ('tile1'…'tile3', 'thin1'…'thin3').
+  /// The frame for [kind] ('tile1'…'tile3', 'thin1'…'thin3',
+  /// 'thinnest1'…'thinnest3').
   static FrameArt of(String kind) {
-    final n = (int.tryParse(kind.substring(4)) ?? 1).clamp(1, 3) - 1;
+    final n = (int.tryParse(kind.substring(kind.length - 1)) ?? 1).clamp(1, 3) - 1;
+    if (kind.startsWith('thinnest')) return _thinnest[n];
     return kind.startsWith('thin') ? _thin[n] : _tiles[n];
   }
 }

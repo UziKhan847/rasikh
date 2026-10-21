@@ -8,19 +8,19 @@ import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
 import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
 import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
+import 'package:qiraah_arabiyyah/core/theme.dart';
 import 'package:qiraah_arabiyyah/data/mushaf.dart';
 import 'package:qiraah_arabiyyah/data/quran.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_line.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
 import 'package:qiraah_arabiyyah/screens/quran_screen.dart';
+import 'package:qiraah_arabiyyah/ui/mark_style.dart';
 
 import 'shots/shots_test.dart' show loadFonts;
 import 'test_support.dart';
 
 /// A mark is stored once, by (sūrah, āyah, word), and must be drawn on the
 /// same word whichever script the muṣḥaf is in.
-// The mistake tint behind the word (the pattern line is painted separately).
-final _mistakeTint = const Color(0xFFC8402F).withValues(alpha: .16);
 const _ref = WordRef(2, 255, 3); // ٱلْحَىُّ in Āyat al-Kursī
 
 Future<(AppSettings, ProgressStore, MarksStore)> _boot() async {
@@ -135,8 +135,10 @@ void main() {
       m.addMark(b.id, _ref, MarkType.mistake);
 
       await _pump(tester, s, p, m, script);
-      final marked =
-          _words(tester).where((w) => w.$2 == _mistakeTint).toList();
+      // In the paper's mark colours (greys on Indo-Pak's Mono paper).
+      final tint = markPaletteForPaper(mushafPaperOf(s, script))
+          .tintOf(MarkType.mistake);
+      final marked = _words(tester).where((w) => w.$2 == tint).toList();
       expect(marked, hasLength(1));
       expect(marked.single.$1,
           MushafRepo.wordText(script, _ref.globalAyah, _ref.word0));
@@ -146,7 +148,7 @@ void main() {
       // Hidden with "show marks" off.
       s.update(() => s.showMarks = false);
       await tester.pump(const Duration(milliseconds: 300)); // + save debounce
-      expect(_words(tester).where((w) => w.$2 == _mistakeTint), isEmpty);
+      expect(_words(tester).where((w) => w.$2 == tint), isEmpty);
       await m.flush();
     });
   }
@@ -239,6 +241,53 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Mark fixed'));
     await tester.pump();
     expect(m.isFixed(m.marksAt(m.activeBookId!, _ref).single), isTrue);
+    await m.flush();
+  });
+
+  testWidgets('mutashābih: the pen starts link mode; taps link; Done needs '
+      'one; cancel with none drops it', (tester) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (s, p, m) = await _boot();
+    final b = m.ensureActiveBook('Me').id;
+    await _pump(tester, s, p, m, 'uthmani');
+
+    Future<void> pickPen(Offset at) async {
+      await tester.longPressAt(at);
+      await tester.pumpAndSettle();
+      final chip = find.widgetWithText(ActionChip, 'Mutashābih');
+      await tester.ensureVisible(chip);
+      await tester.tap(chip);
+      await tester.pumpAndSettle();
+    }
+
+    await pickPen(wordCentre(tester, _ref));
+    expect(find.textContaining('Tap the passages'), findsOneWidget);
+    final mark = m.mutashabihatOf(b).single;
+    FilledButton done() => tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Done (0)').evaluate().isEmpty
+            ? find.widgetWithText(FilledButton, 'Done (1)')
+            : find.widgetWithText(FilledButton, 'Done (0)'));
+    expect(done().onPressed, isNull, reason: 'nothing linked yet');
+
+    // Another word on the page: linked.
+    final other = WordRef(_ref.surah, _ref.ayah, _ref.word + 2);
+    await tester.tapAt(wordCentre(tester, other));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(m.linksOf(mark), hasLength(1));
+    expect(done().onPressed, isNotNull);
+    await tester.tap(find.widgetWithText(FilledButton, 'Done (1)'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Tap the passages'), findsNothing);
+    expect(m.linksOf(mark), hasLength(1));
+
+    // A second one, cancelled with nothing linked, is gone.
+    await pickPen(wordCentre(tester, WordRef(_ref.surah, _ref.ayah, 1)));
+    expect(m.mutashabihatOf(b), hasLength(2));
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(m.mutashabihatOf(b), hasLength(1));
     await m.flush();
   });
 

@@ -19,13 +19,16 @@ import '../marks/marking.dart';
 /// The muṣḥaf's index: go to a page, or pick a page, sūrah, juzʼ, ḥizb, rubʿ
 /// or manzil (and rukūʿ in Indo-Pak) from swipeable tabs. With an active
 /// mark book every entry shows how many marks it holds, by type; tapping a
-/// count goes to the first such mark in it ([onWord]).
+/// count goes to the first such mark in it ([onWord]). With [onStart] it
+/// picks where memorizing starts instead: each entry gives its first word's
+/// token (no counts).
 Future<void> showMushafIndex(
   BuildContext context, {
   required String script,
   required int currentPage,
   required ValueChanged<int> onPage,
   ValueChanged<WordRef>? onWord,
+  ValueChanged<int>? onStart,
   Division initial = Division.surah,
 }) {
   return showModalBottomSheet<void>(
@@ -48,9 +51,33 @@ Future<void> showMushafIndex(
                 Navigator.pop(sheet);
                 onWord(w);
               },
+        onStart: onStart == null
+            ? null
+            : (t) {
+                Navigator.pop(sheet);
+                onStart(t);
+              },
       ),
     ),
   );
+}
+
+/// Where to start memorizing: the index, each sūrah, juzʼ, ḥizb, rubʿ,
+/// manzil or page giving its first word's token. Null: dismissed.
+Future<int?> chooseMemorizeStart(
+  BuildContext context, {
+  required String script,
+  required int currentPage,
+}) async {
+  int? token;
+  await showMushafIndex(
+    context,
+    script: script,
+    currentPage: currentPage,
+    onPage: (_) {},
+    onStart: (t) => token = t,
+  );
+  return token;
 }
 
 /// The index itself (the sheet's content; see [showMushafIndex]).
@@ -60,12 +87,16 @@ class MushafIndex extends StatefulWidget {
   final Division initial;
   final ValueChanged<int> onPage;
   final ValueChanged<WordRef>? onWord;
+
+  /// Picking where memorizing starts: an entry's first word's token.
+  final ValueChanged<int>? onStart;
   const MushafIndex({
     super.key,
     required this.script,
     required this.currentPage,
     required this.onPage,
     this.onWord,
+    this.onStart,
     this.initial = Division.surah,
   });
 
@@ -139,7 +170,20 @@ class _MushafIndexState extends State<MushafIndex>
   void _go() {
     final n = int.tryParse(_field.text.trim());
     if (n == null || n < 1 || n > _pages) return;
-    widget.onPage(n);
+    _pick(Division.page, n, n);
+  }
+
+  /// Opens [page] — or, picking a start, gives [d] number [n]'s first
+  /// word.
+  void _pick(Division d, int n, int page) {
+    final start = widget.onStart;
+    if (start == null) return widget.onPage(page);
+    if (d == Division.page) {
+      return start(MushafRepo.pageTokens(widget.script, n).$1);
+    }
+    final (s, a) = d == Division.surah ? (n, 1) : firstAyahOf(d, n);
+    start(MushafRepo.tokenOf(
+        widget.script, MushafRepo.globalAyahOf(s, a), 0));
   }
 
   /// The first open mark of [t] in [d] number [n], in muṣḥaf order.
@@ -164,13 +208,19 @@ class _MushafIndexState extends State<MushafIndex>
       listenable: store ?? _noStore,
       builder: (context, _) {
         final book = store != null && store.ready ? store.activeBook : null;
-        final counts = book == null
+        final counts = book == null || widget.onStart != null
             ? null
             : MarkCounts.forBook(store!, book.id, widget.script, _pageOf);
         final p = pal(context);
         final mp = markPaletteFor(p,
             mono: SettingsScope.of(context).appTheme == 'mono');
         return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (widget.onStart != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(context.l10n.mzStartFrom,
+                  style: displayStyle(context, size: 22)),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Row(children: [
@@ -233,7 +283,7 @@ class _MushafIndexState extends State<MushafIndex>
               side: BorderSide(color: here ? p.acc : p.line2)),
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
-            onTap: () => widget.onPage(n),
+            onTap: () => _pick(Division.page, n, n),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -300,7 +350,7 @@ class _MushafIndexState extends State<MushafIndex>
             radius: 16,
             color: here ? p.accSoft : null,
             borderColor: here ? p.acc : null,
-            onTap: () => widget.onPage(page),
+            onTap: () => _pick(d, n, page),
             child: Row(children: [
               SizedBox(
                 width: 34,

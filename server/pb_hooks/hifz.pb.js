@@ -120,7 +120,7 @@ onRecordUpdateRequest((e) => {
   const now = Date.now();
   if (incoming > now + 5 * 60 * 1000) e.record.set("client_updated", now);
   e.next();
-}, "books", "sessions", "marks", "mark_fixes", "mark_comments");
+}, "books", "sessions", "marks", "mark_fixes", "mark_comments", "mark_links");
 
 onRecordCreateRequest((e) => {
   const now = Date.now();
@@ -128,7 +128,7 @@ onRecordCreateRequest((e) => {
     e.record.set("client_updated", now);
   }
   e.next();
-}, "books", "sessions", "marks", "mark_fixes", "mark_comments");
+}, "books", "sessions", "marks", "mark_fixes", "mark_comments", "mark_links");
 
 // ── account deletion ─────────────────────────────────────────────────────
 
@@ -150,13 +150,14 @@ onRecordDelete((e) => {
     ["marks", "author", "author_name"],
     ["mark_fixes", "fixed_by", "fixed_by_name"],
     ["mark_comments", "author", "author_name"],
+    ["mark_links", "author", ""],
   ];
   for (const [coll, field, nameField] of authored) {
     const rows = e.app.findRecordsByFilter(
       coll, `${field} = {:u} && book.owner != {:u}`, "", 0, 0, { u: uid });
     for (const r of rows) {
       r.set(field, "");
-      if (coll !== "sessions") r.set(nameField, "Deleted user");
+      if (nameField && coll !== "sessions") r.set(nameField, "Deleted user");
       e.app.save(r);
     }
   }

@@ -6,7 +6,7 @@ import '../marks/word_ref.dart';
 /// collections in server/pb_migrations. Optional ints travel as -1 (a
 /// PocketBase number field can't be null), optional ids as ''.
 abstract final class Wire {
-  static const collections = MarkKinds.all; // sessions, marks, mark_fixes, mark_comments
+  static const collections = MarkKinds.all; // sessions, marks, mark_fixes, mark_comments, mark_links
 
   static String? _id(Object? v) => v is String && v.isNotEmpty ? v : null;
   static int _int(Object? v) => (v as num?)?.toInt() ?? 0;
@@ -66,6 +66,7 @@ abstract final class Wire {
         MarkKinds.session => _session(r as RecitationSession),
         MarkKinds.mark => _mark(r as Mark),
         MarkKinds.fix => _fix(r as MarkFix),
+        MarkKinds.link => _link(r as MarkLink),
         _ => _comment(r as MarkComment),
       };
 
@@ -74,6 +75,7 @@ abstract final class Wire {
         MarkKinds.session => _sessionFrom(w),
         MarkKinds.mark => _markFrom(w),
         MarkKinds.fix => _fixFrom(w),
+        MarkKinds.link => _linkFrom(w),
         _ => _commentFrom(w),
       };
 
@@ -85,6 +87,7 @@ abstract final class Wire {
         ChangeSet(sessions: recs.cast<RecitationSession>()),
       MarkKinds.mark => ChangeSet(marks: recs.cast<Mark>()),
       MarkKinds.fix => ChangeSet(fixes: recs.cast<MarkFix>()),
+      MarkKinds.link => ChangeSet(links: recs.cast<MarkLink>()),
       _ => ChangeSet(comments: recs.cast<MarkComment>()),
     };
   }
@@ -164,6 +167,27 @@ abstract final class Wire {
         fixedBy: w['fixed_by'] as String? ?? '',
         fixedByName: w['fixed_by_name'] as String? ?? '',
         fixedAt: _int(w['fixed_at']),
+        clientUpdated: 0,
+      ).._readSyncRec(w);
+
+  static Map<String, dynamic> _link(MarkLink l) => {
+        ..._sync(l),
+        'book': l.bookId,
+        'mark': l.markId,
+        'surah': l.ref.surah,
+        'ayah': l.ref.ayah,
+        'word': l.ref.word,
+        'author': l.authorId,
+        'made_at': l.createdAt,
+      };
+
+  static MarkLink _linkFrom(Map<String, dynamic> w) => MarkLink(
+        id: w['id'] as String,
+        markId: w['mark'] as String? ?? '',
+        bookId: w['book'] as String,
+        ref: WordRef(_int(w['surah']), _int(w['ayah']), _int(w['word'])),
+        authorId: w['author'] as String? ?? '',
+        createdAt: _int(w['made_at']),
         clientUpdated: 0,
       ).._readSyncRec(w);
 

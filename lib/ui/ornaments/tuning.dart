@@ -13,7 +13,9 @@ class OrnamentTuning {
     // height, and the name's size within its cartouche.
     'headerScale': (def: 1.0, min: .6, max: 1.2),
     'headerDy': (def: 0.0, min: -.3, max: .3),
-    'headerNameScale': (def: 1.0, min: .6, max: 1.4),
+    'headerNameScale': (def: 1.4, min: .6, max: 2.0),
+    // The basmala line's size (against the line's height).
+    'basmalaScale': (def: 1.6, min: .8, max: 2.4),
     // The Indo-Pak two-tier header (it spans the header and basmala
     // rows): its size.
     'twoTierScale': (def: 1.0, min: .7, max: 1.2),
@@ -21,13 +23,16 @@ class OrnamentTuning {
     // vertical offset as a fraction of the circle's height.
     'markerIndopakScale': (def: 1.0, min: .7, max: 1.4),
     'markerIndopakDy': (def: 0.0, min: -.25, max: .25),
-    // The juzʼ lantern in the margin: its size within the margin band.
+    // The margin's lanterns and labels: their size within the margin band,
+    // and the space between them and the frame (× the font size).
     'lanternScale': (def: 1.0, min: .5, max: 1.3),
+    'lanternGap': (def: .5, min: 0, max: 1.5),
     // Page borders: thickness, against each one's own default.
     'borderMadani': (def: 1.0, min: .5, max: 2.0),
-    'borderIndopak': (def: 1.0, min: .5, max: 3.0),
+    'borderIndopak': (def: 1.85, min: .5, max: 3.0),
     'borderTile': (def: 1.0, min: .5, max: 2.0),
     'borderThin': (def: 1.0, min: .5, max: 2.0),
+    'borderThinnest': (def: 1.0, min: .5, max: 2.0),
   };
 
   final Map<String, double> _over;

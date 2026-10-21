@@ -73,6 +73,19 @@ void main() {
     ('phone_thin2', 'uthmani', 50, const Size(393, 852), null, 'light'),
     ('monotile_spread', 'uthmani', 50, const Size(1400, 900), 'spread', 'light'),
     ('phone_monotile_night', 'indopak', 50, const Size(393, 852), null, 'night'),
+    // Each script's printed look, as it comes (5: a ḥizb quarter on it).
+    ('print_madani_spread', 'uthmani', 5, const Size(1400, 900), 'spread', 'light'),
+    ('print_madani_phone', 'uthmani', 50, const Size(393, 852), null, 'light'),
+    ('print_madani_lantern2', 'uthmani', 5, const Size(1400, 900), 'spread', 'light'),
+    ('print_indopak_spread', 'indopak', 50, const Size(1400, 900), 'spread', 'light'),
+    ('print_indopak_phone', 'indopak', 50, const Size(393, 852), null, 'light'),
+    // The Madani default, the printed Madani preset, and edge to edge.
+    ('default_madani_phone', 'uthmani', 50, const Size(393, 852), null, 'light'),
+    ('default_madani_opening', 'uthmani', 2, const Size(393, 852), null, 'light'),
+    ('madaniprint_phone', 'uthmani', 50, const Size(393, 852), null, 'light'),
+    ('edge_madani_phone', 'uthmani', 50, const Size(393, 852), null, 'light'),
+    ('edge_indopak_phone', 'indopak', 50, const Size(393, 852), null, 'light'),
+    ('edge_madani_single', 'uthmani', 50, const Size(1400, 900), 'single', 'light'),
   ];
   for (final (name, script, page, size, view, theme) in shots) {
     testWidgets(name, (tester) async {
@@ -90,6 +103,21 @@ void main() {
       if (view != null) s.mushafView = view;
       s.mushafPhoneSpread = name.endsWith('_two');
       s.mushafTajwid = name.contains('tajwid');
+      // The look being set below is the shot's script's.
+      s.mushafScript = script;
+      if (RegExp(r'^(print|default|edge|madaniprint)').hasMatch(name)) {
+        if (name.contains('lantern2')) s.orMargin = 'lantern2';
+        final st = s.styleFor(script);
+        if (name.startsWith('edge')) st.edge = true;
+        if (name.startsWith('madaniprint')) {
+          st
+            ..header = 'madaniColoured'
+            ..border = 'thinnest3'
+            ..margin = 'lantern1'
+            ..head = 'frame'
+            ..paper = 'madani';
+        }
+      } else {
       s.orBorder = name.contains('border') ? 'auto' : 'none';
       if (name.contains('_modern')) {
         s.orHeader = 'rosette';
@@ -101,7 +129,7 @@ void main() {
       if (tile != null) {
         s.orHeader = 'tile$tile';
         s.orBorder = 'tile$tile';
-        s.orMargin = 'lantern';
+        s.orMargin = 'lantern1';
         s.mushafPaper = 'tile$tile';
       }
       // The thin frames, the coloured header, and Mono with colour artwork.
@@ -128,6 +156,7 @@ void main() {
       }
       if (name.contains('darkmono')) s.mushafPaperDark = 'mono';
       if (name.contains('border_madani')) s.mushafPaper = 'madani';
+      }
       final key = GlobalKey();
       await tester.pumpWidget(SettingsScope(
         settings: s,

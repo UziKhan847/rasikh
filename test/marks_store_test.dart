@@ -242,4 +242,45 @@ void main() {
     store.merge(ChangeSet(marks: [stale]), fromServer: true);
     expect(store.marksAt(b, w1).single.comment, 'local edit');
   });
+
+  test('mutashābih links: toggle, show on both sides, persist, go with '
+      'their mark, export and import', () async {
+    final (:store, :files, :clock) = _make();
+    await store.load();
+    final b = store.ensureActiveBook('Me').id;
+    const other = WordRef(3, 2, 1), ayah = WordRef(20, 8, 0);
+    store.addMark(b, w1, MarkType.mutashabih, comment: 'The first has wāw');
+    final m = store.mutashabihatOf(b).single;
+    clock.t += 10;
+    store.toggleLink(m, other);
+    clock.t += 10;
+    store.toggleLink(m, ayah);
+    expect(store.linksOf(m).map((l) => l.ref), [other, ayah]);
+    // The partners are drawn as mutashābih too.
+    expect(store.visuals(b)[other.key]?.open, MarkType.mutashabih);
+    expect(store.visuals(b)[ayah.key]?.open, MarkType.mutashabih);
+    // Tapping a linked passage again unlinks it.
+    store.toggleLink(m, ayah);
+    expect(store.linksOf(m).map((l) => l.ref), [other]);
+    expect(store.visuals(b)[ayah.key], isNull);
+
+    await store.flush();
+    final (store: again, files: _, clock: _) = _make(files);
+    await again.load();
+    final m2 = again.mutashabihatOf(b).single;
+    expect(again.linksOf(m2).single.ref, other);
+
+    final copy = jsonDecode(jsonEncode(again.exportJson())) as Map<String, dynamic>;
+    final (store: fresh, files: _, clock: _) = _make();
+    await fresh.load();
+    fresh.importJson(copy);
+    expect(fresh.linksOf(fresh.mutashabihatOf(b).single).single.ref, other);
+
+    // Deleting the mark takes its links; undo brings them back.
+    final op = again.deleteMark(m2);
+    expect(again.linksOf(m2), isEmpty);
+    expect(again.visuals(b)[other.key], isNull);
+    again.undo(op);
+    expect(again.linksOf(again.mutashabihatOf(b).single).single.ref, other);
+  });
 }

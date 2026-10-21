@@ -343,8 +343,13 @@ const kMushafPapers = <String, MushafPaper>{
 /// The muṣḥaf paper for the current settings: the light theme offers cream,
 /// white, Madani or mono; night and OLED their own page or a mono one, all
 /// white on the dark; the mono theme its own.
-MushafPaper mushafPaperOf(AppSettings s) => switch (s.theme) {
-      AppTheme.light => kMushafPapers[s.mushafPaper] ?? kMushafPapers['cream']!,
+///
+/// The light theme's paper is [script]'s own (each script keeps its look);
+/// by default the muṣḥaf's script.
+MushafPaper mushafPaperOf(AppSettings s, [String? script]) => switch (s.theme) {
+      AppTheme.light =>
+        kMushafPapers[s.styleFor(script ?? s.mushafScript).paper] ??
+            kMushafPapers['cream']!,
       AppTheme.mono => kMushafPapers['mono']!,
       AppTheme.night =>
         kMushafPapers[s.mushafPaperDark == 'mono' ? 'night_mono' : 'night']!,

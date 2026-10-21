@@ -1,3 +1,4 @@
+import 'package:flutter/painting.dart' show Offset, Size;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:qiraah_arabiyyah/core/memorize.dart';
@@ -146,6 +147,55 @@ void main() {
     expect(m.revealedEnd, end);
     expect(m.hideFromOn(50), -1);
     m.hidePage();
+    expect(m.revealedEnd, first);
+  });
+
+  test('show and hide act on the page on screen, not where it started', () {
+    final m = MemorizeController.startAt(script, 50);
+    final (first52, end52) = MushafRepo.pageTokens(script, 52);
+    m.revealPage(52);
+    expect(m.revealedEnd, end52);
+    expect(m.viewPage, 52, reason: 'it stays on the page shown');
+    m.hidePage(52);
+    expect(m.revealedEnd, first52);
+    expect(m.viewPage, 52);
+    expect(m.hideFromOn(51), -1, reason: 'pages before it stay shown');
+  });
+
+  test('starts from any āyah, the words before it showing', () {
+    final g = MushafRepo.globalAyahOf(2, 7);
+    final t = MushafRepo.tokenOf(script, g, 0);
+    final m = MemorizeController.startAtToken(script, t);
+    final page = MushafRepo.pageOfToken(script, t);
+    expect(m.viewPage, page);
+    expect(m.revealedEnd, t);
+    expect(m.hideFromOn(page), t);
+    m.nextWord();
+    expect(tok(m.revealedEnd - 1), (g, 0));
+  });
+
+  test('tap zones: left goes on, right goes back; split by halves', () {
+    const screen = Size(400, 800);
+    const left = Offset(100, 200), right = Offset(300, 200);
+    const lowLeft = Offset(100, 600), lowRight = Offset(300, 600);
+    final m = MemorizeController.startAt(script, 2);
+    final first = m.revealedEnd;
+    m.tapStep('word', left, screen);
+    m.tapStep('word', left, screen);
+    final two = m.revealedEnd;
+    m.tapStep('word', right, screen);
+    expect(m.revealedEnd, lessThan(two));
+    m.tapStep('verse', left, screen);
+    expect(tok(m.revealedEnd - 1).$2, -1, reason: 'a whole āyah');
+    final verse = m.revealedEnd;
+    m.tapStep('split', left, screen); // top: a word
+    expect(m.revealedEnd, verse + 1);
+    m.tapStep('split', lowLeft, screen); // bottom: the āyah
+    expect(tok(m.revealedEnd - 1).$2, -1);
+    m.tapStep('split', lowRight, screen); // bottom, back: that āyah
+    expect(m.revealedEnd, verse);
+    m.tapStep('verse', right, screen);
+    m.tapStep('verse', right, screen);
     expect(m.revealedEnd, first);
   });
 

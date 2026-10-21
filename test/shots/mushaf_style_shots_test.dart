@@ -41,7 +41,7 @@ void main() {
   final shots = [
     ('style_phone', const Size(393, 852), null),
     ('style_phone_green', const Size(393, 852), 'Green'),
-    ('style_desk_indopak', const Size(1400, 900), 'Classic Indo-Pak'),
+    ('style_desk_indopak', const Size(1400, 900), 'Printed'),
     ('style_desk_tall_tune', const Size(1400, 3000), 'Turquoise'),
   ];
   for (final (name, size, preset) in shots) {

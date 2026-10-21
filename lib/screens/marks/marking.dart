@@ -14,6 +14,7 @@ String markTypeLabel(BuildContext context, MarkType t) => switch (t) {
       MarkType.hesitation => context.l10n.mkHesitation,
       MarkType.doubt => context.l10n.mkDoubt,
       MarkType.note => context.l10n.mkNote,
+      MarkType.mutashabih => context.l10n.mkMutashabih,
     };
 
 String markTypeHint(BuildContext context, MarkType t) => switch (t) {
@@ -22,6 +23,7 @@ String markTypeHint(BuildContext context, MarkType t) => switch (t) {
       MarkType.hesitation => context.l10n.mkHesitationHint,
       MarkType.doubt => context.l10n.mkDoubtHint,
       MarkType.note => context.l10n.mkNoteHint,
+      MarkType.mutashabih => context.l10n.mkMutashabihHint,
     };
 
 String sessionKindLabel(BuildContext context, SessionKind k) => switch (k) {
@@ -51,20 +53,26 @@ String shortDate(BuildContext context, int ms) {
 
 /// A one-field text dialog (comments, names). Null if cancelled.
 Future<String?> askText(BuildContext context,
-    {required String title, String initial = '', String? hint}) {
+    {required String title,
+    String initial = '',
+    String? hint,
+    bool long = false}) {
   final c = TextEditingController(text: initial);
   return showDialog<String>(
     context: context,
     builder: (d) => AlertDialog(
       title: Text(title),
+      // [long]: a paragraph (a memory technique) — Enter starts a new line.
       content: TextField(
         controller: c,
         autofocus: true,
-        minLines: 1,
-        maxLines: 5,
+        minLines: long ? 4 : 1,
+        maxLines: long ? 12 : 5,
+        maxLength: long ? 4000 : null,
+        keyboardType: long ? TextInputType.multiline : null,
         textCapitalization: TextCapitalization.sentences,
         decoration: InputDecoration(hintText: hint ?? d.l10n.mkCommentHint),
-        onSubmitted: (v) => Navigator.pop(d, v),
+        onSubmitted: long ? null : (v) => Navigator.pop(d, v),
       ),
       actions: [
         TextButton(

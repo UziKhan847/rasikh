@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../marks/marks_model.dart';
 import 'sync_backend.dart';
+import 'wire.dart';
 
 /// The self-hosted PocketBase server (schema: server/pb_migrations, rules and
 /// routes: server/pb_hooks). Talks only to [baseUrl]; the session token is
@@ -277,7 +278,7 @@ class PocketBaseSyncBackend implements SyncBackend {
     final unsubs = <UnsubscribeFunc>[];
     ctl = StreamController(
       onListen: () async {
-        for (final c in const ['sessions', 'marks', 'mark_fixes', 'mark_comments']) {
+        for (final c in Wire.collections) {
           try {
             unsubs.add(await _pb.collection(c).subscribe(
                   '*',

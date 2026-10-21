@@ -59,7 +59,9 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
     _handlers
       ..onTapWord = _tapWord
       ..onTapVerse = _tapVerse
-      ..onLongPressWord = _hold;
+      ..onLongPressWord = _hold
+      // Holding a revealed ۝: the whole āyah's sheet.
+      ..onLongPressVerse = _hold;
     _load();
   }
 
@@ -89,20 +91,14 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
 
   bool get _tapReveals => SettingsScope.of(context).memorizeTapReveals;
 
-  /// Where the last touch came down on the screen (the split tap).
-  double _lastDownY = 0;
+  /// Where the last touch came down on the screen (the tap zones).
+  Offset _lastDown = Offset.zero;
 
-  /// A tap's reveal: the next word or āyah (Settings; split: a word in the
-  /// screen's top half, an āyah in its bottom) — or, the card all
-  /// revealed, the next card, blank.
-  void _step() {
-    final verse = switch (SettingsScope.of(context).memorizeTap) {
-      'verse' => true,
-      'split' => _lastDownY > MediaQuery.sizeOf(context).height / 2,
-      _ => false,
-    };
-    verse ? _c.nextVerse() : _c.nextWord();
-  }
+  /// A tap's step (Settings): on in the screen's left half, back in its
+  /// right; by words, by āyāt, or (split) words in the top half and āyāt
+  /// in the bottom — or, the card all revealed, the next card, blank.
+  void _step() => _c.tapStep(SettingsScope.of(context).memorizeTap,
+      _lastDown, MediaQuery.sizeOf(context));
 
   bool _shows(MushafWord wd) =>
       _c.isRevealed(MushafRepo.tokenOf(_script, wd.ayah, wd.wordIdx));
@@ -254,7 +250,7 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
         ],
       ),
       body: Listener(
-        onPointerDown: (e) => _lastDownY = e.position.dy,
+        onPointerDown: (e) => _lastDown = e.position,
         child: !_ready
           ? Center(child: CircularProgressIndicator(color: p.acc))
           : Column(children: [
