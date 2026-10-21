@@ -89,11 +89,20 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
 
   bool get _tapReveals => SettingsScope.of(context).memorizeTapReveals;
 
-  /// A tap's reveal: the next word or āyah (Settings) — or, the card all
+  /// Where the last touch came down on the screen (the split tap).
+  double _lastDownY = 0;
+
+  /// A tap's reveal: the next word or āyah (Settings; split: a word in the
+  /// screen's top half, an āyah in its bottom) — or, the card all
   /// revealed, the next card, blank.
-  void _step() => SettingsScope.of(context).memorizeTap == 'verse'
-      ? _c.nextVerse()
-      : _c.nextWord();
+  void _step() {
+    final verse = switch (SettingsScope.of(context).memorizeTap) {
+      'verse' => true,
+      'split' => _lastDownY > MediaQuery.sizeOf(context).height / 2,
+      _ => false,
+    };
+    verse ? _c.nextVerse() : _c.nextWord();
+  }
 
   bool _shows(MushafWord wd) =>
       _c.isRevealed(MushafRepo.tokenOf(_script, wd.ayah, wd.wordIdx));
@@ -225,6 +234,7 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
                 ('play', context.l10n.mzTapPlay),
                 ('word', context.l10n.mzTapWord),
                 ('verse', context.l10n.mzTapVerse),
+                ('split', context.l10n.mzTapSplit),
               ])
                 CheckedPopupMenuItem(
                   value: 'tap:$v',
@@ -243,7 +253,9 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
           ),
         ],
       ),
-      body: !_ready
+      body: Listener(
+        onPointerDown: (e) => _lastDownY = e.position.dy,
+        child: !_ready
           ? Center(child: CircularProgressIndicator(color: p.acc))
           : Column(children: [
               Expanded(
@@ -335,6 +347,7 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
                 ),
               ),
             ]),
+      ),
     );
   }
 }

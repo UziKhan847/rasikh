@@ -8,17 +8,17 @@ import 'package:flutter/foundation.dart';
 class OrnamentTuning {
   /// Each value, by key: what it means, its default and its range.
   static const specs = <String, ({double def, double min, double max})>{
-    // Sūrah headers (Madani, Indo-Pak single tier, tiles): size within
-    // the line, and vertical offset as a fraction of the line's height.
-    'headerScale': (def: 1.0, min: .6, max: 1.4),
+    // Sūrah headers: their height within the line (they're widened to
+    // the line's width), vertical offset as a fraction of the line's
+    // height, and the name's size within its cartouche.
+    'headerScale': (def: 1.0, min: .6, max: 1.2),
     'headerDy': (def: 0.0, min: -.3, max: .3),
+    'headerNameScale': (def: 1.0, min: .6, max: 1.4),
     // The Indo-Pak two-tier header (it spans the header and basmala
     // rows): its size.
     'twoTierScale': (def: 1.0, min: .7, max: 1.2),
-    // Āyah circles, against the font's own circle: size, and vertical
-    // offset as a fraction of the circle's height.
-    'markerMadaniScale': (def: 1.0, min: .7, max: 1.4),
-    'markerMadaniDy': (def: 0.0, min: -.25, max: .25),
+    // The traced āyah circle, against the font's own circle: size, and
+    // vertical offset as a fraction of the circle's height.
     'markerIndopakScale': (def: 1.0, min: .7, max: 1.4),
     'markerIndopakDy': (def: 0.0, min: -.25, max: .25),
     // The juzʼ lantern in the margin: its size within the margin band.
@@ -27,6 +27,7 @@ class OrnamentTuning {
     'borderMadani': (def: 1.0, min: .5, max: 2.0),
     'borderIndopak': (def: 1.0, min: .5, max: 3.0),
     'borderTile': (def: 1.0, min: .5, max: 2.0),
+    'borderThin': (def: 1.0, min: .5, max: 2.0),
   };
 
   final Map<String, double> _over;

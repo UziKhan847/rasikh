@@ -280,6 +280,9 @@ class MushafPaper {
       this.frame, this.soft, this.hl, this.hl2, this.chrome, this.sub,
       {this.inner});
   bool get dark => paper.computeLuminance() < .2;
+
+  /// The Mono pages: black and white only, artwork included.
+  bool get mono => id == 'mono' || id.endsWith('_mono');
 }
 
 const kMushafPapers = <String, MushafPaper>{
@@ -297,8 +300,8 @@ const kMushafPapers = <String, MushafPaper>{
       Color(0xFFCBE3D6), Color(0xF7F3EEDD), Color(0xFF6F6656),
       inner: Color(0xFFFFFFFF)),
   'mono': MushafPaper('mono', Color(0xFFE8E8E8), Color(0xFFF1F1F0),
-      Color(0xFF111111), Color(0xFFE2E2E2), Color(0xFF222222),
-      Color(0xFF4A4A4A), Color(0xFFF4F4F4), Color(0xFFEDEDED),
+      Color(0xFF111111), Color(0xFFE2E2E2), Color(0xFF111111),
+      Color(0xFF111111), Color(0xFFF4F4F4), Color(0xFFEDEDED),
       Color(0xFFDADADA), Color(0xF7F1F1F0), Color(0xFF6E6E6E),
       inner: Color(0xFFFFFFFF)),
   'night': MushafPaper('night', Color(0xFF090D0C), Color(0xFF121816),
@@ -329,11 +332,11 @@ const kMushafPapers = <String, MushafPaper>{
   // The dark themes' mono pages: everything on the page white.
   'night_mono': MushafPaper('night_mono', Color(0xFF0A0A0A), Color(0xFF121212),
       Color(0xFFF2F2F2), Color(0xFF2A2A2A), Color(0xFFFFFFFF),
-      Color(0xFFE6E6E6), Color(0xFF1A1A1A), Color(0xFF262626),
+      Color(0xFFF2F2F2), Color(0xFF1A1A1A), Color(0xFF262626),
       Color(0xFF3A3A3A), Color(0xF7121212), Color(0xFF9A9A9A)),
   'oled_mono': MushafPaper('oled_mono', Color(0xFF000000), Color(0xFF000000),
       Color(0xFFF2F2F2), Color(0xFF1E1E1E), Color(0xFFFFFFFF),
-      Color(0xFFE0E0E0), Color(0xFF0D0D0D), Color(0xFF1C1C1C),
+      Color(0xFFF2F2F2), Color(0xFF0D0D0D), Color(0xFF1C1C1C),
       Color(0xFF333333), Color(0xF7000000), Color(0xFF8C8C8C)),
 };
 

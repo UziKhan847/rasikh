@@ -84,7 +84,7 @@ void main() {
       s.update(() {
         s.appTheme = 'night';
         s.mushafPaper = 'white';
-        s.orHeader = 'rosette';
+        s.orHeader = 'madaniColoured';
         s.orMarker = 'indopak';
         s.orBorder = 'tile2';
         s.orMargin = 'text';
@@ -105,7 +105,7 @@ void main() {
       expect(again.appTheme, 'night');
       expect(again.mushafPaper, 'white');
       expect((again.orHeader, again.orMarker, again.orBorder, again.orMargin),
-          ('rosette', 'indopak', 'tile2', 'text'));
+          ('madaniColoured', 'indopak', 'tile2', 'text'));
       expect(again.ornamentTuning['headerScale'], 1.2);
       expect(again.gradients, isFalse);
       expect(again.playerDock, 'floating');

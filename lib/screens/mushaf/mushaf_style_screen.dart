@@ -29,15 +29,6 @@ typedef MushafPreset = ({
 
 final kMushafPresets = <MushafPreset>[
   (
-    id: 'classic',
-    header: 'auto',
-    marker: 'auto',
-    border: 'auto',
-    margin: 'auto',
-    paper: 'madani',
-    script: 'uthmani',
-  ),
-  (
     id: 'indopak',
     header: 'auto',
     marker: 'auto',
@@ -57,17 +48,8 @@ final kMushafPresets = <MushafPreset>[
       script: null,
     ),
   (
-    id: 'modern',
-    header: 'rosette',
-    marker: 'font',
-    border: 'double',
-    margin: 'none',
-    paper: 'cream',
-    script: null,
-  ),
-  (
     id: 'plain',
-    header: 'plain',
+    header: 'madani',
     marker: 'font',
     border: 'none',
     margin: 'none',
@@ -158,12 +140,10 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
       s.mushafPaper == p.paper;
 
   String _presetName(BuildContext context, String id) => switch (id) {
-    'classic' => context.l10n.msPresetMadani,
     'indopak' => context.l10n.msPresetIndopak,
     'tile1' => context.l10n.paperTile1,
     'tile2' => context.l10n.paperTile2,
     'tile3' => context.l10n.paperTile3,
-    'modern' => context.l10n.ornModern,
     _ => context.l10n.ornPlain,
   };
 
@@ -288,10 +268,12 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
         kind: kind,
         lineHeight: 40,
         title: Text(
-          'سورة',
+          kind == 'indopak' ? 'سُوْرَةُ' : 'سورة',
           textDirection: TextDirection.rtl,
           style: TextStyle(
-            fontFamily: 'UthmanicHafs',
+            fontFamily: kind == 'indopak'
+                ? MushafRepo.fontFamily('indopak')
+                : 'UthmanicHafs',
             fontSize: 40,
             color: paper.ink,
           ),
@@ -303,6 +285,8 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
         soft: paper.soft,
         ink: paper.ink,
         fill: paper.inner,
+        mono: paper.mono,
+        dark: paper.dark,
         tune: tune,
       ),
     );
@@ -329,12 +313,14 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
       height: 52,
       child: MushafPageBorder(
         kind: kind,
-        band: kind.startsWith('tile') ? 12 : 8,
+        band: kind.startsWith('tile') || kind.startsWith('thin') ? 12 : 8,
         frame: paper.frame,
         cut: paper.inner ?? paper.paper,
         hairline: paper.paper,
         inner: paper.inner,
         padding: EdgeInsets.zero,
+        mono: paper.mono,
+        dark: paper.dark,
         child: const SizedBox.expand(),
       ),
     );
@@ -352,7 +338,14 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
     String autoLabel(String what) => '${l.msBorderAuto} · $what';
     String artName(String v) => switch (v) {
       'madani' => l.madani,
+      'madaniColoured' => l.msMadaniColoured,
       'indopak' => l.indopak,
+      'tile1' => l.paperTile1,
+      'tile2' => l.paperTile2,
+      'tile3' => l.paperTile3,
+      'thin1' => l.msThin1,
+      'thin2' => l.msThin2,
+      'thin3' => l.msThin3,
       'lantern' => l.msLantern,
       'text' => l.msText,
       _ => v,
@@ -462,24 +455,15 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
       gallery(l.msHeader, [
         for (final k in [
           'auto',
-          'plain',
-          'rosette',
           'madani',
+          'madaniColoured',
           'indopak',
           'tile1',
           'tile2',
           'tile3',
         ])
           swatch(
-            switch (k) {
-              'auto' => autoLabel(artName(auto.header)),
-              'plain' => l.ornPlain,
-              'rosette' => l.msRosette,
-              'tile1' => l.paperTile1,
-              'tile2' => l.paperTile2,
-              'tile3' => l.paperTile3,
-              _ => artName(k),
-            },
+            k == 'auto' ? autoLabel(artName(auto.header)) : artName(k),
             header == k,
             s.lite ? null : () => set(() => s.orHeader = k),
             headerArt(k == 'auto' ? auto.header : k),
@@ -489,7 +473,7 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
 
       // ── āyah marker ──
       gallery(l.msMarker, [
-        for (final k in ['auto', 'font', 'madani', 'indopak'])
+        for (final k in ['auto', 'font', 'indopak'])
           swatch(
             switch (k) {
               'auto' => autoLabel(artName(auto.marker)),
@@ -514,6 +498,9 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
           'tile1',
           'tile2',
           'tile3',
+          'thin1',
+          'thin2',
+          'thin3',
         ])
           swatch(
             switch (k) {
@@ -521,9 +508,6 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
               'auto' => autoLabel(artName(auto.border)),
               'line' => l.msBorderLine,
               'double' => l.msBorderDouble,
-              'tile1' => l.paperTile1,
-              'tile2' => l.paperTile2,
-              'tile3' => l.paperTile3,
               _ => artName(k),
             },
             border == k,
@@ -698,14 +682,14 @@ class _TuningPanel extends StatelessWidget {
       'headerScale' => l.tuneHeaderScale,
       'headerDy' => l.tuneHeaderDy,
       'twoTierScale' => l.tuneTwoTierScale,
-      'markerMadaniScale' => l.tuneMarkerMadaniScale,
-      'markerMadaniDy' => l.tuneMarkerMadaniDy,
+      'headerNameScale' => l.tuneHeaderNameScale,
       'markerIndopakScale' => l.tuneMarkerIndopakScale,
       'markerIndopakDy' => l.tuneMarkerIndopakDy,
       'lanternScale' => l.tuneLanternScale,
       'borderMadani' => l.tuneBorderMadani,
       'borderIndopak' => l.tuneBorderIndopak,
       'borderTile' => l.tuneBorderTile,
+      'borderThin' => l.tuneBorderThin,
       _ => key,
     };
   }

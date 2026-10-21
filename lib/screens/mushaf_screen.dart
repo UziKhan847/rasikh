@@ -28,6 +28,7 @@ import 'marks/review_bar.dart';
 import 'marks/review_cards_screen.dart';
 import '../ui/ornaments/ornaments.dart';
 import '../ui/tajwid_colors.dart';
+import '../data/divisions.dart' show rukuCountOf;
 import '../data/mushaf.dart';
 import '../data/quran.dart';
 import '../ui/app_icons.dart';
@@ -440,14 +441,21 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     _memoStep();
   }
 
-  /// A tap's reveal: the next word or the next āyah (Settings), or turning
-  /// to the next page once the screen is all revealed.
+  /// Where the last touch came down on the screen (the split tap).
+  double _lastDownY = 0;
+
+  /// A tap's reveal: the next word or the next āyah (Settings) — or, with
+  /// the split tap, a word in the screen's top half and an āyah in its
+  /// bottom — or turning to the next page once the screen is all revealed.
   void _memoStep() {
     final m = _memo;
     if (m == null) return;
-    SettingsScope.of(context).memorizeTap == 'verse'
-        ? m.nextVerse()
-        : m.nextWord();
+    final verse = switch (SettingsScope.of(context).memorizeTap) {
+      'verse' => true,
+      'split' => _lastDownY > MediaQuery.sizeOf(context).height / 2,
+      _ => false,
+    };
+    verse ? m.nextVerse() : m.nextWord();
   }
 
   /// The pages on screen with [p], (first, last): its spread when two
@@ -1462,7 +1470,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   }) =>
       Listener(
         // A finger on the pages pauses background work until it lifts.
-        onPointerDown: (_) => MushafLineScheduler.pointerDown(),
+        onPointerDown: (e) {
+          _lastDownY = e.position.dy;
+          MushafLineScheduler.pointerDown();
+        },
         onPointerUp: (_) => MushafLineScheduler.pointerUp(),
         onPointerCancel: (_) => MushafLineScheduler.pointerUp(),
         child: NotificationListener<ScrollNotification>(
@@ -2111,10 +2122,12 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         // Hover effects and tooltips in the bar mustn't repaint the pages.
         // A two-finger sideways swipe on a trackpad turns the page.
         Expanded(
-            child: TrackpadPager(
+            child: Listener(
+              onPointerDown: (e) => _lastDownY = e.position.dy,
+              child: TrackpadPager(
                 onTurn: _turn,
                 child: RepaintBoundary(
-                    child: _stage(context, s, paper, view, first)))),
+                    child: _stage(context, s, paper, view, first))))),
       ]),
     );
   }
@@ -2661,6 +2674,7 @@ class _MushafSettingsSheet extends StatelessWidget {
                 ('play', context.l10n.mzTapPlay, null),
                 ('word', context.l10n.mzTapWord, null),
                 ('verse', context.l10n.mzTapVerse, null),
+                ('split', context.l10n.mzTapSplit, null),
               ],
               value: s.memorizeTap,
               onChanged: (v) => s.update(() => s.memorizeTap = v),
@@ -2945,6 +2959,8 @@ class _MushafPageView extends StatelessWidget {
           padding: look.artBorder
               ? EdgeInsets.all(MushafGeometry.classicGap(fs)) + innerPad
               : innerPad,
+          mono: paper.mono,
+          dark: paper.dark,
           child: child,
         );
 
@@ -3205,9 +3221,21 @@ class _MushafPageView extends StatelessWidget {
     return pageBody;
   }
 
-  /// The sūrah's name for its header: its glyph in the SurahNames font
-  /// (large; headers scale it down to fit), else its name.
+  /// The sūrah's name for its header: in an Indo-Pak header, "sūrah" and
+  /// its name in the Indo-Pak muṣḥaf's own font; otherwise its glyph in the
+  /// SurahNames font (large; headers scale it down to fit), else its name.
   Widget _surahTitle(BuildContext context, MushafLine l, {double size = 60}) {
+    if (look.header == 'indopak') {
+      return Text(
+        'سُوْرَةُ ${names[l.surah] ?? ''}',
+        textDirection: TextDirection.rtl,
+        style: TextStyle(
+            fontFamily: MushafRepo.fontFamily('indopak'),
+            fontSize: size,
+            height: 1.6,
+            color: paper.ink),
+      );
+    }
     final glyph = (l.surah >= 1 && l.surah <= surahGlyphCodes.length)
         ? surahGlyphCodes[l.surah - 1]
         : null;
@@ -3222,16 +3250,40 @@ class _MushafPageView extends StatelessWidget {
     );
   }
 
+  /// The Indo-Pak header's side cartouches, as its muṣḥafs print them:
+  /// the sūrah's āyāt (right) and rukūʿ (left).
+  (Widget, Widget) _surahCounts(MushafLine l) {
+    // The words in the Indo-Pak muṣḥaf's font; the number in Naskh (that
+    // font draws digits as its āyah-number marks).
+    Text t(String words, int n) => Text.rich(
+          TextSpan(children: [
+            TextSpan(text: '$words '),
+            TextSpan(
+                text: _ar(n),
+                style: const TextStyle(
+                    fontFamily: 'NotoNaskhArabic', height: 1.2)),
+          ]),
+          textDirection: TextDirection.rtl,
+          style: TextStyle(
+              fontFamily: MushafRepo.fontFamily('indopak'),
+              fontSize: 40,
+              height: 1.6,
+              color: paper.ink),
+        );
+    return (
+      t('اٰيَاتُهَا', MushafRepo.ayahCountOf(l.surah)),
+      t('رُكُوْعَاتُهَا', rukuCountOf(l.surah)),
+    );
+  }
+
   /// The Indo-Pak two-tier sūrah header over a heading and its basmala.
   Widget _twoTierHeader(BuildContext context, MushafLine l, double slotH) =>
       IndopakTwoTierHeader(
         rowHeight: slotH,
         title: _surahTitle(context, l),
-        basmala: Text(MushafRepo.bismillahChar,
-            textDirection: TextDirection.rtl,
-            style: TextStyle(
-                fontFamily: 'Bismillah', fontSize: 60, color: paper.ink)),
+        sides: _surahCounts(l),
         frame: paper.frame,
+        ink: paper.ink,
         fill: paper.inner,
         tune: look.tune,
       );
@@ -3248,6 +3300,9 @@ class _MushafPageView extends StatelessWidget {
           kind: look.header,
           lineHeight: slotH,
           title: _surahTitle(context, l),
+          sides: look.header == 'indopak' ? _surahCounts(l) : null,
+          mono: paper.mono,
+          dark: paper.dark,
           plainTitle: glyph == null
               ? (names[l.surah] ?? '')
               : String.fromCharCodes([glyph, 0xe903]),

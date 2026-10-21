@@ -101,6 +101,7 @@ class MemorizeBar extends StatelessWidget {
                     text: switch (SettingsScope.of(context).memorizeTap) {
                       'word' => context.l10n.mzHint,
                       'verse' => context.l10n.mzHintVerse,
+                      'split' => context.l10n.mzHintSplit,
                       _ => context.l10n.mzHintPlay,
                     },
                     style: uiStyle(context, size: 12.5, color: sub)),

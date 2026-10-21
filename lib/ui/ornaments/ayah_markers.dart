@@ -4,12 +4,13 @@ import 'package:flutter/material.dart';
 
 import 'art.dart';
 
-/// An āyah circle's artwork and where its parts are, as fractions of the
-/// drawing's height: the hole (the number sits there; white-filled papers
-/// fill it), and the ring — what's matched to the font's own plain circle.
-/// Either drawing goes with either script's text.
+/// The traced āyah circle (the Indo-Pak muṣḥaf's; Madani pages keep the
+/// font's own) and where its parts are, as fractions of the drawing's
+/// height: the hole (the number sits there; white-filled papers fill it),
+/// and the ring — what's matched to the font's own plain circle. It goes
+/// with either script's text.
 class ClassicCircle {
-  /// 'madani' or 'indopak'.
+  /// 'indopak'.
   final String art;
   final ClassicArt drawing;
   final Offset holeCentre;
@@ -23,14 +24,6 @@ class ClassicCircle {
     this.ringDiameter,
   );
 
-  static final madani = ClassicCircle._(
-    'madani',
-    ClassicArt.verseCircle,
-    const Offset(.5, .513),
-    .74,
-    .535,
-    .93,
-  );
   static final indopak = ClassicCircle._(
     'indopak',
     ClassicArt.indopakVerseCircle,
@@ -40,12 +33,11 @@ class ClassicCircle {
     .86,
   );
 
-  static ClassicCircle of(String art) => art == 'indopak' ? indopak : madani;
+  static ClassicCircle of(String art) => indopak;
 
   /// The tuning keys for this circle's size and vertical offset.
-  String get scaleKey =>
-      art == 'indopak' ? 'markerIndopakScale' : 'markerMadaniScale';
-  String get dyKey => art == 'indopak' ? 'markerIndopakDy' : 'markerMadaniDy';
+  String get scaleKey => 'markerIndopakScale';
+  String get dyKey => 'markerIndopakDy';
 
   static final Map<String, ui.Image> _sprites = {};
 
@@ -84,7 +76,7 @@ class ClassicAyahMarker extends StatelessWidget {
     required this.stroke,
     required this.fill,
     required this.textColor,
-    this.art = 'madani',
+    this.art = 'indopak',
     this.scale = 1,
     this.dy = 0,
   });

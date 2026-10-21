@@ -5,8 +5,8 @@ import 'surah_headers.dart' show fillBoxes;
 
 /// The lantern's window (where جزء and the number go) and its body (what
 /// a white-filled paper fills), as fractions of its box.
-const _lanternWindow = Rect.fromLTRB(.12, .35, .88, .65);
-const _lanternBody = Rect.fromLTRB(.25, .19, .75, .81);
+const _lanternWindow = Rect.fromLTRB(.13, .63, .87, .94);
+const _lanternBody = Rect.fromLTRB(.087, .599, .913, .968);
 
 /// The juzʼ in a page's outer margin, as [kind] draws it: 'lantern' (the
 /// lantern with جزء and the number in its window) or 'text' (the words

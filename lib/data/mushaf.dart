@@ -454,6 +454,13 @@ class MushafRepo {
     return cum[surah - 1] + (ayahInSurah - 1);
   }
 
+  /// How many āyāt [surah] has.
+  static int ayahCountOf(int surah) {
+    final cum = _surahCum;
+    if (cum == null || surah < 1 || surah > cum.length - 1) return 0;
+    return cum[surah] - cum[surah - 1];
+  }
+
   /// Highest valid global ayah index (6235 for the full muṣḥaf).
   static int get lastGlobalAyah => (_surahCum?.last ?? 6236) - 1;
 
@@ -865,12 +872,13 @@ abstract final class MushafGeometry {
 
 /// How a muṣḥaf page is dressed, every part on its own (Settings → Muṣḥaf
 /// style), with "auto" already resolved for the script:
-/// - [header]: the sūrah header — 'plain', 'rosette', 'madani', 'indopak'
-///   (two tiers over a header and its basmala; one without), 'tile1'…'tile3'.
-/// - [marker]: the āyah marker — 'font' (the text's own circle), 'madani',
-///   'indopak'.
+/// - [header]: the sūrah header — 'madani' (line art), 'madaniColoured',
+///   'indopak' (two tiers over a header and its basmala; one without),
+///   'tile1'…'tile3' (the coloured one in each tile palette); 'plain' and
+///   'rosette' are left for focus mode and Lite.
+/// - [marker]: the āyah marker — 'font' (the text's own circle), 'indopak'.
 /// - [border]: the page border — 'none', 'line', 'double', 'madani',
-///   'indopak', 'tile1'…'tile3'.
+///   'indopak', 'tile1'…'tile3', 'thin1'…'thin3'.
 /// - [margin]: the juzʼ in the outer margin — 'none', 'lantern', 'text'.
 class MushafLook {
   final String header, marker, border, margin;
@@ -903,7 +911,8 @@ class MushafLook {
         v == 'auto' ? (ip ? indopak : madani) : v;
     return MushafLook(
       header: auto(header, 'madani', 'indopak'),
-      marker: auto(marker, 'madani', 'indopak'),
+      // Madani pages keep the font's own āyah circle.
+      marker: auto(marker, 'font', 'indopak'),
       border: auto(border, 'madani', 'indopak'),
       margin: auto(margin, 'lantern', 'text'),
       script: ip ? 'indopak' : 'uthmani',
@@ -918,13 +927,15 @@ class MushafLook {
     _ => 0,
   };
 
-  /// A tiled colour frame (1–3), or 0.
+  /// A full-colour frame: tiled (1–3) or thin ('thin1'…'thin3'), or 0.
   int get tileBorder => _tile(border);
+  bool get thinBorder => border.startsWith('thin');
 
   /// A tiled colour sūrah header (1–3), or 0.
   int get tileHeader => _tile(header);
-  static int _tile(String v) =>
-      v.startsWith('tile') ? int.tryParse(v.substring(4)) ?? 0 : 0;
+  static int _tile(String v) => v.startsWith('tile') || v.startsWith('thin')
+      ? int.tryParse(v.substring(4)) ?? 0
+      : 0;
 
   /// An artwork border (Madani's tiles, the Indo-Pak frame, a tiled frame),
   /// whose thickness follows the text.
@@ -944,6 +955,7 @@ class MushafLook {
     return switch (border) {
       'madani' => madani * tune['borderMadani'],
       'indopak' => (fs * .2 < 4 ? 4.0 : fs * .2) * tune['borderIndopak'],
+      _ when thinBorder => madani * .95 * tune['borderThin'],
       _ when tileBorder > 0 => madani * 1.35 * tune['borderTile'],
       _ => 0,
     };

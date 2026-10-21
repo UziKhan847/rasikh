@@ -9,16 +9,20 @@ import 'art.dart';
 ///   repeated in whole tiles), [band] thick;
 /// - 'indopak': the Indo-Pak frame as a nine-slice — its corners kept to
 ///   their drawn proportions, its edges (bar and centre motif) repeated;
-/// - 'tile1'…'tile3': a full-colour tiled frame (Update 10), nine-slice
-///   with its edge tiles repeated, never stretched or tinted.
+/// - 'tile1'…'tile3', 'thin1'…'thin3': a full-colour frame (Update 10's
+///   tiled frames, and thinner ones), nine-slice with its edge tiles
+///   repeated, never stretched or tinted.
 ///
-/// [inner], on white-filled papers, fills inside an artwork border.
+/// [inner], on white-filled papers, fills inside an artwork border. With
+/// [mono] (the Mono papers) a full-colour frame is drawn in black and white
+/// — inverted on a dark one ([dark]).
 class MushafPageBorder extends StatelessWidget {
   final String kind;
   final double band;
   final Color frame, cut, hairline;
   final Color? inner;
   final EdgeInsets padding;
+  final bool mono, dark;
   final Widget child;
   const MushafPageBorder({
     super.key,
@@ -29,6 +33,8 @@ class MushafPageBorder extends StatelessWidget {
     required this.hairline,
     this.inner,
     required this.padding,
+    this.mono = false,
+    this.dark = false,
     required this.child,
   });
 
@@ -58,13 +64,15 @@ class MushafPageBorder extends StatelessWidget {
           child: single,
         );
     }
-    final tile = kind.startsWith('tile')
-        ? int.tryParse(kind.substring(4)) ?? 1
-        : 0;
     final CustomPainter painter = switch (kind) {
       'madani' => _MadaniBorderPainter(band, frame, cut, hairline, inner),
       'indopak' => _IndopakBorderPainter(band, frame, inner),
-      _ => _TileBorderPainter(band, tile, inner),
+      _ => _ImageBorderPainter(
+        band,
+        FrameArt.of(kind),
+        inner,
+        mono ? monoFilter(dark: dark) : null,
+      ),
     };
     return CustomPaint(
       painter: painter,
@@ -320,16 +328,40 @@ class _IndopakBorderPainter extends CustomPainter {
       o.band != band || o.color != color || o.inner != inner;
 }
 
-class _TileBorderPainter extends CustomPainter {
+/// A full-colour page frame as a compact nine-slice image in
+/// `assets/ornaments/`: its corner slices (px of the image) and its band's
+/// thickness there. (The thin frames' are cut by tool/gen_frame_slices.py.)
+class FrameArt {
+  final String asset;
+  final EdgeInsets corner;
   final double band;
-  final int tile;
-  final Color? inner;
-  _TileBorderPainter(this.band, this.tile, this.inner)
-    : super(repaint: OrnamentImages.loaded);
+  const FrameArt(this.asset, this.corner, this.band);
 
-  /// The frame's slices (px of its 263×286 image) and its band.
-  static const _corner = EdgeInsets.fromLTRB(96, 120, 94, 91);
-  static const _bandUnits = 51.0;
+  static const _tiles = [
+    FrameArt('tile_frame_1', EdgeInsets.fromLTRB(96, 120, 94, 91), 51),
+    FrameArt('tile_frame_2', EdgeInsets.fromLTRB(96, 120, 94, 91), 51),
+    FrameArt('tile_frame_3', EdgeInsets.fromLTRB(96, 120, 94, 91), 51),
+  ];
+  static const _thin = [
+    FrameArt('thin_frame_1', EdgeInsets.fromLTRB(94, 148, 68, 98), 36),
+    FrameArt('thin_frame_2', EdgeInsets.fromLTRB(94, 148, 68, 98), 36),
+    FrameArt('thin_frame_3', EdgeInsets.fromLTRB(94, 148, 68, 98), 36),
+  ];
+
+  /// The frame for [kind] ('tile1'…'tile3', 'thin1'…'thin3').
+  static FrameArt of(String kind) {
+    final n = (int.tryParse(kind.substring(4)) ?? 1).clamp(1, 3) - 1;
+    return kind.startsWith('thin') ? _thin[n] : _tiles[n];
+  }
+}
+
+class _ImageBorderPainter extends CustomPainter {
+  final double band;
+  final FrameArt art;
+  final Color? inner;
+  final ColorFilter? filter;
+  _ImageBorderPainter(this.band, this.art, this.inner, this.filter)
+    : super(repaint: OrnamentImages.loaded);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -339,20 +371,25 @@ class _TileBorderPainter extends CustomPainter {
         Paint()..color = inner!,
       );
     }
-    final img = OrnamentImages.image(OrnamentImages.frame(tile));
+    final img = OrnamentImages.image(art.asset);
     if (img == null) return;
-    final s = _sliceScale(size, _corner, _bandUnits, band);
-    final paint = Paint()..filterQuality = FilterQuality.medium;
+    final s = _sliceScale(size, art.corner, art.band, band);
+    final paint = Paint()
+      ..filterQuality = FilterQuality.medium
+      ..colorFilter = filter;
     _nineSlice(
       size,
       Size(img.width.toDouble(), img.height.toDouble()),
-      _corner,
+      art.corner,
       s,
       (src, dst) => canvas.drawImageRect(img, src, dst, paint),
     );
   }
 
   @override
-  bool shouldRepaint(_TileBorderPainter o) =>
-      o.band != band || o.tile != tile || o.inner != inner;
+  bool shouldRepaint(_ImageBorderPainter o) =>
+      o.band != band ||
+      o.art != art ||
+      o.inner != inner ||
+      o.filter != filter;
 }

@@ -69,6 +69,10 @@ void main() {
     ('mix_spread', 'uthmani', 50, const Size(1400, 900), 'spread', 'light'),
     ('phone_mix_indopak', 'indopak', 50, const Size(393, 852), null, 'light'),
     ('classic_border_madani_tawbah', 'uthmani', 187, const Size(1400, 900), 'single', 'light'),
+    ('thin1_coloured_spread', 'uthmani', 50, const Size(1400, 900), 'spread', 'light'),
+    ('phone_thin2', 'uthmani', 50, const Size(393, 852), null, 'light'),
+    ('monotile_spread', 'uthmani', 50, const Size(1400, 900), 'spread', 'light'),
+    ('phone_monotile_night', 'indopak', 50, const Size(393, 852), null, 'night'),
   ];
   for (final (name, script, page, size, view, theme) in shots) {
     testWidgets(name, (tester) async {
@@ -99,6 +103,19 @@ void main() {
         s.orBorder = 'tile$tile';
         s.orMargin = 'lantern';
         s.mushafPaper = 'tile$tile';
+      }
+      // The thin frames, the coloured header, and Mono with colour artwork.
+      final thin = RegExp(r'thin(\d)').firstMatch(name)?.group(1);
+      if (thin != null) {
+        s.orBorder = 'thin$thin';
+        s.mushafPaper = 'tile$thin';
+      }
+      if (name.contains('coloured')) s.orHeader = 'madaniColoured';
+      if (name.contains('monotile')) {
+        s.orHeader = 'tile1';
+        s.orBorder = 'tile1';
+        s.mushafPaper = 'mono';
+        s.mushafPaperDark = 'mono';
       }
       // A mixed set: the other script's header and circle in a tiled frame.
       if (name.contains('mix')) {

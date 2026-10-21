@@ -58,11 +58,11 @@ class AppSettings extends ChangeNotifier {
 
   /// The muṣḥaf's ornaments, each chosen on its own (Settings → Muṣḥaf
   /// style; see MushafLook). 'auto' takes the script's own artwork.
-  /// - [orHeader], the sūrah header: 'plain' | 'rosette' | 'auto' |
-  ///   'madani' | 'indopak' | 'tile1'…'tile3';
-  /// - [orMarker], the āyah marker: 'font' | 'auto' | 'madani' | 'indopak';
+  /// - [orHeader], the sūrah header: 'auto' | 'madani' | 'madaniColoured'
+  ///   | 'indopak' | 'tile1'…'tile3';
+  /// - [orMarker], the āyah marker: 'auto' | 'font' | 'indopak';
   /// - [orBorder], the page border: 'none' | 'line' | 'double' | 'auto' |
-  ///   'madani' | 'indopak' | 'tile1'…'tile3';
+  ///   'madani' | 'indopak' | 'tile1'…'tile3' | 'thin1'…'thin3';
   /// - [orMargin], the juzʼ in the margin: 'none' | 'auto' | 'lantern' |
   ///   'text'.
   String orHeader = 'auto';
@@ -91,7 +91,8 @@ class AppSettings extends ChangeNotifier {
 
   /// Memorize: what a tap does — 'play' (a revealed word plays; revealing is
   /// done from the bar), 'word' or 'verse' (a tap anywhere reveals the next
-  /// word or āyah).
+  /// word or āyah), or 'split' (the top half of the screen a word, the
+  /// bottom half an āyah).
   String memorizeTap = 'play';
   bool get memorizeTapReveals => memorizeTap != 'play';
 
@@ -252,18 +253,18 @@ class AppSettings extends ChangeNotifier {
       orMargin = m['orMargin'] as String? ?? 'auto';
       orTune = {
         for (final e in ((m['orTune'] as Map?) ?? const {}).entries)
-          if (e.value is num) e.key as String: (e.value as num).toDouble(),
+          if (e.value is num && OrnamentTuning.specs.containsKey(e.key))
+            e.key as String: (e.value as num).toDouble(),
       };
+      // The plain and rosette headers and the Madani circle were dropped.
+      if (orHeader == 'plain' || orHeader == 'rosette') orHeader = 'auto';
+      if (orMarker == 'madani') orMarker = 'font';
       return;
     }
     final style = m['ornaments'] as String? ??
         (m['ornate'] == false ? 'plain' : 'classic');
     final classic = style == 'classic';
-    orHeader = switch (style) {
-      'classic' => 'auto',
-      'modern' => 'rosette',
-      _ => 'plain',
-    };
+    orHeader = 'auto';
     orMarker = classic ? 'auto' : 'font';
     final border = m['mushafBorder'] == true;
     final borderStyle = m['mushafBorderStyle'] as String? ?? 'auto';

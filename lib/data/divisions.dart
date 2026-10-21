@@ -51,6 +51,9 @@ int manzilOf(int s, int a) => _within(manzilStarts, s, a);
 /// 1..558: the rukūʿ [s]:[a] is in.
 int rukuOf(int s, int a) => _within(rukuStarts, s, a);
 
+/// How many rukūʿ sūrah [s] has (the Indo-Pak header prints it).
+int rukuCountOf(int s) => rukuStarts.where((r) => r.$1 == s).length;
+
 /// [d] number [n] of [s]:[a] (not pages, whose numbers depend on the
 /// script).
 int divisionOf(Division d, int s, int a) => switch (d) {
