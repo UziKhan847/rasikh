@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/l10n.dart';
 import '../../core/memorize.dart';
@@ -38,6 +39,14 @@ class MemorizeBar extends StatelessWidget {
   /// word, play, leave focus and close.
   final bool minimal;
   final VoidCallback? onExitFocus;
+
+  /// The controls without the caption above them (a phone on its side,
+  /// short of height).
+  final bool compact;
+
+  /// The controls in a column, onward at the top (a phone on its side
+  /// showing two pages: the bar stands in the margin beside them).
+  final bool vertical;
   const MemorizeBar({
     super.key,
     required this.controller,
@@ -56,6 +65,8 @@ class MemorizeBar extends StatelessWidget {
     this.onSwitchView,
     this.minimal = false,
     this.onExitFocus,
+    this.compact = false,
+    this.vertical = false,
   });
 
   @override
@@ -85,6 +96,7 @@ class MemorizeBar extends StatelessWidget {
         IconButton icon(IconData i, String tip, VoidCallback? on) => IconButton(
               tooltip: tip,
               onPressed: on,
+              visualDensity: vertical ? VisualDensity.compact : null,
               icon: Directionality(
                 textDirection: i == AppIcons.nextVerse ||
                         i == AppIcons.prevVerse ||
@@ -108,6 +120,7 @@ class MemorizeBar extends StatelessWidget {
                       'word' => context.l10n.mzHint,
                       'verse' => context.l10n.mzHintVerse,
                       'split' => context.l10n.mzHintSplit,
+                      'pad' => context.l10n.mzHintPad,
                       _ => context.l10n.mzHintPlay,
                     },
                     style: uiStyle(context, size: 12.5, color: sub)),
@@ -121,12 +134,24 @@ class MemorizeBar extends StatelessWidget {
         // inside right-to-left text): onward is leftward, as the text runs.
         final controls = Directionality(
           textDirection: TextDirection.ltr,
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
+          child: Flex(
+              direction: vertical ? Axis.vertical : Axis.horizontal,
+              mainAxisSize: MainAxisSize.min,
+              children: [
             if (!cards)
               icon(AppIcons.pageOn, context.l10n.mzNextPage,
                   c.atEnd ? null : c.nextPage),
             icon(AppIcons.nextVerse, context.l10n.mzNextVerse,
                 c.atEnd ? null : c.nextVerse),
+            if (vertical)
+              IconButton.filled(
+                tooltip: context.l10n.mzNextWord,
+                onPressed: c.atEnd ? null : c.nextWord,
+                icon: const Icon(AppIcons.chevronLeft, size: 22),
+                style: IconButton.styleFrom(
+                    backgroundColor: accent, foregroundColor: bg),
+              )
+            else
             FilledButton.icon(
               onPressed: c.atEnd ? null : c.nextWord,
               icon: const Icon(AppIcons.chevronLeft, size: 20),
@@ -143,9 +168,11 @@ class MemorizeBar extends StatelessWidget {
             icon(AppIcons.prevVerse, context.l10n.mzPrevVerse,
                 c.atStart ? null : c.prevVerse),
             Container(
-                width: 1,
-                height: 28,
-                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: vertical ? 24 : 1,
+                height: vertical ? 1 : 28,
+                margin: vertical
+                    ? const EdgeInsets.symmetric(vertical: 4)
+                    : const EdgeInsets.symmetric(horizontal: 4),
                 color: line),
             if (cards)
               icon(hidden ? AppIcons.show : AppIcons.memorize,
@@ -168,7 +195,7 @@ class MemorizeBar extends StatelessWidget {
                 onTap: c.atStart ? null : onPlay,
                 onLongPress: c.atStart ? null : onPlayPage,
                 child: Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding: EdgeInsets.all(vertical ? 7 : 10),
                   child: Icon(playing ? AppIcons.pause : AppIcons.play,
                       color: c.atStart ? sub.withValues(alpha: .5) : accent),
                 ),
@@ -187,6 +214,17 @@ class MemorizeBar extends StatelessWidget {
             ),
           ]),
         );
+        if (vertical) {
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 3),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: line),
+            ),
+            child: controls,
+          );
+        }
         final body = minimal
             ? FittedBox(
                 fit: BoxFit.scaleDown,
@@ -227,8 +265,10 @@ class MemorizeBar extends StatelessWidget {
                 ]),
               ))
             : Column(mainAxisSize: MainAxisSize.min, children: [
-                caption,
-                const SizedBox(height: 4),
+                if (!compact) ...[
+                  caption,
+                  const SizedBox(height: 4),
+                ],
                 FittedBox(fit: BoxFit.scaleDown, child: controls),
               ]);
         // Docked: centred, at most 720 wide on a wide window.
@@ -261,3 +301,135 @@ class MemorizeBar extends StatelessWidget {
     );
   }
 }
+
+/// One-hand memorizing: a small pad in a bottom corner, where the thumb
+/// rests — four zones, laid out as the screen's halves are: the left column
+/// goes on, the right one goes back; the top row by words, the bottom row
+/// by āyāt (as the screen's halves split them). Its guide — faint
+/// outlines and arrows — is there to learn it by; hidden, the zones still
+/// work.
+class MemorizePad extends StatelessWidget {
+  final MemorizeController controller;
+  final Color ink, accent;
+  final bool guide;
+  final bool haptics;
+  const MemorizePad({
+    super.key,
+    required this.controller,
+    required this.ink,
+    required this.accent,
+    this.guide = true,
+    this.haptics = true,
+  });
+
+  /// Each zone's size (two by two), and the gap between the word row and
+  /// the āyah row, so a thumb aiming for one doesn't land on the other.
+  static const zone = Size(84, 70);
+  static const rowGap = 10.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    Widget cell(IconData icon, String tip, VoidCallback action) {
+      final glyph = Icon(icon, size: 26, color: ink.withValues(alpha: .45));
+      return Semantics(
+        button: true,
+        label: tip,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (haptics) HapticFeedback.selectionClick();
+            action();
+          },
+          child: Container(
+            width: zone.width,
+            height: zone.height,
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            decoration: guide
+                ? BoxDecoration(
+                    color: accent.withValues(alpha: .06),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: accent.withValues(alpha: .28)),
+                  )
+                : null,
+            alignment: Alignment.center,
+            // The verse and page glyphs mirror in right-to-left text; set
+            // them right to left so they point the way the text runs.
+            child: guide
+                ? Directionality(
+                    textDirection: icon == AppIcons.nextVerse ||
+                            icon == AppIcons.prevVerse
+                        ? TextDirection.rtl
+                        : TextDirection.ltr,
+                    child: glyph)
+                : null,
+          ),
+        ),
+      );
+    }
+
+    // Fixed left to right: onward is leftward, as the text runs.
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          cell(AppIcons.chevronLeft, context.l10n.mzNextWord, c.nextWord),
+          cell(AppIcons.chevronRight, context.l10n.mzPrevWord, c.prevWord),
+        ]),
+        const SizedBox(height: rowGap),
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          cell(AppIcons.nextVerse, context.l10n.mzNextVerse, c.nextVerse),
+          cell(AppIcons.prevVerse, context.l10n.mzPrevVerse, c.prevVerse),
+        ]),
+      ]),
+    );
+  }
+}
+
+/// Memorize's tap settings, as rows for a [QGroup] (the muṣḥaf's settings
+/// and the Hifz screen): what a tap does and, for one hand, the pad's
+/// corner and guide.
+List<Widget> memorizeTapRows(BuildContext context, AppSettings s) => [
+      QRow(
+        title: context.l10n.mzTap,
+        subtitle: context.l10n.mzTapSub,
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final (v, label) in [
+            ('play', context.l10n.mzTapPlay),
+            ('word', context.l10n.mzTapWord),
+            ('verse', context.l10n.mzTapVerse),
+            ('split', context.l10n.mzTapSplit),
+            ('pad', context.l10n.mzTapPad),
+          ])
+            ChoiceChip(
+              label: Text(label),
+              selected: s.memorizeTap == v,
+              onSelected: (_) => s.update(() => s.memorizeTap = v),
+            ),
+        ]),
+      ),
+      if (s.memorizePad) ...[
+        QRow(
+          title: context.l10n.mzPadSide,
+          control: QSegmented<String>(
+            expand: false,
+            options: [
+              ('left', context.l10n.mzPadLeft, null),
+              ('right', context.l10n.mzPadRight, null),
+            ],
+            value: s.memorizePadSide,
+            onChanged: (v) => s.update(() => s.memorizePadSide = v),
+          ),
+        ),
+        QRow(
+          title: context.l10n.mzPadGuide,
+          subtitle: context.l10n.mzPadGuideSub,
+          control: QSwitch(
+              value: s.memorizePadGuide,
+              onChanged: (v) => s.update(() => s.memorizePadGuide = v)),
+        ),
+      ],
+    ];

@@ -1102,5 +1102,13 @@
   "mtNeedOne": "Toca al menos un pasaje con el que se confunde",
   "mtOpenAll": "Abiertos",
   "mtAll": "Todos",
-  "mtGoTo": "Abrir en el muṣḥaf"
+  "mtGoTo": "Abrir en el muṣḥaf",
+  "mzTapPad": "Una mano",
+  "mzHintPad": "Panel del pulgar: izquierda avanza, derecha retrocede · arriba palabras, abajo āyāt",
+  "mzPadSide": "Esquina del panel",
+  "mzPadLeft": "Izquierda",
+  "mzPadRight": "Derecha",
+  "mzPadGuide": "Mostrar la guía del panel",
+  "mzPadGuideSub": "Apágala cuando la domines: las zonas siguen funcionando",
+  "tuneHeaderNameDy": "Nombre de la sura: arriba / abajo"
 }

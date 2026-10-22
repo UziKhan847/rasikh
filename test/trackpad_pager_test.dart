@@ -54,4 +54,19 @@ void main() {
     expect(turns, [1, -1]);
     await tester.pump(const Duration(milliseconds: 300));
   });
+
+  testWidgets('a finger swiping across turns (a tablet); a mouse drag '
+      'does not', (tester) async {
+    final turns = await pump(tester);
+    await tester.dragFrom(const Offset(100, 200), const Offset(200, 0));
+    await tester.pumpAndSettle();
+    expect(turns, [1], reason: 'rightward: forward');
+    await tester.flingFrom(const Offset(300, 200), const Offset(-60, 0), 1200);
+    await tester.pumpAndSettle();
+    expect(turns, [1, -1], reason: 'a quick flick back');
+    await tester.dragFrom(const Offset(100, 200), const Offset(200, 0),
+        kind: PointerDeviceKind.mouse);
+    await tester.pumpAndSettle();
+    expect(turns, [1, -1]);
+  });
 }

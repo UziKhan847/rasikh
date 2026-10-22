@@ -4,9 +4,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 
 /// Turns the desktop muṣḥaf's pages with a two-finger horizontal swipe on a
-/// trackpad (Linux, Windows, macOS send it as a pan gesture), or a
-/// sideways scroll (a tilting wheel, or a trackpad the system reports as
-/// scrolling): one turn per swipe. As on a phone, the page follows the
+/// trackpad (Linux, Windows, macOS send it as a pan gesture), a sideways
+/// scroll (a tilting wheel, or a trackpad the system reports as
+/// scrolling), or a finger or pen swiping across the screen (a tablet in
+/// the desktop layout): one turn per swipe. As on a phone, the page follows the
 /// fingers — a swipe to the right turns forward (the muṣḥaf reads right to
 /// left), to the left back.
 class TrackpadPager extends StatefulWidget {
@@ -46,6 +47,18 @@ class _TrackpadPagerState extends State<TrackpadPager> {
     widget.onTurn(pan.dx > 0 ? 1 : -1);
   }
 
+  // A finger's swipe: how far it has gone across.
+  double _dragged = 0;
+
+  void _dragEnd(DragEndDetails d) {
+    final v = d.primaryVelocity ?? 0;
+    final dx = _dragged;
+    _dragged = 0;
+    if (dx.abs() >= TrackpadPager.threshold || v.abs() > 400) {
+      widget.onTurn((dx.abs() >= TrackpadPager.threshold ? dx : v) > 0 ? 1 : -1);
+    }
+  }
+
   void _scroll(PointerScrollEvent e) {
     final d = e.scrollDelta;
     if (d.dx.abs() <= d.dy.abs()) return;
@@ -72,6 +85,19 @@ class _TrackpadPagerState extends State<TrackpadPager> {
     onPointerSignal: (e) {
       if (e is PointerScrollEvent) _scroll(e);
     },
-    child: widget.child,
+    // Touch and pen only: a mouse dragging across mustn't turn pages.
+    child: GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      supportedDevices: const {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.stylus,
+        PointerDeviceKind.invertedStylus,
+      },
+      onHorizontalDragStart: (_) => _dragged = 0,
+      onHorizontalDragUpdate: (d) => _dragged += d.delta.dx,
+      onHorizontalDragEnd: _dragEnd,
+      onHorizontalDragCancel: () => _dragged = 0,
+      child: widget.child,
+    ),
   );
 }

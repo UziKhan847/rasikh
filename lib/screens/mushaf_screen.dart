@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderProxyBox;
+import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/services.dart';
 
 import '../core/audio.dart';
@@ -434,7 +436,59 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     }
   }
 
-  Widget _memorizeBar(MushafPaper paper, {bool floating = false}) {
+  /// A phone on its side: the room kept under the pages for the floating
+  /// memorize, review or marking bar, so it doesn't cover the pages' last
+  /// lines (the spread shrinks to fit; one page scrolls past it).
+  double get _landscapeBarRoom => !_barShown || _sideBar ? 0 : _barH + 16;
+
+  /// A memorize, review or marking bar is up.
+  bool get _barShown => _memorizing || _reviewing || _marking.active;
+
+  /// A phone on its side showing two pages: memorize's bar stands in the
+  /// margin beside them, not under them.
+  bool get _sideBar => _phoneSpread && _memorizing;
+
+  /// The floating bar's height as last laid out (see [_measured]).
+  double _barH = 0;
+
+  /// [bar], reporting its height: the room kept for it under the pages.
+  Widget _measured(Widget bar) => _ReportHeight(
+      onHeight: (h) {
+        if (mounted && (h - _barH).abs() > .5) setState(() => _barH = h);
+      },
+      child: bar);
+
+  /// One hand: the thumb pad in its corner, above [bar].
+  ///
+  /// [enabled] false: [bar] alone (focus mode's docked bar, under its pill
+  /// with a pad of its own).
+  Widget _withPad(MushafPaper paper, Widget bar, {bool enabled = true}) {
+    final s = SettingsScope.of(context);
+    final m = _memo;
+    if (m == null || !s.memorizePad || !enabled) return bar;
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Align(
+        alignment: s.memorizePadSide == 'left'
+            ? Alignment.centerLeft
+            : Alignment.centerRight,
+        child: Padding(
+          // Up from the bar, where the thumb rests.
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 36),
+          child: MemorizePad(
+            controller: m,
+            ink: paper.ink,
+            accent: paper.id == 'mono' ? paper.ink : paper.acc,
+            guide: s.memorizePadGuide,
+            haptics: s.haptics,
+          ),
+        ),
+      ),
+      bar,
+    ]);
+  }
+
+  Widget _memorizeBar(MushafPaper paper,
+      {bool floating = false, bool compact = false, bool vertical = false}) {
     final s = SettingsScope.of(context);
     return MemorizeBar(
         controller: _memo!,
@@ -445,6 +499,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         line: paper.line,
         accent: paper.id == 'mono' ? paper.ink : paper.acc,
         floating: floating,
+        compact: compact,
+        vertical: vertical,
         screen: _screenOf(_pendingPage ?? _page),
         onPlay: _playRevealed,
         onPlayPage: () => _playRevealed(page: true),
@@ -1360,10 +1416,12 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                                 : const EdgeInsets.fromLTRB(8, 8, 8, 8))
                         : _phoneSpread
                             ? _spreadPager(s, paper,
-                                margin: const EdgeInsets.fromLTRB(68, 4, 72, 4))
+                                margin: EdgeInsets.fromLTRB(
+                                    68, 4, 72, 4 + _landscapeBarRoom))
                             : _pager(s, paper,
                                 fitWidth: true,
-                                margin: const EdgeInsets.fromLTRB(68, 10, 72, 0));
+                                margin: EdgeInsets.fromLTRB(
+                                    68, 10, 72, _landscapeBarRoom));
                     // A page turn only refreshes the bars (title, page label,
                     // progress): the pager is handed through as the same
                     // widget, so its pages aren't rebuilt.
@@ -1752,7 +1810,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         left: 0,
         right: 0,
         bottom: 0,
-        child: _fade(Container(
+        child: _fade(_withPad(paper, enabled: !s.focusMode, Container(
           padding: EdgeInsets.fromLTRB(12, 0, 12, pad.bottom + 10),
           decoration: BoxDecoration(
             color: paper.chrome,
@@ -1807,7 +1865,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
               ]),
             ),
           ]),
-        )),
+        ))),
       ),
       // Focus mode: memorize's small pill floats over the bare page.
       if (_memorizing && s.focusMode)
@@ -1815,7 +1873,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           bottom: pad.bottom + 12,
           left: 12,
           right: 12,
-          child: Center(child: _memorizeBar(paper, floating: true)),
+          child: _withPad(
+              paper, Center(child: _memorizeBar(paper, floating: true))),
         ),
     ]);
   }
@@ -1986,14 +2045,45 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       PositionedDirectional(
         top: pad.top + 14,
         start: pad.left + 12,
-        child: _fade(_PaperButton(
-            paper: paper,
-            icon: AppIcons.close,
-            size: 46,
-            shadow: true,
-            tooltip: context.l10n.closeMushaf,
-            onTap: _close)),
+        child: _fade(Column(children: [
+          _PaperButton(
+              paper: paper,
+              icon: AppIcons.close,
+              size: 46,
+              shadow: true,
+              tooltip: context.l10n.closeMushaf,
+              onTap: _close),
+          const SizedBox(height: 8),
+          _PaperButton(
+              paper: paper,
+              icon: AppIcons.tune,
+              size: 46,
+              shadow: true,
+              tooltip: context.l10n.mushafSettings,
+              onTap: _showSettings),
+          const SizedBox(height: 8),
+          _PaperButton(
+              paper: paper,
+              icon: AppIcons.indexList,
+              size: 46,
+              shadow: true,
+              tooltip: context.l10n.idxIndex,
+              onTap: _showIndex),
+          // Its place on the right is taken by memorize's bar.
+          if (_sideBar) ...[
+            const SizedBox(height: 8),
+            _PaperButton(
+                paper: paper,
+                icon: AppIcons.fitWidth,
+                size: 46,
+                shadow: true,
+                tooltip: context.l10n.fillWidthScroll,
+                onTap: () => s.update(() => s.mushafPhoneSpread = false)),
+          ],
+        ])),
       ),
+      // (Memorizing two pages, the right margin holds memorize's bar.)
+      if (!_sideBar)
       Positioned(
         top: pad.top + 14,
         right: pad.right + 16,
@@ -2028,14 +2118,6 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           const SizedBox(height: 8),
           _PaperButton(
               paper: paper,
-              icon: AppIcons.indexList,
-              size: 46,
-              shadow: true,
-              tooltip: context.l10n.idxIndex,
-              onTap: _showIndex),
-          const SizedBox(height: 8),
-          _PaperButton(
-              paper: paper,
               icon: AppIcons.reader,
               size: 46,
               shadow: true,
@@ -2050,26 +2132,50 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           _reciteButton(context, paper, size: 46),
         ])),
       ),
-      if (_memorizing)
+      if (_sideBar) ...[
+        // Two pages: the bar in the right margin, the pages at full height.
+        Positioned(
+          top: pad.top + 8,
+          bottom: pad.bottom + 8,
+          right: pad.right + 10,
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: _memorizeBar(paper, floating: true, vertical: true),
+            ),
+          ),
+        ),
+        if (s.memorizePad)
+          Positioned(
+            bottom: pad.bottom + 8,
+            left: 80,
+            right: 80,
+            child: _withPad(paper, const SizedBox.shrink()),
+          ),
+      ] else if (_memorizing)
         Positioned(
           bottom: pad.bottom + 10,
           left: 80,
           right: 80,
-          child: Center(child: _memorizeBar(paper, floating: true)),
+          child: _withPad(
+              paper,
+              Center(
+                  child: _measured(
+                      _memorizeBar(paper, floating: true, compact: true)))),
         )
       else if (_reviewing)
         Positioned(
           bottom: pad.bottom + 10,
           left: 96,
           right: 96,
-          child: Center(child: _reviewBar(paper, floating: true)),
+          child: Center(child: _measured(_reviewBar(paper, floating: true))),
         )
       else if (_marking.active)
         Positioned(
           bottom: pad.bottom + 10,
           left: 0,
           right: 0,
-          child: Center(child: _markingBar(paper, floating: true)),
+          child: Center(child: _measured(_markingBar(paper, floating: true))),
         )
       else
       Positioned(
@@ -2426,7 +2532,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       ),
       child: LayoutBuilder(builder: (context, c) {
         final availW = (c.maxWidth - 2 * pad - 2 * arrows).clamp(200.0, 1e9);
-        final availH = (c.maxHeight - 2 * pad).clamp(200.0, 1e9);
+        // Room kept under the pages for a floating bar, so it doesn't
+        // cover their last lines.
+        final room = _barShown ? _barH + 20 : 0.0;
+        final availH = (c.maxHeight - 2 * pad - room).clamp(200.0, 1e9);
         // Pages take their scanned shape (MushafGeometry.pageRatio), or, without
         // one, share one box sized from the text.
         Size box(Size avail, int page,
@@ -2492,7 +2601,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         return Stack(children: [
           Positioned.fill(
             child: Padding(
-              padding: EdgeInsets.all(pad),
+              padding: EdgeInsets.fromLTRB(pad, pad, pad, pad + room),
               child: Center(
                 child: noMotion(context) ? content : AnimatedSwitcher(
                   duration: const Duration(milliseconds: 160),
@@ -2524,21 +2633,22 @@ class _MushafPageScreenState extends State<MushafPageScreen>
               bottom: 12,
               left: 0,
               right: 0,
-              child: Center(child: _memorizeBar(paper, floating: true)),
+              child: _withPad(paper,
+                  Center(child: _measured(_memorizeBar(paper, floating: true)))),
             )
           else if (_reviewing)
             Positioned(
               bottom: 12,
               left: 0,
               right: 0,
-              child: Center(child: _reviewBar(paper, floating: true)),
+              child: Center(child: _measured(_reviewBar(paper, floating: true))),
             )
           else if (_marking.active)
             Positioned(
               bottom: 12,
               left: 0,
               right: 0,
-              child: Center(child: _markingBar(paper, floating: true)),
+              child: Center(child: _measured(_markingBar(paper, floating: true))),
             ),
           if (_chrome) ...[
             Positioned(
@@ -2825,21 +2935,7 @@ class _MushafSettingsSheet extends StatelessWidget {
                 value: s.focusMode,
                 onChanged: (v) => s.update(() => s.focusMode = v)),
           ),
-          QRow(
-            title: context.l10n.mzTap,
-            subtitle: context.l10n.mzTapSub,
-            control: QSegmented<String>(
-              expand: false,
-              options: [
-                ('play', context.l10n.mzTapPlay, null),
-                ('word', context.l10n.mzTapWord, null),
-                ('verse', context.l10n.mzTapVerse, null),
-                ('split', context.l10n.mzTapSplit, null),
-              ],
-              value: s.memorizeTap,
-              onChanged: (v) => s.update(() => s.memorizeTap = v),
-            ),
-          ),
+          ...memorizeTapRows(context, s),
           if (onReview != null)
             QRow(
               leading: Icon(AppIcons.review, color: pal(context).acc),
@@ -3810,4 +3906,35 @@ class _RukuMark extends StatelessWidget {
     scale: look.tune[c.scaleKey],
     dy: look.tune[c.dyKey],
   );
+}
+
+/// Reports its child's height after each layout that changes it.
+class _ReportHeight extends SingleChildRenderObjectWidget {
+  final ValueChanged<double> onHeight;
+  const _ReportHeight({required this.onHeight, super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderReportHeight(onHeight);
+
+  @override
+  void updateRenderObject(
+          BuildContext context, _RenderReportHeight renderObject) =>
+      renderObject.onHeight = onHeight;
+}
+
+class _RenderReportHeight extends RenderProxyBox {
+  ValueChanged<double> onHeight;
+  double? _last;
+  _RenderReportHeight(this.onHeight);
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final h = size.height;
+    if (h == _last) return;
+    _last = h;
+    // Not during layout: the host rebuilds with the room for it.
+    SchedulerBinding.instance.addPostFrameCallback((_) => onHeight(h));
+  }
 }

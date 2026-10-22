@@ -156,7 +156,13 @@ class MushafSurahHeader extends StatelessWidget {
           if (filter != null) canvas.restore();
         },
         slots: [
-          (_scaled(indopak ? _indopakTitle : _madaniTitle, nameScale), title),
+          (
+            indopak
+                ? _scaled(_indopakTitle, nameScale)
+                : _scaled(_madaniTitle, nameScale)
+                    .translate(0, tune['headerNameDy']),
+            title,
+          ),
           if (indopak && sides != null) ...[
             (_indopakSides.$2, sides!.$1),
             (_indopakSides.$1, sides!.$2),

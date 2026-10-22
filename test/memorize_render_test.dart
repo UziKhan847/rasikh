@@ -305,6 +305,58 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   });
 
+  testWidgets('one hand: the thumb pad steps by word and āyah, on and back',
+      (tester) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (s, p) = await boot();
+    s.memorizeTap = 'pad';
+    await tester.pumpWidget(app(s, p, 50));
+    await settle(tester);
+    await startMemorize(tester);
+    final pad = find.byType(MemorizePad);
+    expect(pad, findsOneWidget);
+    final box = tester.getRect(pad);
+    expect(box.right, greaterThan(430 - 100), reason: 'in the right corner');
+    int revealed() => onScreen(tester)
+        .fold<int>(0, (n, x) => n + _sprites(x.laidLine! as AtlasLine));
+    // Zones: [next word, back a word] over [next āyah, back an āyah].
+    Future<void> zone(int col, int row) async {
+      await tester.tapAt(Offset(box.left + box.width * (col * 2 + 1) / 4,
+          box.top + box.height * (row * 2 + 1) / 4));
+      await settle(tester);
+    }
+
+    await zone(0, 0);
+    final one = revealed();
+    expect(one, greaterThan(0), reason: 'a word');
+    await zone(0, 0);
+    expect(revealed(), greaterThan(one));
+    await zone(1, 0);
+    expect(revealed(), one, reason: 'back a word');
+    await zone(0, 1);
+    final ayah = revealed();
+    expect(ayah, greaterThan(one), reason: 'the rest of the āyah');
+    await zone(1, 1);
+    expect(revealed(), lessThan(ayah), reason: 'back an āyah');
+
+    // The left corner, and no guide: the zones still work.
+    s.update(() {
+      s.memorizePadSide = 'left';
+      s.memorizePadGuide = false;
+    });
+    await settle(tester);
+    expect(tester.getRect(pad).left, lessThan(100));
+
+    // Focus mode: one pad, over its pill (not the docked bar's too).
+    s.update(() => s.focusMode = true);
+    await settle(tester);
+    expect(pad, findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 1));
+  });
+
   testWidgets('spread: the page turns after both pages, not one',
       (tester) async {
     tester.view.physicalSize = const Size(1400, 900);

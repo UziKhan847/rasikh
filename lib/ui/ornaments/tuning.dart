@@ -14,6 +14,9 @@ class OrnamentTuning {
     'headerScale': (def: 1.0, min: .6, max: 1.2),
     'headerDy': (def: 0.0, min: -.3, max: .3),
     'headerNameScale': (def: 1.4, min: .6, max: 2.0),
+    // The Madani name's vertical offset in its cartouche, as a fraction of
+    // the header's height (the font sets it high; down a little).
+    'headerNameDy': (def: .07, min: -.2, max: .3),
     // The basmala line's size (against the line's height).
     'basmalaScale': (def: 1.6, min: .8, max: 2.4),
     // The Indo-Pak two-tier header (it spans the header and basmala

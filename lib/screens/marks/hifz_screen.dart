@@ -15,6 +15,7 @@ import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
 import '../shell/app_shell.dart';
+import '../mushaf/memorize_bar.dart';
 import '../mushaf/memorize_cards_screen.dart';
 import '../mushaf/mushaf_index_sheet.dart';
 import '../mushaf_screen.dart' show MushafPageScreen;
@@ -177,6 +178,7 @@ class HifzScreen extends StatelessWidget {
             chevron: true,
             onTap: () => _openMemorizeCards(context),
           ),
+          ...memorizeTapRows(context, SettingsScope.of(context)),
         ]),
         if (book != null) ...[
           QSectionLabel(

@@ -2078,5 +2078,13 @@
   "mtNeedOne": "Tap at least one passage it's confused with",
   "mtOpenAll": "Open",
   "mtAll": "All",
-  "mtGoTo": "Open in the muṣḥaf"
+  "mtGoTo": "Open in the muṣḥaf",
+  "mzTapPad": "One hand",
+  "mzHintPad": "Thumb pad: left on, right back · top words, bottom āyāt",
+  "mzPadSide": "Pad corner",
+  "mzPadLeft": "Left",
+  "mzPadRight": "Right",
+  "mzPadGuide": "Show the pad's guide",
+  "mzPadGuideSub": "Off once it's in your thumb: the zones still work",
+  "tuneHeaderNameDy": "Sūrah name: up / down"
 }

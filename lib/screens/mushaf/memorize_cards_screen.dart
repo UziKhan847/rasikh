@@ -231,6 +231,7 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
                 ('word', context.l10n.mzTapWord),
                 ('verse', context.l10n.mzTapVerse),
                 ('split', context.l10n.mzTapSplit),
+                ('pad', context.l10n.mzTapPad),
               ])
                 CheckedPopupMenuItem(
                   value: 'tap:$v',
@@ -260,7 +261,8 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: s.memorizeTapReveals ? _step : null,
-                  child: ListView(
+                  child: Stack(children: [
+                  ListView(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                     children: [
                       Center(
@@ -310,6 +312,21 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
                       ),
                     ],
                   ),
+                  // One hand: the thumb pad in its corner.
+                  if (s.memorizePad)
+                    Positioned(
+                      bottom: 36,
+                      left: s.memorizePadSide == 'left' ? 10 : null,
+                      right: s.memorizePadSide == 'left' ? null : 10,
+                      child: MemorizePad(
+                        controller: _c,
+                        ink: paper.ink,
+                        accent: paper.id == 'mono' ? paper.ink : paper.acc,
+                        guide: s.memorizePadGuide,
+                        haptics: s.haptics,
+                      ),
+                    ),
+                  ]),
                 ),
               ),
               SafeArea(

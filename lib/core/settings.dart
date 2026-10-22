@@ -104,11 +104,20 @@ class AppSettings extends ChangeNotifier {
   bool reviewCardWord = true;
 
   /// Memorize: what a tap does — 'play' (a revealed word plays; revealing is
-  /// done from the bar), 'word' or 'verse' (a tap anywhere reveals the next
-  /// word or āyah), or 'split' (the top half of the screen a word, the
-  /// bottom half an āyah).
+  /// done from the bar), 'word' or 'verse' (the screen's left half reveals
+  /// the next word or āyah, its right half goes back), 'split' (the same,
+  /// words in the top half and āyāt in the bottom), or 'pad' (one hand: a
+  /// small thumb pad in a bottom corner does all four; taps on the page
+  /// play, as with 'play').
   String memorizeTap = 'play';
-  bool get memorizeTapReveals => memorizeTap != 'play';
+  bool get memorizeTapReveals =>
+      memorizeTap != 'play' && memorizeTap != 'pad';
+  bool get memorizePad => memorizeTap == 'pad';
+
+  /// The thumb pad's corner ('right' or 'left') and whether its guide (the
+  /// zones' outlines and arrows) shows; hidden, the zones still work.
+  String memorizePadSide = 'right';
+  bool memorizePadGuide = true;
 
   /// Focus mode: the muṣḥaf and memorize, bare — just the page (no bars,
   /// running head or frame; the system bars hidden too), and memorize with
@@ -311,6 +320,8 @@ class AppSettings extends ChangeNotifier {
     // Before the verse option: tap-to-reveal on or off.
     memorizeTap = m['memorizeTap'] as String? ??
         (m['memorizeTapReveals'] == true ? 'word' : 'play');
+    memorizePadSide = m['memorizePadSide'] as String? ?? 'right';
+    memorizePadGuide = m['memorizePadGuide'] as bool? ?? true;
     focusMode = m['focusMode'] ?? false;
     liteSuggested = m['liteSuggested'] ?? false;
     // An install from before the welcome existed has already found its way.
@@ -394,6 +405,8 @@ class AppSettings extends ChangeNotifier {
         'reviewCardFont': reviewCardFont,
         'reviewCardWord': reviewCardWord,
         'memorizeTap': memorizeTap,
+        'memorizePadSide': memorizePadSide,
+        'memorizePadGuide': memorizePadGuide,
         'focusMode': focusMode,
         'liteSuggested': liteSuggested,
         'onboarded': onboarded,

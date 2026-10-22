@@ -1102,5 +1102,13 @@
   "mtNeedOne": "Touchez au moins un passage avec lequel il est confondu",
   "mtOpenAll": "Ouverts",
   "mtAll": "Tous",
-  "mtGoTo": "Ouvrir dans le muṣḥaf"
+  "mtGoTo": "Ouvrir dans le muṣḥaf",
+  "mzTapPad": "Une main",
+  "mzHintPad": "Pavé du pouce : gauche avance, droite recule · haut mots, bas āyāt",
+  "mzPadSide": "Coin du pavé",
+  "mzPadLeft": "Gauche",
+  "mzPadRight": "Droite",
+  "mzPadGuide": "Afficher le guide du pavé",
+  "mzPadGuideSub": "À couper une fois acquis : les zones fonctionnent toujours",
+  "tuneHeaderNameDy": "Nom de la sourate : haut / bas"
 }

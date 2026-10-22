@@ -781,6 +781,7 @@ class _TuningPanel extends StatelessWidget {
       'headerDy' => l.tuneHeaderDy,
       'twoTierScale' => l.tuneTwoTierScale,
       'headerNameScale' => l.tuneHeaderNameScale,
+      'headerNameDy' => l.tuneHeaderNameDy,
       'markerIndopakScale' => l.tuneMarkerIndopakScale,
       'markerIndopakDy' => l.tuneMarkerIndopakDy,
       'lanternScale' => l.tuneLanternScale,
