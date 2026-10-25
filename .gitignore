@@ -15,3 +15,7 @@ test/_out/
 tool/mushaf_atlas/.venv/
 # gen_atlas.py self-check contact sheets
 tool/mushaf_atlas/out/
+
+# Mushaf justification prototype (tool/mushaf_justify)
+tool/mushaf_justify/node_modules/
+tool/mushaf_justify/out/

@@ -703,7 +703,7 @@ class DotDetectiveDrill extends StatelessWidget {
 
 // ───────────────────────── Fluency Sprint ─────────────────────────
 
-const _sprintWords = <String>[
+const sprintWords = <String>[
   'بِسۡمِ', 'ٱللَّهِ', 'ٱلرَّحۡمَٰنِ', 'ٱلرَّحِيمِ', 'ٱلۡحَمۡدُ', 'رَبِّ',
   'ٱلۡعَٰلَمِينَ', 'مَٰلِكِ', 'يَوۡمِ', 'ٱلدِّينِ', 'إِيَّاكَ',
   'نَعۡبُدُ', 'نَسۡتَعِينُ', 'ٱهۡدِنَا', 'ٱلصِّرَٰطَ',
@@ -735,10 +735,10 @@ class _FluencySprintState extends State<FluencySprint> {
   void _next() {
     final s = SettingsScope.of(context);
     if (s.haptics) HapticFeedback.selectionClick();
-    if (index + 1 >= _sprintWords.length) {
+    if (index + 1 >= sprintWords.length) {
       ticker?.cancel();
       final d = DateTime.now().difference(start);
-      final wpm = _sprintWords.length / (d.inMilliseconds / 60000);
+      final wpm = sprintWords.length / (d.inMilliseconds / 60000);
       final stars = wpm >= 30 ? 3 : (wpm >= 18 ? 2 : 1);
       ProgressScope.read(context).report('coach.sprint', stars);
       setState(() {
@@ -863,7 +863,7 @@ class _FluencySprintState extends State<FluencySprint> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text(context.l10n.wordXofY(index + 1, _sprintWords.length),
+                Text(context.l10n.wordXofY(index + 1, sprintWords.length),
                     style:
                         uiStyle(context, size: 14, weight: FontWeight.w700)),
                 Container(
@@ -890,7 +890,7 @@ class _FluencySprintState extends State<FluencySprint> {
                     transitionBuilder: (child, a) => FadeTransition(
                         opacity: a,
                         child: ScaleTransition(scale: a, child: child)),
-                    child: Text(_sprintWords[index],
+                    child: Text(sprintWords[index],
                         key: ValueKey(index),
                         textAlign: TextAlign.center,
                         textDirection: TextDirection.rtl,
@@ -932,7 +932,7 @@ class _FluencySprintState extends State<FluencySprint> {
           Text(
             running
                 ? context.l10n.wordXofYTime(
-                        index + 1, _sprintWords.length, secs.toStringAsFixed(1))
+                        index + 1, sprintWords.length, secs.toStringAsFixed(1))
                 : context.l10n.readEachWordAloudShort,
             style: uiStyle(context, size: 14.5, color: pal(context).ink3),
             textAlign: TextAlign.center,
@@ -968,7 +968,7 @@ class _FluencySprintState extends State<FluencySprint> {
                               opacity: a,
                               child: ScaleTransition(scale: a, child: child)),
                           child: s.focusWindow
-                              ? Text(_sprintWords[index],
+                              ? Text(sprintWords[index],
                                   key: ValueKey(index),
                                   textAlign: TextAlign.center,
                                   textDirection: TextDirection.rtl,
@@ -979,10 +979,10 @@ class _FluencySprintState extends State<FluencySprint> {
                                   textDirection: TextDirection.rtl,
                                   text: TextSpan(children: [
                                     for (var i = 0;
-                                        i < _sprintWords.length;
+                                        i < sprintWords.length;
                                         i++)
                                       TextSpan(
-                                        text: '${_sprintWords[i]} ',
+                                        text: '${sprintWords[i]} ',
                                         style: quranicStyle(context, size: 28,
                                             color: i == index
                                                 ? pal(context).acc

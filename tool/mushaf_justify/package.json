@@ -1,0 +1,9 @@
+{
+  "name": "mushaf-justify",
+  "private": true,
+  "description": "Runs digitalkhatt.org's justification engine (vendor/, MIT) over the app's Madani lines, offline.",
+  "type": "module",
+  "dependencies": {
+    "harfbuzzjs": "0.4.5"
+  }
+}

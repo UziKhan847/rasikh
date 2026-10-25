@@ -2086,5 +2086,60 @@
   "mzPadRight": "Right",
   "mzPadGuide": "Show the pad's guide",
   "mzPadGuideSub": "Off once it's in your thumb: the zones still work",
-  "tuneHeaderNameDy": "Sūrah name: up / down"
+  "tuneHeaderNameDy": "Sūrah name: up / down",
+  "nbTitle": "Nabr — Qurʾānic Stress",
+  "nbSub": "Which letter carries the stress, and how strongly",
+  "nbLearn": "Learn",
+  "nbLearnSub": "The rules, chapter by chapter",
+  "nbPractice": "Practice",
+  "nbPracticeSub": "Tap the stressed letter",
+  "nbQuiz": "Quiz",
+  "nbQuizSub": "Check what you've learnt",
+  "nbColours": "Colour guide",
+  "nbColoursSub": "What each colour means",
+  "nbBasedOn": "Based on",
+  "nbPreview": "Preview — under review, not yet published",
+  "nbCheck": "Check",
+  "nbNext": "Next",
+  "nbRight": "Right",
+  "nbWrong": "Not quite",
+  "nbAnswer": "Answer",
+  "nbReveal": "Show the answers",
+  "nbScore": "{right} of {total}",
+  "@nbScore": {
+    "placeholders": {
+      "right": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "nbOpenAyah": "Open in the muṣḥaf",
+  "nbPreviewOn": "Nabr preview on",
+  "nbPreviewOff": "Nabr preview off",
+  "nbAgain": "Again",
+  "nbRule": "Rule {n}",
+  "@nbRule": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "nbSet": "Set {set}",
+  "@nbSet": {
+    "placeholders": {
+      "set": {
+        "type": "String"
+      }
+    }
+  },
+  "nbTryFirst": "Try them first, then show the answers",
+  "nbChapters": "Chapters",
+  "nbWhy": "Why",
+  "nbModifiers": "Modifiers",
+  "nbDone": "Done",
+  "nbPickAll": "Pick every stressed letter, then Check"
 }

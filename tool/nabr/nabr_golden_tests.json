@@ -1,0 +1,2410 @@
+{
+ "tokenConvention": [
+  "tokens = the word's written base letters in reading order, each with its own marks; a doubled letter (with shadda) is ONE token.",
+  "'ـ' separates words in a phrase test and is never stressed.",
+  "Hamzat al-waṣl is written 'ا', and the article lām is a separate token ('ل' or 'لْ').",
+  "Some tests show only the relevant fragment of a phrase (e.g. 'شَّ مْ سَ ـ سِ ...'); match from the first token, not the full word.",
+  "Tokens list the letters a student sees; the engine works on pronounced units. Map engine output to tokens by walking base letters (marks stripped) in order.",
+  "When a highlighted token is a doubled letter, the stress belongs to its second (voweled) half; colour the whole glyph.",
+  "context: 'wasl' = joined reading, 'waqf' = pausing on the word, 'default' = joined reading and, for a single word, assume it is not the last word of an āya."
+ ],
+ "naturalStressNote": "Expected sets include 'natural' stresses (a letter followed by sukūn), which the book counts as weak. The engine should emit them with level=weak and isNatural=true so the UI can hide them with a filter.",
+ "tests": [
+  {
+   "id": "t001",
+   "source": "part0.ch4 The Two Functions of Nabr",
+   "text": "فَسَقَى",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "ف",
+    "سَ",
+    "قَ",
+    "ى"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "سَ"
+   ],
+   "reasonEn": "From \"watering\" (Qaṣaṣ 24). Stressing the fāʾ makes it sound like *fasaqā*, \"they both sinned\".",
+   "reasonAr": "من السقاية؛ ولو نُبرت الفاء لأشبهت «فَسَقا» من الفسق."
+  },
+  {
+   "id": "t002",
+   "source": "part0.ch4 The Two Functions of Nabr",
+   "text": "لَمَعَ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "لَ",
+    "مَ",
+    "عَ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "مَ"
+   ],
+   "reasonEn": "\"Allah is truly *with* the doers of good\" (ʿAnkabūt 69). Stressing the lām makes it sound like the verb *lamaʿa*, \"it shone\".",
+   "reasonAr": "﴿وَإِنَّ اللَّهَ لَمَعَ الْمُحْسِنِينَ﴾: لام التوكيد + «مع»؛ ولو نُبرت اللام لأشبهت الفعل «لَمَعَ» أي أضاء."
+  },
+  {
+   "id": "t003",
+   "source": "part0.ch4 The Two Functions of Nabr",
+   "text": "أَلَمْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "أَ",
+    "لَ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "لَ"
+   ],
+   "reasonEn": "The hamza is the question particle; *lam* is a two-letter word. Stressing the hamza makes it sound like *alam*, \"pain\".",
+   "reasonAr": "الهمزة للاستفهام و«لم» كلمة من حرفين؛ ونبر الهمزة يقرّبها من «ألَم» بمعنى الوجع."
+  },
+  {
+   "id": "t004",
+   "source": "part1.ch1 Stress at the Start of the Word",
+   "text": "كَتَبَ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "كَ",
+    "تَ",
+    "بَ"
+   ],
+   "expectedStressedTokenIndices": [
+    0
+   ],
+   "expectedLetters": [
+    "كَ"
+   ],
+   "reasonEn": "First root letter; third letter voweled.",
+   "reasonAr": "أول الأصول، والثالث متحرك."
+  },
+  {
+   "id": "t005",
+   "source": "part1.ch1 Stress at the Start of the Word",
+   "text": "وَكَتَبَ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "كَ",
+    "تَ",
+    "بَ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "كَ"
+   ],
+   "reasonEn": "The wāw is an added letter and is not counted.",
+   "reasonAr": "الواو زائدة فلا تُحسب."
+  },
+  {
+   "id": "t006",
+   "source": "part1.ch1 Stress at the Start of the Word",
+   "text": "وَجِلَةٌ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "جِ",
+    "لَ",
+    "ةٌ"
+   ],
+   "expectedStressedTokenIndices": [
+    0
+   ],
+   "expectedLetters": [
+    "وَ"
+   ],
+   "reasonEn": "Here the wāw is a root letter (from *wajila*, to fear), not \"and\".",
+   "reasonAr": "الواو هنا أصلية (من وَجِلَ)، لا عاطفة."
+  },
+  {
+   "id": "t007",
+   "source": "part1.ch1 Stress at the Start of the Word",
+   "text": "كَتَبْنَا",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "كَ",
+    "تَ",
+    "بْ",
+    "نَ",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "تَ"
+   ],
+   "reasonEn": "Third letter (bāʾ) is a non-final sukūn.",
+   "reasonAr": "الثالث (الباء) ساكن متوسط."
+  },
+  {
+   "id": "t008",
+   "source": "part1.ch1 Stress at the Start of the Word",
+   "text": "جَهَنَّمَ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "جَ",
+    "هَ",
+    "نَّ",
+    "مَ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "هَ"
+   ],
+   "reasonEn": "The first nūn of the doubled letter is a medial sukūn.",
+   "reasonAr": "النون الأولى ساكنة متوسطة."
+  },
+  {
+   "id": "t009",
+   "source": "part1.ch1 Stress at the Start of the Word",
+   "text": "عَسَى",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "عَ",
+    "سَ",
+    "ى"
+   ],
+   "expectedStressedTokenIndices": [
+    0
+   ],
+   "expectedLetters": [
+    "عَ"
+   ],
+   "reasonEn": "Third letter silent but word-final.",
+   "reasonAr": "الثالث ساكن متطرف."
+  },
+  {
+   "id": "t010",
+   "source": "part1.ch1 Stress at the Start of the Word",
+   "text": "عَلَيْهِمْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "عَ",
+    "لَ",
+    "يْ",
+    "هِ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "لَ"
+   ],
+   "reasonEn": "The pronoun made the third-letter sukūn medial.",
+   "reasonAr": "صار الساكن الثالث متوسطًا بعد الضمير."
+  },
+  {
+   "id": "t011",
+   "source": "part1.ch1 Stress at the Start of the Word",
+   "text": "يَعِدُهُمْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "يَ",
+    "عِ",
+    "دُ",
+    "هُ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "يَ",
+    "دُ"
+   ],
+   "reasonEn": "Third letter voweled; dāl also stressed before the pronoun (Rule 3).",
+   "reasonAr": "الثالث متحرك؛ والدال قبل الضمير (القاعدة 3)."
+  },
+  {
+   "id": "t012",
+   "source": "part1.ch1 Stress at the Start of the Word",
+   "text": "أَلَمْ يَعِدْكُمْ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "يَ",
+    "عِ",
+    "دْ",
+    "كُ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "عِ"
+   ],
+   "reasonEn": "The dāl is jussive-silent, so it is a medial sukūn.",
+   "reasonAr": "الدال ساكنة للجزم فهي ساكن متوسط."
+  },
+  {
+   "id": "t013",
+   "source": "part1.ch1 Stress at the Start of the Word",
+   "text": "بِيَدِهِ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "بِ",
+    "يَ",
+    "دِ",
+    "هِ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "يَ"
+   ],
+   "reasonEn": "The bāʾ is added; the yāʾ is the first root letter.",
+   "reasonAr": "الباء زائدة؛ والياء أول الأصول."
+  },
+  {
+   "id": "t014",
+   "source": "part1.ch2 Stress in the Middle of the Word",
+   "text": "الْمَلَائِكَةُ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "ا",
+    "لْ",
+    "مَ",
+    "لَ",
+    "ا",
+    "ئِ",
+    "كَ",
+    "ةُ"
+   ],
+   "expectedStressedTokenIndices": [
+    3,
+    5
+   ],
+   "expectedLetters": [
+    "لَ",
+    "ئِ"
+   ],
+   "reasonEn": "Lām (Rule 1) and the hamza after the silent alif.",
+   "reasonAr": "اللام (القاعدة 1) والهمزة بعد الألف الساكنة."
+  },
+  {
+   "id": "t015",
+   "source": "part1.ch2 Stress in the Middle of the Word",
+   "text": "الْآخِرَةُ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "ا",
+    "لْ",
+    "ءَ",
+    "ا",
+    "خِ",
+    "رَ",
+    "ةُ"
+   ],
+   "expectedStressedTokenIndices": [
+    2,
+    4
+   ],
+   "expectedLetters": [
+    "ءَ",
+    "خِ"
+   ],
+   "reasonEn": "Hamza naturally; khāʾ after the sukūn.",
+   "reasonAr": "الهمزة بالفطرة، والخاء بعد الساكن."
+  },
+  {
+   "id": "t016",
+   "source": "part1.ch2 Stress in the Middle of the Word",
+   "text": "يُسَبِّحُونَ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "يُ",
+    "سَ",
+    "بِّ",
+    "حُ",
+    "و",
+    "نَ"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    3
+   ],
+   "expectedLetters": [
+    "سَ",
+    "حُ"
+   ],
+   "reasonEn": "Sīn, plus ḥāʾ before the second sukūn (joining only).",
+   "reasonAr": "السين، والحاء قبل الساكن الثاني (وصلًا فقط)."
+  },
+  {
+   "id": "t017",
+   "source": "part1.ch2 Stress in the Middle of the Word",
+   "text": "ظَالِمِي",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "ظَ",
+    "ا",
+    "لِ",
+    "مِ",
+    "ي"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "ظَ",
+    "لِ"
+   ],
+   "reasonEn": "The second sukūn is final, so it has no effect.",
+   "reasonAr": "الساكن الثاني متطرف فلا أثر له."
+  },
+  {
+   "id": "t018",
+   "source": "part1.ch2 Stress in the Middle of the Word",
+   "text": "تَنتَشِرُونَ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "تَ",
+    "نْ",
+    "تَ",
+    "شِ",
+    "رُ",
+    "و",
+    "نَ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "تَ",
+    "تَ"
+   ],
+   "reasonEn": "Three letters between the sukūns: stress stays after the first.",
+   "reasonAr": "بين الساكنين ثلاثة أحرف فتبقى بعد الأول."
+  },
+  {
+   "id": "t019",
+   "source": "part1.ch2 Stress in the Middle of the Word",
+   "text": "فَاسْجُدُوا",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "فَ",
+    "ا",
+    "سْ",
+    "جُ",
+    "دُ",
+    "و",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    3
+   ],
+   "expectedLetters": [
+    "فَ",
+    "جُ"
+   ],
+   "reasonEn": "Jīm follows the sukūn; the final wāw is word-final.",
+   "reasonAr": "الجيم بعد الساكن، والواو الأخيرة متطرفة."
+  },
+  {
+   "id": "t020",
+   "source": "part1.ch3 Stress Before an Attached Pronoun",
+   "text": "فَأَخَذَهُمْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "فَ",
+    "أَ",
+    "خَ",
+    "ذَ",
+    "هُ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    3
+   ],
+   "expectedLetters": [
+    "أَ",
+    "ذَ"
+   ],
+   "reasonEn": "Hamza = first root letter; dhāl before the pronoun.",
+   "reasonAr": "الهمزة أول الأصول، والذال قبل الضمير."
+  },
+  {
+   "id": "t021",
+   "source": "part1.ch3 Stress Before an Attached Pronoun",
+   "text": "خَلَقَكُمْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "خَ",
+    "لَ",
+    "قَ",
+    "كُ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "خَ",
+    "قَ"
+   ],
+   "reasonEn": "Khāʾ = first root letter; qāf before the pronoun.",
+   "reasonAr": "الخاء أول الأصول، والقاف قبل الضمير."
+  },
+  {
+   "id": "t022",
+   "source": "part1.ch3 Stress Before an Attached Pronoun",
+   "text": "رَحْمَةً",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "رَ",
+    "حْ",
+    "مَ",
+    "ةً"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "رَ",
+    "مَ"
+   ],
+   "reasonEn": "Rāʾ naturally; mīm after sukūn and before the tāʾ marbūṭa.",
+   "reasonAr": "الراء بالفطرة، والميم بعد ساكن وقبل التاء."
+  },
+  {
+   "id": "t023",
+   "source": "part1.ch3 Stress Before an Attached Pronoun",
+   "text": "أَنطَقَنَا",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "أَ",
+    "نْ",
+    "طَ",
+    "قَ",
+    "نَ",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "أَ",
+    "طَ"
+   ],
+   "reasonEn": "Sukūn beats the pronoun, so the qāf is left unstressed.",
+   "reasonAr": "السكون أقوى من الضمير فتُترك القاف."
+  },
+  {
+   "id": "t024",
+   "source": "part1.ch3 Stress Before an Attached Pronoun",
+   "text": "أَنفُسَهُمْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "أَ",
+    "نْ",
+    "فُ",
+    "سَ",
+    "هُ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "أَ",
+    "فُ"
+   ],
+   "reasonEn": "Fāʾ after the sukūn, not the sīn before the pronoun.",
+   "reasonAr": "الفاء بعد الساكن، لا السين قبل الضمير."
+  },
+  {
+   "id": "t025",
+   "source": "part1.ch3 Stress Before an Attached Pronoun",
+   "text": "صُدُورِهِمْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "صُ",
+    "دُ",
+    "و",
+    "رِ",
+    "هِ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    3
+   ],
+   "expectedLetters": [
+    "دُ",
+    "رِ"
+   ],
+   "reasonEn": "Dāl (third letter silent); rāʾ for two reasons.",
+   "reasonAr": "الدال (الثالث ساكن)، والراء لسببين."
+  },
+  {
+   "id": "t026",
+   "source": "part1.ch3 Stress Before an Attached Pronoun",
+   "text": "تَحَاوُرَكُمَا",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "تَ",
+    "حَ",
+    "ا",
+    "وُ",
+    "رَ",
+    "كُ",
+    "مَ",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    3,
+    5
+   ],
+   "expectedLetters": [
+    "حَ",
+    "وُ",
+    "كُ"
+   ],
+   "reasonEn": "The rāʾ's stress moves to the kāf because of the letters after the pronoun.",
+   "reasonAr": "تنتقل نبرة الراء إلى الكاف لكثرة الحروف بعد الضمير."
+  },
+  {
+   "id": "t027",
+   "source": "part1.ch4 Stress When Pausing",
+   "text": "وَأَمَرُّ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "أَ",
+    "مَ",
+    "رّ"
+   ],
+   "expectedStressedTokenIndices": [
+    2
+   ],
+   "expectedLetters": [
+    "مَ"
+   ],
+   "reasonEn": "Before the final shadda: \"more bitter\".",
+   "reasonAr": "قبل المشدّد المتطرف: من «المُرّ»."
+  },
+  {
+   "id": "t028",
+   "source": "part1.ch4 Stress When Pausing",
+   "text": "النَّبِيّ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "ا",
+    "ل",
+    "نَّ",
+    "بِ",
+    "يّ"
+   ],
+   "expectedStressedTokenIndices": [
+    3
+   ],
+   "expectedLetters": [
+    "بِ"
+   ],
+   "reasonEn": "Before the doubled yāʾ so it is not a long vowel.",
+   "reasonAr": "قبل الياء المشدّدة حتى لا تصير مدّية."
+  },
+  {
+   "id": "t029",
+   "source": "part1.ch4 Stress When Pausing",
+   "text": "الْقَمَرْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "ا",
+    "لْ",
+    "قَ",
+    "مَ",
+    "رْ"
+   ],
+   "expectedStressedTokenIndices": [
+    2
+   ],
+   "expectedLetters": [
+    "قَ"
+   ],
+   "reasonEn": "Two letters before the light silent final.",
+   "reasonAr": "قبل قبل الساكن المخفف."
+  },
+  {
+   "id": "t030",
+   "source": "part1.ch4 Stress When Pausing",
+   "text": "الدُّنْيَا",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "ا",
+    "ل",
+    "دُّ",
+    "نْ",
+    "يَ",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    2
+   ],
+   "expectedLetters": [
+    "دُّ"
+   ],
+   "reasonEn": "The yāʾ precedes a final sukūn, so it can't be stressed.",
+   "reasonAr": "الياء قبل الساكن المتطرف فلا تُنبر."
+  },
+  {
+   "id": "t031",
+   "source": "part1.ch4 Stress When Pausing",
+   "text": "وَبَشِّرِ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "بَ",
+    "شِّ",
+    "رِ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "بَ"
+   ],
+   "reasonEn": "The rāʾ is silent by origin, so the shīn is off-limits.",
+   "reasonAr": "الراء ساكنة أصلًا فتمتنع على الشين."
+  },
+  {
+   "id": "t032",
+   "source": "part1.ch4 Stress When Pausing",
+   "text": "أَكْبَرُ",
+   "context": "wasl",
+   "isPhrase": false,
+   "tokens": [
+    "أَ",
+    "كْ",
+    "بَ",
+    "رُ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "أَ",
+    "بَ"
+   ],
+   "reasonEn": "Bāʾ after the sukūn; hamza naturally.",
+   "reasonAr": "الباء بعد الساكن والهمزة بالفطرة."
+  },
+  {
+   "id": "t033",
+   "source": "part1.ch4 Stress When Pausing",
+   "text": "أَكْبَرْ",
+   "context": "waqf",
+   "isPhrase": false,
+   "tokens": [
+    "أَ",
+    "كْ",
+    "بَ",
+    "رْ"
+   ],
+   "expectedStressedTokenIndices": [
+    0
+   ],
+   "expectedLetters": [
+    "أَ"
+   ],
+   "reasonEn": "The pause silences the rāʾ, blocking the bāʾ.",
+   "reasonAr": "سكن الراء للوقف فتمتنع على الباء."
+  },
+  {
+   "id": "t034",
+   "source": "part1.ch4 Stress When Pausing",
+   "text": "بِدَمٍ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "بِ",
+    "دَ",
+    "مٍ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "دَ"
+   ],
+   "reasonEn": "A two-letter word, stressed both ways.",
+   "reasonAr": "كلمة من حرفين فتُنبر وقفًا ووصلًا."
+  },
+  {
+   "id": "t035",
+   "source": "part1.ch5 Separating and Joining Two Words",
+   "text": "أَلْفَ سَنَةٍ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "أَ",
+    "لْ",
+    "فَ",
+    "ـ",
+    "سَ",
+    "نَ",
+    "ةٍ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    4
+   ],
+   "expectedLetters": [
+    "أَ",
+    "سَ"
+   ],
+   "reasonEn": "Separating: the fāʾ is not stressed.",
+   "reasonAr": "نبرة فصل: لا تُنبر الفاء."
+  },
+  {
+   "id": "t036",
+   "source": "part1.ch5 Separating and Joining Two Words",
+   "text": "وَسَاءَ لَهُمْ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "وَ",
+    "سَ",
+    "ا",
+    "ءَ",
+    "ـ",
+    "لَ",
+    "هُ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    5
+   ],
+   "expectedLetters": [
+    "سَ",
+    "لَ"
+   ],
+   "reasonEn": "Lām, not hamza; otherwise it means \"questioned\".",
+   "reasonAr": "اللام لا الهمزة؛ وإلا صارت من المساءلة."
+  },
+  {
+   "id": "t037",
+   "source": "part1.ch5 Separating and Joining Two Words",
+   "text": "هَبْ لِي",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "هَ",
+    "بْ",
+    "ـ",
+    "لِ",
+    "ي"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    3
+   ],
+   "expectedLetters": [
+    "هَ",
+    "لِ"
+   ],
+   "reasonEn": "Keeps the verb apart from the preposition.",
+   "reasonAr": "فصل الفعل عن الجارّ."
+  },
+  {
+   "id": "t038",
+   "source": "part1.ch5 Separating and Joining Two Words",
+   "text": "الشَّمْسَ سِرَاجًا",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "شَّ",
+    "مْ",
+    "سَ",
+    "ـ",
+    "سِ",
+    "رَ",
+    "ا",
+    "جً",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    2,
+    5
+   ],
+   "expectedLetters": [
+    "سَ",
+    "رَ"
+   ],
+   "reasonEn": "Joining stress on the first sīn.",
+   "reasonAr": "نبرة وصل على السين الأولى."
+  },
+  {
+   "id": "t039",
+   "source": "part1.ch5 Separating and Joining Two Words",
+   "text": "غَافِرِ الذَّنبِ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "غَ",
+    "ا",
+    "فِ",
+    "رِ",
+    "ـ",
+    "ا",
+    "ل",
+    "ذَّ",
+    "نْ",
+    "بِ"
+   ],
+   "expectedStressedTokenIndices": [
+    0
+   ],
+   "expectedLetters": [
+    "غَ"
+   ],
+   "reasonEn": "Two letters between sukūns: before the first only.",
+   "reasonAr": "حرفان بين الساكنين: قبل الأول فقط."
+  },
+  {
+   "id": "t040",
+   "source": "part1.ch5 Separating and Joining Two Words",
+   "text": "حَاضِرِي الْمَسْجِدِ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "حَ",
+    "ا",
+    "ضِ",
+    "رِ",
+    "ي",
+    "ـ",
+    "ا",
+    "لْ",
+    "مَ",
+    "سْ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "حَ",
+    "ضِ"
+   ],
+   "reasonEn": "More than two: before and after the sukūn.",
+   "reasonAr": "أكثر من حرفين: قبل الساكن وبعده."
+  },
+  {
+   "id": "t041",
+   "source": "part1.ch6 One-Letter Prepositions",
+   "text": "لَهُمْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "لَ",
+    "هُ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    0
+   ],
+   "expectedLetters": [
+    "لَ"
+   ],
+   "reasonEn": "One-letter preposition + pronoun.",
+   "reasonAr": "جارّ أحادي بعده ضمير."
+  },
+  {
+   "id": "t042",
+   "source": "part1.ch6 One-Letter Prepositions",
+   "text": "وَلَكُمْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "لَ",
+    "كُ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "لَ"
+   ],
+   "reasonEn": "The added wāw changes nothing.",
+   "reasonAr": "الواو الزائدة لا تغيّر الحكم."
+  },
+  {
+   "id": "t043",
+   "source": "part1.ch6 One-Letter Prepositions",
+   "text": "لَهُنَّ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "لَ",
+    "هُ",
+    "نَّ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "هُ"
+   ],
+   "reasonEn": "Mother of pronouns: hāʾ, not lām.",
+   "reasonAr": "أمّ الضمائر: الهاء لا اللام."
+  },
+  {
+   "id": "t044",
+   "source": "part1.ch6 One-Letter Prepositions",
+   "text": "لَكُنَّ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "لَ",
+    "كُ",
+    "نَّ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "كُ"
+   ],
+   "reasonEn": "Like *-hunna*: the following letter is doubled.",
+   "reasonAr": "يلحق بـ«هنّ» لتشديد ما بعده."
+  },
+  {
+   "id": "t045",
+   "source": "part1.ch6 One-Letter Prepositions",
+   "text": "مِنْهُمَا",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "مِ",
+    "نْ",
+    "هُ",
+    "مَ",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "مِ",
+    "هُ"
+   ],
+   "reasonEn": "Mīm naturally; hāʾ after the sukūn.",
+   "reasonAr": "الميم بالفطرة، والهاء بعد الساكن."
+  },
+  {
+   "id": "t046",
+   "source": "part1.ch7 Two-Letter Words",
+   "text": "لَقَدْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "لَ",
+    "قَ",
+    "دْ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "قَ"
+   ],
+   "reasonEn": "Lām is added; *qad* is two letters.",
+   "reasonAr": "اللام زائدة و«قد» حرفان."
+  },
+  {
+   "id": "t047",
+   "source": "part1.ch7 Two-Letter Words",
+   "text": "أَلَمْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "أَ",
+    "لَ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "لَ"
+   ],
+   "reasonEn": "The question hamza is added.",
+   "reasonAr": "همزة الاستفهام زائدة."
+  },
+  {
+   "id": "t048",
+   "source": "part1.ch7 Two-Letter Words",
+   "text": "وَهُوَ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "هُ",
+    "وَ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "هُ"
+   ],
+   "reasonEn": "Wāw = \"and\"; *huwa* is two letters.",
+   "reasonAr": "الواو عاطفة و«هو» حرفان."
+  },
+  {
+   "id": "t049",
+   "source": "part1.ch7 Two-Letter Words",
+   "text": "بِيَدِ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "بِ",
+    "يَ",
+    "دِ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "يَ"
+   ],
+   "reasonEn": "Yāʾ, not bāʾ; stressing bāʾ is clipping.",
+   "reasonAr": "الياء لا الباء؛ نبر الباء اختلاس."
+  },
+  {
+   "id": "t050",
+   "source": "part1.ch7 Two-Letter Words",
+   "text": "لِغَدٍ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "لِ",
+    "غَ",
+    "دٍ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "غَ"
+   ],
+   "reasonEn": "Ghayn, so the lām isn't heard as a root letter.",
+   "reasonAr": "الغين حتى لا تُظنّ اللام أصلية."
+  },
+  {
+   "id": "t051",
+   "source": "part3.ch2 Letter Stress",
+   "text": "فَقَسَتْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "فَ",
+    "قَ",
+    "سَ",
+    "تْ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "قَ"
+   ],
+   "reasonEn": "\"Their hearts hardened\" (Ḥadīd 16). Stressing the fāʾ makes it \"the egg hatched\".",
+   "reasonAr": "﴿فَقَسَتْ قُلُوبُهُمْ﴾: من القسوة؛ ونبر الفاء يجعلها من «فَقَسَت البيضة»."
+  },
+  {
+   "id": "t052",
+   "source": "part3.ch2 Letter Stress",
+   "text": "فَقَعُوا",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "فَ",
+    "قَ",
+    "عُ",
+    "و",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "قَ"
+   ],
+   "reasonEn": "\"So fall down in prostration\" (Ṣād 72). Stressing the fāʾ suggests *faqʿ*.",
+   "reasonAr": "﴿فَقَعُوا لَهُ سَاجِدِينَ﴾: من الوقوع؛ ونبر الفاء يجعلها من «الفَقْع»."
+  },
+  {
+   "id": "t053",
+   "source": "part3.ch2 Letter Stress",
+   "text": "وَسَعَى",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "سَ",
+    "عَ",
+    "ى"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "سَ"
+   ],
+   "reasonEn": "\"And strove for it\" (Isrāʾ 19). Stressing the wāw suggests *wasiʿa*, \"to be wide\".",
+   "reasonAr": "﴿وَسَعَى لَهَا سَعْيَهَا﴾: من السعي؛ ونبر الواو يقرّبها من «وَسِعَ»."
+  },
+  {
+   "id": "t054",
+   "source": "part3.ch2 Letter Stress",
+   "text": "فَهَدَى",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "فَ",
+    "هَ",
+    "دَ",
+    "ى"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "هَ"
+   ],
+   "reasonEn": "\"And guided\" (Aʿlā 3). Stressing the fāʾ suggests *fahd*, \"leopard\".",
+   "reasonAr": "﴿وَالَّذِي قَدَّرَ فَهَدَى﴾: من الهداية؛ ونبر الفاء يقرّبها من «فَهْد»."
+  },
+  {
+   "id": "t055",
+   "source": "part3.ch2 Letter Stress",
+   "text": "فَتَرَى",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "فَ",
+    "تَ",
+    "رَ",
+    "ى"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "تَ"
+   ],
+   "reasonEn": "From \"seeing\"; stressing the fāʾ suggests *futūr*, \"slackening\".",
+   "reasonAr": "من الرؤية؛ ونبر الفاء يجعلها من «الفتور»."
+  },
+  {
+   "id": "t056",
+   "source": "part3.ch2 Letter Stress",
+   "text": "وَنُذُرِ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "نُ",
+    "ذُ",
+    "رِ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "نُ"
+   ],
+   "reasonEn": "\"So taste My punishment and warnings\": the nūn is the first root letter; stressing the wāw clips it.",
+   "reasonAr": "﴿فَذُوقُوا عَذَابِي وَنُذُرِ﴾: النون أول الأصول؛ ونبر الواو اختلاس."
+  },
+  {
+   "id": "t057",
+   "source": "part4.ch2 Worked Examples",
+   "text": "خَلَقْنَا",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "خَ",
+    "لَ",
+    "قْ",
+    "نَ",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "لَ"
+   ],
+   "reasonEn": "Third letter (qāf) is a medial sukūn before a suffix; the qāf itself is silent, so it cannot take stress.",
+   "reasonAr": "الثالث (القاف) ساكن متوسط بزائد؛ ولا تُنبر القاف لأنها ساكنة."
+  },
+  {
+   "id": "t058",
+   "source": "part4.ch2 Worked Examples",
+   "text": "غَافِرِ الذَّنبِ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "غَ",
+    "ا",
+    "فِ",
+    "رِ",
+    "ـ",
+    "ا",
+    "ل",
+    "ذَّ",
+    "نْ",
+    "بِ"
+   ],
+   "expectedStressedTokenIndices": [
+    0
+   ],
+   "expectedLetters": [
+    "غَ"
+   ],
+   "reasonEn": "Only two letters between the sukūns; stressing the fāʾ would sound plural (\"ghāfirī\").",
+   "reasonAr": "بين الساكنين حرفان فقط؛ ونبر الفاء يوحي بالجمع «غافري»."
+  },
+  {
+   "id": "t059",
+   "source": "part4.ch2 Worked Examples",
+   "text": "حَرِّضِ الْمُؤْمِنِينَ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "حَ",
+    "رِّ",
+    "ضِ",
+    "ـ",
+    "ا",
+    "لْ",
+    "مُ",
+    "ؤْ"
+   ],
+   "expectedStressedTokenIndices": [
+    0
+   ],
+   "expectedLetters": [
+    "حَ"
+   ],
+   "reasonEn": "The ḍād is silent by origin (imperative), so the rāʾ before it can't be stressed; also only two letters between sukūns. Stressing the rāʾ sounds feminine.",
+   "reasonAr": "الضاد ساكنة أصلًا (أمر) فلا تُنبر الراء قبلها، وبين الساكنين حرفان؛ ونبر الراء يوحي بالمؤنث."
+  },
+  {
+   "id": "t060",
+   "source": "part4.ch2 Worked Examples",
+   "text": "شَهَادَتِهِمَا",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "شَ",
+    "هَ",
+    "ا",
+    "دَ",
+    "تِ",
+    "هِ",
+    "مَ",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    3,
+    5
+   ],
+   "expectedLetters": [
+    "هَ",
+    "دَ",
+    "هِ"
+   ],
+   "reasonEn": "Hāʾ (3rd letter silent), dāl after the alif, and the tāʾ's stress shifts to the hāʾ to avoid sitting next to the dāl.",
+   "reasonAr": "الهاء (الثالث ساكن)، والدال بعد الألف، ونبرة التاء تنتقل إلى الهاء لئلّا تتوالى مع الدال."
+  },
+  {
+   "id": "t061",
+   "source": "part4.ch2 Worked Examples",
+   "text": "الضَّالِّينَ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "ا",
+    "ل",
+    "ضَّ",
+    "ا",
+    "لِّ",
+    "ي",
+    "نَ"
+   ],
+   "expectedStressedTokenIndices": [
+    2
+   ],
+   "expectedLetters": [
+    "ضَّ"
+   ],
+   "reasonEn": "Ḍād naturally (between sukūns), plus a **strong** stress before the doubled lām to preserve it.",
+   "reasonAr": "الضاد بالفطرة بين ساكنين؛ ونبرة **قوية** قبل اللام المشدّدة لبيان ذات الحرف."
+  },
+  {
+   "id": "t062",
+   "source": "part4.ch2 Worked Examples",
+   "text": "آمِّينَ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "ءَ",
+    "ا",
+    "مِّ",
+    "ي",
+    "نَ"
+   ],
+   "expectedStressedTokenIndices": [
+    0
+   ],
+   "expectedLetters": [
+    "ءَ"
+   ],
+   "reasonEn": "Hamza naturally; no stress before the doubled mīm, because its ghunna does the job.",
+   "reasonAr": "الهمزة بالفطرة؛ ولا نبرة قبل الميم المشدّدة لأن الغنّة تغني عنها."
+  },
+  {
+   "id": "t063",
+   "source": "part4.ch2 Worked Examples",
+   "text": "وَالنَّوْمَ سُبَاتًا",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "وَ",
+    "ا",
+    "ل",
+    "نَّ",
+    "وْ",
+    "مَ",
+    "ـ",
+    "سُ",
+    "بَ",
+    "ا",
+    "تً",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    3,
+    5,
+    8
+   ],
+   "expectedLetters": [
+    "وَ",
+    "نَّ",
+    "مَ",
+    "بَ"
+   ],
+   "reasonEn": "Wāw and nūn naturally; the mīm takes a joining stress because *subātan* is stressed on its 2nd letter (bāʾ).",
+   "reasonAr": "الواو والنون بالفطرة؛ والميم نبرة وصل لأن نبرة «سباتًا» على حرفها الثاني (الباء)."
+  },
+  {
+   "id": "t064",
+   "source": "part4.ch2 Worked Examples",
+   "text": "وَيُمَنِّيهِمْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "يُ",
+    "مَ",
+    "نِّ",
+    "ي",
+    "هِ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2,
+    3
+   ],
+   "expectedLetters": [
+    "وَ",
+    "مَ",
+    "نِّ"
+   ],
+   "reasonEn": "Weak lead-in on the wāw, then mīm (3rd letter silent), then nūn naturally between sukūns.",
+   "reasonAr": "نبرة ضعيفة على الواو توصّلًا، ثم الميم (الثالث ساكن)، ثم النون بين ساكنين."
+  },
+  {
+   "id": "t065",
+   "source": "practice A",
+   "text": "وَلَهُمْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "لَ",
+    "هُ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "لَ"
+   ],
+   "reasonEn": "One-letter preposition + pronoun (Rule 6).",
+   "reasonAr": "جارّ أحادي بعده ضمير."
+  },
+  {
+   "id": "t066",
+   "source": "practice A",
+   "text": "الْمُسْتَقَرّ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "ا",
+    "لْ",
+    "مُ",
+    "سْ",
+    "تَ",
+    "قَ",
+    "رّ"
+   ],
+   "expectedStressedTokenIndices": [
+    2,
+    5
+   ],
+   "expectedLetters": [
+    "مُ",
+    "قَ"
+   ],
+   "reasonEn": "Mīm naturally; qāf before the 2nd sukūn and before the final shadda at a pause.",
+   "reasonAr": "الميم بالفطرة؛ والقاف قبل الساكن الثاني، وقبل المشدّد وقفًا."
+  },
+  {
+   "id": "t067",
+   "source": "practice A",
+   "text": "وَمَنْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "مَ",
+    "نْ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "مَ"
+   ],
+   "reasonEn": "Two-letter word; the wāw is added (Rule 7).",
+   "reasonAr": "كلمة من حرفين والواو زائدة."
+  },
+  {
+   "id": "t068",
+   "source": "practice A",
+   "text": "لِذِي حِجْرٍ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "لِ",
+    "ذِ",
+    "ي",
+    "ـ",
+    "حِ",
+    "جْ",
+    "رٍ"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    4
+   ],
+   "expectedLetters": [
+    "ذِ",
+    "حِ"
+   ],
+   "reasonEn": "*Dhī* is two letters, lām added; ḥāʾ naturally.",
+   "reasonAr": "«ذي» حرفان واللام زائدة؛ والحاء بالفطرة."
+  },
+  {
+   "id": "t069",
+   "source": "practice A",
+   "text": "وَجِلَةٌ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "جِ",
+    "لَ",
+    "ةٌ"
+   ],
+   "expectedStressedTokenIndices": [
+    0
+   ],
+   "expectedLetters": [
+    "وَ"
+   ],
+   "reasonEn": "Root wāw, third letter voweled; stressing the jīm clips it.",
+   "reasonAr": "الواو أصلية والثالث متحرك؛ نبر الجيم اختلاس."
+  },
+  {
+   "id": "t070",
+   "source": "practice A",
+   "text": "إِنَّ مَا تُوعَدُونَ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "إِ",
+    "نَّ",
+    "ـ",
+    "مَ",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    3
+   ],
+   "expectedLetters": [
+    "مَ"
+   ],
+   "reasonEn": "One of the five relative-*mā* places (Special 1).",
+   "reasonAr": "من مواضع «ما» الموصولة الخمسة."
+  },
+  {
+   "id": "t071",
+   "source": "practice A",
+   "text": "وَدِيَةٌ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "دِ",
+    "يَ",
+    "ةٌ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "دِ"
+   ],
+   "reasonEn": "Wāw added; dāl is the first root letter; third voweled.",
+   "reasonAr": "الواو زائدة والدال أول الأصول، والثالث متحرك."
+  },
+  {
+   "id": "t072",
+   "source": "practice A",
+   "text": "أَلَا يَظُنُّ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "أَ",
+    "لَ",
+    "ا",
+    "ـ",
+    "يَ",
+    "ظُ",
+    "نُّ"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    5
+   ],
+   "expectedLetters": [
+    "لَ",
+    "ظُ"
+   ],
+   "reasonEn": "*Alā* of urging (lām); in *yaẓunnu* the 3rd letter is a medial sukūn (ẓāʾ).",
+   "reasonAr": "ألا للتحضيض؛ و«يظن» ثالثها ساكن متوسط."
+  },
+  {
+   "id": "t073",
+   "source": "practice A",
+   "text": "لَهُمُ الْمَنصُورُونَ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "لَ",
+    "هُ",
+    "مُ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "هُ"
+   ],
+   "reasonEn": "Emphatic lām, not the preposition (Special 7).",
+   "reasonAr": "اللام للتوكيد لا للجر."
+  },
+  {
+   "id": "t074",
+   "source": "practice A",
+   "text": "تَحَاوُرَكُمَا",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "تَ",
+    "حَ",
+    "ا",
+    "وُ",
+    "رَ",
+    "كُ",
+    "مَ",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    3,
+    5
+   ],
+   "expectedLetters": [
+    "حَ",
+    "وُ",
+    "كُ"
+   ],
+   "reasonEn": "Ḥāʾ, wāw after the sukūn, and the rāʾ's stress shifts to the kāf.",
+   "reasonAr": "الحاء، والواو بعد الساكن، ونبرة الراء تنتقل إلى الكاف."
+  },
+  {
+   "id": "t075",
+   "source": "practice A",
+   "text": "كُلَّمَا رُزِقُوا",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "كُ",
+    "لَّ",
+    "مَ",
+    "ا",
+    "ـ",
+    "رُ",
+    "زِ",
+    "قُ",
+    "و",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    5
+   ],
+   "expectedLetters": [
+    "لَّ",
+    "رُ"
+   ],
+   "reasonEn": "Repetition → lām (kāf naturally); *ruziqū*: first letter, third voweled.",
+   "reasonAr": "للتكرار فاللام (والكاف بالفطرة)؛ و«رزقوا» أولها والثالث متحرك."
+  },
+  {
+   "id": "t076",
+   "source": "practice A",
+   "text": "كُلِّ مَا سَأَلْتُمُوهُ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "كُ",
+    "لِّ",
+    "ـ",
+    "مَ",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    3
+   ],
+   "expectedLetters": [
+    "مَ"
+   ],
+   "reasonEn": "Relative *mā*, its only occurrence; in *saʾaltumūhu*: hamza + mīm (joining).",
+   "reasonAr": "«ما» موصولة في موضعها الوحيد؛ وفي «سألتموه» الهمزة والميم وصلًا."
+  },
+  {
+   "id": "t077",
+   "source": "practice A",
+   "text": "يَعِدُهُمْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "يَ",
+    "عِ",
+    "دُ",
+    "هُ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "يَ",
+    "دُ"
+   ],
+   "reasonEn": "Yāʾ (medium) and dāl before the pronoun (weak); never the ʿayn.",
+   "reasonAr": "الياء (متوسطة) والدال قبل الضمير (ضعيفة)؛ لا العين."
+  },
+  {
+   "id": "t078",
+   "source": "practice A",
+   "text": "أَلَمْ يَعِدْكُمْ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "أَ",
+    "لَ",
+    "مْ",
+    "ـ",
+    "يَ",
+    "عِ",
+    "دْ",
+    "كُ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    5
+   ],
+   "expectedLetters": [
+    "لَ",
+    "عِ"
+   ],
+   "reasonEn": "*Lam* is two letters; silent dāl in *yaʿidkum* → ʿayn.",
+   "reasonAr": "«لم» حرفان؛ و«يعدكم» ساكنة الدال فالعين."
+  },
+  {
+   "id": "t079",
+   "source": "practice A",
+   "text": "أَلَا لَهُ الْخَلْقُ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "أَ",
+    "لَ",
+    "ا",
+    "ـ",
+    "لَ",
+    "هُ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    4
+   ],
+   "expectedLetters": [
+    "أَ",
+    "ـ"
+   ],
+   "reasonEn": "*Alā* of attention → hamza; *lahu* → lām.",
+   "reasonAr": "ألا للتنبيه فالهمزة؛ و«له» جارّ وضمير."
+  },
+  {
+   "id": "t080",
+   "source": "practice A",
+   "text": "أَلَا تَتَّقُونَ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "أَ",
+    "لَ",
+    "ا",
+    "ـ",
+    "تَ",
+    "تَّ",
+    "قُ",
+    "و",
+    "نَ"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    4,
+    6
+   ],
+   "expectedLetters": [
+    "لَ",
+    "تَ",
+    "قُ"
+   ],
+   "reasonEn": "*Alā* of urging → lām; tāʾ naturally; qāf before the 2nd sukūn (kept at a pause for the question).",
+   "reasonAr": "ألا للتحضيض فاللام؛ والتاء بالفطرة؛ والقاف قبل الساكن الثاني (وتبقى وقفًا للاستفهام)."
+  },
+  {
+   "id": "t081",
+   "source": "practice B",
+   "text": "وَاتَّبَعُوا",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "ا",
+    "تَّ",
+    "بَ",
+    "عُ",
+    "و",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "وَ",
+    "تَّ"
+   ],
+   "reasonEn": "Wāw replaces the connecting hamza; 2nd tāʾ after the sukūn; the ʿayn precedes a final sukūn.",
+   "reasonAr": "الواو حلّت محلّ همزة الوصل؛ والتاء الثانية بعد الساكن؛ ولا تُنبر العين قبل الساكن المتطرف."
+  },
+  {
+   "id": "t082",
+   "source": "practice B",
+   "text": "تَتْلُو الشَّيَاطِينُ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "تَ",
+    "تْ",
+    "لُ",
+    "و",
+    "ـ",
+    "ا",
+    "ل",
+    "شَّ"
+   ],
+   "expectedStressedTokenIndices": [
+    0
+   ],
+   "expectedLetters": [
+    "تَ"
+   ],
+   "reasonEn": "Two letters between the sukūns (tāʾ, shīn) → before the first only.",
+   "reasonAr": "بين الساكنين (التاء والشين) حرفان فالنبرة قبل الأول فقط."
+  },
+  {
+   "id": "t083",
+   "source": "practice B",
+   "text": "مُلْكِ سُلَيْمَانَ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "مُ",
+    "لْ",
+    "كِ",
+    "ـ",
+    "سُ",
+    "لَ",
+    "يْ",
+    "مَ",
+    "ا",
+    "نَ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2,
+    5
+   ],
+   "expectedLetters": [
+    "مُ",
+    "كِ",
+    "لَ"
+   ],
+   "reasonEn": "*Sulaymān* is stressed on its 2nd letter (lām), so join by stressing the kāf.",
+   "reasonAr": "نبرة «سليمان» على حرفها الثاني (اللام) فيُوصل بنبر الكاف."
+  },
+  {
+   "id": "t084",
+   "source": "practice B",
+   "text": "يُعَلِّمُونَ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "يُ",
+    "عَ",
+    "لِّ",
+    "مُ",
+    "و",
+    "نَ"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    3
+   ],
+   "expectedLetters": [
+    "عَ",
+    "مُ"
+   ],
+   "reasonEn": "ʿAyn (3rd letter silent); mīm before the 2nd sukūn, joining only.",
+   "reasonAr": "العين (الثالث ساكن)، والميم قبل الساكن الثاني وصلًا فقط."
+  },
+  {
+   "id": "t085",
+   "source": "practice B",
+   "text": "أُنزِلَ عَلَى",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "أُ",
+    "نْ",
+    "زِ",
+    "لَ",
+    "ـ",
+    "عَ",
+    "لَ",
+    "ى"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2,
+    5
+   ],
+   "expectedLetters": [
+    "أُ",
+    "زِ",
+    "عَ"
+   ],
+   "reasonEn": "Separating stress: *ʿalā* is stressed on its 1st letter, so the lām of *unzila* is not.",
+   "reasonAr": "نبرة فصل: «على» منبورة على أولها فلا تُنبر لام «أنزل»."
+  },
+  {
+   "id": "t086",
+   "source": "practice B",
+   "text": "بِبَابِلَ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "بِ",
+    "بَ",
+    "ا",
+    "بِ",
+    "لَ"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    3
+   ],
+   "expectedLetters": [
+    "بَ",
+    "بِ"
+   ],
+   "reasonEn": "1st bāʾ added; 2nd is the first root letter; 3rd follows the alif.",
+   "reasonAr": "الباء الأولى زائدة؛ والثانية أول الأصول؛ والثالثة بعد الألف."
+  },
+  {
+   "id": "t087",
+   "source": "practice B",
+   "text": "فَلَا تَكْفُرْ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "فَ",
+    "لَ",
+    "ا",
+    "ـ",
+    "تَ",
+    "كْ",
+    "فُ",
+    "رْ"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    4
+   ],
+   "expectedLetters": [
+    "لَ",
+    "تَ"
+   ],
+   "reasonEn": "*Lā* is two letters; the fāʾ of *takfur* precedes a final sukūn.",
+   "reasonAr": "«لا» حرفان والفاء زائدة؛ ولا تُنبر الفاء قبل الراء الساكنة المتطرفة."
+  },
+  {
+   "id": "t088",
+   "source": "practice B",
+   "text": "يَنفَعُهُمْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "يَ",
+    "نْ",
+    "فَ",
+    "عُ",
+    "هُ",
+    "مْ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "يَ",
+    "فَ"
+   ],
+   "reasonEn": "The fāʾ after the sukūn beats the ʿayn before the pronoun.",
+   "reasonAr": "الفاء بعد الساكن أقوى من العين قبل الضمير."
+  },
+  {
+   "id": "t089",
+   "source": "practice B",
+   "text": "وَلَقَدْ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "وَ",
+    "لَ",
+    "قَ",
+    "دْ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "وَ",
+    "قَ"
+   ],
+   "reasonEn": "Two added letters: weak stress on the first, leading to the qāf.",
+   "reasonAr": "زائدان: نبرة ضعيفة على الأول توصّلًا إلى القاف."
+  },
+  {
+   "id": "t090",
+   "source": "practice B",
+   "text": "بِإِذْنِ اللَّهِ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "بِ",
+    "إِ",
+    "ذْ",
+    "نِ",
+    "ـ",
+    "ا",
+    "ل",
+    "لَّ",
+    "هِ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "إِ"
+   ],
+   "reasonEn": "One letter between the sukūns → before the first only.",
+   "reasonAr": "بين الساكنين حرف واحد فالنبرة قبل الأول فقط."
+  },
+  {
+   "id": "t091",
+   "source": "practice B",
+   "text": "خَلَاقٍ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "خَ",
+    "لَ",
+    "ا",
+    "قٍ"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "لَ"
+   ],
+   "reasonEn": "Third letter is a medial sukūn; no stress needed at a pause.",
+   "reasonAr": "الثالث ساكن متوسط؛ وقفًا لا حاجة إلى النبرة."
+  },
+  {
+   "id": "t092",
+   "source": "practice B",
+   "text": "شَرَوْا",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "شَ",
+    "رَ",
+    "وْ",
+    "ا"
+   ],
+   "expectedStressedTokenIndices": [
+    0
+   ],
+   "expectedLetters": [
+    "شَ"
+   ],
+   "reasonEn": "Third letter silent and final, like *kulū*.",
+   "reasonAr": "الثالث ساكن متطرف كـ«كُلُوا»."
+  },
+  {
+   "id": "t093",
+   "source": "practice C",
+   "text": "عَبَسَ وَتَوَلَّى",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "عَ",
+    "بَ",
+    "سَ",
+    "ـ",
+    "وَ",
+    "تَ",
+    "وَ",
+    "لَّ",
+    "ى"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    4,
+    6
+   ],
+   "expectedLetters": [
+    "عَ",
+    "وَ",
+    "وَ"
+   ],
+   "reasonEn": "Separating stress, so the sīn is not stressed; in *wa-tawallā*: weak on the wāw, then the 2nd wāw.",
+   "reasonAr": "نبرة فصل فلا تُنبر السين؛ وفي «وتولّى» ضعيفة على الواو ثم الواو الثانية."
+  },
+  {
+   "id": "t094",
+   "source": "practice C",
+   "text": "جَاءَهُ الْأَعْمَى",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "جَ",
+    "ا",
+    "ءَ",
+    "هُ",
+    "ـ",
+    "ا",
+    "لْ",
+    "أَ",
+    "عْ",
+    "مَ",
+    "ى"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2,
+    7
+   ],
+   "expectedLetters": [
+    "جَ",
+    "ءَ",
+    "أَ"
+   ],
+   "reasonEn": "Jīm and hamza (joining); hamza of *al-aʿmā*; never the mīm before the final sukūn.",
+   "reasonAr": "الجيم والهمزة (وصلًا)؛ وهمزة «الأعمى»؛ ولا الميم قبل الساكن المتطرف."
+  },
+  {
+   "id": "t095",
+   "source": "practice C",
+   "text": "لَعَلَّهُ يَزَّكَّى",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "لَ",
+    "عَ",
+    "لَّ",
+    "هُ",
+    "ـ",
+    "يَ",
+    "زَّ",
+    "كَّ",
+    "ى"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    2,
+    5,
+    6
+   ],
+   "expectedLetters": [
+    "عَ",
+    "لَّ",
+    "يَ",
+    "زَّ"
+   ],
+   "reasonEn": "ʿAyn and 3rd lām; then yāʾ and the 2nd zāy; not the kāf before the final sukūn.",
+   "reasonAr": "العين واللام الثالثة؛ ثم الياء والزاي الثانية؛ ولا الكاف قبل الساكن المتطرف."
+  },
+  {
+   "id": "t096",
+   "source": "practice C",
+   "text": "يَذَّكَّرُ فَتَنفَعَهُ",
+   "context": "default",
+   "isPhrase": true,
+   "tokens": [
+    "يَ",
+    "ذَّ",
+    "كَّ",
+    "رُ",
+    "ـ",
+    "فَ",
+    "تَ",
+    "نْ",
+    "فَ",
+    "عَ",
+    "هُ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    1,
+    2,
+    6,
+    8
+   ],
+   "expectedLetters": [
+    "يَ",
+    "ذَّ",
+    "كَّ",
+    "تَ",
+    "فَ"
+   ],
+   "reasonEn": "The rāʾ would take a joining stress, but it follows the stressed kāf, so it is dropped; not the ʿayn (stronger cause).",
+   "reasonAr": "كان حقّ الراء نبرة وصل، لكنها تلي الكاف المنبورة فتُترك؛ ولا العين (أقوى السببين)."
+  },
+  {
+   "id": "t097",
+   "source": "practice C",
+   "text": "تَلَهَّى",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "تَ",
+    "لَ",
+    "هَّ",
+    "ى"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "لَ"
+   ],
+   "reasonEn": "Third letter (1st hāʾ) is a medial sukūn; not the hāʾ before the final sukūn.",
+   "reasonAr": "الثالث (الهاء الأولى) ساكن متوسط؛ ولا الهاء قبل الساكن المتطرف."
+  },
+  {
+   "id": "t098",
+   "source": "practice C",
+   "text": "مُكَرَّمَةٍ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "مُ",
+    "كَ",
+    "رَّ",
+    "مَ",
+    "ةٍ"
+   ],
+   "expectedStressedTokenIndices": [
+    1,
+    2
+   ],
+   "expectedLetters": [
+    "كَ",
+    "رَّ"
+   ],
+   "reasonEn": "Kāf, and rāʾ after the sukūn; not the mīm, to avoid adjacent stresses.",
+   "reasonAr": "الكاف، والراء بعد السكون؛ ولا الميم لئلّا تتوالى نبرتان."
+  },
+  {
+   "id": "t099",
+   "source": "practice C",
+   "text": "بِأَيْدِي",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "بِ",
+    "أَ",
+    "يْ",
+    "دِ",
+    "ي"
+   ],
+   "expectedStressedTokenIndices": [
+    1
+   ],
+   "expectedLetters": [
+    "أَ"
+   ],
+   "reasonEn": "Bāʾ added; the dāl precedes a final sukūn.",
+   "reasonAr": "الباء زائدة؛ ولا الدال قبل الساكن المتطرف."
+  },
+  {
+   "id": "t100",
+   "source": "practice C",
+   "text": "سَفَرَةٍ",
+   "context": "default",
+   "isPhrase": false,
+   "tokens": [
+    "سَ",
+    "فَ",
+    "رَ",
+    "ةٍ"
+   ],
+   "expectedStressedTokenIndices": [
+    0,
+    2
+   ],
+   "expectedLetters": [
+    "سَ",
+    "رَ"
+   ],
+   "reasonEn": "Sīn is the first root letter; rāʾ before the tāʾ marbūṭa, joining only.",
+   "reasonAr": "السين أول الأصول؛ والراء قبل التاء وصلًا فقط."
+  }
+ ]
+}

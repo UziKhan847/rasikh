@@ -448,6 +448,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// margin beside them, not under them.
   bool get _sideBar => _phoneSpread && _memorizing;
 
+  /// The width kept at the desktop's right edge for memorize's bar.
+  static const _sideBarW = 64.0;
+
   /// The floating bar's height as last laid out (see [_measured]).
   double _barH = 0;
 
@@ -2531,10 +2534,13 @@ class _MushafPageScreenState extends State<MushafPageScreen>
             : null,
       ),
       child: LayoutBuilder(builder: (context, c) {
-        final availW = (c.maxWidth - 2 * pad - 2 * arrows).clamp(200.0, 1e9);
-        // Room kept under the pages for a floating bar, so it doesn't
-        // cover their last lines.
-        final room = _barShown ? _barH + 20 : 0.0;
+        // Memorizing: the bar stands at the right edge, the pages keep
+        // their full height. Review and marking: room kept under the pages
+        // for their bar, so it doesn't cover the last lines.
+        final side = _memorizing ? _sideBarW : 0.0;
+        final availW =
+            (c.maxWidth - 2 * pad - 2 * arrows - side).clamp(200.0, 1e9);
+        final room = _barShown && !_memorizing ? _barH + 20 : 0.0;
         final availH = (c.maxHeight - 2 * pad - room).clamp(200.0, 1e9);
         // Pages take their scanned shape (MushafGeometry.pageRatio), or, without
         // one, share one box sized from the text.
@@ -2601,7 +2607,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         return Stack(children: [
           Positioned.fill(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(pad, pad, pad, pad + room),
+              padding: EdgeInsets.fromLTRB(pad, pad, pad + side, pad + room),
               child: Center(
                 child: noMotion(context) ? content : AnimatedSwitcher(
                   duration: const Duration(milliseconds: 160),
@@ -2628,15 +2634,26 @@ class _MushafPageScreenState extends State<MushafPageScreen>
               ),
             ),
           ),
-          if (_memorizing)
+          if (_memorizing) ...[
             Positioned(
-              bottom: 12,
-              left: 0,
-              right: 0,
-              child: _withPad(paper,
-                  Center(child: _measured(_memorizeBar(paper, floating: true)))),
-            )
-          else if (_reviewing)
+              top: 8,
+              bottom: 8,
+              right: 8,
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: _memorizeBar(paper, floating: true, vertical: true),
+                ),
+              ),
+            ),
+            if (s.memorizePad)
+              Positioned(
+                bottom: 12,
+                left: 0,
+                right: side,
+                child: _withPad(paper, const SizedBox.shrink()),
+              ),
+          ] else if (_reviewing)
             Positioned(
               bottom: 12,
               left: 0,
@@ -2666,7 +2683,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
               ),
             ),
             Positioned(
-              right: pad,
+              right: pad + side,
               top: 0,
               bottom: 0,
               child: Center(
@@ -2682,7 +2699,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           ] else
             Positioned(
               top: 14,
-              right: 16,
+              right: 16 + side,
               child: _PaperButton(
                   paper: paper,
                   icon: AppIcons.focusExit,

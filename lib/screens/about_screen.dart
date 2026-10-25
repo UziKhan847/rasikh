@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/l10n.dart';
+import '../core/settings.dart';
 import '../core/theme.dart';
 import '../ui/app_icons.dart';
 import '../ui/brand.dart';
@@ -105,14 +106,24 @@ class AboutScreen extends StatelessWidget {
         credit(context.l10n.creditDigitalKhattTitle,
             context.l10n.creditDigitalKhattBody, AppIcons.brush, 230),
         const SizedBox(height: 18),
+        // Holding the āyah turns the Nabr preview on or off (for its
+        // reviewers, until kNabrEnabled).
         Center(
-          child: Text('وَرَتِّلِ ٱلۡقُرۡءَانَ تَرۡتِيلًا',
+          child: GestureDetector(
+            onLongPress: () {
+              final s = SettingsScope.of(context);
+              s.update(() => s.nabrPreview = !s.nabrPreview);
+              showQToast(context,
+                  s.nabrPreview ? context.l10n.nbPreviewOn : context.l10n.nbPreviewOff);
+            },
+            child: Text('وَرَتِّلِ ٱلۡقُرۡءَانَ تَرۡتِيلًا',
               textDirection: TextDirection.rtl,
               style: TextStyle(
                   fontFamily: 'UthmanicHafs',
                   fontSize: 22,
                   height: 1.8,
                   color: p.dim)),
+          ),
         ),
       ],
     );

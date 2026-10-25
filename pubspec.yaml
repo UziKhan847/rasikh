@@ -40,6 +40,7 @@ flutter:
     - assets/ornaments/
     - assets/quran/
     - assets/quran/atlas/
+    - assets/nabr/
     - assets/quran/u/
     - assets/quran/i/
     - assets/quran/t/

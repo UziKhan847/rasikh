@@ -58,6 +58,7 @@ class LearnScreen extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           for (final m in LearnModule.values)
+            if (m.shown(context))
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: ModuleCard(

@@ -1,0 +1,141 @@
+{
+ "description": "Optional verse-level intonation (tanghīm) hints from Part 3, Ch. 2. These are not glyph colours: show them as a small icon or tooltip on the āya. All are recommended, not obligatory.",
+ "lowerVoice": [
+  {
+   "ref": "2:116",
+   "reasonEn": "statement attributed to opponents of Allah, recited softly out of reverence"
+  },
+  {
+   "ref": "3:181",
+   "reasonEn": "statement attributed to opponents of Allah, recited softly out of reverence"
+  },
+  {
+   "ref": "5:64",
+   "reasonEn": "statement attributed to opponents of Allah, recited softly out of reverence"
+  },
+  {
+   "ref": "5:73",
+   "reasonEn": "statement attributed to opponents of Allah, recited softly out of reverence"
+  },
+  {
+   "ref": "9:30",
+   "reasonEn": "statement attributed to opponents of Allah, recited softly out of reverence"
+  },
+  {
+   "ref": "26:44",
+   "reasonEn": "statement attributed to opponents of Allah, recited softly out of reverence"
+  },
+  {
+   "ref": "79:24",
+   "reasonEn": "statement attributed to opponents of Allah, recited softly out of reverence"
+  }
+ ],
+ "raiseVoice": [
+  {
+   "ref": "20:14",
+   "reasonEn": "glorification / sacred"
+  },
+  {
+   "ref": "6:18",
+   "reasonEn": "glorification / sacred"
+  },
+  {
+   "ref": "23:91",
+   "reasonEn": "glorification / sacred"
+  },
+  {
+   "ref": "95:3",
+   "reasonEn": "glorification / sacred"
+  },
+  {
+   "ref": "106:3",
+   "reasonEn": "glorification / sacred"
+  }
+ ],
+ "topicChange": [
+  {
+   "ref": "9:19-20",
+   "noteEn": "change pitch where a new subject begins"
+  },
+  {
+   "ref": "40:6-7",
+   "noteEn": "change pitch where a new subject begins"
+  },
+  {
+   "ref": "2:274-275",
+   "noteEn": "change pitch where a new subject begins"
+  },
+  {
+   "ref": "9:78-79",
+   "noteEn": "change pitch where a new subject begins"
+  },
+  {
+   "ref": "74:48-49",
+   "noteEn": "change pitch where a new subject begins"
+  },
+  {
+   "ref": "19:64",
+   "noteEn": "change pitch where a new subject begins"
+  },
+  {
+   "ref": "16:8",
+   "noteEn": "change pitch where a new subject begins"
+  },
+  {
+   "ref": "51:20",
+   "noteEn": "change pitch where a new subject begins"
+  },
+  {
+   "ref": "51:47",
+   "noteEn": "change pitch where a new subject begins"
+  },
+  {
+   "ref": "45:7",
+   "noteEn": "change pitch where a new subject begins"
+  },
+  {
+   "ref": "37:164",
+   "noteEn": "change pitch where a new subject begins"
+  }
+ ],
+ "questionTone": [
+  {
+   "ref": "18:28",
+   "phrase": "تُرِيدُ زِينَةَ الْحَيَاةِ الدُّنْيَا",
+   "noteEn": "if restarting here, read as a question"
+  },
+  {
+   "ref": "66:1",
+   "phrase": "تَبْتَغِي مَرْضَاتَ أَزْوَاجِكَ",
+   "noteEn": "gentle reproachful question"
+  },
+  {
+   "ref": "37:92",
+   "phrase": "مَا لَكُمْ لَا تَنطِقُونَ",
+   "noteEn": "intone while joining; do not pause on mā lakum"
+  },
+  {
+   "ref": "68:36",
+   "phrase": "مَا لَكُمْ كَيْفَ تَحْكُمُونَ",
+   "noteEn": "pausing on mā lakum is acceptable and strengthens the question"
+  }
+ ],
+ "grammarTone": [
+  {
+   "ref": "12:66",
+   "phrase": "قَالَ اللَّهُ عَلَى مَا نَقُولُ وَكِيلٌ",
+   "noteEn": "stronger tone on Allāh: subject of a new sentence (contrast 5:115)"
+  },
+  {
+   "ref": "27:91",
+   "phrase": "رَبَّ هَذِهِ الْبَلْدَةِ الَّذِي حَرَّمَهَا",
+   "noteEn": "raise slightly on alladhī: it refers to Rabb"
+  },
+  {
+   "ref": "20:129",
+   "phrase": "وَأَجَلٌ مُسَمًّى",
+   "noteEn": "raise slightly: coordinated with kalimatun"
+  }
+ ],
+ "keepStressAtPauseInQuestions": "When an āya ends in a question (e.g. أَفَلَا تَعْقِلُونَ, أَفَلَا تَتَّقُونَ, أَلَيْسَ اللَّهُ بِأَحْكَمِ الْحَاكِمِينَ), keep the before-second-sukūn stress even at the pause (Rule 2 note). Detect via the interrogative hamza in the āya's last sentence, or list them manually."
+}

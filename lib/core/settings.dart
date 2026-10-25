@@ -24,6 +24,12 @@ const bool kIndopakReaderAvailable = true;
 /// face (see CREDITS.md).
 const bool kIndopakMushafAvailable = true;
 
+/// The Nabr (Qurʾānic stress) module, after *Ṣawn al-Lisān ʿan al-Laḥn fī
+/// al-Qurʾān*: hidden until the Shaykh has reviewed it and permission is
+/// confirmed (tool/nabr/README.md). Reviewers turn on [AppSettings.nabrPreview]
+/// (a long press on the āyah at the end of About).
+const bool kNabrEnabled = false;
+
 /// The marks server a build ships with (see AppSettings.syncServer).
 const String kDefaultSyncServer = String.fromEnvironment('QIRAAH_SYNC_URL');
 
@@ -123,6 +129,10 @@ class AppSettings extends ChangeNotifier {
   /// running head or frame; the system bars hidden too), and memorize with
   /// only its essential controls. A tap still brings the muṣḥaf's bars back.
   bool focusMode = false;
+
+  /// Shows the Nabr module before [kNabrEnabled], for its reviewers.
+  bool nabrPreview = false;
+  bool get nabrShown => kNabrEnabled || nabrPreview;
 
   /// The muṣḥaf's running head, focus mode applied.
   bool get mushafHeaderShown =>
@@ -323,6 +333,7 @@ class AppSettings extends ChangeNotifier {
     memorizePadSide = m['memorizePadSide'] as String? ?? 'right';
     memorizePadGuide = m['memorizePadGuide'] as bool? ?? true;
     focusMode = m['focusMode'] ?? false;
+    nabrPreview = m['nabrPreview'] ?? false;
     liteSuggested = m['liteSuggested'] ?? false;
     // An install from before the welcome existed has already found its way.
     onboarded = m['onboarded'] ?? true;
@@ -408,6 +419,7 @@ class AppSettings extends ChangeNotifier {
         'memorizePadSide': memorizePadSide,
         'memorizePadGuide': memorizePadGuide,
         'focusMode': focusMode,
+        'nabrPreview': nabrPreview,
         'liteSuggested': liteSuggested,
         'onboarded': onboarded,
         'lang': language,

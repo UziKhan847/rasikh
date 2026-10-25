@@ -5,7 +5,9 @@ import '../../core/theme.dart';
 import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import '../../widgets/lesson.dart';
+import '../../core/settings.dart';
 import '../dyslexia_screen.dart';
+import '../nabr/nabr_screen.dart';
 import '../lessons/qaidah_lessons.dart';
 import '../qaidah_screen.dart';
 import '../qiraat_screen.dart';
@@ -16,7 +18,8 @@ import '../tracing_screen.dart';
 /// The seven learning modules, as the Learn hub and Today's Explore tiles
 /// show them: an Arabic glyph on a hue-tinted tile (OKLCH hue degrees, as in
 /// the prototype), a title, a one-line description and an optional tag.
-enum LearnModule { qaidah, tajwid, tashkil, script, tracing, coach, qiraat }
+/// [nabr] shows only while [AppSettings.nabrShown] (see [shown]).
+enum LearnModule { qaidah, tajwid, tashkil, script, tracing, coach, nabr, qiraat }
 
 extension LearnModuleInfo on LearnModule {
   String get glyph => switch (this) {
@@ -26,6 +29,7 @@ extension LearnModuleInfo on LearnModule {
         LearnModule.script => '۩',
         LearnModule.tracing => 'ب',
         LearnModule.coach => 'ت',
+        LearnModule.nabr => 'نَبْر',
         LearnModule.qiraat => '١٠',
       };
 
@@ -36,10 +40,16 @@ extension LearnModuleInfo on LearnModule {
         LearnModule.script => 75,
         LearnModule.tracing => 25,
         LearnModule.coach => 220,
+        LearnModule.nabr => 330,
         LearnModule.qiraat => 50,
       };
 
   bool get soon => this == LearnModule.qiraat;
+
+  /// Whether the module is offered at all: Nabr only once it ships, or for
+  /// its reviewers.
+  bool shown(BuildContext context) =>
+      this != LearnModule.nabr || SettingsScope.of(context).nabrShown;
 
   String title(BuildContext context) => switch (this) {
         LearnModule.qaidah => context.l10n.qaidahPath,
@@ -48,6 +58,7 @@ extension LearnModuleInfo on LearnModule {
         LearnModule.script => context.l10n.scriptSymbols,
         LearnModule.tracing => context.l10n.tracingStudio,
         LearnModule.coach => context.l10n.readingCoach,
+        LearnModule.nabr => context.l10n.nbTitle,
         LearnModule.qiraat => context.l10n.qiraHallAdvanced,
       };
 
@@ -58,6 +69,7 @@ extension LearnModuleInfo on LearnModule {
         LearnModule.script => context.l10n.scriptSymbolsSub,
         LearnModule.tracing => context.l10n.tracingSub,
         LearnModule.coach => context.l10n.coachSub,
+        LearnModule.nabr => context.l10n.nbSub,
         LearnModule.qiraat => context.l10n.qiraatSub,
       };
 
@@ -69,6 +81,7 @@ extension LearnModuleInfo on LearnModule {
         LearnModule.script => const ScriptScreen(),
         LearnModule.tracing => const TracingScreen(),
         LearnModule.coach => const DyslexiaScreen(),
+        LearnModule.nabr => const NabrScreen(),
         LearnModule.qiraat => const QiraatScreen(),
       };
 

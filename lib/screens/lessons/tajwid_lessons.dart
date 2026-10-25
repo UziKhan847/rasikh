@@ -117,10 +117,12 @@ LessonNode _sifahNode(BuildContext context, Sifah s) => LessonNode(
 
 // ── Rule families: Nūn, Mīm, Lām, Rāʾ, Qalqalah (Madd has its own root) ──
 
-LessonNode ruleFamilyLessonRoot(
-        BuildContext context, String title, List<TajwidRule> rules) =>
+/// [topicId] keys the family ([TajwidTopic.id]): its node id stays the same
+/// in every language.
+LessonNode ruleFamilyLessonRoot(BuildContext context, String topicId,
+        String title, List<TajwidRule> rules) =>
     LessonNode(
-      id: 'rulefamily.$title',
+      id: 'rulefamily.$topicId',
       title: title,
       children: [for (final r in rules) _ruleNode(context, r)],
     );

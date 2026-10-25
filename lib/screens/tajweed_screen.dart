@@ -581,7 +581,7 @@ TajwidUnit _ruleUnit(BuildContext context, String title, String subtitle,
         sub: context.l10n.phaseLearnSub,
         builder: (_) => topicId == 'madd'
             ? lessonEntryScreen(maddLessonRoot(context))
-            : _ruleFamilyLearn(context, title, rules)),
+            : _ruleFamilyLearn(context, topicId, title, rules)),
     UnitPhase(
         icon: AppIcons.gridView,
         label: context.l10n.phaseLetters,
@@ -634,8 +634,9 @@ class TajwidUnitHub extends StatelessWidget {
 
 // ── rule-family phases (Nūn, Mīm, Madd, Lām, Rā', Qalqalah) ────────────────
 
-Widget _ruleFamilyLearn(BuildContext context, String title, List<TajwidRule> rules) =>
-    lessonEntryScreen(ruleFamilyLessonRoot(context, title, rules));
+Widget _ruleFamilyLearn(BuildContext context, String topicId, String title,
+        List<TajwidRule> rules) =>
+    lessonEntryScreen(ruleFamilyLessonRoot(context, topicId, title, rules));
 
 /// A read-only browse of a rule family's trigger letters — tap a chip to see
 /// its name. Not a drill; the drilling happens in Test/Practice.

@@ -1070,7 +1070,7 @@ QuizScreen _shaddaQuiz(BuildContext context, {bool graded = true}) {
       graded: graded);
 }
 
-const _quranWords = <(String, String)>[
+const quranWords = <(String, String)>[
   ('بِسۡمِ', 'bismi'),
   ('قُلۡ', 'qul'),
   ('هُوَ', 'huwa'),
@@ -1091,8 +1091,8 @@ const _quranWords = <(String, String)>[
 
 QuizScreen _wordQuiz(BuildContext context, {bool graded = true}) {
   final qs = <QuizQuestion>[];
-  final pool = _quranWords.map((w) => w.$2).toList();
-  final sample = [..._quranWords]..shuffle(_rng);
+  final pool = quranWords.map((w) => w.$2).toList();
+  final sample = [...quranWords]..shuffle(_rng);
   for (final (ar, tr) in sample.take(10)) {
     final o = buildOptions(tr, pool, _rng);
     qs.add(QuizQuestion(
@@ -1138,9 +1138,9 @@ QuizScreen _reviewQuiz(BuildContext context, {bool graded = true}) {
         explain: tashkilNote(context, t)));
   }
   // words
-  final ws = [..._quranWords]..shuffle(_rng);
+  final ws = [...quranWords]..shuffle(_rng);
   for (final (ar, tr) in ws.take(3)) {
-    final o = buildOptions(tr, _quranWords.map((w) => w.$2).toList(), _rng);
+    final o = buildOptions(tr, quranWords.map((w) => w.$2).toList(), _rng);
     qs.add(QuizQuestion(
         prompt: context.l10n.qpReadIt, arabic: ar, reviewId: 'qaidah.word.$tr',
         options: o.options, correct: o.correct));
@@ -1435,7 +1435,7 @@ QuizScreen _harakatPracticeQuiz(BuildContext context) {
       context, context.l10n.harakatDrill, 'qaidah.harakat', harakat,
       graded: false);
   final qs = [...base.questions];
-  final sample = [..._quranWords]..shuffle(_rng);
+  final sample = [...quranWords]..shuffle(_rng);
   for (final (ar, _) in sample.take(2)) {
     final q = _spellQuestion(context, ar, reverse: qs.length.isEven);
     if (q != null) qs.add(q);
@@ -1500,7 +1500,7 @@ Widget _wordsLearn(BuildContext context) => lessonEntryScreen(LessonNode(
       id: 'qaidah.words',
       title: context.l10n.readingWords,
       children: [
-        for (final (ar, tr) in _quranWords)
+        for (final (ar, tr) in quranWords)
           LessonNode(
             id: 'word.$tr',
             glyph: ar,
@@ -1516,7 +1516,7 @@ Widget _wordsLearn(BuildContext context) => lessonEntryScreen(LessonNode(
 
 QuizScreen _wordsPracticeQuiz(BuildContext context) {
   final qs = <QuizQuestion>[];
-  final sample = [..._quranWords]..shuffle(_rng);
+  final sample = [...quranWords]..shuffle(_rng);
   for (final (ar, _) in sample.take(6)) {
     final q = _spellQuestion(context, ar, reverse: false);
     if (q != null) qs.add(q);

@@ -1,0 +1,404 @@
+{
+ "description": "Location-driven overrides for the special rules (Part 2) and the strong 'dropped letter' stresses (Part 3). Refs are sūra:āya (Ḥafṣ). The engine must find the target word inside each āya and apply the stress shown, overriding the general rules. Anything not listed falls back to the default given for each group.",
+ "groups": [
+  {
+   "id": "S1_innama",
+   "default": {
+    "stressOn": "ن",
+    "meaning": "restrictive mā (kāffa)"
+   },
+   "exceptions": [
+    {
+     "ref": "6:134",
+     "word": "إِنَّ مَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "51:5",
+     "word": "إِنَّمَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "77:7",
+     "word": "إِنَّمَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "16:95",
+     "word": "إِنَّمَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "20:69",
+     "word": "إِنَّمَا",
+     "stressOn": "م",
+     "level": "special"
+    }
+   ],
+   "note": "Exceptions are relative mā (\"inna alladhī\"). Some are written separately in the muṣḥaf; spelling does not matter. Check that the right occurrence is hit when an āya has more than one innamā."
+  },
+  {
+   "id": "S2_annama",
+   "default": {
+    "stressOn": "ن",
+    "meaning": "restrictive mā; also all ka-annamā"
+   },
+   "exceptions": [
+    {
+     "ref": "3:178",
+     "word": "أَنَّمَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "8:41",
+     "word": "أَنَّمَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "13:19",
+     "word": "أَنَّمَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "22:62",
+     "word": "أَنَّ مَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "31:30",
+     "word": "أَنَّ مَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "23:55",
+     "word": "أَنَّمَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "31:27",
+     "word": "أَنَّمَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "40:43",
+     "word": "أَنَّمَا",
+     "stressOn": "م",
+     "level": "special"
+    }
+   ],
+   "confirmedRestrictive": [
+    "8:28",
+    "11:14",
+    "14:52",
+    "18:110",
+    "21:108",
+    "23:115",
+    "28:50",
+    "41:6",
+    "57:20"
+   ],
+   "disputedTreatedAsRestrictive": [
+    "5:49",
+    "5:92"
+   ]
+  },
+  {
+   "id": "S3_bisama",
+   "default": {
+    "stressOn": "م",
+    "meaning": "relative mā"
+   },
+   "list": [
+    {
+     "ref": "2:90",
+     "word": "بِئْسَمَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "2:93",
+     "word": "بِئْسَمَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "2:102",
+     "word": "لَبِئْسَ مَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "3:187",
+     "word": "فَبِئْسَ مَا",
+     "stressOn": "م",
+     "level": "special",
+     "note": "disputed; book prefers relative"
+    },
+    {
+     "ref": "5:62",
+     "word": "لَبِئْسَ مَا",
+     "stressOn": "م",
+     "level": "special",
+     "note": "disputed"
+    },
+    {
+     "ref": "5:63",
+     "word": "لَبِئْسَ مَا",
+     "stressOn": "م",
+     "level": "special",
+     "note": "disputed"
+    },
+    {
+     "ref": "5:80",
+     "word": "لَبِئْسَ مَا",
+     "stressOn": "م",
+     "level": "special",
+     "note": "disputed"
+    },
+    {
+     "ref": "7:150",
+     "word": "بِئْسَمَا",
+     "stressOn": "س",
+     "level": "special",
+     "note": "indefinite mā"
+    }
+   ]
+  },
+  {
+   "id": "S4_aynama",
+   "default": {
+    "stressOn": "ن",
+    "meaning": "conditional / \"wherever\""
+   },
+   "exceptions": [
+    {
+     "ref": "7:37",
+     "word": "أَيْنَ مَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "26:92",
+     "word": "أَيْنَ مَا",
+     "stressOn": "م",
+     "level": "special"
+    },
+    {
+     "ref": "40:73",
+     "word": "أَيْنَ مَا",
+     "stressOn": "م",
+     "level": "special"
+    }
+   ],
+   "confirmedConditional": [
+    "2:115",
+    "2:148",
+    "3:112",
+    "4:78",
+    "16:76",
+    "19:31",
+    "33:61",
+    "57:4",
+    "58:7"
+   ]
+  },
+  {
+   "id": "S4b_mithla_ma",
+   "list": [
+    {
+     "ref": "51:23",
+     "word": "مِثْلَ مَا",
+     "stressOn": "م",
+     "level": "special",
+     "note": "separate the two words"
+    }
+   ]
+  },
+  {
+   "id": "S5_kullama",
+   "default": {
+    "stressOn": "ل",
+    "meaning": "repetition, including 23:44 written separately"
+   },
+   "exceptions": [
+    {
+     "ref": "14:34",
+     "word": "كُلِّ مَا",
+     "stressOn": "م",
+     "level": "special"
+    }
+   ]
+  },
+  {
+   "id": "S6_ala",
+   "rule": "alā followed by an imperfect verb (offer/urging/question: tuḥibbūna, tuqātilūna, yaẓunnu, taʾkulūna, tattaqūna...) → stress lām. alā as attention-getter (usually before inna / a nominal clause / lahu) → stress hamza. If the morphology source tags the word as INC (inceptive particle) → hamza; if it splits it into interrogative hamza + negative lā → lām. Exclude allā (an + lā, written with shadda). With wāw/fāʾ between hamza and lā (awalā, afalā) → lām.",
+   "examplesLam": [
+    "24:22",
+    "9:13",
+    "83:4",
+    "51:27",
+    "26:106"
+   ],
+   "examplesHamza": [
+    "2:12",
+    "10:62",
+    "7:54"
+   ]
+  },
+  {
+   "id": "S7_lahum_emphatic",
+   "list": [
+    {
+     "ref": "37:172",
+     "word": "لَهُمُ",
+     "stressOn": "ه",
+     "level": "special"
+    },
+    {
+     "ref": "37:173",
+     "word": "لَهُمُ",
+     "stressOn": "ه",
+     "level": "special"
+    }
+   ],
+   "default": {
+    "stressOn": "ل",
+    "meaning": "preposition + pronoun everywhere else"
+   }
+  },
+  {
+   "id": "S8_yawma_hum",
+   "list": [
+    {
+     "ref": "40:16",
+     "word": "يَوْمَ هُم",
+     "stressOn": "ه",
+     "level": "special"
+    },
+    {
+     "ref": "51:13",
+     "word": "يَوْمَ هُمْ",
+     "stressOn": "ه",
+     "level": "special"
+    },
+    {
+     "ref": "43:83",
+     "word": "يَوْمَهُمُ",
+     "stressOn": "م",
+     "level": "weak",
+     "note": "possessive, joining stress"
+    },
+    {
+     "ref": "51:60",
+     "word": "يَوْمِهِمُ",
+     "stressOn": "م",
+     "level": "weak",
+     "note": "possessive"
+    },
+    {
+     "ref": "52:45",
+     "word": "يَوْمَهُمُ",
+     "stressOn": "م",
+     "level": "weak",
+     "note": "possessive"
+    },
+    {
+     "ref": "70:42",
+     "word": "يَوْمَهُمُ",
+     "stressOn": "م",
+     "level": "weak",
+     "note": "possessive"
+    }
+   ]
+  },
+  {
+   "id": "S10_pronoun_role",
+   "list": [
+    {
+     "ref": "83:3",
+     "word": "كَالُوهُمْ",
+     "stressOn": "ل",
+     "level": "medium",
+     "note": "object pronoun: stress lām; never pause before hum"
+    },
+    {
+     "ref": "83:3",
+     "word": "وَزَنُوهُمْ",
+     "stressOn": "ن",
+     "level": "medium",
+     "note": "object pronoun"
+    },
+    {
+     "ref": "42:37",
+     "word": "هُمْ",
+     "stressOn": "ه",
+     "level": "medium",
+     "note": "separate subject pronoun after ghaḍibū"
+    }
+   ]
+  },
+  {
+   "id": "S12_interrogative_ma",
+   "rule": "Preposition + mā with the alif dropped (fīma, mimma, ʿamma, lima, bima) → stress the preposition. With the alif written (fīmā, mimmā, ʿammā, limā, bimā) → stress the mīm (mimmā: 1st and 3rd mīm; ʿammā: ʿayn and 2nd mīm; fīmā: fāʾ).",
+   "examples": [
+    "4:97 فِيمَ",
+    "86:5 مِمَّ",
+    "78:1 عَمَّ",
+    "61:2 لِمَ",
+    "15:54 فَبِمَ"
+   ]
+  },
+  {
+   "id": "P3_dropped_dual_alif",
+   "level": "strong",
+   "list": [
+    {
+     "ref": "7:22",
+     "word": "ذَاقَا",
+     "stressOn": "ق",
+     "level": "strong"
+    },
+    {
+     "ref": "12:25",
+     "word": "وَاسْتَبَقَا",
+     "stressOn": "ق",
+     "level": "strong"
+    },
+    {
+     "ref": "27:15",
+     "word": "وَقَالَا",
+     "stressOn": "ل",
+     "level": "strong"
+    }
+   ],
+   "note": "The book's fourth place (27:25, alā yā-sjudū) applies only to al-Kisāʾī / Abū Jaʿfar / Ruways, not Ḥafṣ, so it is excluded. Some teachers add 36:40 (lā ash-shamsu / wa-la-l-laylu); the author does not require it, so treat it as optional (flag off by default)."
+  },
+  {
+   "id": "P3_heavy_madd",
+   "level": "strong",
+   "rule": "Madd lāzim kalimī muthaqqal (long vowel + doubled letter): strong stress at the end of the long vowel, dropping onto the doubled letter. Colour the doubled letter. Exclude doubled mīm/nūn (ghunna replaces it) and, at a pause, final qalqala letters (dawābb, al-ḥājj).",
+   "examples": [
+    "1:7 الضَّالِّينَ",
+    "2:164 دَابَّةٍ",
+    "6:80 أَتُحَاجُّونِّي",
+    "80:33 الصَّاخَّةُ"
+   ]
+  },
+  {
+   "id": "P3_doubled_waw_ya",
+   "level": "strong",
+   "rule": "Stress the letter BEFORE a doubled wāw or yāʾ (quwwa, ʿaduww, al-ḥayy, al-ghayy, iyyāka, al-qayyūm, al-jūdiyy), joining and pausing."
+  }
+ ]
+}
