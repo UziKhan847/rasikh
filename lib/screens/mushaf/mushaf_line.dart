@@ -458,7 +458,9 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
   }
   natural *= k;
   final spaces = n - 1;
-  final justified = s.justify && natural >= s.targetW * 0.45 && spaces > 0;
+  final justified = s.justify &&
+      natural >= s.targetW * (atlas.justified ? 0.97 : 0.45) &&
+      spaces > 0;
   final gapExtra = justified
       ? ((s.targetW - natural) / spaces).clamp(0.0, 1e6)
       : 0.0;

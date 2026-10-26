@@ -11,8 +11,9 @@ import 'shots/shots_test.dart' show loadFonts;
 import 'test_support.dart';
 
 /// The glyph atlas (tool/mushaf_atlas/gen_atlas.py) draws the muṣḥaf's
-/// lines as the text path would: same token positions, same baseline, same
-/// justification — and adds tajwīd colours letter by letter.
+/// lines: the Madani set justified by digitalkhatt's engine, the Indo-Pak
+/// as the text path would (same token positions, baseline, justification)
+/// — and adds tajwīd colours letter by letter.
 const _ink = Color(0xFF111111);
 const _accent = Color(0xFF00AA00);
 
@@ -64,9 +65,44 @@ void main() {
     }
   });
 
+  test('the Madani lines come justified: a page\'s full lines fill the measure, '
+      'its narrow ones keep their width', () {
+    final atlas = MushafAtlas.of('uthmani')!;
+    expect(atlas.justified, isTrue);
+    expect(MushafAtlas.of('indopak')!.justified, isFalse);
+    for (final page in [1, 2, 3, 50, 300, 604]) {
+      final lines = MushafRepo.pageSync('uthmani', page)!;
+      final text = [for (var i = 0; i < lines.length; i++) if (lines[i].isText) i];
+      // Each line as set, unstretched; the page's measure is its widest.
+      final natural = {
+        for (final i in text) i: buildAtlasLine(_spec('uthmani', page, i, targetW: 1e6), atlas, 0).width,
+      };
+      final measure = natural.values.reduce((a, b) => a > b ? a : b);
+      var full = 0;
+      for (final i in text) {
+        final drawn = buildAtlasLine(_spec('uthmani', page, i, targetW: measure), atlas, 0);
+        final where = 'p.$page line $i';
+        if (natural[i]! >= measure * .97) {
+          full++;
+          expect(drawn.width, closeTo(measure, 1.5), reason: where);
+          expect(natural[i]!, greaterThan(measure * .98), reason: '$where: set near the measure');
+        } else {
+          expect(drawn.width, closeTo(natural[i]!, .01), reason: '$where: not stretched');
+        }
+        expect(drawn.boxes.length, lines[i].words.length, reason: where);
+        for (var k = 1; k < drawn.boxes.length; k++) {
+          expect(drawn.boxes[k].$2, lessThanOrEqualTo(drawn.boxes[k - 1].$1 + .5),
+              reason: '$where token $k: right to left, no overlap');
+        }
+      }
+      // Bar the first two pages and the last's short sūrahs, all but a
+      // sūrah's last line fill it.
+      if (page > 2 && page < 600) expect(full, greaterThan(text.length - 3), reason: 'p.$page');
+    }
+  });
+
   test('atlas lines match the text path: positions, width, baseline', () {
     for (final (script, pages) in [
-      ('uthmani', [2, 3, 50, 300, 604]),
       ('indopak', [3, 50, 300]),
     ]) {
       final atlas = MushafAtlas.of(script)!;

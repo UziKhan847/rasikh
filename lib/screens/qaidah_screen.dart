@@ -869,20 +869,26 @@ QuizScreen letterQuizScreen(BuildContext context,
         {String progressId = 'qaidah.letters'}) =>
     _letterQuiz(context, progressId: progressId);
 
+/// "Which letter is this?", one question for each of [which].
+List<QuizQuestion> letterQuestions(BuildContext context, Iterable<ArabicLetter> which) {
+  final pool = letters.map((l) => letterName(context, l)).toList();
+  return [
+    for (final l in which)
+      () {
+        final o = buildOptions(letterName(context, l), pool, _rng);
+        return QuizQuestion(
+            prompt: context.l10n.qpWhichLetterIsThis,
+            arabic: l.char,
+            reviewId: 'letter.${l.char}',
+            options: o.options,
+            correct: o.correct);
+      }(),
+  ];
+}
+
 QuizScreen _letterQuiz(BuildContext context,
     {bool graded = true, String progressId = 'qaidah.letters'}) {
-  final qs = <QuizQuestion>[];
-  final pool = letters.map((l) => letterName(context, l)).toList();
-  final sample = [...letters]..shuffle(_rng);
-  for (final l in sample.take(10)) {
-    final o = buildOptions(letterName(context, l), pool, _rng);
-    qs.add(QuizQuestion(
-        prompt: context.l10n.qpWhichLetterIsThis,
-        arabic: l.char,
-        reviewId: 'letter.${l.char}',
-        options: o.options,
-        correct: o.correct));
-  }
+  final qs = letterQuestions(context, ([...letters]..shuffle(_rng)).take(10));
   return QuizScreen(
       title: context.l10n.letterQuiz,
       progressId: progressId,

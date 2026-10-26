@@ -53,7 +53,9 @@ void main() {
     expect((s.useOrnate, s.useGradients), (false, false));
     expect((s.orHeader, s.gradients), ('auto', true)); // back when Lite is off
     final look = s.mushafLook('uthmani');
-    expect((look.header, look.marker, look.margin), ('plain', 'font', 'text'));
+    // The one minimal look (kMushafCustomization off): no margin at all.
+    expect((look.header, look.marker, look.margin),
+        ('plain', 'font', kMushafCustomization ? 'text' : 'none'));
     await s.save();
     final again = AppSettings();
     await again.load();

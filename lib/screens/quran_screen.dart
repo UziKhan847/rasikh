@@ -25,6 +25,7 @@ import '../ui/qiraah_ornaments.dart';
 import 'marks/marking.dart';
 import 'marks/marking_bar.dart';
 import 'marks/word_marks_sheet.dart';
+import 'mushaf/mushaf_index_sheet.dart';
 import 'mushaf_screen.dart';
 
 export 'quran_list_screen.dart' show SurahListScreen, openSurah;
@@ -639,7 +640,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
   /// reader's place (its own toggle comes back here), so closing either
   /// returns to where the reader was opened from.
   Future<void> _openMushaf() async {
-    final script = SettingsScope.of(context).quranScript;
+    final script = SettingsScope.of(context).mushafScript;
     final last = ProgressScope.read(context).lastRead;
     await MushafRepo.ensure(script);
     if (!mounted) return;
@@ -653,6 +654,31 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
     final nav = Navigator.of(context);
     final route = MaterialPageRoute<void>(
       builder: (_) => MushafPageScreen(startPage: p, script: script),
+    );
+    nav.canPop() ? nav.pushReplacement(route) : nav.push(route);
+  }
+
+  /// The index (sūrahs, juzʼ, pages… and search), from inside the reader:
+  /// a pick opens the reader there, in this one's place.
+  Future<void> _openIndex() async {
+    final script = SettingsScope.of(context).mushafScript;
+    await MushafRepo.ensure(script);
+    final metas = await QuranRepo.meta();
+    final here = await MushafRepo.pageForSurah(script, widget.meta.n);
+    if (!mounted) return;
+    (int, int)? to;
+    await showMushafIndex(
+      context,
+      script: script,
+      currentPage: here,
+      onPage: (pg) => to = MushafRepo.firstVerseOfPage(script, pg),
+      onStart: (t) => to = MushafRepo.surahAyahOf(MushafRepo.tokenAt(script, t).$1),
+    );
+    final (su, ay) = to ?? (0, 0);
+    if (su == 0 || !mounted) return;
+    final nav = Navigator.of(context);
+    final route = MaterialPageRoute<void>(
+      builder: (_) => SurahReaderScreen(meta: metas[su - 1], startAyah: ay),
     );
     nav.canPop() ? nav.pushReplacement(route) : nav.push(route);
   }
@@ -814,6 +840,12 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
           const SizedBox(width: 10),
         ],
         title,
+        gap,
+        QIconButton(
+            icon: AppIcons.indexList,
+            tooltip: context.l10n.idxIndex,
+            onTap: _openIndex),
+        gap,
         if (desktop) ...[
           _sizeStepper(context, s, px, 40),
           if (grid) ...[gap, _gapStepper(context, s, 40)],
@@ -835,12 +867,11 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
             _penButton(context),
           ],
         ] else ...[
+          QIconButton(
+              icon: AppIcons.mushaf,
+              tooltip: context.l10n.k15LineMushaf,
+              onTap: _openMushaf),
           if (!narrow) ...[
-            gap,
-            QIconButton(
-                icon: AppIcons.mushaf,
-                tooltip: context.l10n.k15LineMushaf,
-                onTap: _openMushaf),
             gap,
             QIconButton(
                 icon: AppIcons.tajweed,
@@ -930,11 +961,6 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
           _sizeStepper(context, s, px, 44),
           if (grid) _gapStepper(context, s, 44),
           if (narrow) ...[
-            QIconButton(
-                size: 44,
-                icon: AppIcons.mushaf,
-                tooltip: context.l10n.k15LineMushaf,
-                onTap: _openMushaf),
             QIconButton(
                 size: 44,
                 icon: AppIcons.tajweed,
@@ -2297,7 +2323,7 @@ class _ReaderSettingsSheet extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
       children: [
         Text(context.l10n.readerOptions, style: displayStyle(context, size: 24)),
-        QSectionLabel(context.l10n.reading),
+        QSectionLabel(context.l10n.rsText),
         QGroup(children: [
           QRow(
             title: context.l10n.arabicScript,
@@ -2312,65 +2338,6 @@ class _ReaderSettingsSheet extends StatelessWidget {
             ),
           ),
           QRow(
-            title: context.l10n.readerLayout,
-            control: QSegmented<String>(
-              expand: false,
-              options: [
-                ('cards', context.l10n.layoutAyahCards, null),
-                ('grid', context.l10n.layoutWordGrid, null),
-                ('flow', context.l10n.mushafFlow, null),
-              ],
-              value: layout,
-              onChanged: (v) => keepPlace(() => s.update(() {
-                    s.readerLayout = v == 'flow' ? 'mushaf' : 'cards';
-                    s.wordByWord = v == 'grid';
-                  })),
-            ),
-          ),
-          if (layout == 'grid') ...[
-            QRow(
-              title: context.l10n.wordsPerCard,
-              control: QSegmented<int>(
-                expand: false,
-                options: [for (var i = 1; i <= 6; i++) (i, '$i', null)],
-                value: s.wbwGroup,
-                onChanged: (v) => keepPlace(() => s.update(() => s.wbwGroup = v)),
-              ),
-            ),
-            QRow(
-              title: context.l10n.verseAlign,
-              control: QSegmented<String>(
-                expand: false,
-                options: [
-                  ('right', context.l10n.alignRight, null),
-                  ('center', context.l10n.alignCenter, null),
-                ],
-                value: s.wbwAlign,
-                onChanged: (v) => keepPlace(() => s.update(() => s.wbwAlign = v)),
-              ),
-            ),
-            QRow(
-              title: context.l10n.eachCardOwnLine,
-              control: QSwitch(
-                  value: s.wbwNewline,
-                  onChanged: (v) => keepPlace(() => s.update(() => s.wbwNewline = v))),
-            ),
-            QRow(
-              title: context.l10n.gapBetweenCards,
-              control: QStepper(
-                label: '${s.wbwGap.round()}',
-                minusChild: Icon(AppIcons.gapDecrease, size: 18, color: p.ink),
-                plusChild: Icon(AppIcons.gapIncrease, size: 18, color: p.ink),
-                onMinus: s.wbwGap <= 0
-                    ? null
-                    : () => s.update(() => s.wbwGap = (s.wbwGap - 4).clamp(0, 64)),
-                onPlus: s.wbwGap >= 64
-                    ? null
-                    : () => s.update(() => s.wbwGap = (s.wbwGap + 4).clamp(0, 64)),
-              ),
-            ),
-          ],
-          QRow(
             title: context.l10n.arabicTextSize,
             control: QStepper(
               label: '${px.round()}',
@@ -2383,20 +2350,6 @@ class _ReaderSettingsSheet extends StatelessWidget {
                   ? null
                   : () => keepPlace(
                       () => setReaderPx(s, readerStepUp(px, readerMaxPx(context)))),
-            ),
-          ),
-          QRow(
-            title: context.l10n.theme,
-            control: QSegmented<String>(
-              expand: false,
-              options: [
-                ('light', context.l10n.themeLight, null),
-                ('mono', context.l10n.themeMono, null),
-                ('night', context.l10n.themeNight, null),
-                ('oled', context.l10n.themeOled, null),
-              ],
-              value: s.appTheme,
-              onChanged: s.setTheme,
             ),
           ),
           QRow(
@@ -2419,7 +2372,49 @@ class _ReaderSettingsSheet extends StatelessWidget {
                     })),
           ),
         ]),
-        QSectionLabel(context.l10n.recitation),
+        QSectionLabel(context.l10n.layout),
+        QGroup(children: [
+          QRow(
+            title: context.l10n.readerLayout,
+            control: QSegmented<String>(
+              expand: false,
+              options: [
+                ('cards', context.l10n.layoutAyahCards, null),
+                ('grid', context.l10n.layoutWordGrid, null),
+                ('flow', context.l10n.mushafFlow, null),
+              ],
+              value: layout,
+              onChanged: (v) => keepPlace(() => s.update(() {
+                    s.readerLayout = v == 'flow' ? 'mushaf' : 'cards';
+                    s.wordByWord = v == 'grid';
+                  })),
+            ),
+          ),
+          if (layout == 'grid')
+            QRow(
+              title: context.l10n.wordsPerCard,
+              control: QSegmented<int>(
+                expand: false,
+                options: [for (var i = 1; i <= 6; i++) (i, '$i', null)],
+                value: s.wbwGroup,
+                onChanged: (v) => keepPlace(() => s.update(() => s.wbwGroup = v)),
+              ),
+            ),
+          if (layout == 'grid')
+            QRow(
+              title: context.l10n.verseAlign,
+              control: QSegmented<String>(
+                expand: false,
+                options: [
+                  ('right', context.l10n.alignRight, null),
+                  ('center', context.l10n.alignCenter, null),
+                ],
+                value: s.wbwAlign,
+                onChanged: (v) => keepPlace(() => s.update(() => s.wbwAlign = v)),
+              ),
+            ),
+        ]),
+        QSectionLabel(context.l10n.audio),
         QGroup(children: [
           for (final (id, name) in [
             ('tunaiji', context.l10n.alTunaiji),
@@ -2464,6 +2459,9 @@ class _ReaderSettingsSheet extends StatelessWidget {
                 value: s.followAlong,
                 onChanged: (v) => s.update(() => s.followAlong = v)),
           ),
+        ]),
+        // The rarely changed (the theme is Settings').
+        _More(children: [
           QRow(
             title: context.l10n.audioPlayer,
             control: QSegmented<String>(
@@ -2477,6 +2475,28 @@ class _ReaderSettingsSheet extends StatelessWidget {
               onChanged: (v) => s.update(() => s.playerDock = v),
             ),
           ),
+          if (layout == 'grid') ...[
+            QRow(
+              title: context.l10n.eachCardOwnLine,
+              control: QSwitch(
+                  value: s.wbwNewline,
+                  onChanged: (v) => keepPlace(() => s.update(() => s.wbwNewline = v))),
+            ),
+            QRow(
+              title: context.l10n.gapBetweenCards,
+              control: QStepper(
+                label: '${s.wbwGap.round()}',
+                minusChild: Icon(AppIcons.gapDecrease, size: 18, color: p.ink),
+                plusChild: Icon(AppIcons.gapIncrease, size: 18, color: p.ink),
+                onMinus: s.wbwGap <= 0
+                    ? null
+                    : () => s.update(() => s.wbwGap = (s.wbwGap - 4).clamp(0, 64)),
+                onPlus: s.wbwGap >= 64
+                    ? null
+                    : () => s.update(() => s.wbwGap = (s.wbwGap + 4).clamp(0, 64)),
+              ),
+            ),
+          ],
         ]),
         const SizedBox(height: 16),
         Wrap(spacing: 10, runSpacing: 10, children: [
@@ -2488,6 +2508,35 @@ class _ReaderSettingsSheet extends StatelessWidget {
               icon: AppIcons.download, onTap: () => onDownload(true)),
         ]),
       ],
+    );
+  }
+}
+
+/// The reader sheet's "More": its rarely changed rows, folded away.
+class _More extends StatefulWidget {
+  final List<Widget> children;
+  const _More({required this.children});
+
+  @override
+  State<_More> createState() => _MoreState();
+}
+
+class _MoreState extends State<_More> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: QGroup(children: [
+        QRow(
+          title: context.l10n.rsMore,
+          control: Icon(_open ? AppIcons.chevronUp : AppIcons.chevronDown, color: p.ink3),
+          onTap: () => setState(() => _open = !_open),
+        ),
+        if (_open) ...widget.children,
+      ]),
     );
   }
 }

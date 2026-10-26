@@ -10,6 +10,7 @@ import '../data/glyph_names.dart';
 import '../data/strokes.dart';
 import '../data/tracing_levels.dart';
 import '../ui/kit.dart';
+import 'shell/app_mode.dart' show SettingsButton;
 import '../widgets/common.dart';
 import '../ui/app_icons.dart';
 
@@ -205,6 +206,8 @@ class _TracingScreenState extends State<TracingScreen> {
           : AppBar(
               title: Text(context.l10n.tracingStudio),
               actions: [
+                const SettingsButton(),
+                const SizedBox(width: 8),
                 Padding(
                   padding: const EdgeInsetsDirectional.only(end: 16),
                   child: QIconButton(
@@ -430,9 +433,16 @@ class _TracingScreenState extends State<TracingScreen> {
   List<Widget> _practiceControls(BuildContext context, {bool wide = false}) {
     final progress = ProgressScope.of(context);
     return [
-      if (lvl.words)
-        _wordStrip(context)
-      else ...[
+      if (lvl.words) ...[
+        _wordStrip(context),
+        // The words are data (tracing_levels.dart); more are on the way.
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(context.l10n.traceMoreWords,
+              textAlign: TextAlign.center,
+              style: uiStyle(context, size: 12, color: pal(context).ink3)),
+        ),
+      ] else ...[
         if (wide) _letterGrid(context) else _letterStrip(context),
         const SizedBox(height: 10),
         _formsRow(context),

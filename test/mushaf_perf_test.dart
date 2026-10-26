@@ -27,6 +27,7 @@ Future<(AppSettings, ProgressStore)> _boot({String desktop = 'off'}) async {
   await s.load();
   await p.load();
   s.onboarded = true;
+  s.appMode = 'reader';
   s.desktopMode = desktop;
   return (s, p);
 }
@@ -266,8 +267,10 @@ void main() {
     });
   });
 
+  // The Madani table holds the justified atlas's widths (gen_atlas.py
+  // writes it), not the text font's.
   test('the precomputed line widths match the fonts', () {
-    for (final script in ['uthmani', 'indopak']) {
+    for (final script in ['indopak']) {
       for (final page in [1, 2, 50, 300, 600]) {
         final lines = MushafRepo.pageSync(script, page)!;
         MushafGeometry.widestEm(script, page, lines);
@@ -286,9 +289,8 @@ void main() {
   });
 
   group('desktop ↔ phone layout', () {
-    testWidgets('the sidebar button and Today\'s button switch layouts', (
-      tester,
-    ) async {
+    // The modes' homes have no sidebar: the shortcut switches layouts.
+    testWidgets('Ctrl+Shift+L switches layouts', (tester) async {
       useReducedMotion(tester);
       tester.view.physicalSize = const Size(1440, 900);
       tester.view.devicePixelRatio = 1;
@@ -297,19 +299,6 @@ void main() {
       await tester.pumpWidget(_app(s, p, const RootScreen()));
       await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byTooltip('Switch to the phone layout (Ctrl+Shift+L)'),
-      );
-      await tester.pumpAndSettle();
-      expect(s.desktopMode, 'off');
-
-      await tester.tap(
-        find.byTooltip('Switch to the desktop layout (Ctrl+Shift+L)'),
-      );
-      await tester.pumpAndSettle();
-      expect(s.desktopMode, 'on');
-
-      // And the keyboard shortcut.
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyL);

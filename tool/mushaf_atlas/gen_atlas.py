@@ -20,6 +20,12 @@ It stops with an error if any line's width disagrees with the widths Flutter
 measured (assets/quran/mushaf_line_em_{script}.json) — the proof that the
 offline shaping matches what the app would have drawn.
 
+The Madani muṣḥaf is the exception: it is set justified, in DigitalKhatt New
+Madina, by digitalkhatt.org's engine — run tool/mushaf_justify first
+(`node --experimental-transform-types justify.mts` there; see its README).
+Its lines' widths are then written to mushaf_line_em_uthmani.json instead
+of checked against it; rerun tool/gen_mushaf_page_ratios.py after.
+
 Āyah markers are composed, not baked whole. The fonts shape ۝ + digits into
 one ligature per number (endofaya1…286), which used to fill most of every
 sheet. Each ligature is the bare circle's outline plus the digit outlines, so
@@ -48,7 +54,7 @@ CHECK_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out')
 TIERS = (64, 128)  # px per em
 SHEET = 2048
 PAD = 2
-FORMAT_VERSION = 2  # 2: composed āyah markers (the byte layout is unchanged)
+FORMAT_VERSION = 2  # 2: composed āyah markers; 3: justified lines (same bytes)
 
 # Horizontal narrowing of a marker digit is rounded to this step (Indo-Pak
 # squeezes three-digit numbers by 135 slightly different factors). 0.02 of a
@@ -57,12 +63,20 @@ MARKER_SX_STEP = 0.02
 # The composed-marker self-check fails above this mean difference, as a
 # fraction of the ligature's ink.
 MARKER_MAX_DIFF = 0.06
-DIGITS = ('zeroindic', 'oneindic', 'twoindic', 'threeindic', 'fourindic',
-          'fiveindic', 'sixindic', 'sevenindic', 'eightindic', 'nineindic')
+ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'
+
+# The Madani muṣḥaf is set justified: DigitalKhatt New Madina, each line
+# fitted with kashīdas and widened letters by digitalkhatt.org's engine
+# (tool/mushaf_justify: run it first; its lines.json gives each character's
+# features and the line's spaces).
+JUSTIFIED = os.path.join(ROOT, 'tool', 'mushaf_justify', 'out', 'lines.json')
 
 SCRIPTS = {
     'uthmani': dict(font='DigitalKhattV2.otf', text='mushaf_u_text.json',
-                    layout='mushaf_u_layout.json', reader='u', tajwid='t'),
+                    layout='mushaf_u_layout.json', reader='u', tajwid='t',
+                    justified=JUSTIFIED,
+                    font_path=os.path.join(ROOT, 'tool', 'mushaf_justify',
+                                           'fonts', 'madina.otf')),
     'indopak': dict(font='DigitalKhattIndoPak.otf', text='mushaf_i_text.json',
                     layout='mushaf_i_layout.json', reader='i',
                     tajwid='t_indopak'),
@@ -141,14 +155,14 @@ class Shaper:
         self.font = hb.Font(self.face)
         self.upem = self.face.upem
 
-    def _run(self, text, rtl):
+    def _run(self, text, rtl, features=None):
         buf = hb.Buffer()
         buf.add_str(text)
         buf.direction = 'rtl' if rtl else 'ltr'
         buf.script = 'Arab'
         buf.language = 'ar'
         buf.cluster_level = hb.BufferClusterLevel.CHARACTERS
-        hb.shape(self.font, buf, {})
+        hb.shape(self.font, buf, features or {})
         return buf.glyph_infos, buf.glyph_positions
 
     def shape_line(self, text):
@@ -170,9 +184,11 @@ class Shaper:
                             pos.y_offset, pos.x_advance))
         return out
 
-    def shape(self, token):
+    def shape(self, token, features=None):
         """Glyphs of [token] left to right: (gid, x, y, char index), and the
-        token's advance — all in font units, origin at its left edge."""
+        token's advance — all in font units, origin at its left edge.
+        [features]: {tag: [(start, end, value)]} by character of [token]
+        (the justification's)."""
         runs, start = [], 0
         flags = number_flags(token)
         for i in range(1, len(token) + 1):
@@ -183,7 +199,13 @@ class Shaper:
         # A right-to-left line shows its runs right to left: the last run is
         # leftmost.
         for st, text, rtl in reversed(runs):
-            infos, poss = self._run(text, rtl)
+            f = None
+            if features:
+                f = {tag: [(a - st, b - st, v) for a, b, v in spans
+                           if st <= a < st + len(text)]
+                     for tag, spans in features.items()}
+                f = {tag: v for tag, v in f.items() if v}
+            infos, poss = self._run(text, rtl, f)
             for info, pos in zip(infos, poss):
                 glyphs.append((info.codepoint, x + pos.x_offset, pos.y_offset,
                                st + info.cluster))
@@ -236,7 +258,18 @@ def marker_parts(font_path):
     from fontTools.ttLib import TTFont
     tt = TTFont(font_path)
     gs = tt.getGlyphSet()
-    gid_of = {n: i for i, n in enumerate(tt.getGlyphOrder())}
+    names = tt.getGlyphOrder()
+    gid_of = {n: i for i, n in enumerate(names)}
+    shaper = Shaper(font_path)
+
+    def glyph(text):
+        """The one glyph [text] shapes to (by name), or None. Found by
+        shaping, not by name: DigitalKhattV2 calls the marker of 12
+        endofaya12, DigitalKhatt New Madina an anonymous glyph00…"""
+        g, _ = shaper.shape(text)
+        return names[g[0][0]] if len(g) == 1 else None
+
+    digits = [glyph(d) for d in ARABIC_DIGITS]
 
     def contours(name):
         pen = DecomposingRecordingPen(gs)
@@ -249,18 +282,32 @@ def marker_parts(font_path):
                 cur = []
         return cs
 
-    circle = contours('endofaya')
-    digit = [contours(d) for d in DIGITS]
+    def solid(name):
+        # Without empty contours (New Madina starts each marker with one).
+        return [c for c in contours(name) if len(c) > 1]
+
+    circle_name = glyph('۝')
+    circle = solid(circle_name)
+    digit = [contours(d) for d in digits]
     out = {}
     worst = 0.0
     n = 1
-    while f'endofaya{n}' in gid_of:
-        cs = contours(f'endofaya{n}')
+    while n <= 286:
+        lig = glyph('۝' + ''.join(ARABIC_DIGITS[int(c)] for c in str(n)))
+        if lig is None or lig == circle_name:
+            sys.exit(f'۝{n}: not one ligature glyph')
+        cs = solid(lig)
         head = cs[:len(circle)]
-        if (len(head) != len(circle)
-                or any(a.shape != b.shape or np.abs(a - b).max() > 1
-                       for a, b in zip(circle, head))):
-            sys.exit(f'endofaya{n}: does not start with the bare circle')
+        # The circle, perhaps a unit or two off the bare one's place (New
+        # Madina): placed like the digits.
+        if len(head) != len(circle) or any(
+                a.shape != b.shape for a, b in zip(circle, head)):
+            sys.exit(f'۝{n} ({lig}): does not start with the bare circle')
+        shift = np.vstack(head).mean(0) - np.vstack(circle).mean(0)
+        if (np.abs(shift).max() > 3 or any(
+                np.abs(b - a - shift).max() > 1 for a, b in zip(circle, head))):
+            sys.exit(f'۝{n} ({lig}): does not start with the bare circle')
+        circle_part = (gid_of[circle_name], int(round(shift[0])), int(round(shift[1])))
         rest = cs[len(circle):]
         best = None
         # The digits' contours come in reading or in visual order.
@@ -282,19 +329,19 @@ def marker_parts(font_path):
                     break
                 err = max(err, np.abs(sx * dd[:, 0] + tx - cc[:, 0]).max(),
                           np.abs(dd[:, 1] + ty - cc[:, 1]).max())
-                parts.append((narrowed(gid_of[DIGITS[int(ch)]], sx),
+                parts.append((narrowed(gid_of[digits[int(ch)]], sx),
                               int(round(tx)), int(round(ty))))
             if parts is not None and k == len(rest) and (
                     best is None or err < best[1]):
                 best = (parts, err)
         if best is None:
-            sys.exit(f'endofaya{n}: digits not found in its outline')
-        out[gid_of[f'endofaya{n}']] = best[0]
+            sys.exit(f'۝{n} ({lig}): digits not found in its outline')
+        out[gid_of[lig]] = [circle_part, *best[0]]
         worst = max(worst, best[1])
         n += 1
     print(f'  markers: {len(out)} ligatures read from the outlines '
           f'(worst fit {worst:.3f} units)')
-    return gid_of['endofaya'], out
+    return gid_of[circle_name], out
 
 
 def compose_markers(tok_glyphs, circle, parts):
@@ -307,7 +354,7 @@ def compose_markers(tok_glyphs, circle, parts):
         out = []
         for g, x, y, c in glyphs:
             if g in parts:
-                out.append((circle, x, y, c))
+                # The circle, then its digits.
                 out.extend((k, x + dx, y + dy, c) for k, dx, dy in parts[g])
                 swapped += 1
             else:
@@ -352,7 +399,6 @@ def check_markers(script, font_path, upem, circle, parts):
                 sys.exit(f'{script}: a marker digit lands outside its circle')
             np.maximum(region, mixed, out=region)
 
-        paste(circle, 0, 0)
         for key, dx, dy in ps:
             paste(key, dx, dy)
         want = np.zeros_like(canvas)
@@ -484,8 +530,84 @@ def char_rules(reader_word, token, rule_of):
     return out
 
 
+def justified_lines(cfg, tok, ayah_first, layout, shaper, upem):
+    """Each token as the justification set it: its glyphs (char indices
+    back in our text — the engine's text has U+034F added around hamzas and
+    maddas), its advance, and the gap after it (the engine's spaces); and
+    every text line's width in em, per page, for the width table."""
+    data = load(cfg['justified'])
+    by = {(l['page'], l['line']): l for l in data['lines']}
+    tok_glyphs = [None] * len(tok)
+    tok_adv = [0] * len(tok)
+    tok_gap = [0] * len(tok)
+    widths = {}
+    for pg, li, st, end in text_lines(layout, ayah_first, len(tok)):
+        l = by.get((pg, li))
+        if l is None or (l['first'], l['end']) != (st, end):
+            sys.exit(f'justified lines: page {pg} line {li} is not ours '
+                     '(run tool/mushaf_justify/justify.mts again)')
+        text = l['text']
+        feats = {int(k): v for k, v in l['features'].items()}
+        pos = 0
+        for t in range(st, end):
+            # Our token in the engine's text (a token may hold a space, as
+            # «إِلْ يَاسِينَ»), each adjusted character back to ours.
+            orig = tok[t]
+            back, i, j = [], 0, pos
+            while i < len(orig) or (j < len(text) and text[j] == '\u034f'):
+                ch = text[j] if j < len(text) else ''
+                if ch == '\u034f' and (i >= len(orig) or orig[i] != ch):
+                    back.append(max(i - 1, 0))
+                elif i < len(orig) and ch == orig[i]:
+                    back.append(i)
+                    i += 1
+                else:
+                    sys.exit(f'justified text differs at token {t}: {text[pos:j + 1]!r} / {orig!r}')
+                j += 1
+            adj = text[pos:j]
+            f = {}
+            for c in range(len(adj)):
+                for name, val in feats.get(pos + c, []):
+                    f.setdefault(name, []).append((c, c + 1, val))
+            glyphs, adv = shaper.shape(adj, f)
+            tok_glyphs[t] = [(g, x, y, back[c]) for g, x, y, c in glyphs]
+            tok_adv[t] = adv
+            pos = j + 1  # and the space
+        # The spaces as the engine set them (wider beside an āyah's
+        # number), narrowed where a line had to be squeezed.
+        n = end - st
+        gaps = []
+        for k in range(n - 1):
+            aya = tok[st + k].startswith('۝') or tok[st + k + 1].startswith('۝')
+            gaps.append(l['ayaSpacing'] if aya else l['simpleSpacing'])
+        total = sum(tok_adv[st:end]) + sum(gaps)
+        target = l['measure'] * l['ratio']
+        if total > target and gaps:
+            cut = (total - target) / len(gaps)
+            gaps = [max(0.0, g - cut) for g in gaps]
+        for k in range(n):
+            tok_gap[st + k] = int(round(gaps[k])) if k < n - 1 else 0
+        widths.setdefault(pg, {})[li] = (sum(tok_adv[st:end]) + sum(round(g) for g in gaps)) / upem
+    return tok_glyphs, tok_adv, tok_gap, widths
+
+
+def write_width_table(script, widths, font_name):
+    """assets/quran/mushaf_line_em_<script>.json from the justified lines:
+    each text line's width in em (0 for header and basmala rows)."""
+    path = os.path.join(ROOT, 'assets', 'quran', f'mushaf_line_em_{script}.json')
+    old = load(f'assets/quran/mushaf_line_em_{script}.json')
+    pages = {}
+    for pg, rows in old['pages'].items():
+        got = widths.get(int(pg), {})
+        pages[pg] = [round(got.get(i, 0.0), 3) for i in range(len(rows))]
+    with open(path, 'w') as f:
+        json.dump({'font': font_name, 'refPx': old.get('refPx', 44), 'pages': pages}, f,
+                  separators=(',', ':'))
+    print(f'  wrote {path}')
+
+
 def build(script, cfg):
-    font_path = os.path.join(ROOT, 'assets', 'fonts', cfg['font'])
+    font_path = cfg.get('font_path') or os.path.join(ROOT, 'assets', 'fonts', cfg['font'])
     text = load(f"assets/quran/{cfg['text']}")
     layout = load(f"assets/quran/{cfg['layout']}")
     tok, ayah_first, tok_ayah = tokenize(text)
@@ -504,7 +626,12 @@ def build(script, cfg):
     tok_gap = [0] * len(tok)
     worst = (0, (0, 0, 0, 0))
     off_lines = 0
-    for pg, li, st, end in text_lines(layout, ayah_first, len(tok)):
+    justified = bool(cfg.get('justified'))
+    if justified:
+        tok_glyphs, tok_adv, tok_gap, widths = justified_lines(
+            cfg, tok, ayah_first, layout, shaper, upem)
+        write_width_table(script, widths, 'DigitalKhatt New Madina (justified)')
+    for pg, li, st, end in ([] if justified else text_lines(layout, ayah_first, len(tok))):
         offs, line, p = [], [], 0
         for t in range(st, end):
             offs.append(p)
@@ -640,8 +767,9 @@ def build(script, cfg):
             out.append(0)
 
     out += b'MQA1'
-    out += struct.pack('<HHhhH', FORMAT_VERSION, upem, hhea_asc, hhea_desc,
-                       space)
+    # Version 3: the lines are justified already (the app only centres them).
+    out += struct.pack('<HHhhH', 3 if justified else FORMAT_VERSION, upem,
+                       hhea_asc, hhea_desc, space)
     out += struct.pack('<III', len(tok), fnv1a(tok), len(order))
     out += struct.pack('<I', len(words))
     out += struct.pack('<B', len(tiers))

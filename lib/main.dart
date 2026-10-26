@@ -234,14 +234,16 @@ class _SystemUiSyncState extends State<_SystemUiSync>
   Widget build(BuildContext context) => widget.child;
 }
 
-/// The first-launch welcome until it has been finished or skipped, then the
-/// app shell (bottom tabs on a phone, the sidebar on desktop — see
-/// [AppShell], which follows the layout setting live).
+/// The first-launch setup until it has been finished or skipped, then the
+/// app shell — the chosen mode's home ([AppShell]). An install from before
+/// the modes picks one, once.
 class RootScreen extends StatelessWidget {
   const RootScreen({super.key});
   @override
   Widget build(BuildContext context) {
-    if (!SettingsScope.of(context).onboarded) return const OnboardingScreen();
+    final s = SettingsScope.of(context);
+    if (!s.onboarded) return const OnboardingScreen();
+    if (s.mode == null) return const OnboardingScreen(modeOnly: true);
     return const AppShell();
   }
 }

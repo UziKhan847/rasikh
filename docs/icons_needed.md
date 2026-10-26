@@ -68,6 +68,12 @@ The app's icons all go through `lib/ui/app_icons.dart`. Most already use the red
 | 48 | `textBigger` | U+E05F | Memorize verse cards: larger text | `text_increase_rounded` |
 | 49 | `textSmaller` | U+E060 | Memorize verse cards: smaller text | `text_decrease_rounded` |
 
+## New requests
+
+| # | Name (`AppIcons.`) | Suggested codepoint | Used for | Stand-in today (Material) |
+|---|---|---|---|---|
+| 50 | `eraser` | U+E061 | Hifẓ muṣḥaf toolbar: the eraser (tap a word to wipe its marks; hold for the whole page) | `cleaning_services_outlined` |
+
 ## Not icons (already done)
 
 - The **launcher icon** is the design's icon 1a (cream `#F2EEE4` glyph on emerald `#0F3B32`), generated for every platform by `tools/icons/make_launcher_icons.py` from `assets/brand/icon-glyph.png`.

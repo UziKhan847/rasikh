@@ -6,11 +6,14 @@ import '../core/l10n.dart';
 import '../core/responsive.dart';
 import '../core/settings.dart';
 import '../core/theme.dart';
+import '../data/learning_path.dart';
 import '../ui/kit.dart';
+import 'shell/app_mode.dart' show SettingsButton;
+import 'learning_path_screen.dart';
 import 'qaidah_screen.dart';
 import 'shell/modules.dart';
 
-/// Learn: the Qāʿidah path as a hero card, then every learning module.
+/// Learn: the step-by-step path as a hero card, then every learning module.
 class LearnScreen extends StatelessWidget {
   const LearnScreen({super.key});
 
@@ -18,37 +21,38 @@ class LearnScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final prog = ProgressScope.of(context);
     final units = qaidahUnits(context);
-    final done = units.where((u) => prog.starsFor(u.progressId) > 0).length;
-    var next = units.indexWhere((u) => prog.starsFor(u.progressId) == 0);
-    if (next < 0) next = units.length - 1;
-    final u = units[next];
+    final unitsDone = units.where((u) => prog.starsFor(u.progressId) > 0).length;
+    final path = learningPath();
+    final done = path.where((s) => prog.starsFor(s.progressId) > 0).length;
+    final next = nextPathStep(prog, path);
     return Scaffold(
       body: QPage(
         title: context.l10n.navLearn,
         subtitle: context.l10n.learnSubtitle,
+        actions: const [SettingsButton()],
         children: [
           QHeroCard(
             padding: const EdgeInsets.all(18),
             onTap: () => Navigator.of(context, rootNavigator: !useDesktop(context))
-                .push(MaterialPageRoute(builder: (_) => QaidahUnitHub(unit: u))),
+                .push(MaterialPageRoute(builder: (_) => const LearningPathScreen())),
             child: Row(children: [
-              _Ring(done: done, total: units.length),
+              _Ring(done: done, total: path.length),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(context.l10n.qaidahPath.toUpperCase(),
+                  Text(context.l10n.pathTitle.toUpperCase(),
                       style: uiStyle(context,
                           size: 11.5,
                           weight: FontWeight.w700,
                           letterSpacing: 1,
                           color: kHeroInk2)),
                   const SizedBox(height: 4),
-                  Text(context.l10n.unitTitle(next + 1, u.title),
+                  Text(next < 0 ? context.l10n.pathDone : pathStepTitle(context, path[next]),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: displayStyle(context, size: 22, color: kHeroInk)),
                   const SizedBox(height: 3),
-                  Text(u.subtitle,
+                  Text(next < 0 ? context.l10n.pathLead : context.l10n.pathStepOf(next + 1, path.length),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: uiStyle(context, size: 13, color: kHeroInk2)),
@@ -63,7 +67,7 @@ class LearnScreen extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 10),
               child: ModuleCard(
                 module: m,
-                tag: m == LearnModule.qaidah ? '$done/${units.length}' : null,
+                tag: m == LearnModule.qaidah ? '$unitsDone/${units.length}' : null,
               ),
             ),
         ],

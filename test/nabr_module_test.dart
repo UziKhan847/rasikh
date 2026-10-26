@@ -80,16 +80,15 @@ void main() {
     }
   });
 
-  testWidgets('hidden unless the preview is on (until kNabrEnabled)', (tester) async {
-    for (final preview in [false, true]) {
-      final s = await settings(preview: preview);
-      late bool shown;
-      await tester.pumpWidget(app(s, Builder(builder: (context) {
-        shown = LearnModule.nabr.shown(context);
-        return const SizedBox();
-      })));
-      expect(shown, kNabrEnabled || preview);
-    }
+  testWidgets('shown, but "soon" until kNabrEnabled', (tester) async {
+    final s = await settings(preview: false);
+    late bool shown;
+    await tester.pumpWidget(app(s, Builder(builder: (context) {
+      shown = LearnModule.nabr.shown(context);
+      return const SizedBox();
+    })));
+    expect(shown, isTrue);
+    expect(LearnModule.nabr.soon, !kNabrEnabled);
   });
 
   testWidgets('every chapter draws all its blocks, in English and Arabic',

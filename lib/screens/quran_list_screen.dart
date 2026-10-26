@@ -7,6 +7,7 @@ import '../core/theme.dart';
 import '../data/quran.dart';
 import '../ui/app_icons.dart';
 import '../ui/kit.dart';
+import 'shell/app_mode.dart' show SettingsButton;
 import 'quran_screen.dart';
 
 /// The Qurʼān: search, Sūrahs | Bookmarks, the Last read card and the sūrah
@@ -100,6 +101,7 @@ class _SurahListScreenState extends State<SurahListScreen> {
                                 icon: AppIcons.back,
                                 onTap: () => Navigator.of(context).maybePop())
                             : null,
+                        actions: const [SettingsButton()],
                       ),
                       TextField(
                         controller: _search,

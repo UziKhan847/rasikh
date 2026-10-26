@@ -8,13 +8,18 @@ import '../ui/app_icons.dart';
 import '../ui/brand.dart';
 import '../ui/kit.dart';
 import 'settings_screen.dart' show setReminder;
+import 'shell/app_mode.dart';
 
-/// The first-launch welcome: three steps on the hero gradient — welcome, how
-/// to read (script and reciter), and a gentle daily goal. Skip or finish both
-/// mark it done. [pushed] when reopened from Settings ("Show welcome again").
+/// The first-launch setup on the hero gradient: welcome (and language), the
+/// mode — what the app opens to ([AppMode]) — how to read (script and
+/// reciter), appearance, and for the learning modes a gentle daily goal.
+/// Skip or finish both mark it done, with the mode picked (Reader unless
+/// another was). [pushed] when reopened from Settings ("Show welcome
+/// again"); [modeOnly] for an install from before the modes: just the mode.
 class OnboardingScreen extends StatefulWidget {
   final bool pushed;
-  const OnboardingScreen({super.key, this.pushed = false});
+  final bool modeOnly;
+  const OnboardingScreen({super.key, this.pushed = false, this.modeOnly = false});
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
@@ -25,10 +30,17 @@ const _gold = kHeroGold;
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   int _step = 0;
+  AppMode? _picked;
+
+  AppMode _mode(AppSettings s) => _picked ?? s.mode ?? AppMode.reader;
 
   void _finish() {
     final s = SettingsScope.of(context);
-    s.update(() => s.onboarded = true);
+    final m = _mode(s);
+    s.update(() {
+      s.onboarded = true;
+      s.appMode = m.name;
+    });
     if (widget.pushed && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
@@ -37,12 +49,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final g = gradientsOf(context);
-    final steps = [_welcome(context), _read(context), _goal(context)];
-    final cta = switch (_step) {
-      0 => context.l10n.obBegin,
-      1 => context.l10n.continueLabel,
-      _ => context.l10n.obStartReading,
-    };
+    final s = SettingsScope.of(context);
+    final m = _mode(s);
+    final steps = widget.modeOnly
+        ? [_modes(context)]
+        : [
+            _welcome(context),
+            _modes(context),
+            if (m == AppMode.hifz || m == AppMode.reader) _read(context),
+            _look(context),
+            if (m == AppMode.learn || m == AppMode.write) _goal(context),
+          ];
+    if (_step >= steps.length) _step = steps.length - 1;
+    final last = _step == steps.length - 1;
+    final cta = last
+        ? context.l10n.obStartReading
+        : _step == 0
+            ? context.l10n.obBegin
+            : context.l10n.continueLabel;
     return Scaffold(
       backgroundColor: g.heroFlat,
       body: DecoratedBox(
@@ -63,7 +87,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 8, 18, 0),
                   child: Row(children: [
-                    for (var i = 0; i < 3; i++)
+                    for (var i = 0; i < steps.length; i++)
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         margin: const EdgeInsetsDirectional.only(end: 6),
@@ -117,9 +141,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         shape: const StadiumBorder(),
                         clipBehavior: Clip.antiAlias,
                         child: InkWell(
-                          onTap: () => _step < 2
-                              ? setState(() => _step++)
-                              : _finish(),
+                          onTap: () => last ? _finish() : setState(() => _step++),
                           child: SizedBox(
                             height: 54,
                             child: Center(
@@ -175,8 +197,108 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 textAlign: TextAlign.center,
                 style: uiStyle(context, size: 16, height: 1.55, color: _creamSoft)),
           ),
+          const SizedBox(height: 26),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final (code, label) in const [
+                ('en', 'English'),
+                ('ar', 'العربية'),
+                ('ur', 'اردو'),
+                ('fr', 'Français'),
+                ('es', 'Español'),
+              ])
+                _Pill(
+                  label: label,
+                  selected: SettingsScope.of(context).language == code,
+                  onTap: () {
+                    final s = SettingsScope.of(context);
+                    s.update(() => s.language = code);
+                  },
+                ),
+            ],
+          ),
         ],
       );
+
+  /// The mode: what the app opens to.
+  Widget _modes(BuildContext context) {
+    final s = SettingsScope.of(context);
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      _title(context, context.l10n.obModeTitle, context.l10n.obModeSub),
+      for (final m in AppMode.values)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _Choice(
+            selected: _mode(s) == m,
+            onTap: () => setState(() => _picked = m),
+            child: Row(children: [
+              SizedBox(
+                width: 64,
+                child: Text(m.glyph,
+                    textAlign: TextAlign.center,
+                    textDirection: TextDirection.rtl,
+                    style: const TextStyle(
+                        fontFamily: 'UthmanicHafs', fontSize: 24, height: 1.6, color: _gold)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(m.title(context),
+                      style: uiStyle(context, size: 16, weight: FontWeight.w700, color: _cream)),
+                  const SizedBox(height: 2),
+                  Text(m.subtitle(context),
+                      style: uiStyle(context, size: 13, height: 1.4, color: _creamSoft)),
+                ]),
+              ),
+              const SizedBox(width: 8),
+              _Dot(on: _mode(s) == m),
+            ]),
+          ),
+        ),
+    ]);
+  }
+
+  /// Light, dark or OLED.
+  Widget _look(BuildContext context) {
+    final s = SettingsScope.of(context);
+    Widget choice(String id, String label, Color page, Color ink) => Expanded(
+          child: _Choice(
+            selected: s.appTheme == id,
+            onTap: () => s.update(() {
+              s.appTheme = id;
+              s.mushafPaperDark = 'default';
+            }),
+            child: Column(children: [
+              Container(
+                height: 56,
+                decoration: BoxDecoration(
+                    color: page,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _cream.withValues(alpha: .3))),
+                alignment: Alignment.center,
+                child: Text('بِسۡمِ ٱللَّهِ',
+                    textDirection: TextDirection.rtl,
+                    style: TextStyle(fontFamily: 'UthmanicHafs', fontSize: 18, height: 1.6, color: ink)),
+              ),
+              const SizedBox(height: 8),
+              Text(label, style: uiStyle(context, size: 14, weight: FontWeight.w700, color: _cream)),
+            ]),
+          ),
+        );
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      _title(context, context.l10n.obLookTitle, context.l10n.obLookSub),
+      Row(children: [
+        choice('light', context.l10n.themeLight, const Color(0xFFFBF7EC), const Color(0xFF1D2420)),
+        const SizedBox(width: 10),
+        choice('night', context.l10n.themeDark, const Color(0xFF1B2220), const Color(0xFFE8ECE9)),
+        const SizedBox(width: 10),
+        choice('oled', context.l10n.themeOled, Colors.black, const Color(0xFFE8ECE9)),
+      ]),
+    ]);
+  }
 
   Widget _title(BuildContext context, String t, String sub) => Column(children: [
         Text(t,
@@ -350,6 +472,29 @@ class _Round extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: SizedBox.square(dimension: 54, child: Center(child: child)),
+        ),
+      );
+}
+
+class _Pill extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _Pill({required this.label, required this.selected, required this.onTap});
+  @override
+  Widget build(BuildContext context) => Material(
+        color: selected ? _gold.withValues(alpha: .16) : Colors.transparent,
+        shape: StadiumBorder(
+            side: BorderSide(color: selected ? _gold : _cream.withValues(alpha: .25))),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Text(label,
+                style: uiStyle(context,
+                    size: 14, weight: FontWeight.w600, color: selected ? _gold : _cream)),
+          ),
         ),
       );
 }

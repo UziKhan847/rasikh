@@ -35,6 +35,11 @@ class MushafAtlas {
   final Uint32List tajwidStart;
   final Uint8List tajwidPairs; // (glyph index within word, rule) pairs
 
+  /// Its lines come justified (format 3: the Madani muṣḥaf, set by
+  /// digitalkhatt's engine): a narrow line is meant narrow, so only
+  /// rounding is left to spread.
+  final bool justified;
+
   MushafAtlas._(
     this.upem,
     this.ascender,
@@ -50,6 +55,7 @@ class MushafAtlas {
     this.tokenGap,
     this.tajwidStart,
     this.tajwidPairs,
+    this.justified,
   );
 
   static final Map<String, MushafAtlas> _loaded = {};
@@ -185,7 +191,7 @@ class MushafAtlas {
       return v;
     }
 
-    u16(); // version
+    final version = u16();
     final upem = u16(), asc = i16(), desc = i16();
     final space = u16(); // gaps are stored per token; this is for re-wraps
     final tokenCount = u32();
@@ -253,6 +259,7 @@ class MushafAtlas {
       tokGap,
       tjStart,
       pairs,
+      version >= 3,
     );
   }
 

@@ -4,17 +4,12 @@ import 'package:flutter/services.dart';
 import '../../core/l10n.dart';
 import '../../core/responsive.dart';
 import '../../core/settings.dart';
-import '../../core/theme.dart';
 import '../../ui/app_icons.dart';
-import '../../ui/brand.dart';
-import '../../ui/kit.dart';
 import '../learn_screen.dart';
-import '../marks/hifz_screen.dart';
 import '../mushaf_screen.dart';
 import '../quran_screen.dart';
-import '../settings_screen.dart';
-import '../today_screen.dart';
 import '../tracing_screen.dart';
+import 'app_mode.dart' show openSection;
 
 /// The top-level places of the app.
 enum AppSection { today, quran, mushaf, hifz, learn, trace, settings }
@@ -86,7 +81,10 @@ IconData sectionIcon(AppSection s) => switch (s) {
       AppSection.settings => AppIcons.settings,
     };
 
-/// The app shell: bottom tabs on a phone, a collapsible sidebar on desktop.
+/// The app shell: the chosen mode's home, full screen, on every layout —
+/// the muṣḥaf (Hifẓ), the reader, the learning modules or the tracing
+/// studio. Everything else is a tap away from its settings button (long
+/// press: the mode switcher; see app_mode.dart).
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
   @override
@@ -94,8 +92,6 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  AppSection _section = AppSection.today;
-  final Set<AppSection> _visited = {AppSection.today};
   final _focus = ValueNotifier(false);
 
   @override
@@ -127,361 +123,25 @@ class _AppShellState extends State<AppShell> {
     return true;
   }
 
-  void _go(AppSection s) {
-    if (s == AppSection.mushaf && !useDesktop(context)) {
-      openMushaf(context);
-      return;
-    }
-    setState(() {
-      _section = s;
-      _visited.add(s);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    final desktop = useDesktop(context);
-    return ShellScope(
-      go: _go,
-      focus: _focus,
-      child: desktop ? _desktop(context) : _mobile(context),
-    );
-  }
-
-  // ── phone ──
-
-  static const _tabs = [
-    AppSection.today,
-    AppSection.quran,
-    AppSection.mushaf,
-    AppSection.hifz,
-    AppSection.learn,
-    AppSection.trace,
-  ];
-
-  Widget _mobileRoot(AppSection s) => switch (s) {
-        AppSection.today => const TodayScreen(),
-        AppSection.quran => const SurahListScreen(embedded: true),
-        AppSection.learn => const LearnScreen(),
-        AppSection.trace => const TracingScreen(),
-        AppSection.settings => const SettingsScreen(),
-        AppSection.mushaf => const SizedBox.shrink(),
-        AppSection.hifz => const HifzScreen(),
-      };
-
-  Widget _mobile(BuildContext context) {
-    // Settings is not a tab on the phone: Today's cog pushes it.
-    final current = _section == AppSection.settings ? AppSection.today : _section;
-    return Scaffold(
-      body: IndexedStack(
-        index: _tabs.indexOf(current),
-        children: [
-          // TickerMode: IndexedStack keeps hidden tabs alive, and without it
-          // their animations (e.g. the tracing board's pulse) kept running
-          // and redrawing every frame from any other tab.
-          for (final t in _tabs)
-            TickerMode(
-              enabled: t == current,
-              child: _visited.contains(t)
-                  ? _mobileRoot(t)
-                  : const SizedBox.shrink(),
-            ),
-        ],
-      ),
-      bottomNavigationBar: _TabBar(current: current, onTap: _go),
-    );
-  }
-
-  // ── desktop ──
-
-  Widget _desktopRoot(AppSection s) => switch (s) {
-        AppSection.today => const TodayScreen(),
-        AppSection.quran => const SurahListScreen(),
-        // read, not of: the shell must not rebuild on every progress change.
-        AppSection.mushaf => MushafPageScreen(
-            startPage: ProgressScope.read(context).lastMushafPage ?? 1,
-            pageScript: ProgressScope.read(context).lastMushafScript),
-        AppSection.hifz => const HifzScreen(),
-        AppSection.learn => const LearnScreen(),
-        AppSection.trace => const TracingScreen(),
-        AppSection.settings => const SettingsScreen(),
-      };
-
-  // One Navigator per section, built once: a new Navigator widget on every
-  // shell build made each of them rebuild every page it holds.
-  final Map<AppSection, Widget> _navigators = {};
-
-  Widget _navigatorFor(AppSection t) => _navigators[t] ??= Navigator(
-        key: ValueKey('nav-$t'),
-        onGenerateRoute: (_) =>
-            MaterialPageRoute(builder: (_) => _desktopRoot(t)),
-      );
-
-  Widget _desktop(BuildContext context) {
-    final p = pal(context);
     final s = SettingsScope.of(context);
-    return ValueListenableBuilder<bool>(
-      valueListenable: _focus,
-      builder: (context, focus, _) => _desktopBody(context, p, s, focus),
-    );
-  }
-
-  Widget _desktopBody(
-      BuildContext context, Palette p, AppSettings s, bool focus) {
-    final collapsed = s.sidebarCollapsed || focus;
-    return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
-        top: false,
-        child: Row(children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            width: collapsed ? 0 : 248,
-            child: ClipRect(
-              child: OverflowBox(
-                alignment: AlignmentDirectional.centerStart,
-                minWidth: 248,
-                maxWidth: 248,
-                child: _Sidebar(
-                  current: _section,
-                  onGo: _go,
-                  onHide: () => s.update(() => s.sidebarCollapsed = true),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Stack(children: [
-              Positioned.fill(
-                child: IndexedStack(
-                  index: AppSection.values.indexOf(_section),
-                  children: [
-                    for (final t in AppSection.values)
-                      TickerMode(
-                        enabled: t == _section,
-                        child: _visited.contains(t)
-                            ? _navigatorFor(t)
-                            : const SizedBox.shrink(),
-                      ),
-                  ],
-                ),
-              ),
-              if (collapsed && !focus)
-                PositionedDirectional(
-                  start: 16,
-                  bottom: 16,
-                  child: QIconButton(
-                    icon: AppIcons.sidebarShow,
-                    size: 44,
-                    tooltip: context.l10n.showSidebar,
-                    onTap: () => s.update(() => s.sidebarCollapsed = false),
-                  ),
-                ),
-            ]),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
-/// The phone's bottom tab bar: Today · Reader · Muṣḥaf · Learn · Trace.
-class _TabBar extends StatelessWidget {
-  final AppSection current;
-  final void Function(AppSection) onTap;
-  const _TabBar({required this.current, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final p = pal(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: p.card,
-        border: Border(top: BorderSide(color: p.line2)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 62,
-          child: Row(children: [
-            for (final t in _AppShellState._tabs)
-              Expanded(
-                child: Semantics(
-                  selected: t == current,
-                  button: true,
-                  label: sectionLabel(context, t),
-                  child: InkWell(
-                    onTap: () => onTap(t),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(sectionIcon(t),
-                            size: 22, color: t == current ? p.acc : p.ink3),
-                        const SizedBox(height: 4),
-                        Text(sectionLabel(context, t),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: uiStyle(context,
-                                size: 11,
-                                weight: FontWeight.w700,
-                                color: t == current ? p.acc : p.ink3)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
-/// The desktop sidebar: logo and wordmark, the hide button, the main nav,
-/// Settings, and a streak card at the bottom.
-class _Sidebar extends StatelessWidget {
-  final AppSection current;
-  final void Function(AppSection) onGo;
-  final VoidCallback onHide;
-  const _Sidebar(
-      {required this.current, required this.onGo, required this.onHide});
-
-  @override
-  Widget build(BuildContext context) {
-    final p = pal(context);
-    final g = gradientsOf(context);
-    final on = gradientsOn(context);
-    return Container(
-      width: 248,
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 18),
-      decoration: BoxDecoration(
-        color: on ? null : g.sideFlat,
-        gradient: on
-            ? LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: g.side)
-            : null,
-        border: BorderDirectional(end: BorderSide(color: p.line)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsetsDirectional.only(start: 8),
-            child: Row(children: [
-              const AppLogoTile(),
-              const SizedBox(width: 12),
-              const Expanded(child: AppWordmark()),
-              QIconButton(
-                icon: AppIcons.phone,
-                size: 32,
-                iconSize: 18,
-                border: false,
-                color: Colors.transparent,
-                tooltip: '${context.l10n.switchToPhoneLayout} (Ctrl+Shift+L)',
-                onTap: () => toggleLayout(context),
-              ),
-              QIconButton(
-                icon: AppIcons.sidebarHide,
-                size: 32,
-                iconSize: 18,
-                border: false,
-                color: Colors.transparent,
-                tooltip: context.l10n.hideSidebar,
-                onTap: onHide,
-              ),
-            ]),
-          ),
-          const SizedBox(height: 26),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                for (final s in const [
-                  AppSection.today,
-                  AppSection.quran,
-                  AppSection.mushaf,
-                  AppSection.hifz,
-                  AppSection.learn,
-                  AppSection.trace,
-                  AppSection.settings,
-                ])
-                  _item(context, s),
-              ],
-            ),
-          ),
-          _StreakCard(),
-        ],
-      ),
-    );
-  }
-
-  Widget _item(BuildContext context, AppSection s) {
-    final p = pal(context);
-    final on = s == current;
-    final label = s == AppSection.trace
-        ? context.l10n.tracingStudio
-        : sectionLabel(context, s);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Material(
-        color: on ? p.accSoft : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => onGo(s),
-          child: SizedBox(
-            height: 44,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(children: [
-                Icon(sectionIcon(s), size: 20, color: on ? p.accInk : p.ink2),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: uiStyle(context,
-                          size: 14.5,
-                          weight: on ? FontWeight.w700 : FontWeight.w600,
-                          color: on ? p.accInk : p.ink)),
-                ),
-              ]),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StreakCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final p = pal(context);
-    final prog = ProgressScope.of(context);
-    final days = prog.streakDays < 0 ? 0 : prog.streakDays;
-    return QCard(
-      padding: const EdgeInsets.all(14),
-      radius: 16,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Icon(AppIcons.streak, size: 16, color: const Color(0xFFD9622B)),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(context.l10n.streakDaysLabel(days),
-                  style: uiStyle(context, size: 14, weight: FontWeight.w700)),
-            ),
-          ]),
-          const SizedBox(height: 4),
-          Text(days == 0 ? context.l10n.streakStart : context.l10n.streakKeep,
-              style: uiStyle(context, size: 12.5, color: p.ink3)),
-        ],
-      ),
+    // read, not of: the home must not rebuild on every progress change.
+    final prog = ProgressScope.read(context);
+    final Widget home = switch (s.mode ?? AppMode.reader) {
+      AppMode.hifz => MushafPageScreen(
+          key: const ValueKey('home-mushaf'),
+          home: true,
+          startPage: prog.lastMushafPage ?? 1,
+          pageScript: prog.lastMushafScript),
+      AppMode.reader => const SurahListScreen(key: ValueKey('home-reader')),
+      AppMode.learn => const LearnScreen(key: ValueKey('home-learn')),
+      AppMode.write => const TracingScreen(key: ValueKey('home-write')),
+    };
+    return ShellScope(
+      go: (sec) => openSection(context, sec),
+      focus: _focus,
+      child: home,
     );
   }
 }

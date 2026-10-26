@@ -18,7 +18,6 @@ import '../tracing_screen.dart';
 /// The seven learning modules, as the Learn hub and Today's Explore tiles
 /// show them: an Arabic glyph on a hue-tinted tile (OKLCH hue degrees, as in
 /// the prototype), a title, a one-line description and an optional tag.
-/// [nabr] shows only while [AppSettings.nabrShown] (see [shown]).
 enum LearnModule { qaidah, tajwid, tashkil, script, tracing, coach, nabr, qiraat }
 
 extension LearnModuleInfo on LearnModule {
@@ -44,12 +43,13 @@ extension LearnModuleInfo on LearnModule {
         LearnModule.qiraat => 50,
       };
 
-  bool get soon => this == LearnModule.qiraat;
+  /// Shown, but not open yet: Qirāʾāt's content is being reviewed, Nabr
+  /// comes later ([kNabrEnabled]).
+  bool get soon =>
+      this == LearnModule.qiraat || (this == LearnModule.nabr && !kNabrEnabled);
 
-  /// Whether the module is offered at all: Nabr only once it ships, or for
-  /// its reviewers.
-  bool shown(BuildContext context) =>
-      this != LearnModule.nabr || SettingsScope.of(context).nabrShown;
+  /// Whether the module is offered at all (every one is, for now).
+  bool shown(BuildContext context) => true;
 
   String title(BuildContext context) => switch (this) {
         LearnModule.qaidah => context.l10n.qaidahPath,
@@ -86,9 +86,13 @@ extension LearnModuleInfo on LearnModule {
       };
 
   void open(BuildContext context) {
-    // The Qirāʾāt Hall's content is still being reviewed.
+    // Not open yet (see [soon]).
     if (soon) {
-      showQToast(context, context.l10n.comingSoonNamed(title(context)));
+      showQToast(
+          context,
+          this == LearnModule.nabr
+              ? context.l10n.nbFuture
+              : context.l10n.comingSoonNamed(title(context)));
       return;
     }
     Navigator.of(context)

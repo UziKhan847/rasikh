@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'qiraah_icons.dart';
 
 /// Every icon the app shows, by what it is for.
@@ -111,6 +112,8 @@ abstract final class AppIcons {
   static const review = QiraahIcons.review;
   static const cards = QiraahIcons.cards;
   static const memorize = QiraahIcons.memorize;
+  // A Material stand-in until a Qiraah glyph is drawn (docs/icons_needed.md).
+  static const eraser = Icons.cleaning_services_outlined;
   static const show = QiraahIcons.show;
   static const nextVerse = QiraahIcons.nextVerse;
   static const prevVerse = QiraahIcons.prevVerse;

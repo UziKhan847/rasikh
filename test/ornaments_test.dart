@@ -22,8 +22,23 @@ Future<AppSettings> _from(Map<String, Object?> saved) async {
   return s;
 }
 
+/// Skips what only the muṣḥaf customisation decides (off for now).
+final _custom = kMushafCustomization ? null : 'the muṣḥaf look is fixed (kMushafCustomization)';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('the one minimal look, while customisation is off', () async {
+    final s = await _from({'orHeader': 'tile1', 'orBorder': 'tile1'});
+    for (final script in ['uthmani', 'indopak']) {
+      final l = s.mushafLook(script, focus: false);
+      expect((l.edge, l.border, l.margin, l.head), (true, 'none', 'none', 'inside'),
+          reason: script);
+    }
+    s.lite = true;
+    final lite = s.mushafLook('uthmani');
+    expect((lite.header, lite.marker), ('plain', 'font'));
+  }, skip: !kMushafCustomization ? null : 'customisation is on');
 
   group('each script\'s own look', () {
     test('from before looks were per script: each script\'s default look',
@@ -38,7 +53,7 @@ void main() {
           ('indopak', 'indopak', 'indopak', 'text', 'edges'));
       expect((s.styleFor('uthmani').paper, s.styleFor('indopak').paper),
           ('cream', 'mono'));
-    });
+    }, skip: _custom);
 
     test('the old printed Madani default moves to the new one; a choice '
         'stays', () async {
@@ -65,7 +80,7 @@ void main() {
           MushafGeometry.chromeW(roomy: true, look: l),
           lessThan(MushafGeometry.chromeW(
               roomy: true, look: s.mushafLook('indopak', focus: false))));
-    });
+    }, skip: _custom);
 
     test('a change to one script leaves the other', () async {
       final s = await _from({});
@@ -162,7 +177,7 @@ void main() {
       expect((focus.header, focus.border, focus.margin),
           ('plain', 'none', 'none'));
       expect(s.mushafLook('uthmani', focus: false).border, 'tile1');
-    });
+    }, skip: _custom);
 
     test('each artwork border has its own band, and tuning scales it', () {
       const fs = 30.0;

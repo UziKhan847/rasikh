@@ -38,6 +38,8 @@ The side-by-side pages are in `out/page_<n>.png`.
 
 ## If adopted: building it into the app
 
+*Adopted: the Madani atlas is built this way (the app keeps its spaces and only spreads rounding; narrow lines stay narrow). The notes below are the plan as it was.*
+
 1. **Atlas.** `tool/mushaf_atlas/gen_atlas.py` gets a `madina` config.
    - It reads `out/lines.json` and shapes each token with its characters' features, `madina.otf` and `cluster_level` characters.
    - Glyph clusters map back through the U+034F insertions to our token's characters, so `char_rules` (tajwīd) keeps working.

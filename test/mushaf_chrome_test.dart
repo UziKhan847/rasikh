@@ -93,30 +93,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(_barOpacity(tester), 1);
 
-    // Cream → white → Madani → mono → night → night mono → OLED → OLED
-    // mono → cream.
+    // The button cycles the brightness: light → dark → OLED → light (the
+    // paper cycle is the muṣḥaf customisation's, off for now).
     expect(s.appTheme, 'light');
-    expect(s.mushafPaper, 'cream');
     final colour = find.byTooltip('Page colour');
-    for (final paper in ['white', 'madani', 'tile1', 'tile2', 'tile3']) {
+    final cycle = kMushafCustomization
+        ? const <String>[]
+        : const ['night', 'oled', 'light'];
+    for (final t in cycle) {
       await tester.tap(colour);
       await tester.pump();
-      expect((s.appTheme, s.mushafPaper), ('light', paper));
+      expect(s.appTheme, t);
     }
-    for (final (t, dark) in [
-      ('mono', 'default'),
-      ('night', 'default'),
-      ('night', 'mono'),
-      ('oled', 'default'),
-      ('oled', 'mono'),
-    ]) {
-      await tester.tap(colour);
-      await tester.pump();
-      expect((s.appTheme, s.mushafPaperDark), (t, dark));
-    }
-    await tester.tap(colour);
-    await tester.pump();
-    expect((s.appTheme, s.mushafPaper), ('light', 'cream'));
 
     // Turning the page is remembered for next time.
     await tester.tap(find.byTooltip('Next page'));

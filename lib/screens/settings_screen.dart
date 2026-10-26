@@ -17,6 +17,7 @@ import 'marks/sync_section.dart';
 import 'mushaf/mushaf_style_screen.dart';
 import 'mushaf_screen.dart' show mushafPaperName;
 import 'onboarding_screen.dart';
+import 'shell/app_mode.dart';
 
 /// Settings: theme and style, reading, recitation, learning, the app itself,
 /// your data, and About. Two columns on a wide window.
@@ -63,6 +64,9 @@ class SettingsScreen extends StatelessWidget {
                                 onTap: () => Navigator.of(context).maybePop())
                             : null,
                       ),
+                      // The mode first: what the app opens to, and the
+                      // way to everything else.
+                      _Mode(wide: wide),
                       if (wide)
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,12 +76,26 @@ class SettingsScreen extends StatelessWidget {
                             Expanded(child: Column(children: right)),
                           ],
                         )
-                      else ...[
+                      // Then the current mode's own settings.
+                      else if (const [AppMode.learn, AppMode.write]
+                          .contains(SettingsScope.of(context).mode)) ...[
                         left[0],
+                        right[2],
+                        right[0],
+                        right[1],
                         left[1],
-                        ...right,
                         left[2],
                         left[3],
+                        right[3],
+                      ] else ...[
+                        left[0],
+                        right[0],
+                        right[1],
+                        left[1],
+                        right[2],
+                        left[2],
+                        left[3],
+                        right[3],
                       ],
                       const SizedBox(height: 20),
                       Center(
@@ -246,7 +264,8 @@ class _Style extends StatelessWidget {
               value: s.lite, onChanged: (v) => s.update(() => s.lite = v)),
         ),
         // Ornaments, border, margin and paper: on their own screen, with a
-        // live page to judge them by.
+        // live page to judge them by (while customisation is on).
+        if (kMushafCustomization)
         QRow(
           title: context.l10n.msTitle,
           subtitle: context.l10n.msTitleSub,
@@ -264,6 +283,25 @@ class _Style extends StatelessWidget {
                   s.lite ? null : (v) => s.update(() => s.gradients = v)),
         ),
       ]),
+    ]);
+  }
+}
+
+// ───────────────────────────────────────────────────────── mode
+
+class _Mode extends StatelessWidget {
+  final bool wide;
+  const _Mode({required this.wide});
+
+  @override
+  Widget build(BuildContext context) {
+    final modes = _Section(context.l10n.modeLabel, [const ModeList()]);
+    final also = _Section(context.l10n.alsoInApp, [const AlsoInApp()]);
+    if (!wide) return Column(children: [modes, also]);
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Expanded(child: modes),
+      const SizedBox(width: 32),
+      Expanded(child: also),
     ]);
   }
 }
@@ -286,7 +324,7 @@ class _Reading extends StatelessWidget {
       QGroup(children: [
         // The light theme's papers (seven, with the tiled frames' colours)
         // are chosen on the style screen, beside a live page.
-        if (s.theme == AppTheme.light)
+        if (kMushafCustomization && s.theme == AppTheme.light)
           QRow(
             title: context.l10n.mushafPaper,
             subtitle: mushafPaperName(context, mushafPaperOf(s).id),

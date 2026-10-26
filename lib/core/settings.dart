@@ -30,6 +30,19 @@ const bool kIndopakMushafAvailable = true;
 /// (a long press on the āyah at the end of About).
 const bool kNabrEnabled = false;
 
+/// The muṣḥaf's look can be customised (Muṣḥaf style: frames, headers,
+/// papers, ornaments, tuning). Off for now: every page is the one minimal
+/// look (see [AppSettings.mushafLook]) — the styles and their code are kept.
+const bool kMushafCustomization = false;
+
+/// How the app is used on this device — chosen at first launch, changed in
+/// Settings — and so what it opens to (see screens/shell/app_shell.dart):
+/// - [hifz]: the muṣḥaf, minimal, for memorising and revising;
+/// - [reader]: the reader, to read fluently (the 15-line muṣḥaf a tap away);
+/// - [learn]: the learning modules (Qāʿidah, Tajwīd…);
+/// - [write]: the tracing studio.
+enum AppMode { hifz, reader, learn, write }
+
 /// The marks server a build ships with (see AppSettings.syncServer).
 const String kDefaultSyncServer = String.fromEnvironment('QIRAAH_SYNC_URL');
 
@@ -130,6 +143,17 @@ class AppSettings extends ChangeNotifier {
   /// only its essential controls. A tap still brings the muṣḥaf's bars back.
   bool focusMode = false;
 
+  /// Light → dark (night) → OLED → light: the app's brightness, the muṣḥaf
+  /// on its plain page for each (call inside [update]).
+  void cycleBrightness() {
+    appTheme = switch (appTheme) {
+      'light' || 'mono' => 'night',
+      'night' => 'oled',
+      _ => 'light',
+    };
+    mushafPaperDark = 'default';
+  }
+
   /// Shows the Nabr module before [kNabrEnabled], for its reviewers.
   bool nabrPreview = false;
   bool get nabrShown => kNabrEnabled || nabrPreview;
@@ -143,6 +167,17 @@ class AppSettings extends ChangeNotifier {
   /// juzʼ as text) and — with [focus] — focus mode's bare page.
   MushafLook mushafLook(String script, {bool focus = true}) {
     if (focus && focusMode) return MushafLook(script: script);
+    if (!kMushafCustomization) {
+      // The one look: edge to edge, no frame or margins, the script's own
+      // sūrah headers and āyah markers (plain ones in Lite mode).
+      return MushafLook.resolve(script,
+          header: lite ? 'plain' : 'auto',
+          marker: lite ? 'font' : 'auto',
+          border: 'none',
+          margin: 'none',
+          head: 'inside',
+          edge: true);
+    }
     final st = styleFor(script);
     return MushafLook.resolve(
       script,
@@ -176,6 +211,16 @@ class AppSettings extends ChangeNotifier {
 
   /// The first-launch welcome has been finished or skipped.
   bool onboarded = false;
+
+  /// [AppMode]'s name; '' until one is chosen (an install from before the
+  /// modes chooses once, at its next launch).
+  String appMode = '';
+  AppMode? get mode {
+    for (final m in AppMode.values) {
+      if (m.name == appMode) return m;
+    }
+    return null;
+  }
   String language = 'en'; // en | ar | ur | fr | es
   /// 'arabic' (Fatḥah/Ḍammah/Kasrah/Sukūn…) | 'indopak' (Zabar/Paish/Zair/Jazm…)
   /// — the tashkīl mark names shown app-wide (tashkilName() in
@@ -337,6 +382,7 @@ class AppSettings extends ChangeNotifier {
     liteSuggested = m['liteSuggested'] ?? false;
     // An install from before the welcome existed has already found its way.
     onboarded = m['onboarded'] ?? true;
+    appMode = m['appMode'] as String? ?? '';
     language = m['lang'] ?? 'en';
     // Urdu Qaidah teaching conventionally uses Zabar/Zair/Paish/Jazm, not
     // the Arabic mark names — default accordingly, but stay overridable.
@@ -422,6 +468,7 @@ class AppSettings extends ChangeNotifier {
         'nabrPreview': nabrPreview,
         'liteSuggested': liteSuggested,
         'onboarded': onboarded,
+        'appMode': appMode,
         'lang': language,
         'tashkilTerms': tashkilTerms,
         'wbwGap': wbwGap,

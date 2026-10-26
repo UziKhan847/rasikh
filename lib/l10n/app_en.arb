@@ -2141,5 +2141,119 @@
   "nbWhy": "Why",
   "nbModifiers": "Modifiers",
   "nbDone": "Done",
-  "nbPickAll": "Pick every stressed letter, then Check"
+  "nbPickAll": "Pick every stressed letter, then Check",
+  "nbFuture": "Nabr will be available in a future update, in shāʼ Allāh.",
+  "obModeTitle": "How will you use Qiraah?",
+  "obModeSub": "This becomes your home — change it any time in Settings.",
+  "modeHifz": "Hifẓ & Revision",
+  "modeHifzSub": "Opens to the muṣḥaf: memorise, revise, mark and comment",
+  "modeReader": "Muṣḥaf Reader",
+  "modeReaderSub": "Read fluently, āyah by āyah — the 15-line muṣḥaf a tap away",
+  "modeLearn": "Learning",
+  "modeLearnSub": "The Qāʿidah, Tajwīd and more, step by step",
+  "modeWrite": "Writing",
+  "modeWriteSub": "Trace the letters and words, the right way",
+  "obLookTitle": "Appearance",
+  "obLookSub": "You can change it later.",
+  "themeDark": "Dark",
+  "modeLabel": "Mode",
+  "modeLabelSub": "What the app opens to",
+  "alsoInApp": "Also in the app",
+  "modeNow": "The app now opens to {mode}",
+  "@modeNow": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "modeSwitch": "Switch mode",
+  "hzEraser": "Eraser",
+  "hzView": "View",
+  "hzAudioHint": "Tap a word to hear it, a ۝ for its āyah",
+  "hzCommentHint": "Tap a word for its comments",
+  "hzEraserHint": "Tap a word to wipe its marks · hold the eraser for the page",
+  "hzErasePage": "Clear page",
+  "hzErasePageQ": "Erase every mark and comment on this page?",
+  "hzNothingToErase": "Nothing marked here",
+  "hzErased": "{n} {n, plural, =1{mark} other{marks}} erased",
+  "@hzErased": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "hzColouring": "Colouring",
+  "hzOff": "Off",
+  "hzNabr": "Nabr",
+  "hzUndo": "Undo",
+  "idxPageOrSearch": "Page, or words to search",
+  "idxNoResults": "Nothing found",
+  "idxResults": "{n} {n, plural, =1{āyah} other{āyāt}}",
+  "@idxResults": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "rsText": "Text",
+  "rsMore": "More",
+  "@rsText": {
+    "description": "Reader options sheet: the section for the Arabic text's script, size and colouring"
+  },
+  "@rsMore": {
+    "description": "Reader options sheet: a folded group of rarely changed options"
+  },
+  "pathTitle": "Step by step",
+  "@pathTitle": {
+    "description": "Learning: the step-by-step path through the letters and the Qāʿidah"
+  },
+  "pathLead": "One thing at a time: the letters, then the Qāʿidah — with a short quiz after every six.",
+  "@pathLead": {
+    "description": "The step-by-step path's opening line"
+  },
+  "pathQuiz": "Quiz {n}",
+  "@pathQuiz": {
+    "description": "A quiz on the path, numbered",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "pathQuizSub": "On the last {n} steps",
+  "@pathQuizSub": {
+    "description": "Under a path quiz: how many steps it asks about",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "pathContinue": "Continue",
+  "@pathContinue": {
+    "description": "Button: go on to the next step of the path"
+  },
+  "pathDone": "You have finished the path. Every step stays open to revisit.",
+  "@pathDone": {
+    "description": "Shown when every step of the path is done"
+  },
+  "pathStepOf": "Step {n} of {total}",
+  "@pathStepOf": {
+    "description": "Learn hub: the path's next step number",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "traceMoreWords": "More words are coming.",
+  "@traceMoreWords": {
+    "description": "Tracing, under a word level's words: more will be added"
+  }
 }

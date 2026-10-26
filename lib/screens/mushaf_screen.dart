@@ -30,7 +30,7 @@ import 'marks/review_bar.dart';
 import 'marks/review_cards_screen.dart';
 import '../ui/ornaments/ornaments.dart';
 import '../ui/tajwid_colors.dart';
-import '../data/divisions.dart' show manzilOf, rukuCountOf;
+import '../data/divisions.dart' show Division, manzilOf, rukuCountOf;
 import '../data/page_details.dart';
 import '../data/mushaf.dart';
 import '../data/quran.dart';
@@ -42,7 +42,10 @@ import 'marks/marking_bar.dart';
 import 'marks/mutashabihat_screen.dart';
 import 'marks/word_marks_sheet.dart';
 import 'mushaf/mushaf_line.dart';
+import 'shell/app_mode.dart' show openSection, showModeSheet;
 import 'shell/app_shell.dart';
+
+part 'mushaf/hifz_chrome.dart';
 
 /// 📖 True 15-line Muṣḥaf — page-for-page and line-for-line with the printed
 /// QUL/DigitalKhatt layout, in Madani (Uthmānī) *and* Indo-Pak scripts.
@@ -76,8 +79,13 @@ class MushafPageScreen extends StatefulWidget with DesktopAware {
 
   /// Memorizing to carry on with (from the memorize verse cards).
   final MemorizeController? memorize;
+
+  /// The app's home (Hifẓ mode): nothing to close back to; the Hifẓ
+  /// toolbar (see [_hifzBody]).
+  final bool home;
   const MushafPageScreen(
       {super.key,
+      this.home = false,
       this.startPage = 1,
       this.script,
       this.pageScript,
@@ -134,6 +142,12 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   bool _landscape = false;
   String _script = 'uthmani';
   int _page = 1;
+
+  /// Hifẓ mode's word tool (comment, eraser, audio), when one is on.
+  _HifzTool _hifzTool = _HifzTool.none;
+
+  /// setState, for the Hifẓ chrome (an extension: see hifz_chrome.dart).
+  void _update(VoidCallback f) => setState(f);
   int _total = 604;
   int _curSurah = 1;
   Map<int, String> _names = {};
@@ -461,6 +475,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       },
       child: bar);
 
+  /// Whether a tap reveals while memorizing (Settings) — never in the Hifẓ
+  /// home, whose memorize is all buttons (a tap plays the word).
+  bool _tapReveals(AppSettings s) => !widget.home && s.memorizeTapReveals;
+
   /// One hand: the thumb pad in its corner, above [bar].
   ///
   /// [enabled] false: [bar] alone (focus mode's docked bar, under its pill
@@ -468,7 +486,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   Widget _withPad(MushafPaper paper, Widget bar, {bool enabled = true}) {
     final s = SettingsScope.of(context);
     final m = _memo;
-    if (m == null || !s.memorizePad || !enabled) return bar;
+    if (m == null || !s.memorizePad || !enabled || widget.home) return bar;
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Align(
         alignment: s.memorizePadSide == 'left'
@@ -505,7 +523,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         compact: compact,
         vertical: vertical,
         screen: _screenOf(_pendingPage ?? _page),
-        onPlay: _playRevealed,
+        // The Hifẓ home's Play: everything showing on the page.
+        onPlay: widget.home ? () => _playRevealed(page: true) : _playRevealed,
         onPlayPage: () => _playRevealed(page: true),
         onSwitchView: _memorizeAsCards,
         onEnd: _endMemorize,
@@ -564,7 +583,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   void _memoHold(MushafWord wd) {
     if (_memoShows(wd)) {
       _showWord(wd);
-    } else if (SettingsScope.of(context).memorizeTapReveals) {
+    } else if (_tapReveals(SettingsScope.of(context))) {
       _memoTap(wd);
     }
   }
@@ -787,7 +806,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   // ── pages ──────────────────────────────────────────────────────────────
 
-  bool get _desktop => useDesktop(context);
+  // The Hifẓ home lays itself out (pages and toolbar) on every screen.
+  bool get _desktop => !widget.home && useDesktop(context);
   String _view(AppSettings s) => _desktop ? s.mushafView : 'single';
 
   /// Desktop spreads pair pages like the open book: 1|2, 3|4 … with the
@@ -1039,12 +1059,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     if (DateTime.now().difference(_lastWordTap).inMilliseconds < 250) return;
     // Linking: the page stays as it is (taps are for words and ۝).
     if (_linking != null) return;
+    // The Hifẓ home keeps its toolbar.
+    if (widget.home && !_memorizing) return;
     // While marking, the pen bar stays put: a near-miss on a word must not
     // hide it.
     if (_memorizing) {
       // The page itself: a step by its zone when taps reveal; else nothing
       // (the bars stay put, the words wait for the bar's buttons).
-      if (SettingsScope.of(context).memorizeTapReveals) _memoStep();
+      if (_tapReveals(SettingsScope.of(context))) _memoStep();
       return;
     }
     if (_marking.active || _reviewing) return;
@@ -1074,7 +1096,13 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// Cream → white → Madani → mono → night → night mono → OLED → OLED mono,
   /// setting the app theme as it goes (cream, white and Madani are the light
   /// theme; the mono pages of night and OLED are theirs).
+  ///
+  /// Without customisation ([kMushafCustomization]): light → dark → OLED.
   void _cyclePaper(AppSettings s) {
+    if (!kMushafCustomization) {
+      s.update(s.cycleBrightness);
+      return;
+    }
     const light = ['cream', 'white', 'madani', 'tile1', 'tile2', 'tile3'];
     const order = [
       ...light, 'mono', //
@@ -1401,6 +1429,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         backgroundColor: _look(s).edge ? paper.paper : paper.bg,
         body: _withLinkBar(paper, !_ready
             ? Center(child: CircularProgressIndicator(color: paper.acc))
+            : widget.home
+                ? _hifzBody(context, s, paper)
             : desktop
                 ? _desktopBody(context, s, paper)
                 : LayoutBuilder(builder: (context, c) {
@@ -1511,17 +1541,21 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       // Reviewing: a tap plays the word (any word on the page), holding it
       // opens its sheet.
       ..onTapWord = _memorizing
-          ? (s.memorizeTapReveals ? _memoTap : _memoPlayWord)
+          ? (_tapReveals(s) ? _memoTap : _memoPlayWord)
           : (_marking.active ? _markWord : _playWordAudio)
       ..onLongPressWord = _memorizing
           ? _memoHold
           : (_marking.active || _reviewing ? _showWord : _playAndShowWord)
       ..onTapVerse = _memorizing
-          ? (s.memorizeTapReveals ? ((_) => _memoStep()) : _memoPlayVerse)
+          ? (_tapReveals(s) ? ((_) => _memoStep()) : _memoPlayVerse)
           : _onTapVerse
       // Holding a ۝: the whole āyah's sheet, to mark it (memorizing: once
       // it shows).
       ..onLongPressVerse = _memorizing ? _memoHold : _showWord;
+    // The Hifẓ home: the word tool's taps (comment, eraser, audio, or none).
+    if (widget.home && !_memorizing && !_marking.active && !_reviewing) {
+      _hifzHandlers();
+    }
     // Link mode: words and ۝ link (or unlink) whatever else is on.
     if (_linking != null) {
       WordRef word(MushafWord wd) => WordRef.fromGlobal(wd.ayah, wd.wordIdx);
@@ -2981,6 +3015,7 @@ class _MushafSettingsSheet extends StatelessWidget {
                 value: s.mushafTajwid,
                 onChanged: (v) => s.update(() => s.mushafTajwid = v)),
           ),
+          if (kMushafCustomization) ...[
           QRow(
             title: context.l10n.pageHeader,
             control: QSwitch(
@@ -2994,6 +3029,7 @@ class _MushafSettingsSheet extends StatelessWidget {
                 value: s.styleFor(script).edge,
                 onChanged: (v) => s.update(() => s.styleFor(script).edge = v)),
           ),
+          ],
           if (MarksScope.maybeOf(context)?.activeBook != null)
             QRow(
               leading: Icon(AppIcons.link, color: pal(context).acc),
@@ -3002,6 +3038,8 @@ class _MushafSettingsSheet extends StatelessWidget {
               chevron: true,
               onTap: () => pushAdaptive(context, const MutashabihatScreen()),
             ),
+          // Customisation (off for now, kMushafCustomization).
+          if (kMushafCustomization) ...[
           QRow(
             title: context.l10n.msTitle,
             subtitle: context.l10n.msTitleSub,
@@ -3025,6 +3063,7 @@ class _MushafSettingsSheet extends StatelessWidget {
                 onChanged: (v) =>
                     s.update(() => s.orMargin = v ? 'auto' : 'none')),
           ),
+          ],
           QRow(
             title: context.l10n.liteMode,
             subtitle: context.l10n.liteModeSub,

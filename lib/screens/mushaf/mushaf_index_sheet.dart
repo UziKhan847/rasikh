@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/l10n.dart';
 import '../../core/marks/marks_index.dart';
@@ -10,6 +9,7 @@ import '../../core/settings.dart';
 import '../../core/theme.dart';
 import '../../data/divisions.dart';
 import '../../data/mushaf.dart';
+import '../../data/mushaf_search.dart';
 import '../../data/quran.dart';
 import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
@@ -167,6 +167,85 @@ class _MushafIndexState extends State<MushafIndex>
         Division.ruku => context.l10n.idxRuku,
       };
 
+  /// Words in the field (not a page number): the search shows instead of
+  /// the tabs.
+  bool get _searching {
+    final t = _field.text.trim();
+    return t.length >= 2 && int.tryParse(t) == null;
+  }
+
+  /// The āyāt containing the words (Arabic), or the sūrahs by name.
+  Widget _results(BuildContext context) {
+    final p = pal(context);
+    final q = _field.text.trim();
+    final latin = !RegExp('[\u0600-\u06FF]').hasMatch(q);
+    final surahs = [
+      for (final m in _meta)
+        if (latin && m.tname.toLowerCase().contains(q.toLowerCase())) m
+    ];
+    final hits = latin ? const <MushafHit>[] : searchMushaf(widget.script, q);
+    if (surahs.isEmpty && hits.isEmpty) {
+      return Center(
+          child: Text(context.l10n.idxNoResults,
+              style: uiStyle(context, size: 14, color: p.ink3)));
+    }
+    return ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 24), children: [
+      for (final m in surahs)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: QCard(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            onTap: () => _pick(Division.surah, m.n, _firstPage(Division.surah, m.n)),
+            child: Row(children: [
+              Expanded(
+                  child: Text('${m.n}. ${m.tname}',
+                      style: uiStyle(context, size: 15, weight: FontWeight.w700))),
+              Text(m.name,
+                  textDirection: TextDirection.rtl,
+                  style: const TextStyle(fontFamily: 'SurahNames', fontSize: 22)),
+            ]),
+          ),
+        ),
+      if (hits.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(context.l10n.idxResults(hits.length),
+              style: uiStyle(context, size: 12.5, color: p.ink3)),
+        ),
+      for (final h in hits)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: QCard(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            onTap: () {
+              final start = widget.onStart;
+              if (start != null) {
+                start(MushafRepo.tokenOf(widget.script, h.ayah, 0));
+              } else {
+                widget.onPage(MushafRepo.pageForGlobalAyah(widget.script, h.ayah));
+              }
+            },
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text(
+                  '${h.surah - 1 < _meta.length ? _meta[h.surah - 1].tname : ''} '
+                  '${h.surah}:${h.ayahInSurah}',
+                  style: uiStyle(context, size: 12.5, weight: FontWeight.w700, color: p.accInk)),
+              Text(h.text,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textDirection: TextDirection.rtl,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                      fontFamily: MushafRepo.fontFamily(widget.script),
+                      fontSize: 20,
+                      height: 1.9,
+                      color: p.ink)),
+            ]),
+          ),
+        ),
+    ]);
+  }
+
   void _go() {
     final n = int.tryParse(_field.text.trim());
     if (n == null || n < 1 || n > _pages) return;
@@ -225,14 +304,15 @@ class _MushafIndexState extends State<MushafIndex>
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Row(children: [
               Expanded(
+                // A page number goes there; words search the text (and
+                // the sūrah names).
                 child: TextField(
                   controller: _field,
-                  keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.go,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  onChanged: (_) => setState(() {}),
                   onSubmitted: (_) => _go(),
                   decoration: InputDecoration(
-                      labelText: context.l10n.goToPage,
+                      labelText: context.l10n.idxPageOrSearch,
                       hintText: context.l10n.pageNumberHint(_pages)),
                 ),
               ),
@@ -240,6 +320,9 @@ class _MushafIndexState extends State<MushafIndex>
               QPrimaryButton(context.l10n.go, onTap: _go),
             ]),
           ),
+          if (_searching)
+            Expanded(child: _results(context))
+          else ...[
           TabBar(
             controller: _tab,
             isScrollable: true,
@@ -257,6 +340,7 @@ class _MushafIndexState extends State<MushafIndex>
               ],
             ),
           ),
+          ],
         ]);
       },
     );
