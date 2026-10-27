@@ -271,7 +271,7 @@ void _exportLocale(_Export x, BuildContext ctx, String loc) {
   // ── Qāʿidah path ──
   top('qaidah', l.qaidahPath);
   final qRoots = <String, LessonNode Function()>{
-    'qaidah.forms': () => formsLessonRoot(ctx),
+    'qaidah.forms': () => specialShapesLessonRoot(ctx),
     'qaidah.harakat': () => harakatLessonRoot(ctx),
     'qaidah.tanwin': () => tanwinLessonRoot(ctx),
     'qaidah.sukun': () => sukunLessonRoot(ctx),
@@ -281,6 +281,9 @@ void _exportLocale(_Export x, BuildContext ctx, String loc) {
     'qaidah.muqattaat': () => muqattaatLessonRoot(ctx),
     'qaidah.review': () => reviewLessonRoot(ctx),
   };
+  // The letters, taught family by family (lib/learn/qaidah): their data.
+  sub('qaidah.letters', 'qaidah', l.qcSectionLetters);
+  _letters(x, ctx, loc, 'qaidah.letters');
   for (final (i, u) in qaidahUnits(ctx).indexed) {
     final sec = u.progressId;
     sub(sec, 'qaidah', '${i + 1} · ${u.title}');
@@ -291,7 +294,6 @@ void _exportLocale(_Export x, BuildContext ctx, String loc) {
       ..arabic = u.arabicBadge;
     final root = qRoots[u.progressId];
     if (root != null) x.lesson(root(), sec, loc, const []);
-    if (u.progressId == 'qaidah.letters') _letters(x, ctx, loc, sec);
     if (u.progressId == 'qaidah.words') {
       for (final (ar, tr) in quranWords) {
         x.item('word:$tr', 'word', sec, const [])
