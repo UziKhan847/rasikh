@@ -75,6 +75,11 @@ class LetterAudio {
   /// "coming soon" message instead of leaving a silent tap unexplained.
   /// Never throws: a failed play is a missing sound, not a crash in the
   /// middle of a lesson.
+  /// Whether a recording of [text] is bundled (lessons offer listening
+  /// only where one is).
+  static Future<bool> has(String text, {String variant = adult}) =>
+      log != null ? Future.value(true) : _bundled(assetPath(text, variant));
+
   static Future<bool> play(ArabicLetter letter, {String variant = adult}) =>
       playRaw(letter.char, variant: variant);
 

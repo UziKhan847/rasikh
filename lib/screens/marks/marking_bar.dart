@@ -20,6 +20,10 @@ class MarkingBar extends StatelessWidget {
 
   /// Floating pill (desktop / landscape) vs. a full-width bar.
   final bool floating;
+
+  /// Set: the Hifẓ home's slot — one dense row (its caption in a tooltip)
+  /// or a column beside the pages. Unset: caption over the controls.
+  final Axis? axis;
   const MarkingBar({
     super.key,
     required this.controller,
@@ -32,6 +36,7 @@ class MarkingBar extends StatelessWidget {
     required this.onEnd,
     required this.onUndo,
     this.floating = false,
+    this.axis,
   });
 
   @override
@@ -103,6 +108,56 @@ class MarkingBar extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
         );
+        if (axis == Axis.horizontal) {
+          return FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Tooltip(
+                message: title.isEmpty ? hint : '$title — $hint',
+                triggerMode: TooltipTriggerMode.tap,
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(AppIcons.info, size: 20, color: sub),
+                ),
+              ),
+              Directionality(textDirection: TextDirection.ltr, child: cycle),
+              const SizedBox(width: 4),
+              actions,
+            ]),
+          );
+        }
+        if (axis == Axis.vertical) {
+          // Down the side: mistake at the top, each next step under it.
+          return Column(mainAxisSize: MainAxisSize.min, children: [
+            caption,
+            const SizedBox(height: 10),
+            for (final (i, t) in MarkType.pens.indexed) ...[
+              if (i > 0) Icon(AppIcons.chevronDown, size: 14, color: sub),
+              _CycleStep(
+                type: t,
+                current: controller.tapped && t == last,
+                pal: pal,
+                ring: ink,
+                tooltip: markTypeLabel(context, t),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Container(height: 1, width: 40, color: line),
+            IconButton(
+              tooltip: context.l10n.mkUndo,
+              onPressed: controller.canUndo ? onUndo : null,
+              icon: Icon(AppIcons.undo,
+                  color: controller.canUndo ? ink : sub.withValues(alpha: .5)),
+            ),
+            TextButton(
+              onPressed: onEnd,
+              style: TextButton.styleFrom(foregroundColor: accent),
+              child: Text(context.l10n.mkEnd,
+                  style: uiStyle(context,
+                      size: 14, weight: FontWeight.w700, color: accent)),
+            ),
+          ]);
+        }
         final body = Column(mainAxisSize: MainAxisSize.min, children: [
           caption,
           const SizedBox(height: 4),

@@ -4,16 +4,21 @@ import 'package:path_provider/path_provider.dart';
 
 import 'marks_persistence.dart';
 
-MarksPersistence create() => _FileMarksPersistence();
+MarksPersistence create(String dir) => _FileMarksPersistence(dir);
 
-/// `<application support>/marks/`. Not the documents directory: on Linux and
-/// Windows that is the user's own ~/Documents folder.
+/// `<application support>/marks/` (another profile's: `profiles/<id>/marks/`).
+/// Not the documents directory: on Linux and Windows that is the user's own
+/// ~/Documents folder.
 class _FileMarksPersistence implements MarksPersistence {
+  _FileMarksPersistence(this.sub);
+  final String sub;
   Directory? _dir;
 
   Future<Directory> _root() async {
-    final d = _dir ??= Directory(
-        '${(await getApplicationSupportDirectory()).path}${Platform.pathSeparator}marks');
+    final d = _dir ??= Directory([
+      (await getApplicationSupportDirectory()).path,
+      ...sub.split('/'),
+    ].join(Platform.pathSeparator));
     if (!await d.exists()) await d.create(recursive: true);
     return d;
   }
@@ -55,5 +60,12 @@ class _FileMarksPersistence implements MarksPersistence {
       await f.rename(
           '${f.path}.corrupt-${DateTime.now().millisecondsSinceEpoch}');
     }
+  }
+
+  @override
+  Future<void> wipe() async {
+    final d = await _root();
+    if (await d.exists()) await d.delete(recursive: true);
+    _dir = null;
   }
 }

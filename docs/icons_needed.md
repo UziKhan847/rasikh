@@ -73,6 +73,7 @@ The app's icons all go through `lib/ui/app_icons.dart`. Most already use the red
 | # | Name (`AppIcons.`) | Suggested codepoint | Used for | Stand-in today (Material) |
 |---|---|---|---|---|
 | 50 | `eraser` | U+E061 | Hifẓ muṣḥaf toolbar: the eraser (tap a word to wipe its marks; hold for the whole page) | `cleaning_services_outlined` |
+| 51 | `info` | U+E062 | Hifẓ tool bars: what the current tool does (the caption, folded away) | `info_outline` |
 
 ## Not icons (already done)
 

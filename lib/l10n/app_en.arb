@@ -2255,5 +2255,266 @@
   "traceMoreWords": "More words are coming.",
   "@traceMoreWords": {
     "description": "Tracing, under a word level's words: more will be added"
+  },
+  "prfTitle": "Profiles",
+  "@prfTitle": {
+    "description": "Profiles (people sharing this device)"
+  },
+  "prfSub": "Each person's own marks, place, progress and mode on this device",
+  "@prfSub": {
+    "description": "Profiles (people sharing this device)"
+  },
+  "prfMe": "Me",
+  "@prfMe": {
+    "description": "Profiles (people sharing this device)"
+  },
+  "prfAdd": "Add profile",
+  "@prfAdd": {
+    "description": "Profiles (people sharing this device)"
+  },
+  "prfName": "Name",
+  "@prfName": {
+    "description": "Profiles (people sharing this device)"
+  },
+  "prfRename": "Rename",
+  "@prfRename": {
+    "description": "Profiles (people sharing this device)"
+  },
+  "prfDelete": "Delete profile",
+  "@prfDelete": {
+    "description": "Profiles (people sharing this device)"
+  },
+  "prfDeleteQ": "Delete {name} and everything kept in it on this device?",
+  "@prfDeleteQ": {
+    "description": "Profiles (people sharing this device)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "prfNow": "Now using {name}",
+  "@prfNow": {
+    "description": "Profiles (people sharing this device)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qcAlifTitle": "Alif, and what joining means",
+  "@qcAlifTitle": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcAlifBody": "Alif is a single upright stroke. It never joins the letter after it — and five others are the same: د ذ ر ز و. These six have two shapes only: alone, and joined to the letter before.",
+  "@qcAlifBody": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcAlifLesson": "Alif, and joining",
+  "@qcAlifLesson": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcShapeTitle": "One shape, {n} letters",
+  "@qcShapeTitle": {
+    "description": "Qāʿidah course (letter families, lessons)",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "qcShapeBody": "These letters are written with the same shape. Only the dots tell them apart: how many there are, and whether they sit above or below.",
+  "@qcShapeBody": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcFamily": "{name} and its family",
+  "@qcFamily": {
+    "description": "Qāʿidah course (letter families, lessons)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qcCheckYourself": "Check yourself",
+  "@qcCheckYourself": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcCheckBody": "{n} questions on this lesson. They count toward its stars.",
+  "@qcCheckBody": {
+    "description": "Qāʿidah course (letter families, lessons)",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "qcWhichIsName": "Which one is {name}?",
+  "@qcWhichIsName": {
+    "description": "Qāʿidah course (letter families, lessons)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qcWhichMarked": "Which letter is marked in this word?",
+  "@qcWhichMarked": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcMeet": "Meet {name}",
+  "@qcMeet": {
+    "description": "Qāʿidah course (letter families, lessons)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qcSoundsLike": "Sounds like “{sound}”",
+  "@qcSoundsLike": {
+    "description": "Qāʿidah course (letter families, lessons)",
+    "placeholders": {
+      "sound": {
+        "type": "String"
+      }
+    }
+  },
+  "qcFormsTitle": "{name} in a word",
+  "@qcFormsTitle": {
+    "description": "Qāʿidah course (letter families, lessons)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qcFormsBody": "Joined to the letters beside it, a letter changes shape. Here it is alone, at the start, in the middle and at the end of a word.",
+  "@qcFormsBody": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcFormsBodyNoJoin": "{name} joins only to the letter before it: it has two shapes, alone and joined.",
+  "@qcFormsBodyNoJoin": {
+    "description": "Qāʿidah course (letter families, lessons)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qcInTheQuran": "In the Qurʾān",
+  "@qcInTheQuran": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcTraceTitle": "Write {name}",
+  "@qcTraceTitle": {
+    "description": "Qāʿidah course (letter families, lessons)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "qcTraceBody": "Follow the strokes in order. The family’s letters are all written with this shape.",
+  "@qcTraceBody": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcResultTitle": "Lesson done",
+  "@qcResultTitle": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcResultScore": "{right} of {total} right",
+  "@qcResultScore": {
+    "description": "Qāʿidah course (letter families, lessons)",
+    "placeholders": {
+      "right": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "qcRetry": "Try again",
+  "@qcRetry": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcReviewMistakes": "Go over the mistakes",
+  "@qcReviewMistakes": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcNextLesson": "Next lesson",
+  "@qcNextLesson": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcSectionLetters": "Letters",
+  "@qcSectionLetters": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcSectionSigns": "Vowels and signs",
+  "@qcSectionSigns": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcSectionReading": "Reading",
+  "@qcSectionReading": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcSpecialTitle": "Special shapes",
+  "@qcSpecialTitle": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcSpecialSub": "Lām-alif, the kāf, stacked letters and others that join their own way",
+  "@qcSpecialSub": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcLessonSub": "{letters} · one shape, told apart by dots",
+  "@qcLessonSub": {
+    "description": "Qāʿidah course (letter families, lessons)",
+    "placeholders": {
+      "letters": {
+        "type": "String"
+      }
+    }
+  },
+  "qcContinueWith": "Continue: {title}",
+  "@qcContinueWith": {
+    "description": "Qāʿidah course (letter families, lessons)",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "qcNotQuite": "Not quite — the right one is marked.",
+  "@qcNotQuite": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcRight": "Right!",
+  "@qcRight": {
+    "description": "Qāʿidah course (letter families, lessons)"
+  },
+  "qcResume": "Resume · step {n} of {total}",
+  "@qcResume": {
+    "description": "Qāʿidah: a lesson left halfway, on its card",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "learnReference": "Reference",
+  "@learnReference": {
+    "description": "Learn hub: the reference modules (look-up, not courses)"
+  },
+  "tashkilRefSub": "Every mark at a glance, with examples and the Counts Studio",
+  "@tashkilRefSub": {
+    "description": "Learn hub: the reference modules (look-up, not courses)"
+  },
+  "scriptRefSub": "Stopping signs, page marks, small letters, Madani and Indo-Pak",
+  "@scriptRefSub": {
+    "description": "Learn hub: the reference modules (look-up, not courses)"
   }
 }

@@ -142,6 +142,34 @@ class QColumn extends StatelessWidget {
 
 /// A page: the screen background, an optional big title, and a scrolling
 /// column of [children].
+/// [AnimatedSize], or just its child when motion is off: an AnimatedSize
+/// of no length finishes inside its own layout, which the framework
+/// rejects (and there's nothing to animate anyway).
+class QAnimatedSize extends StatelessWidget {
+  final Duration duration;
+  final Curve curve;
+  final AlignmentGeometry alignment;
+  final Widget? child;
+  const QAnimatedSize({
+    super.key,
+    required this.duration,
+    this.curve = Curves.linear,
+    this.alignment = Alignment.center,
+    this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) => noMotion(context)
+      ? child ?? const SizedBox.shrink()
+      : AnimatedSize(duration: duration, curve: curve, alignment: alignment, child: child);
+}
+
+/// Whether this screen's route can be popped — its own route, not just the
+/// navigator ([NavigatorState.canPop] is true under any pushed route, which
+/// left a do-nothing back button on a home rebuilt while covered).
+bool canGoBack(BuildContext context) =>
+    ModalRoute.of(context)?.impliesAppBarDismissal ?? false;
+
 class QPage extends StatelessWidget {
   final String? title;
   final String? subtitle;
@@ -227,7 +255,7 @@ class QScreen extends StatelessWidget {
       subtitle: subtitle,
       maxWidth: maxWidth,
       kind: kind,
-      leading: back && Navigator.of(context).canPop()
+      leading: back && canGoBack(context)
           ? QIconButton(
               icon: AppIcons.back,
               tooltip: MaterialLocalizations.of(context).backButtonTooltip,

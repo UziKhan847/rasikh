@@ -14,8 +14,13 @@ abstract class MarksPersistence {
   /// Set aside a file that failed to parse (never silently overwrite data).
   Future<void> quarantine(String name);
 
-  /// Files under app support storage on io platforms; prefs on the web.
-  static MarksPersistence platformDefault() => platform.create();
+  /// Removes every file (a profile deleted).
+  Future<void> wipe();
+
+  /// Files under app support storage on io platforms (in [dir]); prefs on
+  /// the web. Each profile keeps its marks in its own [dir].
+  static MarksPersistence platformDefault({String dir = 'marks'}) =>
+      platform.create(dir);
 }
 
 /// In-memory, for tests.
@@ -38,4 +43,7 @@ class MemoryMarksPersistence implements MarksPersistence {
       files['$name.corrupt'] = d;
     }
   }
+
+  @override
+  Future<void> wipe() async => files.clear();
 }

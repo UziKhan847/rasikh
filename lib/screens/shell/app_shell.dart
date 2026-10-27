@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/l10n.dart';
 import '../../core/responsive.dart';
+import '../../core/profiles.dart';
 import '../../core/settings.dart';
 import '../../ui/app_icons.dart';
 import '../learn_screen.dart';
@@ -138,10 +139,12 @@ class _AppShellState extends State<AppShell> {
       AppMode.learn => const LearnScreen(key: ValueKey('home-learn')),
       AppMode.write => const TracingScreen(key: ValueKey('home-write')),
     };
+    // Another profile: its home afresh (its page, its mode).
+    final profile = ProfileScope.maybeOf(context)?.active.id ?? '';
     return ShellScope(
       go: (sec) => openSection(context, sec),
       focus: _focus,
-      child: home,
+      child: KeyedSubtree(key: ValueKey('profile-$profile'), child: home),
     );
   }
 }

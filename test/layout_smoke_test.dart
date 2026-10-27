@@ -37,7 +37,6 @@ final _screens = <String, Widget Function()>{
   'onboarding': () => const OnboardingScreen(),
   for (final m in LearnModule.values)
     'module ${m.name}': () => Builder(builder: m.screen),
-  'letters': () => const LettersExplorer(),
   'letter detail': () => LetterDetail(letter: letters[13]),
   'tajwid rule': () => TajwidRuleScreen(rule: tajwidRules[11]),
   'letter quiz': () => Builder(builder: (c) => letterQuizScreen(c)),

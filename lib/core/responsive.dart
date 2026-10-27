@@ -59,6 +59,16 @@ void toggleLayout(BuildContext context) {
 /// full-screen by [pushAdaptive]; portrait-only screens get a phone frame.
 mixin DesktopAware on Widget {}
 
+/// A [Builder] whose screen lays itself out for the desktop (no phone
+/// frame around it in [pushAdaptive]).
+class DesktopAwareBuilder extends StatelessWidget with DesktopAware {
+  final WidgetBuilder builder;
+  const DesktopAwareBuilder({super.key, required this.builder});
+
+  @override
+  Widget build(BuildContext context) => builder(context);
+}
+
 Future<T?> pushAdaptive<T>(BuildContext context, Widget child) {
   if (!useDesktop(context) || child is DesktopAware) {
     return Navigator.push<T>(

@@ -27,6 +27,7 @@ import 'marks/marking_bar.dart';
 import 'marks/word_marks_sheet.dart';
 import 'mushaf/mushaf_index_sheet.dart';
 import 'mushaf_screen.dart';
+import 'reader/ayah_text.dart';
 
 export 'quran_list_screen.dart' show SurahListScreen, openSurah;
 
@@ -737,8 +738,8 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
           bottom: false,
           child: Stack(children: [
             Column(children: [
-              AnimatedSize(
-                duration: motion(context, const Duration(milliseconds: 220)),
+              QAnimatedSize(
+                duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOut,
                 child: hidden
                     ? const SizedBox(width: double.infinity, height: 0)
@@ -831,7 +832,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
       child: Row(children: [
-        if (Navigator.of(context).canPop()) ...[
+        if (canGoBack(context)) ...[
           QIconButton(
             icon: AppIcons.back,
             tooltip: MaterialLocalizations.of(context).backButtonTooltip,
@@ -1075,11 +1076,16 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
         (w, (w + n - 1).clamp(0, tokens.length - 1)),
     ];
     final segWidgets = [
-      for (final (a, b) in segments) _segment(context, s, i, a, b, tokens, tj),
+      if (grid)
+        for (final (a, b) in segments) _segment(context, s, i, a, b, tokens, tj),
     ];
     final gap = grid ? s.wbwGap : 0.0;
     final center = grid && s.wbwAlign == 'center';
-    final Widget text = grid && s.wbwNewline
+    // Āyah cards: the words as one paragraph (see [AyahText]); the word
+    // grid keeps a box per group.
+    final Widget text = !grid
+        ? _ayahText(context, s, i, tokens, tj)
+        : s.wbwNewline
         ? Column(
             crossAxisAlignment:
                 center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
@@ -1149,6 +1155,42 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
         ]);
         }),
       ]),
+    );
+  }
+
+  /// The āyah's words as one paragraph: shaped once, the recited word and
+  /// the marks painted around it.
+  Widget _ayahText(BuildContext context, AppSettings s, int i,
+      List<String> tokens, TajwidAyah? tj) {
+    final p = pal(context);
+    final qs = quranStyle(context);
+    final tjColors = tj == null ? null : tajwidColorsFor(p);
+    final strip = s.stripTashkil;
+    return AyahText(
+      words: [
+        for (var w = 0; w < tokens.length; w++)
+          tj != null && !strip
+              ? _tajwidWordSpan(i, w, tokens[w], tj, qs, tjColors!)
+              : TextSpan(text: strip ? stripTashkil(tokens[w]) : tokens[w], style: qs),
+      ],
+      textKey: '${s.quranScript}|${qs.fontFamily}|${qs.fontSize}|${qs.color}|'
+          '$strip|${tj != null}|${s.appTheme}|${tokens.length}',
+      playWord: playingAyah == i ? playingWord : -1,
+      highlight: p.hl,
+      marks: [for (var w = 0; w < tokens.length; w++) _visualOf(s.quranScript, i, w)],
+      markPal: _markPal,
+      onTap: (w) {
+        if (_marking.active) {
+          _markCardWord(i, w);
+          return;
+        }
+        if (recitingAyah && playingAyah == i && _seekToWord(w)) return;
+        _playGroup(i, w, w);
+      },
+      onLongPress: (w) {
+        if (!_marking.active) _playGroup(i, w, w);
+        _showWord(i, w);
+      },
     );
   }
 
@@ -1472,8 +1514,16 @@ class _BookmarkButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final prog = ProgressScope.read(context);
+    // Only the bookmarks: not every star or second of reading time.
+    return ValueListenableBuilder<int>(
+        valueListenable: prog.readingSignal,
+        builder: (context, _, _) => _button(context, prog));
+  }
+
+  Widget _button(BuildContext context, ProgressStore prog) {
     final p = pal(context);
-    final marked = ProgressScope.of(context).isBookmarked(surah, ayah);
+    final marked = prog.isBookmarked(surah, ayah);
     return IconButton(
       tooltip: marked ? context.l10n.removeBookmark : context.l10n.bookmark,
       visualDensity: VisualDensity.compact,
@@ -1753,8 +1803,8 @@ class _TajwidKey extends StatelessWidget {
             ),
           ),
         ),
-        AnimatedSize(
-          duration: motion(context, const Duration(milliseconds: 200)),
+        QAnimatedSize(
+          duration: const Duration(milliseconds: 200),
           child: open
               ? Padding(
                   padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
@@ -1805,8 +1855,8 @@ class _ReaderPlayer extends StatelessWidget {
     final p = pal(context);
     final s = SettingsScope.of(context);
     final min = s.playerMinimised;
-    final body = AnimatedSize(
-      duration: motion(context, const Duration(milliseconds: 220)),
+    final body = QAnimatedSize(
+      duration: const Duration(milliseconds: 220),
       curve: Curves.easeOut,
       alignment: Alignment.bottomCenter,
       child: min ? _minimised(context) : _expanded(context),
@@ -2182,7 +2232,7 @@ class _FloatingPlayerState extends State<_FloatingPlayer> {
   Widget build(BuildContext context) {
     final p = pal(context);
     final s = SettingsScope.of(context);
-    return LayoutBuilder(builder: (context, c) {
+    return RepaintBoundary(child: LayoutBuilder(builder: (context, c) {
       final w = math.min(620.0, c.maxWidth - 32);
       final card = Container(
         width: w,
@@ -2191,11 +2241,13 @@ class _FloatingPlayerState extends State<_FloatingPlayer> {
           borderRadius: BorderRadius.circular(22),
           border: Border.all(color: p.line2),
           boxShadow: qShadows(context, const [
+            // A small blur: the list scrolls under it, and a wide one is
+            // costly to redraw every frame.
             BoxShadow(
-                color: Color(0x7314201C),
-                blurRadius: 50,
-                offset: Offset(0, 24),
-                spreadRadius: -20)
+                color: Color(0x5914201C),
+                blurRadius: 16,
+                offset: Offset(0, 8),
+                spreadRadius: -6)
           ]),
         ),
         clipBehavior: Clip.antiAlias,
@@ -2247,7 +2299,7 @@ class _FloatingPlayerState extends State<_FloatingPlayer> {
         },
         child: card,
       );
-    });
+    }));
   }
 
   Widget _small(BuildContext context, IconData icon, String tip, VoidCallback onTap) =>

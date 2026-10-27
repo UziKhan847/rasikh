@@ -87,8 +87,6 @@ final shotList = <Shot>[
     ('mod_${m.name}_desk', () => Builder(builder: m.screen), 1440, 900, 'light'),
   ],
   ('qaidah_unit_phone', () => Builder(builder: (c) => QaidahUnitHub(unit: qaidahUnits(c)[2])), 390, 844, 'light'),
-  ('letters_phone', () => const LettersExplorer(), 390, 844, 'light'),
-  ('letters_desk', () => const LettersExplorer(), 1440, 900, 'night'),
   ('letter_phone', () => LetterDetail(letter: letters[2]), 390, 1300, 'light'),
   ('letter_desk', () => LetterDetail(letter: letters[2]), 1440, 1000, 'light'),
   ('quiz_phone', () => Builder(builder: (c) => letterQuizScreen(c)), 390, 844, 'light'),

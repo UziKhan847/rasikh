@@ -10,7 +10,7 @@ import '../data/learning_path.dart';
 import '../ui/kit.dart';
 import 'shell/app_mode.dart' show SettingsButton;
 import 'learning_path_screen.dart';
-import 'qaidah_screen.dart';
+import '../learn/qaidah/qaidah_home.dart';
 import 'shell/modules.dart';
 
 /// Learn: the step-by-step path as a hero card, then every learning module.
@@ -20,10 +20,10 @@ class LearnScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final prog = ProgressScope.of(context);
-    final units = qaidahUnits(context);
+    final units = courseItems(context);
     final unitsDone = units.where((u) => prog.starsFor(u.progressId) > 0).length;
     final path = learningPath();
-    final done = path.where((s) => prog.starsFor(s.progressId) > 0).length;
+    final done = path.where((s) => pathStepDone(prog.starsFor, s)).length;
     final next = nextPathStep(prog, path);
     return Scaffold(
       body: QPage(
@@ -62,14 +62,22 @@ class LearnScreen extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           for (final m in LearnModule.values)
-            if (m.shown(context))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: ModuleCard(
-                module: m,
-                tag: m == LearnModule.qaidah ? '$unitsDone/${units.length}' : null,
+            if (m.shown(context) && !m.reference)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: ModuleCard(
+                  module: m,
+                  tag: m == LearnModule.qaidah ? '$unitsDone/${units.length}' : null,
+                ),
               ),
-            ),
+          // To look things up: the courses teach the same, in order.
+          QSectionLabel(context.l10n.learnReference),
+          for (final m in LearnModule.values)
+            if (m.shown(context) && m.reference)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: ModuleCard(module: m),
+              ),
         ],
       ),
     );

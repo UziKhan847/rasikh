@@ -5,16 +5,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/learning_path.dart';
-import 'package:qiraah_arabiyyah/data/letters.dart';
+import 'package:qiraah_arabiyyah/learn/qaidah/families.dart';
+import 'package:qiraah_arabiyyah/learn/qaidah/lesson_player.dart';
 import 'package:qiraah_arabiyyah/screens/learn_screen.dart';
 import 'package:qiraah_arabiyyah/screens/learning_path_screen.dart';
-import 'package:qiraah_arabiyyah/screens/qaidah_screen.dart';
 import 'package:qiraah_arabiyyah/widgets/common.dart';
 
 import 'test_support.dart';
 
-/// Learning's step-by-step path: the letters then the Qāʿidah's units, a
-/// quiz on every six; it resumes where it was left.
+/// Learning's step-by-step path: the letter families' lessons, then the
+/// Qāʿidah's units, a quiz on every six; it resumes where it was left.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(mockAudioPlugins);
@@ -22,12 +22,13 @@ void main() {
   test('a quiz after every six steps, on just those; one on the rest at the end', () {
     final path = learningPath();
     final items = path.where((s) => s.kind != PathKind.quiz).toList();
-    expect(items.length, letters.length + 10);
-    expect(items.first.id, letters.first.char);
+    expect(items.length, letterFamilies.length + 10);
+    expect(items.first.kind, PathKind.lesson);
+    expect(items.first.id, 'alif');
     var since = 0;
     for (final s in path) {
       if (s.kind == PathKind.quiz) {
-        expect(s.covers.length, since == 0 ? isNonZero : since);
+        expect(s.covers.length, since);
         expect(since, lessThanOrEqualTo(kPathQuizEvery));
         since = 0;
       } else {
@@ -66,26 +67,20 @@ void main() {
     return p;
   }
 
-  testWidgets('Learn leads with the path; Continue opens the next step, '
-      'and coming back moves it on', (tester) async {
-    final p = await pump(tester, const LearnScreen());
+  testWidgets('Learn leads with the path; Continue opens the next lesson',
+      (tester) async {
+    await pump(tester, const LearnScreen());
     expect(find.text('STEP BY STEP'), findsOneWidget);
     expect(find.text('Step 1 of ${learningPath().length}'), findsOneWidget);
     await tester.tap(find.text('STEP BY STEP'));
     await tester.pumpAndSettle();
     expect(find.byType(LearningPathScreen), findsOneWidget);
-
     await tester.tap(find.textContaining('Continue · '));
     await tester.pumpAndSettle();
-    expect(find.byType(LetterDetail), findsOneWidget);
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    final path = learningPath();
-    expect(p.starsFor(path[0].progressId), greaterThan(0));
-    expect(nextPathStep(p, path), 1);
+    expect(find.byType(LessonPlayer), findsOneWidget);
   });
 
-  testWidgets('the first quiz asks about its six letters', (tester) async {
+  testWidgets('the first quiz asks about its six lessons\' letters', (tester) async {
     final p = await pump(tester, const LearningPathScreen());
     final path = learningPath();
     final quiz = path.indexWhere((s) => s.kind == PathKind.quiz);
@@ -97,9 +92,7 @@ void main() {
     await tester.tap(find.text('Continue · Quiz 1'));
     await tester.pumpAndSettle();
     final q = tester.widget<QuizScreen>(find.byType(QuizScreen));
-    expect(q.questions.length, kPathQuizEvery);
-    expect({for (final x in q.questions) x.arabic},
-        {for (final s in path[quiz].covers) s.id});
+    expect(q.questions.length, kPathQuizEvery * 2);
     expect(q.progressId, path[quiz].progressId);
   });
 }

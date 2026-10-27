@@ -275,7 +275,7 @@ class _LessonCustomScreen extends StatelessWidget with DesktopAware {
 /// title otherwise.
 Widget lessonDesktopHeader(BuildContext context, String title) {
   final embedded = QuizHostScope.of(context);
-  final showBack = !embedded && Navigator.of(context).canPop();
+  final showBack = !embedded && canGoBack(context);
   return Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
     if (showBack) ...[
       QIconButton(

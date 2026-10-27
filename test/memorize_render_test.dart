@@ -46,8 +46,10 @@ MushafLineSpec _spec(MushafLine line, {int hideFrom = -1}) => MushafLineSpec(
       hideFrom: hideFrom,
     );
 
-int _sprites(AtlasLine l) =>
-    l.batches.fold(0, (n, b) => n + b.$4.length); // one colour per sprite
+/// The sprites drawn: a hidden word's are kept (the line's geometry is
+/// shared) but transparent.
+int _sprites(AtlasLine l) => l.batches
+    .fold(0, (n, b) => n + b.$4.where((c) => (c >> 24) & 0xff != 0).length);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

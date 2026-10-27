@@ -9,7 +9,7 @@ import '../../core/settings.dart';
 import '../dyslexia_screen.dart';
 import '../nabr/nabr_screen.dart';
 import '../lessons/qaidah_lessons.dart';
-import '../qaidah_screen.dart';
+import '../../learn/qaidah/qaidah_home.dart';
 import '../qiraat_screen.dart';
 import '../script_screen.dart';
 import '../tajweed_screen.dart';
@@ -48,6 +48,10 @@ extension LearnModuleInfo on LearnModule {
   bool get soon =>
       this == LearnModule.qiraat || (this == LearnModule.nabr && !kNabrEnabled);
 
+  /// A reference to look things up in, not a course: shown apart, after
+  /// the courses (the Qāʿidah teaches the same marks in order).
+  bool get reference => this == LearnModule.tashkil || this == LearnModule.script;
+
   /// Whether the module is offered at all (every one is, for now).
   bool shown(BuildContext context) => true;
 
@@ -65,8 +69,8 @@ extension LearnModuleInfo on LearnModule {
   String subtitle(BuildContext context) => switch (this) {
         LearnModule.qaidah => context.l10n.qaidahSub,
         LearnModule.tajwid => context.l10n.tajwidSub,
-        LearnModule.tashkil => context.l10n.tashkilSub,
-        LearnModule.script => context.l10n.scriptSymbolsSub,
+        LearnModule.tashkil => context.l10n.tashkilRefSub,
+        LearnModule.script => context.l10n.scriptRefSub,
         LearnModule.tracing => context.l10n.tracingSub,
         LearnModule.coach => context.l10n.coachSub,
         LearnModule.nabr => context.l10n.nbSub,
@@ -75,7 +79,7 @@ extension LearnModuleInfo on LearnModule {
 
   /// The module's screen — one responsive screen on phone and desktop.
   Widget screen(BuildContext context) => switch (this) {
-        LearnModule.qaidah => const QaidahScreen(),
+        LearnModule.qaidah => const QaidahHome(),
         LearnModule.tajwid => const TajweedScreen(),
         LearnModule.tashkil => lessonEntryScreen(tashkilLessonRoot(context)),
         LearnModule.script => const ScriptScreen(),

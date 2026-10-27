@@ -6,6 +6,7 @@ import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/quran.dart';
 import 'package:qiraah_arabiyyah/screens/quran_screen.dart';
+import 'package:qiraah_arabiyyah/screens/reader/ayah_text.dart';
 
 import 'shots/shots_test.dart' show loadFonts;
 import 'test_support.dart';
@@ -55,14 +56,17 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 50));
     }
-    final words = await QuranRepo.words(1, 'uthmani', font: 'DigitalKhattV2');
-    final word = find.text(words[1][0], findRichText: true).first;
+    // The second āyah's first word, in its paragraph (see AyahText).
+    final r = tester
+        .renderObjectList<RenderAyahText>(find.byType(AyahText))
+        .elementAt(1);
+    final word = r.localToGlobal(r.wordCenter(0)!);
 
-    await tester.tap(word);
+    await tester.tapAt(word);
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(BottomSheet), findsNothing, reason: 'a tap only plays');
 
-    await tester.longPress(word);
+    await tester.longPressAt(word);
     await tester.pumpAndSettle();
     expect(find.byType(BottomSheet), findsOneWidget);
     expect(find.text('Play word'), findsOneWidget);

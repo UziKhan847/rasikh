@@ -1,60 +1,24 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
-import '../../data/glyph_names.dart';
-import '../../data/letters.dart';
 import '../../data/special_shapes.dart';
 import '../../data/variants.dart';
-import '../../widgets/common.dart';
 import '../../widgets/lesson.dart';
 import '../../ui/app_icons.dart';
 
-/// Joining Forms, restructured (Round 13) to match Unit 1's own pattern: a
-/// picker (here, the 28 letters plus a Special Shapes group), then a real
-/// detail page per entry — not a single screen mixing the picker with the
-/// content, which read as crowded and "almost like an afterthought."
-LessonNode formsLessonRoot(BuildContext context) => LessonNode(
-      id: 'forms',
-      title: context.l10n.unitJoiningForms,
+/// The shapes a letter's own forms can't show — ligatures, the kāf's wrap,
+/// stacked letters, heights: the Qāʿidah's Special shapes unit (each
+/// letter's forms are taught with the letter, in its family's lesson).
+LessonNode specialShapesLessonRoot(BuildContext context) => LessonNode(
+      id: 'special',
+      title: context.l10n.qcSpecialTitle,
       children: [
-        for (final l in letters) _letterFormNode(context, l),
         ligaturesGroupNode(context),
         kafWrapGroupNode(context),
         stackingGroupNode(context),
         heightsGroupNode(context),
       ],
     );
-
-// ── One page per letter: its shapes, then real words carrying it ───────
-
-LessonNode _letterFormNode(BuildContext context, ArabicLetter l) {
-  final shapes = l.joins
-      ? <(String, String)>[
-          (l.finalForm, context.l10n.formEnd),
-          (l.medial, context.l10n.formMiddle),
-          (l.initial, context.l10n.formStart),
-          (l.char, context.l10n.formAlone),
-        ]
-      : <(String, String)>[
-          (l.finalForm, context.l10n.formJoined),
-          (l.char, context.l10n.formAlone),
-        ];
-  final words = letterExamples[l.char] ?? const <LetterExample>[];
-  return LessonNode(
-    id: 'forms.letter.${l.char}',
-    glyph: l.char,
-    title: letterName(context, l),
-    gridTile: true,
-    detail: LessonDetail(
-      hero: l.char,
-      build: LessonBuild(cells: [for (final (glyph, caption) in shapes) ('', glyph, caption)]),
-      examples: [
-        ...conceptExamples(l.exampleWord, l.exampleRef),
-        for (final w in words) (text: w.word, ref: '', highlight: null),
-      ],
-    ),
-  );
-}
 
 // ── Special Shapes: the compound shapes a tatweel-joined form can't show ──
 //

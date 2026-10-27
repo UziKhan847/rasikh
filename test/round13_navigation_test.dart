@@ -7,6 +7,8 @@ import 'package:qiraah_arabiyyah/core/theme.dart';
 import 'package:qiraah_arabiyyah/ui/qiraah_icons.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
+import 'package:qiraah_arabiyyah/learn/qaidah/qaidah_home.dart';
+import 'package:qiraah_arabiyyah/data/letters.dart';
 import 'package:qiraah_arabiyyah/screens/qaidah_screen.dart';
 import 'package:qiraah_arabiyyah/screens/script_screen.dart';
 import 'package:qiraah_arabiyyah/screens/tajweed_screen.dart';
@@ -50,7 +52,7 @@ void main() {
       'Desktop: a two-level-deep lesson push (Tanwīn → Ḍammatān → Iqlāb) has '
       'a working back control at every level, not a dead end', (tester) async {
     final (settings, progress) = await _boot(desktopMode: 'on');
-    await tester.pumpWidget(_harness(settings, progress, const QaidahScreen()));
+    await tester.pumpWidget(_harness(settings, progress, const QaidahHome()));
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(find.textContaining('Tanwīn'), 300,
@@ -141,59 +143,29 @@ void main() {
   });
 
   testWidgets(
-      'Joining Forms: Learn opens a picker listing all 28 letters (as bare '
-      'glyph tiles, like Unit 1\'s letter grid) plus a Special Shapes group '
-      'of 4', (tester) async {
+      'Special shapes: Learn lists the shapes a letter\'s own forms can\'t '
+      'show — the letters themselves are taught in their families\' lessons',
+      (tester) async {
     final (settings, progress) = await _boot();
-    await tester.pumpWidget(_harness(settings, progress, const QaidahScreen()));
+    await tester.pumpWidget(_harness(settings, progress, const QaidahHome()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.textContaining('Joining Forms'));
+    await tester.scrollUntilVisible(find.textContaining('Special shapes'), 300,
+        scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.textContaining('Special shapes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Special shapes'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Learn'));
     await tester.pumpAndSettle();
 
-    // The picker shows bare glyph tiles (Unit 1's own grid recipe) — no
-    // letter name text, unlike the old row-per-letter list.
-    expect(find.text('ب'), findsOneWidget);
-    expect(find.text('Bā’'), findsNothing);
-
-    // The Special Shapes group sits after all 28 letters, below the fold —
-    // and each subsequent sub-heading further still.
+    expect(find.text('ب'), findsNothing, reason: 'no letter grid here');
     final scrollable = find.byType(Scrollable).first;
-    for (final label in [
-      'Special Shapes',
-      'Ligatures',
-      'Kāf\'s Wrap',
-      'Stacking',
-      'Heights & Tails',
-    ]) {
+    for (final label in ['Ligatures', 'Kāf\'s Wrap', 'Stacking', 'Heights & Tails']) {
       await tester.scrollUntilVisible(find.text(label), 300, scrollable: scrollable);
       expect(find.text(label), findsOneWidget, reason: label);
     }
-    // Let every row's FadeSlideIn stagger finish before teardown — the list
-    // is long enough (32 rows) that some are still delayed when the loop
-    // above stops scrolling as soon as its target is found.
     await tester.pumpAndSettle();
-  });
-
-  testWidgets(
-      'Joining Forms: a letter opens its own shapes page — not the picker '
-      'still on screen alongside the content', (tester) async {
-    final (settings, progress) = await _boot();
-    await tester.pumpWidget(_harness(settings, progress, const QaidahScreen()));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.textContaining('Joining Forms'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Learn'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('ب'));
-    await tester.pumpAndSettle();
-    expect(find.text('Special Shapes'), findsNothing);
-    expect(find.text('Bā’'), findsWidgets); // the detail page's own title
-    expect(find.text('Alone'), findsWidgets);
   });
 
   testWidgets(
@@ -201,10 +173,14 @@ void main() {
       'now shows its hand-drawn shape(s), not the old wrong-glyph text',
       (tester) async {
     final (settings, progress) = await _boot();
-    await tester.pumpWidget(_harness(settings, progress, const QaidahScreen()));
+    await tester.pumpWidget(_harness(settings, progress, const QaidahHome()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.textContaining('Joining Forms'));
+    await tester.scrollUntilVisible(find.textContaining('Special shapes'), 300,
+        scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.textContaining('Special shapes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Special shapes'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Learn'));
     await tester.pumpAndSettle();
@@ -236,10 +212,14 @@ void main() {
       'hand-drawn shape, not the old isolated-form fragment مُجۡ',
       (tester) async {
     final (settings, progress) = await _boot();
-    await tester.pumpWidget(_harness(settings, progress, const QaidahScreen()));
+    await tester.pumpWidget(_harness(settings, progress, const QaidahHome()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.textContaining('Joining Forms'));
+    await tester.scrollUntilVisible(find.textContaining('Special shapes'), 300,
+        scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.textContaining('Special shapes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Special shapes'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Learn'));
     await tester.pumpAndSettle();
@@ -265,10 +245,14 @@ void main() {
       'is locked — dimmed, and tapping it shows "coming soon" instead of '
       'navigating', (tester) async {
     final (settings, progress) = await _boot();
-    await tester.pumpWidget(_harness(settings, progress, const QaidahScreen()));
+    await tester.pumpWidget(_harness(settings, progress, const QaidahHome()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.textContaining('Joining Forms'));
+    await tester.scrollUntilVisible(find.textContaining('Special shapes'), 300,
+        scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.textContaining('Special shapes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Special shapes'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Learn'));
     await tester.pumpAndSettle();
@@ -290,7 +274,7 @@ void main() {
   });
 
   testWidgets(
-      'Desktop: Unit 1 — tapping a letter opens its detail page without '
+      'Desktop: a letter\'s detail page opens without '
       'crashing. Regression: adding the Articulation Point section pulled '
       '"See it in Words" out of its old IntrinsicHeight-bounded layout, '
       'leaving a bare Row(crossAxisAlignment: stretch) with unbounded '
@@ -300,15 +284,8 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final (settings, progress) = await _boot(desktopMode: 'on');
-    await tester.pumpWidget(_harness(settings, progress, const QaidahScreen()));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.textContaining('Letters'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Learn'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('ب'));
+    await tester.pumpWidget(
+        _harness(settings, progress, LetterDetail(letter: letterFor('ب'))));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
@@ -335,7 +312,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final (settings, progress) = await _boot(desktopMode: 'on');
-    await tester.pumpWidget(_harness(settings, progress, const QaidahScreen()));
+    await tester.pumpWidget(_harness(settings, progress, const QaidahHome()));
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(find.textContaining('Tanwīn'), 300,

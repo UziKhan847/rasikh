@@ -31,13 +31,25 @@ String bareArabic(String s) {
   return out.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
-/// One āyah that matched: global āyah index, (sūrah, āyah), its text.
-typedef MushafHit = ({int ayah, int surah, int ayahInSurah, String text});
+/// One āyah that matched: global āyah index, (sūrah, āyah), its text, and
+/// the words the match covers ([firstWord]..[lastWord], 0-based).
+typedef MushafHit = ({
+  int ayah,
+  int surah,
+  int ayahInSurah,
+  String text,
+  int firstWord,
+  int lastWord,
+});
 
-final Map<String, List<(String bare, String text)>> _ayat = {};
+/// One āyah's bare letters, its words, and where each word starts in them.
+typedef _Ayah = (String bare, String text, List<int> starts);
 
-/// Each āyah of [script]'s muṣḥaf text: its bare letters and its words.
-List<(String, String)> _ayatOf(String script) => _ayat.putIfAbsent(script, () {
+final Map<String, List<_Ayah>> _ayat = {};
+
+/// Each āyah of [script]'s muṣḥaf text: its bare letters, its words, and
+/// each word's offset in the bare letters.
+List<_Ayah> _ayatOf(String script) => _ayat.putIfAbsent(script, () {
       final n = MushafRepo.tokenCount(script);
       final words = <int, List<String>>{};
       for (var t = 0; t < n; t++) {
@@ -47,10 +59,24 @@ List<(String, String)> _ayatOf(String script) => _ayat.putIfAbsent(script, () {
       }
       final last = words.keys.fold(-1, (a, b) => a > b ? a : b);
       return [
-        for (var g = 0; g <= last; g++)
-          (bareArabic((words[g] ?? const []).join(' ')), (words[g] ?? const []).join(' ')),
+        for (var g = 0; g <= last; g++) _bareAyah(words[g] ?? const []),
       ];
     });
+
+_Ayah _bareAyah(List<String> words) {
+  final bare = StringBuffer();
+  final starts = <int>[];
+  for (final w in words) {
+    if (bare.isNotEmpty) bare.write(' ');
+    starts.add(bare.length);
+    bare.write(bareArabic(w));
+  }
+  return (bare.toString(), words.join(' '), starts);
+}
+
+/// Prepares [script]'s search ahead of the first query (it reads every
+/// word once).
+void warmSearch(String script) => _ayatOf(script);
 
 /// The āyāt of [script] containing [query] (two letters at least), in
 /// order, at most [limit].
@@ -60,9 +86,26 @@ List<MushafHit> searchMushaf(String script, String query, {int limit = 80}) {
   final out = <MushafHit>[];
   final ayat = _ayatOf(script);
   for (var g = 0; g < ayat.length && out.length < limit; g++) {
-    if (!ayat[g].$1.contains(q)) continue;
-    final (s, a) = MushafRepo.surahAyahOf(g);
-    out.add((ayah: g, surah: s, ayahInSurah: a, text: ayat[g].$2));
+    final (bare, text, starts) = ayat[g];
+    final at = bare.indexOf(q);
+    if (at < 0) continue;
+    int wordAt(int i) {
+      var w = 0;
+      while (w + 1 < starts.length && starts[w + 1] <= i) {
+        w++;
+      }
+      return w;
+    }
+
+    final (su, a) = MushafRepo.surahAyahOf(g);
+    out.add((
+      ayah: g,
+      surah: su,
+      ayahInSurah: a,
+      text: text,
+      firstWord: wordAt(at),
+      lastWord: wordAt(at + q.length - 1),
+    ));
   }
   return out;
 }

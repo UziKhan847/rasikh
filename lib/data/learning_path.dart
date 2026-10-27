@@ -1,13 +1,14 @@
-import 'letters.dart';
+import '../learn/qaidah/families.dart';
 
-/// The Learning mode's step-by-step path: one thing at a time — the
-/// letters, then the Qāʿidah's units — and a short quiz after every
-/// [kPathQuizEvery] of them, on just those. The order is data (this file),
-/// so the content review can reshape it without touching a screen.
+/// The Learning mode's step-by-step path: one lesson at a time — the
+/// letters family by family, then the Qāʿidah's units — and a short quiz
+/// after every [kPathQuizEvery] of them, on just those. The order is data
+/// (this file), so the content review can reshape it without touching a
+/// screen.
 
-/// What a step teaches: a letter (its char), a Qāʿidah unit (its progress
-/// id), or a quiz on the steps before it.
-enum PathKind { letter, unit, quiz }
+/// What a step teaches: a letter family's lesson (its id), a Qāʿidah unit
+/// (its progress id), or a quiz on the steps before it.
+enum PathKind { lesson, unit, quiz }
 
 /// One step on the path. A quiz's [covers] are the steps it asks about.
 class PathStep {
@@ -17,15 +18,19 @@ class PathStep {
   const PathStep(this.kind, this.id, [this.covers = const []]);
 
   /// Where the step's progress is kept ([ProgressStore] stars: any star is
-  /// done).
-  String get progressId => 'path.${kind.name}.$id';
+  /// done). A lesson's are its own (its check gives them).
+  String get progressId => switch (kind) {
+        PathKind.lesson => familyById(id).progressId,
+        PathKind.quiz => 'path.check.$id',
+        PathKind.unit => 'path.unit.$id',
+      };
 }
 
 const kPathQuizEvery = 6;
 
 /// The steps to learn, in order (no quizzes).
 List<PathStep> get pathItems => [
-      for (final l in letters) PathStep(PathKind.letter, l.char),
+      for (final f in letterFamilies) PathStep(PathKind.lesson, f.id),
       for (final u in const [
         'qaidah.forms',
         'qaidah.harakat',
@@ -57,3 +62,7 @@ List<PathStep> learningPath() {
   }
   return out;
 }
+
+/// Whether [s] is done, by [starsFor].
+bool pathStepDone(int Function(String id) starsFor, PathStep s) =>
+    starsFor(s.progressId) > 0;

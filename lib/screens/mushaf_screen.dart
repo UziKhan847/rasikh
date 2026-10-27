@@ -30,18 +30,26 @@ import 'marks/review_bar.dart';
 import 'marks/review_cards_screen.dart';
 import '../ui/ornaments/ornaments.dart';
 import '../ui/tajwid_colors.dart';
-import '../data/divisions.dart' show Division, manzilOf, rukuCountOf;
+import '../data/divisions.dart' show Division, divisionCount, manzilOf, rukuCountOf;
 import '../data/page_details.dart';
 import '../data/mushaf.dart';
 import '../data/quran.dart';
 import '../ui/app_icons.dart';
 import '../ui/kit.dart';
 import '../ui/mark_style.dart';
+import '../ui/tool_popover.dart';
+import '../ui/adaptive_sheet.dart';
 import 'marks/marking.dart';
 import 'marks/marking_bar.dart';
 import 'marks/mutashabihat_screen.dart';
 import 'marks/word_marks_sheet.dart';
 import 'mushaf/mushaf_line.dart';
+import 'mushaf/mushaf_marks_layer.dart';
+import 'mushaf/hifz_dock.dart';
+import 'mushaf/hifz_layout.dart';
+import 'mushaf/page_rail.dart';
+import 'profiles_sheet.dart';
+import '../core/profiles.dart';
 import 'shell/app_mode.dart' show openSection, showModeSheet;
 import 'shell/app_shell.dart';
 
@@ -281,6 +289,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       _curSurah = v.$1;
       _ready = true;
     });
+
     // Saved with its script: after a switch, or a page mapped over from
     // the other script, the number is in this script's pages.
     ProgressScope.read(context).setLastMushafPage(_page, _script);
@@ -616,7 +625,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     }
   }
 
-  Widget _reviewBar(MushafPaper paper, {bool floating = false}) => ReviewBar(
+  Widget _reviewBar(MushafPaper paper, {bool floating = false, Axis? axis}) =>
+      ReviewBar(
+        axis: axis,
         controller: _review!,
         pal: markPaletteForPaper(paper),
         bg: paper.chrome,
@@ -789,6 +800,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       ReciteBack.instance.stop();
     }
     _marking.dispose();
+    _marksLayer.dispose();
     MushafLineScheduler.reset();
     MushafAtlas.of(_script)?.releaseLarge();
     PerfLog.where = 'app';
@@ -1244,9 +1256,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     _lastWordTap = DateTime.now();
     final (surah, ayahInSurah) = MushafRepo.surahAyahOf(wd.ayah);
     final hasMarks = MarksScope.maybeOf(context) != null;
-    showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
+    showAdaptiveSheet<void>(
+      context,
       isScrollControlled: hasMarks,
       builder: (sheet) {
         final p = pal(sheet);
@@ -1304,7 +1315,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
             ],
           ),
         );
-        if (!hasMarks) return body(null);
+        if (!hasMarks || AdaptiveSheet.isSide(sheet)) return body(null);
         return DraggableScrollableSheet(
           expand: false,
           initialChildSize: .6,
@@ -1343,15 +1354,22 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   }
 
   void _showSettings() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheet) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: .7,
-        maxChildSize: .94,
-        builder: (sheet, scroll) => _MushafSettingsSheet(
+    showAdaptiveSheet<void>(
+      context,
+      builder: (sheet) => AdaptiveSheet.isSide(sheet)
+          ? _settingsSheet(sheet, null)
+          : DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: .7,
+              maxChildSize: .94,
+              builder: _settingsSheet,
+            ),
+    );
+  }
+
+  /// [_showSettings]'s content.
+  Widget _settingsSheet(BuildContext sheet, ScrollController? scroll) =>
+      _MushafSettingsSheet(
           controller: scroll,
           script: _script,
           onScript: (v) {
@@ -1380,10 +1398,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
             Navigator.pop(sheet);
             _memorizeAsCards();
           },
-        ),
-      ),
-    );
-  }
+        );
 
   // ── build ──────────────────────────────────────────────────────────────
 
@@ -1571,7 +1586,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     // Memorizing (revision too): a word's marks appear as the word does —
     // hidden words draw nothing, marks included. Each page gets only its
     // own cut, so pages away from it keep their look.
-    final marks = _visuals(s);
+    // Marks reach the lines through the layer: an edit repaints its own
+    // page's lines and rebuilds no page.
+    _bindMarks(s);
     final markPal = markPaletteForPaper(paper);
     // Only the page holding the focused word gets it: the others' lines
     // keep their cached look.
@@ -1580,14 +1597,20 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         f != null && !_memorizing && _pageOfWord(f) == page ? f.key : -1;
     final hideFrom = _memo?.hideFromOn(page) ?? -1;
     final tajwid = s.mushafTajwid ? tajwidColorsForDark(paper.dark) : null;
+    // The spine's shade: the desktop's own spread; the Hifẓ home's pages lie
+    // flat, a line between them.
+    final shade = !widget.home && s.useGradients;
     final inputs = <Object?>[
       _script, paper, _look(s), fitWidth, s.mushafHeaderShown, margin, spine,
       _names, mine ? _playAyah : -1, mine ? _playWord : -1,
-      mine && _reciting, marks, markPal, tajwid, compact, focus, hideFrom,
+      mine && _reciting, markPal, tajwid, compact, focus, hideFrom, shade,
     ];
     final key = '$page/${spine ?? ''}';
-    final memo = _pageMemo[key];
-    if (memo != null && _sameInputs(memo.$1, inputs)) return memo.$2;
+    final memo = _pageMemo.remove(key);
+    if (memo != null && _sameInputs(memo.$1, inputs)) {
+      _pageMemo[key] = memo; // most recently used
+      return memo.$2;
+    }
     final w = _MushafPageView(
       page: page,
       script: _script,
@@ -1601,15 +1624,19 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       playAyah: mine ? _playAyah : -1,
       playWord: mine ? _playWord : -1,
       reciting: mine && _reciting,
-      marks: marks,
+      marks: _marksLayer,
       markPal: markPal,
+      shade: shade,
       handlers: _handlers,
       tajwid: tajwid,
       compact: compact,
       focus: focus,
       hideFrom: hideFrom,
     );
-    if (_pageMemo.length > 12) _pageMemo.clear();
+    // The least recently used go first (a spread keeps six pages alive).
+    while (_pageMemo.length >= 20) {
+      _pageMemo.remove(_pageMemo.keys.first);
+    }
     _pageMemo[key] = (inputs, w);
     return w;
   }
@@ -1622,14 +1649,15 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     return true;
   }
 
-  /// The active mark book's marks, as drawn on the page.
-  Map<int, MarkVisual> _visuals(AppSettings s) {
-    final store = MarksScope.maybeOf(context);
-    if (store == null || !store.ready || !s.showMarks) return const {};
-    final book = store.activeBookId;
-    if (book == null) return const {};
-    return store.visuals(book, showFixed: s.showFixedMarks);
-  }
+  /// The active mark book's marks, as the pages draw them.
+  final _marksLayer = MushafMarksLayer();
+
+  void _bindMarks(AppSettings s) => _marksLayer.bind(
+        store: MarksScope.maybeOf(context),
+        script: _script,
+        show: s.showMarks,
+        showFixed: s.showFixedMarks,
+      );
 
   /// The pen button for the bars (starts or ends marking).
   Widget? _penButton(BuildContext context, MushafPaper paper,
@@ -1649,7 +1677,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         onTap: _toggleMarking);
   }
 
-  Widget _markingBar(MushafPaper paper, {bool floating = false}) => MarkingBar(
+  Widget _markingBar(MushafPaper paper, {bool floating = false, Axis? axis}) =>
+      MarkingBar(
+        axis: axis,
         controller: _marking,
         pal: markPaletteForPaper(paper),
         bg: paper.chrome,
@@ -1672,21 +1702,23 @@ class _MushafPageScreenState extends State<MushafPageScreen>
             fitWidth: fitWidth, margin: margin),
       );
 
-  /// Two facing pages per swipe (a phone on its side).
+  /// Two facing pages per swipe (a phone on its side; the Hifẓ home in
+  /// landscape, with [rail] wide margins outside them and a [gap] between).
   Widget _spreadPager(AppSettings s, MushafPaper paper,
-          {required EdgeInsets margin}) =>
+          {required EdgeInsets margin, double rail = 0, double gap = 0}) =>
       _swiper(
         controller: _spreadCtrl,
         count: (_total + 1) ~/ 2,
         onPage: (i) => _onPage(2 * i),
         builder: (context, i) => LayoutBuilder(builder: (context, c) {
-          final avail = Size((c.maxWidth - margin.horizontal) / 2,
+          final avail = Size((c.maxWidth - margin.horizontal - 2 * rail - gap) / 2,
               c.maxHeight - margin.vertical);
           mushafPageBoxOf = (p) => _spreadBoxOf(p, avail, s, compact: true);
           return Padding(
             padding: margin,
             child: Center(
-                child: _spreadRow(2 * i + 1, avail, s, paper, compact: true)),
+                child: _spreadRow(2 * i + 1, avail, s, paper,
+                    compact: true, rail: rail, gap: gap)),
           );
         }),
       );
@@ -2530,14 +2562,21 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     return fit(page, Size(avail.width, h));
   }
 
-  /// The two facing pages from [first] (right) and [first] + 1 (left).
+  /// The two facing pages from [first] (right) and [first] + 1 (left);
+  /// with a [gap], a line down its middle, and with a [rail], each page's
+  /// margin on its outer side.
   Widget _spreadRow(int first, Size avail, AppSettings s, MushafPaper paper,
-      {bool compact = false}) {
+      {bool compact = false, double rail = 0, double gap = 0}) {
     final left = first + 1;
     final rb = _spreadBoxOf(first, avail, s, compact: compact);
     final lb =
         left <= _total ? _spreadBoxOf(left, avail, s, compact: compact) : rb;
     return Row(mainAxisSize: MainAxisSize.min, children: [
+      if (rail > 0)
+        SizedBox(
+            width: rail,
+            height: rb.height,
+            child: left <= _total ? _hifzRail(left, paper, rail) : null),
       SizedBox(
         width: lb.width,
         height: rb.height,
@@ -2545,10 +2584,20 @@ class _MushafPageScreenState extends State<MushafPageScreen>
             ? _pageView(left, s, paper, spine: 'left', compact: compact)
             : const SizedBox(),
       ),
+      if (gap > 0)
+        SizedBox(
+          width: gap,
+          height: rb.height,
+          child: Center(
+              child: SizedBox(
+                  width: 1, height: rb.height, child: ColoredBox(color: paper.line))),
+        ),
       SizedBox(
           width: rb.width,
           height: rb.height,
           child: _pageView(first, s, paper, spine: 'right', compact: compact)),
+      if (rail > 0)
+        SizedBox(width: rail, height: rb.height, child: _hifzRail(first, paper, rail)),
     ]);
   }
 
@@ -2921,7 +2970,7 @@ class _ViewModes extends StatelessWidget {
 
 /// Script, recitation and page options for the muṣḥaf.
 class _MushafSettingsSheet extends StatelessWidget {
-  final ScrollController controller;
+  final ScrollController? controller;
   final String script;
   final ValueChanged<String> onScript;
 
@@ -3215,8 +3264,12 @@ class _MushafPageView extends StatelessWidget {
   final int playWord;
   final bool reciting;
 
-  /// Word marks to draw, by [WordRef.key] (word 0 = the āyah's ۝).
-  final Map<int, MarkVisual> marks;
+  /// Word marks to draw, by [WordRef.key] (word 0 = the āyah's ۝): the
+  /// lines follow them as they change.
+  final MushafMarksSource? marks;
+
+  /// A soft shade along the spine (a desktop spread with gradients on).
+  final bool shade;
   final MarkPalette? markPal;
   final MushafTapHandlers handlers;
 
@@ -3244,7 +3297,8 @@ class _MushafPageView extends StatelessWidget {
     required this.playAyah,
     required this.playWord,
     required this.reciting,
-    this.marks = const {},
+    this.marks,
+    this.shade = false,
     this.markPal,
     required this.handlers,
     this.tajwid,
@@ -3297,8 +3351,7 @@ class _MushafPageView extends StatelessWidget {
     return LayoutBuilder(builder: (context, outer) {
       final pageW = outer.maxWidth - margin.horizontal;
       final roomy = pageW > MushafGeometry.roomyWidth;
-      final spineShade = spine == null ||
-              !SettingsScope.of(context).useGradients
+      final spineShade = spine == null || !shade
           ? null
           : LinearGradient(
               begin: spine == 'left'
@@ -3886,6 +3939,7 @@ class _MushafPageView extends StatelessWidget {
     final marker = markerOf(look, paper);
     return MushafLineView(
       handlers: handlers,
+      marks: marks,
       spec: MushafLineSpec(
         script: script,
         page: page,
@@ -3901,7 +3955,7 @@ class _MushafPageView extends StatelessWidget {
         playAyah: playAyah,
         playWord: playWord,
         reciting: reciting,
-        marks: marks,
+        marks: marks?.visuals ?? const {},
         markPal: markPal,
         tajwid: tajwid,
         focus: focus,

@@ -114,6 +114,7 @@ abstract final class AppIcons {
   static const memorize = QiraahIcons.memorize;
   // A Material stand-in until a Qiraah glyph is drawn (docs/icons_needed.md).
   static const eraser = Icons.cleaning_services_outlined;
+  static const info = Icons.info_outline;
   static const show = QiraahIcons.show;
   static const nextVerse = QiraahIcons.nextVerse;
   static const prevVerse = QiraahIcons.prevVerse;

@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/screens/qaidah_screen.dart';
+import 'package:qiraah_arabiyyah/learn/qaidah/qaidah_home.dart';
 
 /// Widget-interaction checks for the Round 12 Learn-phase restructure: a
 /// unit holding a single concept opens its explanation directly (no one-row
@@ -41,7 +41,7 @@ void main() {
       'Shaddah\'s Learn opens the explanation directly — no intermediate '
       'one-row menu, since the unit holds exactly one concept', (tester) async {
     final (settings, progress) = await _boot();
-    await tester.pumpWidget(_harness(settings, progress, const QaidahScreen()));
+    await tester.pumpWidget(_harness(settings, progress, const QaidahHome()));
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(find.textContaining('Shaddah'), 200,
@@ -63,7 +63,7 @@ void main() {
       'Tanwīn\'s Learn lists exactly 3 (Fatḥatān/Kasratān/Ḍammatān), not the '
       'old flat 12-card list', (tester) async {
     final (settings, progress) = await _boot();
-    await tester.pumpWidget(_harness(settings, progress, const QaidahScreen()));
+    await tester.pumpWidget(_harness(settings, progress, const QaidahHome()));
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(find.textContaining('Tanwīn'), 300,

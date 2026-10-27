@@ -86,6 +86,8 @@ function adjust(t: string) {
     .replaceAll('ئ', 'ي͏ٔ͏');
 }
 
+const lineText = (l: Line) => adjust(tokens.slice(l.first, l.end).join(' '));
+
 /// The site's narrower lines (QuranTextService.newMadinaLineWidths, keyed
 /// by page × 15 + line number) and the opening pages' tapering lines. Our
 /// line index counts the page's header and basmala rows too, as the site's
@@ -97,15 +99,42 @@ const narrow = new Map<number, number>([
   [603 * 15 + 15, 0.60], [604 * 15 + 4, 0.55], [604 * 15 + 9, 0.55], [604 * 15 + 14, 0.675],
   [604 * 15 + 15, 0.5],
 ]);
-for (const page of [1, 2]) {
-  narrow.set(page * 15 + 2, 0.7 * 0.8);
-  for (let l = 3; l <= 8; l++) narrow.set(page * 15 + l, 0.7);
+
+// The opening pages are set in a circle, as the printed Madani muṣḥaf sets
+// them: rows 1–7 (the basmala row of al-Baqarah among them) stand 1.8 em
+// apart around row 4, and each line is as wide as the circle is at its
+// height. One circle for both pages, just wide enough for the line that
+// needs it most (or --opening-d, in em); the short lines are stretched to
+// their chord with kashīdas, as printed.
+const PITCH = 1.8 * FONTSIZE;
+const openingLines = lines.filter(l => l.page <= 2);
+const openingWidth = new Map(openingLines.map(l => [l, H.getWidth(lineText(l), font, FONTSIZE, null) as number]));
+const rowY = (l: Line) => (l.line - 4) * PITCH;
+let r2 = 0;
+for (const l of openingLines) r2 = Math.max(r2, (openingWidth.get(l)! / 2) ** 2 + rowY(l) ** 2);
+const openingD = Number(arg('--opening-d') ?? 0) * FONTSIZE || 2 * Math.sqrt(r2);
+const openingR = openingD / 2;
+// A line of two or three words has too few places for kashīdas to fill
+// twice its width (its spaces would gape): it's stretched at most this
+// much, centred inside its chord — the circle's foot.
+const SHORT_STRETCH = Number(arg('--short-stretch') ?? 1.3);
+for (const l of openingLines) {
+  const round = 2 * Math.sqrt(Math.max(0, openingR ** 2 - rowY(l) ** 2));
+  const w = openingWidth.get(l)!;
+  const chord = l.end - l.first < 4 ? Math.min(round, w * SHORT_STRETCH) : round;
+  narrow.set(l.page * 15 + l.line + 1, chord / openingD);
+  console.log(`opening p${l.page} line ${l.line}: chord ${(chord / FONTSIZE).toFixed(2)} em, ` +
+    `natural ${(openingWidth.get(l)! / FONTSIZE).toFixed(2)} em (×${(chord / openingWidth.get(l)!).toFixed(2)})`);
+}
+console.log(`opening circle: ${(openingD / FONTSIZE).toFixed(2)} em across`);
+if (openingD / FONTSIZE > 17.3) {
+  console.error('the opening circle is wider than a page (17.3 em): pass --opening-d');
+  process.exit(1);
 }
 
 const pages = (arg('--pages') ?? '1-604').split('-').map(Number);
 const inPages = (p: number) => p >= pages[0] && p <= (pages[1] ?? pages[0]);
 const selected = lines.filter(l => inPages(l.page));
-const lineText = (l: Line) => adjust(tokens.slice(l.first, l.end).join(' '));
 
 // Each line's natural width (font units at FONTSIZE) and its share of the
 // measure (narrower lines, see above).
@@ -125,6 +154,7 @@ const pageMeasure = new Map<number, number>();
 for (const l of selected) {
   pageMeasure.set(l.page, Math.max(pageMeasure.get(l.page) ?? 0, natural.get(l)! / ratioOf(l)));
 }
+for (const page of [1, 2]) if (pageMeasure.has(page)) pageMeasure.set(page, openingD);
 
 // ── justify ──
 const spaceWidth = H.getWidth(' ', font, FONTSIZE, null);

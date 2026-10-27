@@ -9,7 +9,6 @@ import '../core/theme.dart';
 import '../data/script_diff.dart';
 import '../data/small_letters.dart';
 import '../data/waqf.dart';
-import '../data/wasl.dart';
 import '../ui/kit.dart';
 import '../widgets/common.dart';
 import '../widgets/lesson.dart';
@@ -160,19 +159,6 @@ QuizScreen _familiesQuiz(BuildContext context, {bool graded = true}) {
 
 Widget _marksLearn(BuildContext context) => lessonEntryScreen(marksLessonRoot(context));
 
-QuizQuestion _zeroQuestion(BuildContext context, WaslItem w, String text, String hl) {
-  final sounded = w.kind == 'zero_rect';
-  final options = [context.l10n.optSoundedOnStopOnly, context.l10n.optNeverSounded];
-  return QuizQuestion(
-    prompt: context.l10n.qpAlifSoundsWhen,
-    arabic: text,
-    highlight: hl,
-    reviewId: 'script.zero.${w.id}',
-    options: options,
-    correct: sounded ? 0 : 1,
-  );
-}
-
 QuizQuestion _smallLetterQuestion(
     BuildContext context, SmallLetter s, String text, String hl) {
   final pool = smallLetters.map((x) => x.name).toList();
@@ -189,12 +175,6 @@ QuizQuestion _smallLetterQuestion(
 }
 
 QuizScreen _marksQuiz(BuildContext context, {bool graded = true}) {
-  final zeroInstances = <(WaslItem, String, String)>[
-    for (final w in [...waslOfKind('zero_rect'), ...waslOfKind('zero_round')]) ...[
-      (w, w.example, w.highlight),
-      for (final (t, _, h) in w.moreExamples) (w, t, h),
-    ],
-  ];
   final smallInstances = <(SmallLetter, String, String)>[
     for (final s in smallLetters) ...[
       (s, s.example, s.highlight),
@@ -202,8 +182,7 @@ QuizScreen _marksQuiz(BuildContext context, {bool graded = true}) {
     ],
   ];
   final qs = <QuizQuestion>[
-    for (final (w, t, h) in pickN(zeroInstances, 4, _rng)) _zeroQuestion(context, w, t, h),
-    for (final (s, t, h) in pickN(smallInstances, 4, _rng))
+    for (final (s, t, h) in pickN(smallInstances, 8, _rng))
       _smallLetterQuestion(context, s, t, h),
   ]..shuffle(_rng);
   return QuizScreen(

@@ -222,7 +222,7 @@ class MarksStore extends ChangeNotifier {
         _clock = clock ?? (() => DateTime.now().millisecondsSinceEpoch),
         _newId = newId ?? newRecordId;
 
-  final MarksPersistence _persist;
+  MarksPersistence _persist;
   final int Function() _clock;
   final String Function() _newId;
   final Duration saveDelay;
@@ -355,6 +355,31 @@ class MarksStore extends ChangeNotifier {
   void dispose() {
     _saveTimer?.cancel();
     super.dispose();
+  }
+
+  /// Another profile's marks: what's pending here is written first, then
+  /// the store empties and loads [persistence] (`ready` is false between).
+  Future<void> reopen(MarksPersistence persistence) async {
+    await flush();
+    _books.clear();
+    _me = LocalIdentity(id: '');
+    _activeBookId = null;
+    _ready = false;
+    _version++;
+    notifyListeners();
+    _persist = persistence;
+    await load();
+  }
+
+  /// This store's files gone (its profile deleted), and the store empty.
+  Future<void> wipe() async {
+    _saveTimer?.cancel();
+    _dirtyFiles.clear();
+    await _persist.wipe();
+    _books.clear();
+    _activeBookId = null;
+    _version++;
+    notifyListeners();
   }
 
   // ── identity ───────────────────────────────────────────────────────────

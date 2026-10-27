@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/screens/qaidah_screen.dart';
+import 'package:qiraah_arabiyyah/learn/qaidah/qaidah_home.dart';
 import 'package:qiraah_arabiyyah/widgets/common.dart';
 
 /// Widget-level checks for the multi-select / ordering additions to the quiz
@@ -258,11 +258,13 @@ void main() {
       'navigation: a unit opens the Learn/Test/Practice hub, and each phase renders',
       (tester) async {
     final (settings, progress) = await _boot();
-    await tester.pumpWidget(_harness(settings, progress, const QaidahScreen()));
+    await tester.pumpWidget(_harness(settings, progress, const QaidahHome()));
     await tester.pumpAndSettle();
 
-    // Tap the first unit card (Letters).
-    await tester.tap(find.text('The Letters'));
+    // A unit card (Ḥarakāt; the letters are lessons, not units).
+    await tester.scrollUntilVisible(find.text('Ḥarakāt'), 300,
+        scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Ḥarakāt'));
     await tester.pumpAndSettle();
 
     // The phase hub shows all three phases, unlocked.
@@ -270,10 +272,10 @@ void main() {
     expect(find.text('Test'), findsOneWidget);
     expect(find.text('Practice'), findsOneWidget);
 
-    // Learn opens the real letters grid.
+    // Learn opens the lessons.
     await tester.tap(find.text('Learn'));
     await tester.pumpAndSettle();
-    expect(find.text('The Letters'), findsWidgets); // AppBar title
+    expect(find.text('Fatḥah'), findsWidgets);
     await tester.pageBack();
     await tester.pumpAndSettle();
 
@@ -293,10 +295,9 @@ void main() {
   testWidgets('navigation: the new Ḥurūf Muqaṭṭaʿāt unit is reachable',
       (tester) async {
     final (settings, progress) = await _boot();
-    await tester.pumpWidget(_harness(settings, progress, const QaidahScreen()));
+    await tester.pumpWidget(_harness(settings, progress, const QaidahHome()));
     await tester.pumpAndSettle();
 
-    // It's the 8th of 10 units — scroll it into view first.
     await tester.scrollUntilVisible(
         find.textContaining('Ḥurūf Muqaṭṭaʿāt'), 300,
         scrollable: find.byType(Scrollable).first);

@@ -18,6 +18,7 @@ import '../../data/mushaf.dart';
 import '../../data/mushaf_atlas.dart';
 import '../../ui/ornaments/ayah_markers.dart';
 import '../../ui/mark_style.dart';
+import 'mushaf_marks_layer.dart';
 
 /// One text line of the 15-line muṣḥaf, shaped once.
 ///
@@ -153,6 +154,10 @@ class MushafLineSpec {
   /// from the glyph atlas only; the text fallback ignores it.
   final List<Color>? tajwid;
 
+  /// A search's match: tokens [matchFrom, matchTo) on the āyah's ground
+  /// (as a recited āyah's). -1: none.
+  final int matchFrom, matchTo;
+
   /// The cache key: the line, its size, and only the styling that actually
   /// touches its words — so a recitation tick changes the key of the one or
   /// two lines it highlights, and every other line is reused.
@@ -189,6 +194,8 @@ class MushafLineSpec {
     String markerArt = 'madani',
     double markerScale = 1,
     double markerDy = 0,
+    int matchFrom = -1,
+    int matchTo = -1,
   }) {
     final variant = StringBuffer();
     // Only how much of THIS line is hidden matters: lines wholly before the
@@ -201,7 +208,8 @@ class MushafLineSpec {
     if (!justify) variant.write('nj,');
     for (var i = 0; i < line.words.length; i++) {
       final wd = line.words[i];
-      final st = _tokenState(wd, playAyah, playWord, reciting);
+      var st = _tokenState(wd, playAyah, playWord, reciting);
+      if (st == 0 && t0 + i >= matchFrom && t0 + i < matchTo) st = 2;
       final key = (marks.isEmpty || markPal == null) && focus < 0
           ? -1
           : _wordKey(wd);
@@ -253,6 +261,8 @@ class MushafLineSpec {
       ornamentFill,
       key,
       plain,
+      matchFrom,
+      matchTo,
     );
   }
 
@@ -285,7 +295,51 @@ class MushafLineSpec {
     this.ornamentFill,
     this.key,
     this.plain,
+    this.matchFrom,
+    this.matchTo,
   );
+
+  /// The same line with [m] for its marks (a new key when they touch it).
+  MushafLineSpec withMarks(Map<int, MarkVisual> m) => identical(m, marks)
+      ? this
+      : MushafLineSpec(
+          script: script,
+          page: page,
+          index: index,
+          line: line,
+          fontSize: fontSize,
+          slotH: slotH,
+          targetW: targetW,
+          ink: ink,
+          accent: accent,
+          strongBg: strongBg,
+          verseBg: verseBg,
+          playAyah: playAyah,
+          playWord: playWord,
+          reciting: reciting,
+          marks: m,
+          markPal: markPal,
+          tajwid: tajwid,
+          focus: focus,
+          rewrap: rewrap,
+          hideFrom: hideFrom,
+          justify: justify,
+          ornament: ornament,
+          ornamentFill: ornamentFill,
+          markerArt: markerArt,
+          markerScale: markerScale,
+          markerDy: markerDy,
+          matchFrom: matchFrom,
+          matchTo: matchTo,
+        );
+
+  /// Token [i]'s state: 0 plain, 1 the word being recited/played, 2 inside
+  /// the recited āyah or a search's match.
+  int stateAt(int i) {
+    final st = _tokenState(line.words[i], playAyah, playWord, reciting);
+    final t = line.firstTok + i;
+    return st == 0 && t >= matchFrom && t < matchTo ? 2 : st;
+  }
 
   /// Whether the line's token [i] is hidden (memorize mode).
   bool isHidden(int i) => hideFrom >= 0 && line.firstTok + i >= hideFrom;
@@ -364,10 +418,186 @@ class LaidLine implements MushafLineLayout {
   double get height => painter.height;
 }
 
-/// A line drawn from the glyph atlas: per atlas sheet, one sprite per glyph
-/// (transform, source rect, colour) for `Canvas.drawRawAtlas`, plus the
-/// highlight rects behind the words.
+/// A line's sprites, laid out once and kept: every glyph's place in font
+/// units (from the line's left edge and its baseline) and its source in the
+/// sheet — the line at any size is this, scaled. Built at most once per
+/// line, sheet size and measure, and shared by every page that shows it
+/// (see [_geometryOf]); what a line looks like (colours, hidden words,
+/// marks) is laid over it per paint, never by redoing it.
+class AtlasGeometry {
+  final int tier;
+
+  /// Font units: the line's width and the extra in each space.
+  final double width, gapExtra;
+
+  /// Each token's left and right edge, font units.
+  final Float32List left, right;
+
+  /// Per sheet: transforms, source rects, and each sprite's token and glyph
+  /// (within its word: tajwīd colours it).
+  final List<(int sheet, Float32List xforms, Float32List rects, Int32List token, Int32List glyph)>
+      batches;
+
+  /// The traced āyah circles (their own sprite) and the discs filling their
+  /// holes, each with its token.
+  final (ui.Image, Float32List, Float32List, Int32List)? circles;
+  final List<(Offset, double, int)> discs;
+
+  const AtlasGeometry(this.tier, this.width, this.gapExtra, this.left,
+      this.right, this.batches, this.circles, this.discs);
+}
+
+/// Lines' geometry, most recently used last: a page swiped back, a resized
+/// window or a tool turned on finds its lines here.
+final LinkedHashMap<String, AtlasGeometry> _geometry = LinkedHashMap();
+const _geometryCap = 900;
+
+/// Builds (or finds) [s]'s geometry at [tier].
+AtlasGeometry _geometryOf(MushafLineSpec s, MushafAtlas atlas, int tier) {
+  final l = s.line;
+  final n = l.words.length;
+  final t0 = l.firstTok;
+  final tokenWord = atlas.tokenWord, tokenGap = atlas.tokenGap;
+  final wordAdvance = atlas.wordAdvance;
+  int gapAfter(int tok) {
+    final g = tokenGap[tok];
+    return g == 0 && s.rewrap ? atlas.space : g;
+  }
+
+  var natural = 0.0;
+  for (var i = 0; i < n; i++) {
+    natural += wordAdvance[tokenWord[t0 + i]];
+    if (i < n - 1) natural += gapAfter(t0 + i);
+  }
+  final k = s.fontSize / atlas.upem;
+  final spaces = n - 1;
+  final justified = s.justify &&
+      natural * k >= s.targetW * (atlas.justified ? 0.97 : 0.45) &&
+      spaces > 0;
+  // The measure in font units (to the unit: a pixel's fraction).
+  final measure = justified ? (s.targetW / k).round() : -1;
+  final key = '${identityHashCode(atlas)}|$t0|$n|$tier|${s.rewrap}|$measure|'
+      '${s.ornament == null ? '' : '${s.markerArt}/${s.markerScale}/${s.markerDy}'}';
+  final hit = _geometry.remove(key);
+  if (hit != null) return _geometry[key] = hit;
+
+  final gapExtra = justified ? ((measure - natural) / spaces).clamp(0.0, 1e9) : 0.0;
+  final width = natural + gapExtra * (spaces < 0 ? 0 : spaces);
+  final t = atlas.tiers[tier];
+  final wordStart = atlas.wordGlyphStart;
+  final glyphId = atlas.glyphId, sheetOf = t.sheet;
+  final ornament = s.ornament;
+  int circleOf(int i) => ornament != null && l.words[i].isMarker
+      ? wordStart[tokenWord[t0 + i]]
+      : -1;
+  final perSheet = List<int>.filled(t.sheetCount, 0);
+  for (var i = 0; i < n; i++) {
+    final w = tokenWord[t0 + i];
+    final circle = circleOf(i);
+    for (var g = wordStart[w]; g < wordStart[w + 1]; g++) {
+      if (g == circle) continue;
+      final sh = sheetOf[glyphId[g]];
+      if (sh != 255) perSheet[sh]++;
+    }
+  }
+  final xforms = [for (final c in perSheet) Float32List(c * 4)];
+  final rects = [for (final c in perSheet) Float32List(c * 4)];
+  final tokens = [for (final c in perSheet) Int32List(c)];
+  final glyphs = [for (final c in perSheet) Int32List(c)];
+  final fill = List<int>.filled(t.sheetCount, 0);
+  // A sheet's pixels in font units.
+  final scale = atlas.upem / t.em;
+  final gx = atlas.glyphX, gy = atlas.glyphY;
+  final sx = t.x, sy = t.y, sw = t.w, shh = t.h, bl = t.left, bt = t.top;
+  final lefts = Float32List(n), rights = Float32List(n);
+  ui.Image? circleImg;
+  final circleXf = <double>[], circleRc = <double>[], circleTok = <int>[];
+  final discs = <(Offset, double, int)>[];
+  final cc = ClassicCircle.of(s.markerArt);
+  var x = width;
+  for (var i = 0; i < n; i++) {
+    final tok = t0 + i;
+    final w = tokenWord[tok];
+    final left = x - wordAdvance[w];
+    lefts[i] = left;
+    rights[i] = x;
+    final g0 = wordStart[w], g1 = wordStart[w + 1];
+    final circle = circleOf(i);
+    if (circle >= 0) {
+      // The traced circle, its ring over the font circle's (the number
+      // sits in both alike).
+      final a = glyphId[circle];
+      final img = circleImg ??= cc.sprite(
+          (shh[a] * s.markerScale / cc.ringDiameter).round().clamp(4, 1024));
+      final dh = (img.height - 2) * scale, dw = (img.width - 2) * scale;
+      final cx = left + gx[circle] + bl[a] * scale + sw[a] * scale / 2;
+      final cy = -gy[circle] - bt[a] * scale + shh[a] * scale / 2;
+      final x0 = cx - dw * cc.holeCentre.dx,
+          y0 = cy - dh * (cc.ringCentreY - s.markerDy);
+      circleXf.addAll([scale, 0, x0 - scale, y0 - scale]);
+      discs.add((
+        Offset(x0 + dw * cc.holeCentre.dx, y0 + dh * cc.holeCentre.dy),
+        dh * cc.holeDiameter / 2,
+        i,
+      ));
+      circleRc.addAll([0, 0, img.width.toDouble(), img.height.toDouble()]);
+      circleTok.add(i);
+    }
+    for (var g = g0; g < g1; g++) {
+      if (g == circle) continue;
+      final a = glyphId[g];
+      final sheet = sheetOf[a];
+      if (sheet == 255) continue;
+      final f = fill[sheet]++;
+      final xf = xforms[sheet], rc = rects[sheet];
+      xf[f * 4] = scale;
+      xf[f * 4 + 1] = 0;
+      xf[f * 4 + 2] = left + gx[g] + bl[a] * scale;
+      xf[f * 4 + 3] = -gy[g] - bt[a] * scale;
+      final ax = sx[a].toDouble(), ay = sy[a].toDouble();
+      rc[f * 4] = ax;
+      rc[f * 4 + 1] = ay;
+      rc[f * 4 + 2] = ax + sw[a];
+      rc[f * 4 + 3] = ay + shh[a];
+      tokens[sheet][f] = i;
+      glyphs[sheet][f] = g - g0;
+    }
+    x = left - (i < n - 1 ? gapAfter(tok) + gapExtra : 0);
+  }
+  final geo = AtlasGeometry(
+    tier,
+    width,
+    gapExtra,
+    lefts,
+    rights,
+    [
+      for (var sh = 0; sh < perSheet.length; sh++)
+        if (perSheet[sh] > 0) (sh, xforms[sh], rects[sh], tokens[sh], glyphs[sh]),
+    ],
+    circleImg == null
+        ? null
+        : (
+            circleImg,
+            Float32List.fromList(circleXf),
+            Float32List.fromList(circleRc),
+            Int32List.fromList(circleTok),
+          ),
+    discs,
+  );
+  while (_geometry.length >= _geometryCap) {
+    _geometry.remove(_geometry.keys.first);
+  }
+  return _geometry[key] = geo;
+}
+
+/// A line drawn from the glyph atlas: its [geometry] (shared, font units)
+/// at this size, and its look — each sprite's colour, the highlights behind
+/// the words, the marks under them.
 class AtlasLine implements MushafLineLayout {
+  final AtlasGeometry geometry;
+
+  /// Font units → pixels.
+  final double k;
   @override
   final double width, height, baseline, gapExtra;
   @override
@@ -377,14 +607,13 @@ class AtlasLine implements MushafLineLayout {
   @override
   final List<(double, double)> focusBoxes;
   final List<(double left, double right, Color c)> backgrounds;
-  final int tier;
-  final List<(int sheet, Float32List xforms, Float32List rects, Int32List colors)>
-      batches;
 
-  /// Classic ornaments: the āyah circles, drawn from their own sprite, and
-  /// (white-filled papers) the discs filling their holes.
-  final (ui.Image, Float32List, Float32List, Int32List)? circles;
-  final List<(Offset, double)> discs;
+  /// Each sprite's colour, per batch of [geometry]; the circles' too.
+  final List<Int32List> colors;
+  final Int32List? circleColors;
+
+  /// Which tokens are hidden (memorize): their circles' discs aren't drawn.
+  final List<bool> hidden;
 
   /// Each token's colour as drawn (tests).
   @visibleForTesting
@@ -396,6 +625,8 @@ class AtlasLine implements MushafLineLayout {
   final List<List<Color>> glyphColors;
 
   const AtlasLine(
+    this.geometry,
+    this.k,
     this.width,
     this.height,
     this.baseline,
@@ -403,79 +634,36 @@ class AtlasLine implements MushafLineLayout {
     this.boxes,
     this.markLines,
     this.backgrounds,
-    this.tier,
-    this.batches,
+    this.colors,
+    this.circleColors,
+    this.hidden,
     this.tokenColors,
     this.glyphColors, [
     this.focusBoxes = const [],
-    this.circles,
-    this.discs = const [],
   ]);
+
+  int get tier => geometry.tier;
+
+  /// Per sheet: transforms (font units), rects, colours (tests count them).
+  List<(int, Float32List, Float32List, Int32List)> get batches => [
+        for (final (i, b) in geometry.batches.indexed) (b.$1, b.$2, b.$3, colors[i]),
+      ];
 }
 
-/// Lays [s] out from [atlas] at [tier]: the same justification as the text
-/// path (spaces widen once a line's natural width reaches 45% of the
-/// measure), words placed right to left from their premade shapes.
+/// [s] from [atlas] at [tier]: its geometry (built once, shared — see
+/// [AtlasGeometry]), and the look [s] asks for — colours, highlights and
+/// marks — which is all that changes from one tick, mark or setting to the
+/// next. Justified as the text path is (spaces widen once a line reaches
+/// 45% of the measure; a pre-justified atlas, 97%).
 AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
-  // Runs for every line of every page as it comes on screen, so it allocates
-  // as little as it can: one pass to count each sheet's glyphs, then the
-  // sprite arrays are filled in place (on a Pixel 7 Pro, growable lists of
-  // boxed doubles made this ~1–2 ms a line).
+  final geo = _geometryOf(s, atlas, tier);
   final l = s.line;
-  final fs = s.fontSize;
-  final k = fs / atlas.upem; // font units → px
   final n = l.words.length;
   final t0 = l.firstTok;
-  final t = atlas.tiers[tier];
-  final tokenWord = atlas.tokenWord, tokenGap = atlas.tokenGap;
-  final wordAdvance = atlas.wordAdvance, wordStart = atlas.wordGlyphStart;
-  final glyphId = atlas.glyphId, sheetOf = t.sheet;
-  // Classic ornaments: an āyah marker's first glyph (its plain circle) is
-  // swapped for the traced circle, from a sprite of its own.
-  final ornament = s.ornament;
-  int circleOf(int i) => ornament != null && l.words[i].isMarker
-      ? wordStart[tokenWord[t0 + i]]
-      : -1;
-
-  int gapAfter(int tok) {
-    final g = tokenGap[tok];
-    return g == 0 && s.rewrap ? atlas.space : g;
-  }
-
-  var natural = 0.0;
-  final perSheet = List<int>.filled(t.sheetCount, 0);
-  for (var i = 0; i < n; i++) {
-    final w = tokenWord[t0 + i];
-    natural += wordAdvance[w];
-    if (i < n - 1) natural += gapAfter(t0 + i);
-    if (s.isHidden(i)) continue; // no sprites for a hidden word
-    final circle = circleOf(i);
-    for (var g = wordStart[w]; g < wordStart[w + 1]; g++) {
-      if (g == circle) continue;
-      final sh = sheetOf[glyphId[g]];
-      if (sh != 255) perSheet[sh]++;
-    }
-  }
-  natural *= k;
-  final spaces = n - 1;
-  final justified = s.justify &&
-      natural >= s.targetW * (atlas.justified ? 0.97 : 0.45) &&
-      spaces > 0;
-  final gapExtra = justified
-      ? ((s.targetW - natural) / spaces).clamp(0.0, 1e6)
-      : 0.0;
-  final width = natural + gapExtra * (spaces < 0 ? 0 : spaces);
-  // As a TextPainter with height slotH/fs and even leading would place it.
+  final k = s.fontSize / atlas.upem;
   final asc = atlas.ascender * k, desc = -atlas.descender * k;
+  // As a TextPainter with height slotH/fs and even leading would place it.
   final baseline = (s.slotH - (asc + desc)) / 2 + asc;
-
-  final xforms = [for (final c in perSheet) Float32List(c * 4)];
-  final rects = [for (final c in perSheet) Float32List(c * 4)];
-  final colors = [for (final c in perSheet) Int32List(c)];
-  final fill = List<int>.filled(t.sheetCount, 0);
-  final scale = fs / t.em;
-  final gx = atlas.glyphX, gy = atlas.glyphY;
-  final sx = t.x, sy = t.y, sw = t.w, shh = t.h, bl = t.left, bt = t.top;
   final pairs = atlas.tajwidPairs, tjStart = atlas.tajwidStart;
   final tj = s.tajwid;
   final mp = s.markPal;
@@ -484,126 +672,100 @@ AtlasLine buildAtlasLine(MushafLineSpec s, MushafAtlas atlas, int tier) {
   final marked = <(double, double, MarkVisual)>[];
   final focused = <(double, double)>[];
   final tokenColors = <Color>[];
-  final glyphColors = <List<Color>>[];
-  ui.Image? circleImg;
-  final circleXf = <double>[], circleRc = <double>[], circleCol = <int>[];
-  final discs = <(Offset, double)>[];
-  final cc = ClassicCircle.of(s.markerArt);
-  var x = width;
+  final hidden = List<bool>.filled(n, false);
+  // Each token's ink, and whether tajwīd colours its letters.
+  final base = Int32List(n);
+  final tajwid = List<bool>.filled(n, false);
   for (var i = 0; i < n; i++) {
     final wd = l.words[i];
-    final tok = t0 + i;
-    final w = tokenWord[tok];
-    final left = x - wordAdvance[w] * k;
-    boxes.add((left, x));
+    final left = geo.left[i] * k, right = geo.right[i] * k;
+    boxes.add((left, right));
     if (s.isHidden(i)) {
-      // Blank: its box only (taps and layout), nothing drawn.
+      hidden[i] = true;
       tokenColors.add(const Color(0x00000000));
-      glyphColors.add(const []);
-      x = left - (i < n - 1 ? gapAfter(tok) * k + gapExtra : 0);
       continue;
     }
-    final st = MushafLineSpec._tokenState(wd, s.playAyah, s.playWord, s.reciting);
+    final st = s.stateAt(i);
     final mv = s.marks.isEmpty || mp == null
         ? null
         : s.marks[WordRef.fromGlobal(wd.ayah, wd.isMarker ? -1 : wd.wordIdx).key];
     final f = s.isFocus(wd);
-    if (f) focused.add((left, x));
+    if (f) focused.add((left, right));
     final over = st == 1 || f ? s.strongBg : (st == 2 ? s.verseBg : null);
     final tint = mv == null || mv.open == null ? null : mp!.tintOf(mv.open!);
     final bg = over ?? tint;
-    if (bg != null) backgrounds.add((left, x, bg));
-    if (mv != null && x > left) marked.add((left, x, mv));
-    final base = st == 1 ? s.accent : s.ink;
-    final baseArgb = base.toARGB32();
-    tokenColors.add(base);
-    // Tajwīd rules colour single glyphs (not the word being recited); the
-    // pairs are sorted by glyph.
-    var p = tj != null && st != 1 ? tjStart[tok] : 0;
-    final pEnd = tj != null && st != 1 ? tjStart[tok + 1] : 0;
-    final g0 = wordStart[w], g1 = wordStart[w + 1];
-    final debugColors = kDebugMode ? <Color>[] : null;
-    final circle = circleOf(i);
-    if (circle >= 0) {
-      // The traced circle, its ring over the font circle's (the number
-      // sits in both alike).
-      final a = glyphId[circle];
-      final img = circleImg ??= cc.sprite(
-          (shh[a] * s.markerScale / cc.ringDiameter).round().clamp(4, 1024));
-      final dh = (img.height - 2) * scale, dw = (img.width - 2) * scale;
-      final cx = left + gx[circle] * k + bl[a] * scale + sw[a] * scale / 2;
-      final cy = baseline - gy[circle] * k - bt[a] * scale + shh[a] * scale / 2;
-      final x0 = cx - dw * cc.holeCentre.dx,
-          y0 = cy - dh * (cc.ringCentreY - s.markerDy);
-      circleXf.addAll([scale, 0, x0 - scale, y0 - scale]);
-      if (s.ornamentFill != null) {
-        discs.add((
-          Offset(x0 + dw * cc.holeCentre.dx, y0 + dh * cc.holeCentre.dy),
-          dh * cc.holeDiameter / 2 + .5,
-        ));
+    if (bg != null) backgrounds.add((left, right, bg));
+    if (mv != null && right > left) marked.add((left, right, mv));
+    final c = st == 1 ? s.accent : s.ink;
+    base[i] = c.toARGB32();
+    tokenColors.add(c);
+    // Tajwīd rules colour single glyphs (not the word being recited).
+    tajwid[i] = tj != null && st != 1;
+  }
+  // Each sprite's colour: its token's ink, a tajwīd rule's on its letters,
+  // nothing (transparent) for a hidden word.
+  int colourOf(int i, int glyph) {
+    if (hidden[i]) return 0;
+    var argb = base[i];
+    if (tajwid[i]) {
+      final tok = t0 + i;
+      for (var p = tjStart[tok]; p < tjStart[tok + 1]; p++) {
+        if (pairs[p * 2] == glyph) {
+          final r = pairs[p * 2 + 1];
+          if (r < tj!.length) argb = tj[r].toARGB32();
+          break;
+        }
+        if (pairs[p * 2] > glyph) break;
       }
-      circleRc.addAll(
-          [0, 0, img.width.toDouble(), img.height.toDouble()]);
-      circleCol.add((st == 1 ? s.accent : ornament!).toARGB32());
     }
-    for (var g = g0; g < g1; g++) {
-      if (g == circle) {
-        debugColors?.add(Color(baseArgb));
-        continue;
-      }
-      var argb = baseArgb;
-      while (p < pEnd && pairs[p * 2] < g - g0) {
-        p++;
-      }
-      if (p < pEnd && pairs[p * 2] == g - g0) {
-        final r = pairs[p * 2 + 1];
-        if (r < tj!.length) argb = tj[r].toARGB32();
-      }
-      debugColors?.add(Color(argb));
-      final a = glyphId[g];
-      final sheet = sheetOf[a];
-      if (sheet == 255) continue;
-      final f = fill[sheet]++;
-      final xf = xforms[sheet], rc = rects[sheet];
-      xf[f * 4] = scale;
-      xf[f * 4 + 1] = 0;
-      xf[f * 4 + 2] = left + gx[g] * k + bl[a] * scale;
-      xf[f * 4 + 3] = baseline - gy[g] * k - bt[a] * scale;
-      final ax = sx[a].toDouble(), ay = sy[a].toDouble();
-      rc[f * 4] = ax;
-      rc[f * 4 + 1] = ay;
-      rc[f * 4 + 2] = ax + sw[a];
-      rc[f * 4 + 3] = ay + shh[a];
-      colors[sheet][f] = argb;
+    return argb;
+  }
+
+  final colors = <Int32List>[];
+  for (final (_, _, _, tokens, glyphs) in geo.batches) {
+    final c = Int32List(tokens.length);
+    for (var f = 0; f < tokens.length; f++) {
+      c[f] = colourOf(tokens[f], glyphs[f]);
     }
-    glyphColors.add(debugColors ?? const []);
-    x = left - (i < n - 1 ? gapAfter(tok) * k + gapExtra : 0);
+    colors.add(c);
+  }
+  final circleTok = geo.circles?.$4;
+  final circleColors = circleTok == null
+      ? null
+      : Int32List.fromList([
+          for (final i in circleTok)
+            hidden[i] ? 0 : (s.stateAt(i) == 1 ? s.accent : s.ornament!).toARGB32(),
+        ]);
+  // Each glyph's colour, per token, in the word's order (tests).
+  final glyphColors = <List<Color>>[];
+  if (kDebugMode) {
+    final wordStart = atlas.wordGlyphStart, tokenWord = atlas.tokenWord;
+    for (var i = 0; i < n; i++) {
+      final w = tokenWord[t0 + i];
+      glyphColors.add(hidden[i]
+          ? const []
+          : [
+              for (var g = 0; g < wordStart[w + 1] - wordStart[w]; g++)
+                Color(colourOf(i, g)),
+            ]);
+    }
   }
   return AtlasLine(
-    width,
+    geo,
+    k,
+    geo.width * k,
     s.slotH,
     baseline,
-    gapExtra,
+    geo.gapExtra * k,
     boxes,
     marked,
     backgrounds,
-    tier,
-    [
-      for (var sh = 0; sh < perSheet.length; sh++)
-        if (perSheet[sh] > 0) (sh, xforms[sh], rects[sh], colors[sh]),
-    ],
+    colors,
+    circleColors,
+    hidden,
     tokenColors,
     glyphColors,
     focused,
-    circleImg == null
-        ? null
-        : (
-            circleImg,
-            Float32List.fromList(circleXf),
-            Float32List.fromList(circleRc),
-            Int32List.fromList(circleCol),
-          ),
-    discs,
   );
 }
 
@@ -655,12 +817,7 @@ LaidLine _shape(MushafLineSpec s) {
   var chars = 0;
   for (var i = 0; i < l.words.length; i++) {
     final wd = l.words[i];
-    final st = MushafLineSpec._tokenState(
-      wd,
-      s.playAyah,
-      s.playWord,
-      s.reciting,
-    );
+    final st = s.stateAt(i);
     final mp = s.markPal;
     final mv = s.marks.isEmpty || mp == null
         ? null
@@ -1024,16 +1181,23 @@ class MushafTapHandlers {
 class MushafLineView extends LeafRenderObjectWidget {
   final MushafLineSpec spec;
   final MushafTapHandlers handlers;
-  const MushafLineView({super.key, required this.spec, required this.handlers});
+
+  /// Where the line's marks come from as they change (the muṣḥaf's pages):
+  /// the line repaints itself from it, without a rebuild. Null: [spec]'s.
+  final MushafMarksSource? marks;
+  const MushafLineView(
+      {super.key, required this.spec, required this.handlers, this.marks});
 
   @override
   RenderMushafLine createRenderObject(BuildContext context) =>
       RenderMushafLine(spec, handlers)
+        ..marksSource = marks
         ..devicePixelRatio = View.maybeOf(context)?.devicePixelRatio ?? 1;
 
   @override
   void updateRenderObject(BuildContext context, RenderMushafLine renderObject) {
     renderObject
+      ..marksSource = marks
       ..spec = spec
       ..handlers = handlers
       ..devicePixelRatio = View.maybeOf(context)?.devicePixelRatio ?? 1;
@@ -1061,8 +1225,57 @@ class RenderMushafLine extends RenderBox {
     markNeedsPaint();
   }
 
+  /// Paints made, for the tests' budgets.
+  @visibleForTesting
+  static int debugPaints = 0;
+
+  // ── marks that change under the line ──
+
+  MushafMarksSource? _marks;
+  Listenable? _marksSignal;
+  set marksSource(MushafMarksSource? v) {
+    if (identical(v, _marks)) return;
+    _unlisten();
+    _marks = v;
+    if (attached) _listen();
+  }
+
+  void _listen() {
+    final m = _marks;
+    if (m == null) return;
+    _marksSignal = m.pageSignal(_spec.page)..addListener(_marksChanged);
+  }
+
+  void _unlisten() {
+    _marksSignal?.removeListener(_marksChanged);
+    _marksSignal = null;
+  }
+
+  void _marksChanged() {
+    final m = _marks;
+    if (m != null) spec = _spec.withMarks(m.visuals);
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _listen();
+  }
+
+  @override
+  void detach() {
+    _unlisten();
+    super.detach();
+  }
+
   MushafLineSpec get spec => _spec;
   set spec(MushafLineSpec v) {
+    // The marks always as they are now (the widget's may be older).
+    if (_marks != null) v = v.withMarks(_marks!.visuals);
+    if (v.page != _spec.page && _marksSignal != null) {
+      _unlisten();
+      _marksSignal = _marks!.pageSignal(v.page)..addListener(_marksChanged);
+    }
     if (_capVersion != MushafAtlas.capVersion) {
       // Lite mode changed which sheets to draw from.
       _capVersion = MushafAtlas.capVersion;
@@ -1144,6 +1357,7 @@ class RenderMushafLine extends RenderBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
+    if (kDebugMode) debugPaints++;
     final atlas = _atlas;
     if (atlas != null) {
       _paintAtlas(context.canvas, offset, atlas);
@@ -1258,35 +1472,31 @@ void paintAtlasLine(Canvas canvas, Offset o, AtlasLine l, MushafAtlas atlas,
       Paint()..color = c,
     );
   }
-  if (l.discs.isNotEmpty && spec.ornamentFill != null) {
+  final geo = l.geometry;
+  final images = atlas.tiers[l.tier].images;
+  // The sprites in font units, from the baseline: scaled to this size.
+  canvas.save();
+  canvas.translate(o.dx, o.dy + l.baseline);
+  canvas.scale(l.k);
+  if (geo.discs.isNotEmpty && spec.ornamentFill != null) {
     final fill = Paint()..color = spec.ornamentFill!;
-    for (final (c, r) in l.discs) {
-      canvas.drawCircle(c + o, r, fill);
+    for (final (c, r, i) in geo.discs) {
+      if (!l.hidden[i]) canvas.drawCircle(c, r + .5 / l.k, fill);
     }
   }
-  final images = atlas.tiers[l.tier].images;
   if (images != null) {
     final paint = Paint()..filterQuality = FilterQuality.medium;
-    canvas.save();
-    canvas.translate(o.dx, o.dy);
-    for (final (sheet, xf, rects, colors) in l.batches) {
+    for (final (b, (sheet, xf, rects, _, _)) in geo.batches.indexed) {
       // Each sprite is a white glyph; modulate takes its colour.
       canvas.drawRawAtlas(
-        images[sheet],
-        xf,
-        rects,
-        colors,
-        BlendMode.modulate,
-        null,
-        paint,
-      );
+          images[sheet], xf, rects, l.colors[b], BlendMode.modulate, null, paint);
     }
-    if (l.circles case (final img, final xf, final rects, final colors)) {
+    if (geo.circles case (final img, final xf, final rects, _)) {
       canvas.drawRawAtlas(
-          img, xf, rects, colors, BlendMode.modulate, null, paint);
+          img, xf, rects, l.circleColors, BlendMode.modulate, null, paint);
     }
-    canvas.restore();
   }
+  canvas.restore();
   paintLineMarks(canvas, o, l, spec);
   paintLineFocus(canvas, o, l, spec);
 }

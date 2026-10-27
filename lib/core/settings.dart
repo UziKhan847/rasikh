@@ -589,18 +589,126 @@ class ReviewItem {
       );
 }
 
+/// A lesson left halfway: built from [seed] (the same questions again), at
+/// [step] of [total], with the options picked so far, by step.
+class LessonPlace {
+  final int seed, step, total;
+  final Map<int, int> picks;
+  const LessonPlace({required this.seed, required this.step, required this.total, this.picks = const {}});
+
+  factory LessonPlace.fromJson(Map<String, dynamic> j) => LessonPlace(
+        seed: j['seed'] as int,
+        step: j['step'] as int,
+        total: j['total'] as int,
+        picks: {
+          for (final e in ((j['picks'] ?? const {}) as Map).entries)
+            int.parse(e.key as String): e.value as int,
+        },
+      );
+
+  Map<String, dynamic> toJson() => {
+        'seed': seed,
+        'step': step,
+        'total': total,
+        'picks': {for (final e in picks.entries) '${e.key}': e.value},
+      };
+}
+
 class ProgressStore extends ChangeNotifier {
   final Map<String, int> _stars = {};
   static const _keyBase = 'noor.progress.v1';
   static const _streakKeyBase = 'noor.streak.v1';
-  static const _missKey = 'noor.misses.v1'; // legacy — read once to migrate; adult-only
   static const _reviewKeyBase = 'noor.review.v1';
 
-  static const _readingKey = 'noor.reading.v1';
+  static const _readingKeyBase = 'noor.reading.v1';
+  static const _lessonsKeyBase = 'noor.lessons.v1';
 
-  String get _key => _keyBase;
-  String get _streakKey => _streakKeyBase;
-  String get _reviewKey => _reviewKeyBase;
+  /// The active profile's keys (see core/profiles.dart): the default
+  /// profile's are the plain keys, so data from before profiles is its.
+  static String profileSuffix = '';
+  static String get _key => '$_keyBase$profileSuffix';
+  static String get _streakKey => '$_streakKeyBase$profileSuffix';
+  static String get _reviewKey => '$_reviewKeyBase$profileSuffix';
+  static String get _readingKey => '$_readingKeyBase$profileSuffix';
+  static String get _lessonsKey => '$_lessonsKeyBase$profileSuffix';
+
+  // ── lessons left halfway ──
+
+  final Map<String, LessonPlace> _lessons = {};
+
+  /// Where lesson [id] was left (null: not started, or finished).
+  LessonPlace? lessonPlace(String id) => _lessons[id];
+
+  /// Notes where lesson [id] is: built from [seed] (so it's the same lesson
+  /// again), at [step] of [total], with these answers.
+  void saveLessonPlace(String id, LessonPlace place) {
+    _lessons[id] = place;
+    notifyListeners(); // the lesson's card shows where it was left
+    _saveLessons();
+  }
+
+  /// Lesson [id] finished (or started over): no place to come back to.
+  void clearLessonPlace(String id) {
+    if (_lessons.remove(id) != null) {
+      notifyListeners();
+      _saveLessons();
+    }
+  }
+
+  Future<void> _saveLessons() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_lessonsKey,
+        jsonEncode({for (final e in _lessons.entries) e.key: e.value.toJson()}));
+  }
+
+  void _loadLessons(SharedPreferences p) {
+    _lessons.clear();
+    final raw = p.getString(_lessonsKey);
+    if (raw == null) return;
+    try {
+      (jsonDecode(raw) as Map<String, dynamic>).forEach((k, v) {
+        _lessons[k] = LessonPlace.fromJson((v as Map).cast<String, dynamic>());
+      });
+    } catch (_) {}
+  }
+
+  /// Every key a profile with [suffix] keeps its progress under.
+  static List<String> keysOf(String suffix) => [
+        for (final k in [_keyBase, _streakKeyBase, _reviewKeyBase, _readingKeyBase, _lessonsKeyBase])
+          '$k$suffix',
+      ];
+
+  /// The last muṣḥaf page of the profile with [suffix], without loading it.
+  static int? peekPage(SharedPreferences p, String suffix) {
+    final raw = p.getString('$_readingKeyBase$suffix');
+    if (raw == null) return null;
+    try {
+      return ((jsonDecode(raw) as Map)['page'] as num?)?.toInt();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Another profile's progress: everything here forgotten, then its keys
+  /// loaded (load() alone adds to what's here).
+  Future<void> reload() async {
+    _stars.clear();
+    review.clear();
+    streakDays = 0;
+    _lastDay = -1;
+    _weekStartDay = -1;
+    weekMask = 0;
+    lastRead = null;
+    lastMushafPage = null;
+    lastMushafScript = null;
+    bookmarks.clear();
+    secondsToday = 0;
+    _secondsDay = -1;
+    _lessons.clear();
+    await load();
+    readingSignal.value++;
+    notifyListeners();
+  }
 
   // ── reading: last read, bookmarks, and today's minutes ──
 
@@ -615,6 +723,10 @@ class ProgressStore extends ChangeNotifier {
   /// Bookmarked āyāt, newest first.
   final List<(int, int)> bookmarks = [];
 
+  /// Fires when the last āyah read or the bookmarks change — and only
+  /// then: what shows them listens to this, not to every star and second.
+  final readingSignal = ValueNotifier<int>(0);
+
   /// Seconds spent reading or learning today, for the daily goal.
   int secondsToday = 0;
   int _secondsDay = -1;
@@ -624,6 +736,7 @@ class ProgressStore extends ChangeNotifier {
   void setLastRead(int surah, int ayah) {
     if (lastRead == (surah, ayah)) return;
     lastRead = (surah, ayah);
+    readingSignal.value++;
     notifyListeners();
     _saveReading();
   }
@@ -642,6 +755,7 @@ class ProgressStore extends ChangeNotifier {
 
   void toggleBookmark(int surah, int ayah) {
     if (!bookmarks.remove((surah, ayah))) bookmarks.insert(0, (surah, ayah));
+    readingSignal.value++;
     notifyListeners();
     _saveReading();
   }
@@ -917,36 +1031,12 @@ class ProgressStore extends ChangeNotifier {
       (jsonDecode(raw) as Map<String, dynamic>)
           .forEach((k, v) => _stars[k] = (v as num).toInt());
     }
-    // Review queue — with a one-time migration from the old flat miss map so
-    // existing learners keep everything they'd missed.
     review.clear();
     final rraw = p.getString(_reviewKey);
     if (rraw != null) {
       (jsonDecode(rraw) as Map<String, dynamic>).forEach((k, v) {
         review[k] = ReviewItem.fromJson(k, Map<String, dynamic>.from(v as Map));
       });
-    } else {
-      // Legacy flat-miss-map migration.
-      final mraw = p.getString(_missKey);
-      if (mraw != null) {
-        final t = _today();
-        Map<String, String>.from(jsonDecode(mraw) as Map).forEach((k, answer) {
-          review[k] = ReviewItem(
-            id: k,
-            arabic: k,
-            prompt: 'You missed this before — what is it?',
-            answer: answer,
-            distractors: const [],
-            optionsArabic: false,
-            box: 0,
-            due: t,
-            lapses: 1,
-            reps: 0,
-            lastSeen: t,
-          );
-        });
-        if (review.isNotEmpty) _saveReview();
-      }
     }
     final sraw = p.getString(_streakKey);
     if (sraw != null) {
@@ -958,6 +1048,7 @@ class ProgressStore extends ChangeNotifier {
     }
     refreshStreak();
     _loadReading(p);
+    _loadLessons(p);
   }
 
   Future<void> _save() async {
@@ -994,7 +1085,7 @@ class ProgressScope extends InheritedNotifier<ProgressStore> {
 }
 
 /// One-file backup of everything the learner has earned (settings, stars,
-/// streak, mistake queue).
+/// streak, mistake queue) — the active profile's.
 /// Written to the app documents folder so it survives reinstalls when the
 /// user copies it off-device.
 class BackupService {
@@ -1008,10 +1099,9 @@ class BackupService {
       final data = {
         if (marks != null && marks.ready) 'marks': marks.exportJson(),
         'settings': p.getString(AppSettings._key),
-        'progress': p.getString(ProgressStore._keyBase),
-        'streak': p.getString(ProgressStore._streakKeyBase),
-        'misses': p.getString(ProgressStore._missKey),
-        'review': p.getString(ProgressStore._reviewKeyBase),
+        'progress': p.getString(ProgressStore._key),
+        'streak': p.getString(ProgressStore._streakKey),
+        'review': p.getString(ProgressStore._reviewKey),
         'reading': p.getString(ProgressStore._readingKey),
       };
       final dir = await getApplicationDocumentsDirectory();
@@ -1035,10 +1125,9 @@ class BackupService {
       final p = await SharedPreferences.getInstance();
       final keys = {
         AppSettings._key: 'settings',
-        ProgressStore._keyBase: 'progress',
-        ProgressStore._streakKeyBase: 'streak',
-        ProgressStore._missKey: 'misses',
-        ProgressStore._reviewKeyBase: 'review',
+        ProgressStore._key: 'progress',
+        ProgressStore._streakKey: 'streak',
+        ProgressStore._reviewKey: 'review',
         ProgressStore._readingKey: 'reading',
       };
       for (final e in keys.entries) {

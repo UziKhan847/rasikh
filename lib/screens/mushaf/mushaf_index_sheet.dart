@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
 import '../../core/marks/marks_index.dart';
 import '../../core/marks/marks_model.dart';
+import '../../core/marks/marks_query.dart';
 import '../../core/marks/marks_store.dart';
 import '../../core/marks/word_ref.dart';
 import '../../core/settings.dart';
@@ -11,17 +14,20 @@ import '../../data/divisions.dart';
 import '../../data/mushaf.dart';
 import '../../data/mushaf_search.dart';
 import '../../data/quran.dart';
+import '../../ui/adaptive_sheet.dart';
 import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
 import '../marks/marking.dart';
+import 'words_line.dart';
 
 /// The muṣḥaf's index: go to a page, or pick a page, sūrah, juzʼ, ḥizb, rubʿ
 /// or manzil (and rukūʿ in Indo-Pak) from swipeable tabs. With an active
 /// mark book every entry shows how many marks it holds, by type; tapping a
 /// count goes to the first such mark in it ([onWord]). With [onStart] it
 /// picks where memorizing starts instead: each entry gives its first word's
-/// token (no counts).
+/// token (no counts). What's picked happens once the sheet has gone, so
+/// the pages it opens aren't built under its closing.
 Future<void> showMushafIndex(
   BuildContext context, {
   required String script,
@@ -30,37 +36,33 @@ Future<void> showMushafIndex(
   ValueChanged<WordRef>? onWord,
   ValueChanged<int>? onStart,
   Division initial = Division.surah,
-}) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
+}) async {
+  final pick = await showAdaptiveSheet<_Pick>(
+    context,
+    waitForExit: true,
     builder: (sheet) => FractionallySizedBox(
-      heightFactor: .9,
+      heightFactor: AdaptiveSheet.isSide(sheet) ? 1 : .9,
       child: MushafIndex(
         script: script,
         currentPage: currentPage,
         initial: initial,
-        onPage: (p) {
-          Navigator.pop(sheet);
-          onPage(p);
-        },
+        onPage: (p) => Navigator.pop(sheet, (page: p, word: null, start: null)),
         onWord: onWord == null
             ? null
-            : (w) {
-                Navigator.pop(sheet);
-                onWord(w);
-              },
+            : (w) => Navigator.pop(sheet, (page: null, word: w, start: null)),
         onStart: onStart == null
             ? null
-            : (t) {
-                Navigator.pop(sheet);
-                onStart(t);
-              },
+            : (t) => Navigator.pop(sheet, (page: null, word: null, start: t)),
       ),
     ),
   );
+  if (pick == null) return;
+  if (pick.start case final t?) return onStart?.call(t);
+  if (pick.word case final w?) return onWord?.call(w);
+  if (pick.page case final p?) onPage(p);
 }
+
+typedef _Pick = ({int? page, WordRef? word, int? start});
 
 /// Where to start memorizing: the index, each sūrah, juzʼ, ḥizb, rubʿ,
 /// manzil or page giving its first word's token. Null: dismissed.
@@ -78,6 +80,16 @@ Future<int?> chooseMemorizeStart(
     onStart: (t) => token = t,
   );
   return token;
+}
+
+/// The page of [script] that [d] number [n] opens on.
+int divisionFirstPage(String script, Division d, int n) {
+  if (d == Division.page) return n;
+  if (d == Division.surah) return MushafRepo.surahPageSync(script, n);
+  final (s, a) = firstAyahOf(d, n);
+  // A division that opens a sūrah opens on its header's page.
+  if (a == 1) return MushafRepo.surahPageSync(script, s);
+  return MushafRepo.pageForGlobalAyah(script, MushafRepo.globalAyahOf(s, a));
 }
 
 /// The index itself (the sheet's content; see [showMushafIndex]).
@@ -124,19 +136,41 @@ class _MushafIndexState extends State<MushafIndex>
   final _field = TextEditingController();
   List<SurahMeta> _meta = const [];
 
+  /// The query searched (the field, once typing pauses).
+  String _query = '';
+  Timer? _debounce;
+
+  /// Searching by mark: the kinds wanted (none: not searching by mark).
+  final Set<MarkType> _kinds = {};
+  MarkState _state = MarkState.open;
+
+  /// Reads the text for the search once the sheet is open (not on the
+  /// first letter typed, nor while it slides in).
+  Timer? _warm;
+
   @override
   void initState() {
     super.initState();
     QuranRepo.meta().then((m) {
       if (mounted) setState(() => _meta = m);
     });
+    _warm = Timer(const Duration(milliseconds: 400), () => warmSearch(widget.script));
   }
 
   @override
   void dispose() {
+    _warm?.cancel();
+    _debounce?.cancel();
     _tab.dispose();
     _field.dispose();
     super.dispose();
+  }
+
+  void _typed(String _) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 150), () {
+      if (mounted) setState(() => _query = _field.text.trim());
+    });
   }
 
   static final _noStore = ValueNotifier(0);
@@ -146,16 +180,7 @@ class _MushafIndexState extends State<MushafIndex>
   int _pageOf(WordRef r) => MushafRepo.pageOfWord(
       widget.script, r.globalAyah, r.word <= 0 ? 0 : r.word - 1);
 
-  /// The page [d] number [n] opens on.
-  int _firstPage(Division d, int n) {
-    if (d == Division.page) return n;
-    if (d == Division.surah) return MushafRepo.surahPageSync(widget.script, n);
-    final (s, a) = firstAyahOf(d, n);
-    // A division that opens a sūrah opens on its header's page.
-    if (a == 1) return MushafRepo.surahPageSync(widget.script, s);
-    return MushafRepo.pageForGlobalAyah(
-        widget.script, MushafRepo.globalAyahOf(s, a));
-  }
+  int _firstPage(Division d, int n) => divisionFirstPage(widget.script, d, n);
 
   String _tabLabel(Division d) => switch (d) {
         Division.page => context.l10n.idxPage,
@@ -167,83 +192,220 @@ class _MushafIndexState extends State<MushafIndex>
         Division.ruku => context.l10n.idxRuku,
       };
 
-  /// Words in the field (not a page number): the search shows instead of
-  /// the tabs.
+  /// Words in the field (not a page number), or kinds of mark picked: the
+  /// search shows instead of the tabs.
   bool get _searching {
-    final t = _field.text.trim();
-    return t.length >= 2 && int.tryParse(t) == null;
+    final t = _query;
+    return _kinds.isNotEmpty || (t.length >= 2 && int.tryParse(t) == null);
   }
 
-  /// The āyāt containing the words (Arabic), or the sūrahs by name.
-  Widget _results(BuildContext context) {
+  /// The āyāt containing the words (Arabic), or the sūrahs by name; with
+  /// kinds of mark picked, only āyāt holding such marks — or, without
+  /// words, the marks themselves, in muṣḥaf order. Built row by row.
+  Widget _results(BuildContext context, MarksStore? store, String? bookId,
+      MarkPalette mp) {
     final p = pal(context);
-    final q = _field.text.trim();
-    final latin = !RegExp('[\u0600-\u06FF]').hasMatch(q);
+    final q = _query;
+    final hasText = q.length >= 2 && int.tryParse(q) == null;
+    final latin = hasText && !RegExp('[\u0600-\u06FF]').hasMatch(q);
+    final marks = _kinds.isEmpty || store == null || bookId == null
+        ? null
+        : queryMarks(store, bookId, types: _kinds, state: _state);
+    final visuals = store == null || bookId == null
+        ? const <int, MarkVisual>{}
+        : store.visuals(bookId, showFixed: true);
     final surahs = [
-      for (final m in _meta)
-        if (latin && m.tname.toLowerCase().contains(q.toLowerCase())) m
+      if (latin && marks == null)
+        for (final m in _meta)
+          if (m.tname.toLowerCase().contains(q.toLowerCase())) m
     ];
-    final hits = latin ? const <MushafHit>[] : searchMushaf(widget.script, q);
-    if (surahs.isEmpty && hits.isEmpty) {
+    var hits = hasText && !latin ? searchMushaf(widget.script, q) : const <MushafHit>[];
+    if (marks != null && hasText) {
+      final ayat = {for (final m in marks) m.ref.globalAyah};
+      hits = [for (final h in hits) if (ayat.contains(h.ayah)) h];
+    }
+    final markRows = marks != null && !hasText ? marks : const <Mark>[];
+    final count = surahs.length + hits.length + markRows.length;
+    if (count == 0) {
       return Center(
           child: Text(context.l10n.idxNoResults,
               style: uiStyle(context, size: 14, color: p.ink3)));
     }
-    return ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 24), children: [
-      for (final m in surahs)
-        Padding(
+    Widget card({required VoidCallback onTap, required Widget child}) => Padding(
           padding: const EdgeInsets.only(bottom: 6),
-          child: QCard(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          child: Material(
+            color: p.card,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(color: p.line2)),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: onTap,
+              child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 6), child: child),
+            ),
+          ),
+        );
+    String where(int g) {
+      final (su, a) = MushafRepo.surahAyahOf(g);
+      return '${su - 1 < _meta.length ? _meta[su - 1].tname : ''} $su:$a';
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      itemCount: count + (hits.isNotEmpty ? 1 : 0),
+      itemBuilder: (context, i) {
+        if (i < surahs.length) {
+          final m = surahs[i];
+          return card(
             onTap: () => _pick(Division.surah, m.n, _firstPage(Division.surah, m.n)),
             child: Row(children: [
               Expanded(
                   child: Text('${m.n}. ${m.tname}',
                       style: uiStyle(context, size: 15, weight: FontWeight.w700))),
-              Text(m.name,
-                  textDirection: TextDirection.rtl,
-                  style: const TextStyle(fontFamily: 'SurahNames', fontSize: 22)),
+              _surahGlyph(m.n, p.ink),
             ]),
-          ),
-        ),
-      if (hits.isNotEmpty)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Text(context.l10n.idxResults(hits.length),
-              style: uiStyle(context, size: 12.5, color: p.ink3)),
-        ),
-      for (final h in hits)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: QCard(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            onTap: () {
-              final start = widget.onStart;
-              if (start != null) {
-                start(MushafRepo.tokenOf(widget.script, h.ayah, 0));
-              } else {
-                widget.onPage(MushafRepo.pageForGlobalAyah(widget.script, h.ayah));
-              }
-            },
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Text(
-                  '${h.surah - 1 < _meta.length ? _meta[h.surah - 1].tname : ''} '
-                  '${h.surah}:${h.ayahInSurah}',
-                  style: uiStyle(context, size: 12.5, weight: FontWeight.w700, color: p.accInk)),
-              Text(h.text,
+          );
+        }
+        i -= surahs.length;
+        if (hits.isNotEmpty) {
+          if (i == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(context.l10n.idxResults(hits.length),
+                  style: uiStyle(context, size: 12.5, color: p.ink3)),
+            );
+          }
+          i--;
+          if (i < hits.length) {
+            final h = hits[i];
+            return card(
+              onTap: () {
+                final start = widget.onStart;
+                if (start != null) {
+                  start(MushafRepo.tokenOf(widget.script, h.ayah, 0));
+                } else if (widget.onWord case final onWord?) {
+                  onWord(WordRef.fromGlobal(h.ayah, h.firstWord));
+                } else {
+                  widget.onPage(MushafRepo.pageForGlobalAyah(widget.script, h.ayah));
+                }
+              },
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Text(where(h.ayah),
+                    style: uiStyle(context,
+                        size: 12.5, weight: FontWeight.w700, color: p.accInk)),
+                WordsLine(
+                  script: widget.script,
+                  ayah: h.ayah,
+                  from: h.firstWord,
+                  to: h.lastWord + 1,
+                  match: true,
+                  marks: visuals,
+                  markPal: mp,
+                  ink: p.ink,
+                  accent: p.acc,
+                  strongBg: p.accSoft,
+                  verseBg: p.accSoft,
+                ),
+              ]),
+            );
+          }
+          i -= hits.length;
+        }
+        final m = markRows[i];
+        final r = m.ref;
+        final w0 = r.isWholeAyah ? -1 : r.word0;
+        return card(
+          onTap: () {
+            if (widget.onWord case final onWord?) {
+              onWord(r);
+            } else {
+              widget.onPage(MushafRepo.pageOfWord(widget.script, r.globalAyah, w0));
+            }
+          },
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(children: [
+              MarkSwatch(type: store!.isFixed(m) ? null : m.type, pal: mp, size: 12),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text('${markTypeLabel(context, m.type)} · ${where(r.globalAyah)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: uiStyle(context,
+                        size: 12.5, weight: FontWeight.w700, color: p.accInk)),
+              ),
+            ]),
+            WordsLine(
+              script: widget.script,
+              ayah: r.globalAyah,
+              from: w0 < 0 ? 1 << 20 : w0,
+              to: w0 < 0 ? 1 << 20 : w0 + 1,
+              focus: r.key,
+              marks: visuals,
+              markPal: mp,
+              ink: p.ink,
+              accent: p.acc,
+              strongBg: p.accSoft,
+              verseBg: p.accSoft,
+            ),
+            if (m.comment.isNotEmpty)
+              Text(m.comment,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  textDirection: TextDirection.rtl,
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                      fontFamily: MushafRepo.fontFamily(widget.script),
-                      fontSize: 20,
-                      height: 1.9,
-                      color: p.ink)),
-            ]),
+                  style: uiStyle(context, size: 12.5, color: p.ink2)),
+          ]),
+        );
+      },
+    );
+  }
+
+  /// The kinds of mark to search by, and open / fixed.
+  Widget _markFilters(BuildContext context, MarkPalette mp) {
+    final p = pal(context);
+    Widget chip(String label, bool on, VoidCallback onTap, {Widget? lead}) =>
+        Padding(
+          padding: const EdgeInsetsDirectional.only(end: 6),
+          child: FilterChip(
+            selected: on,
+            showCheckmark: false,
+            avatar: lead,
+            label: Text(label, style: uiStyle(context, size: 12.5)),
+            onSelected: (_) => onTap(),
+            selectedColor: p.accSoft,
+            side: BorderSide(color: on ? p.acc : p.line2),
+            visualDensity: VisualDensity.compact,
           ),
-        ),
-    ]);
+        );
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          for (final t in MarkType.values)
+            chip(markTypeLabel(context, t), _kinds.contains(t),
+                () => setState(() => _kinds.contains(t) ? _kinds.remove(t) : _kinds.add(t)),
+                lead: MarkSwatch(type: t, pal: mp, size: 12)),
+          if (_kinds.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            for (final (st, label) in [
+              (MarkState.open, context.l10n.mkOpen),
+              (MarkState.fixed, context.l10n.mkFixed),
+              (MarkState.all, context.l10n.rvAll),
+            ])
+              chip(label, _state == st, () => setState(() => _state = st)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// A sūrah's name in the SurahNames face (no shaping), or its number.
+  Widget _surahGlyph(int n, Color ink) {
+    if (n < 1 || n > surahGlyphCodes.length) return Text('$n');
+    return Text(String.fromCharCodes([surahGlyphCodes[n - 1], 0xe903]),
+        textDirection: TextDirection.rtl,
+        style: TextStyle(fontFamily: 'SurahNames', fontSize: 26, color: ink));
   }
 
   void _go() {
@@ -309,7 +471,7 @@ class _MushafIndexState extends State<MushafIndex>
                 child: TextField(
                   controller: _field,
                   textInputAction: TextInputAction.go,
-                  onChanged: (_) => setState(() {}),
+                  onChanged: _typed,
                   onSubmitted: (_) => _go(),
                   decoration: InputDecoration(
                       labelText: context.l10n.idxPageOrSearch,
@@ -320,8 +482,9 @@ class _MushafIndexState extends State<MushafIndex>
               QPrimaryButton(context.l10n.go, onTap: _go),
             ]),
           ),
+          if (book != null && widget.onStart == null) _markFilters(context, mp),
           if (_searching)
-            Expanded(child: _results(context))
+            Expanded(child: _results(context, store, book?.id, mp))
           else ...[
           TabBar(
             controller: _tab,
@@ -407,7 +570,11 @@ class _MushafIndexState extends State<MushafIndex>
   Widget _list(BuildContext context, Division d, MarkCounts? counts,
       MarkPalette mp, MarksStore? store, String? bookId) {
     final p = pal(context);
+    // Opens with the current division about a third of the way down.
+    final here0 = _currentOf(d);
     return ListView.builder(
+      controller: ScrollController(
+          initialScrollOffset: ((here0 - 3) * _rowGuess).clamp(0.0, double.infinity)),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: divisionCount(d, pages: _pages),
       itemBuilder: (context, i) {
@@ -427,14 +594,19 @@ class _MushafIndexState extends State<MushafIndex>
         };
         final ref = '${meta?.tname ?? ''} $s:$a';
         final here = page == widget.currentPage;
+        // Light rows (no clip, no shadow): a long list scrolls them fast.
         return Padding(
           padding: const EdgeInsets.only(bottom: 6),
-          child: QCard(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            radius: 16,
-            color: here ? p.accSoft : null,
-            borderColor: here ? p.acc : null,
+          child: Material(
+            color: here ? p.accSoft : p.card,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: here ? p.acc : p.line2)),
+            child: InkWell(
+            borderRadius: BorderRadius.circular(16),
             onTap: () => _pick(d, n, page),
+            child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             child: Row(children: [
               SizedBox(
                 width: 34,
@@ -474,15 +646,23 @@ class _MushafIndexState extends State<MushafIndex>
                   ],
                 ),
               ),
-              if (d == Division.surah && meta != null)
-                Text(meta.name,
-                    textDirection: TextDirection.rtl,
-                    style: quranicStyle(context, size: 20, color: p.ink)),
+              if (d == Division.surah) _surahGlyph(n, p.ink),
             ]),
+          ),
+          ),
           ),
         );
       },
     );
+  }
+
+  /// A row's height, near enough, for opening the list where it should.
+  static const _rowGuess = 64.0;
+
+  /// The current page's division [d] number.
+  int _currentOf(Division d) {
+    final (s, a) = MushafRepo.firstVerseOfPage(widget.script, widget.currentPage);
+    return d == Division.surah ? s : divisionOf(d, s, a);
   }
 
   /// "Rubʿ 6 · ½ of Ḥizb 2": where the quarter falls in its ḥizb.

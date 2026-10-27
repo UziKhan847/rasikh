@@ -12,6 +12,7 @@ import 'core/jank_watch.dart';
 import 'core/l10n.dart';
 import 'core/marks/marks_store.dart';
 import 'core/perf_log.dart';
+import 'core/profiles.dart';
 import 'core/sync/pocketbase_backend.dart';
 import 'core/sync/sync_backend.dart';
 import 'core/sync/sync_engine.dart';
@@ -26,10 +27,14 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settings = AppSettings();
   final progress = ProgressStore();
-  await Future.wait([settings.load(), progress.load()]);
+  final profiles = ProfileStore();
+  await settings.load();
+  // The profile in use decides whose progress and marks load.
+  await profiles.load(settings);
+  await progress.load();
   // Marks load in the background: nothing on the first frame needs them,
   // and the marks UI waits for `ready`.
-  final marks = MarksStore();
+  final marks = MarksStore(persistence: profiles.marksPersistence);
   // Sync is opt-in: start() only touches the network if this device is
   // already signed in to a marks server.
   final sync = SyncEngine(
@@ -50,7 +55,11 @@ Future<void> main() async {
   // A device that keeps dropping frames is offered Lite mode, once.
   JankWatch.start(settings);
   runApp(QiraahArabiyyahApp(
-      settings: settings, progress: progress, marks: marks, sync: sync));
+      settings: settings,
+      progress: progress,
+      marks: marks,
+      sync: sync,
+      profiles: profiles));
 }
 
 class QiraahArabiyyahApp extends StatelessWidget {
@@ -58,12 +67,14 @@ class QiraahArabiyyahApp extends StatelessWidget {
   final ProgressStore progress;
   final MarksStore? marks;
   final SyncEngine? sync;
+  final ProfileStore? profiles;
   const QiraahArabiyyahApp({
     super.key,
     required this.settings,
     required this.progress,
     this.marks,
     this.sync,
+    this.profiles,
   });
 
   @override
@@ -76,9 +87,12 @@ class QiraahArabiyyahApp extends StatelessWidget {
           settings: settings,
           marks: marks,
           sync: sync,
-          child: AnimatedBuilder(
-            animation: settings,
-            builder: (context, _) => MaterialApp(
+          // The app itself (theme, language, motion) rebuilds only when one
+          // of those changes, not on every setting saved.
+          child: _Select(
+            settings: settings,
+            select: (s) => (s.theme, s.language, s.lite, s.appTheme),
+            builder: (context) => MaterialApp(
               // onGenerateTitle, not title: this callback is handed a context
               // BELOW the Localizations widget, so l10n is available. Reading
               // context.l10n for `title` here would throw.
@@ -112,11 +126,58 @@ class QiraahArabiyyahApp extends StatelessWidget {
         ),
       ),
     );
-    final m = marks, sy = sync;
-    if (m == null) return app;
-    final scoped = MarksScope(store: m, child: app);
+    final m = marks, sy = sync, pr = profiles;
+    final withProfiles = pr == null ? app : ProfileScope(profiles: pr, child: app);
+    if (m == null) return withProfiles;
+    final scoped = MarksScope(store: m, child: withProfiles);
     return sy == null ? scoped : SyncScope(engine: sy, child: scoped);
   }
+}
+
+/// Rebuilds [builder] when [select] of the settings changes.
+class _Select extends StatefulWidget {
+  final AppSettings settings;
+  final Object? Function(AppSettings) select;
+  final WidgetBuilder builder;
+  const _Select({required this.settings, required this.select, required this.builder});
+
+  @override
+  State<_Select> createState() => _SelectState();
+}
+
+class _SelectState extends State<_Select> {
+  Object? _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.select(widget.settings);
+    widget.settings.addListener(_changed);
+  }
+
+  @override
+  void didUpdateWidget(_Select old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.settings, widget.settings)) {
+      old.settings.removeListener(_changed);
+      widget.settings.addListener(_changed);
+      _value = widget.select(widget.settings);
+    }
+  }
+
+  void _changed() {
+    final v = widget.select(widget.settings);
+    if (v != _value) setState(() => _value = v);
+  }
+
+  @override
+  void dispose() {
+    widget.settings.removeListener(_changed);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context);
 }
 
 /// Lite mode turns animations off app-wide through the same flag the

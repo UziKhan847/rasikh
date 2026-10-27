@@ -5,27 +5,33 @@ part of '../mushaf_screen.dart';
 /// mode, memorize is memorize mode.)
 enum _HifzTool { none, comment, eraser, audio }
 
-/// The muṣḥaf as Hifẓ mode's home ([MushafPageScreen.home]): the page
-/// borderless at 95% of the width (its height by its shape, fitted to the
-/// height when that's shorter), a line above it — sūrah · page · juzʼ, each
-/// opening its list — and one toolbar: Settings · Index · Pen · Comment ·
-/// Eraser · Audio · Memorize · View. Along the bottom in portrait; down the
-/// right edge beside two facing pages in landscape, on tablets and desktop.
-/// The pen, audio, memorize, comment and eraser bring their own row of
-/// tools (in landscape it floats over the pages' foot).
+/// The muṣḥaf as Hifẓ mode's home ([MushafPageScreen.home]), laid out by
+/// [HifzLayout] — fixed by the window, so turning a tool on never moves the
+/// pages. Portrait: the line above the page (sūrah · page · juzʼ, each
+/// opening its list), the page, the dock along the bottom. Landscape: two
+/// facing pages with a line between them and a margin rail each (juzʼ,
+/// page in a lantern, sūrah), the dock down the right edge. The dock:
+/// Settings · Index · Pen · Comment · Eraser · Audio · Memorize · View;
+/// holding a tool (or tapping it while it's on) opens its options in a
+/// popover beside it. The pen, audio, memorize, comment and eraser bring
+/// their own bar: in the dock's place in portrait, in the slot beside the
+/// dock (or under the pages) in landscape.
 extension _HifzChrome on _MushafPageScreenState {
   Widget _hifzBody(BuildContext context, AppSettings s, MushafPaper paper) {
     return Focus(
       autofocus: true,
       onKeyEvent: _onKey,
       child: LayoutBuilder(builder: (context, c) {
-        final wide = c.maxWidth > c.maxHeight;
-        _setPhoneSpread(wide);
-        _setLandscape(wide && c.maxHeight < 520);
         final pad = MediaQuery.paddingOf(context);
-        final pager = wide
+        final layout = HifzLayout.resolve(c.biggest, pad,
+            pageBox: (a) => MushafGeometry.pageBox(a, _script,
+                look: _look(s), header: s.mushafHeaderShown, compact: true));
+        _setPhoneSpread(layout.landscape);
+        _setLandscape(layout.landscape && c.maxHeight < 520);
+        _preloadGlyphs(layout, s);
+        final pager = layout.landscape
             ? _spreadPager(s, paper,
-                margin: EdgeInsets.fromLTRB(8, 2, 8, 4 + _hifzFloatRoom))
+                margin: EdgeInsets.zero, rail: layout.rail, gap: layout.gap)
             : _pager(s, paper,
                 fitWidth: false,
                 margin: EdgeInsets.symmetric(
@@ -34,35 +40,35 @@ extension _HifzChrome on _MushafPageScreenState {
           valueListenable: _pageN,
           child: pager,
           builder: (context, _, pager) {
-            final header = _hifzHeader(context, paper, wide);
-            if (!wide) {
-              return Column(children: [
-                SizedBox(height: pad.top),
-                header,
-                Expanded(child: pager!),
-                _hifzBar(context, s, paper),
-              ]);
-            }
-            final row = _hifzToolRow(context, s, paper);
-            return Row(children: [
-              Expanded(
-                child: Stack(children: [
-                  Column(children: [
-                    SizedBox(height: pad.top),
-                    header,
-                    Expanded(child: pager!),
-                  ]),
-                  // A tool's own row floats over the pages' foot.
-                  if (row != null)
-                    Positioned(
-                      left: 12,
-                      right: 12,
-                      bottom: pad.bottom + 8,
-                      child: Center(child: _hifzFloating(paper, row)),
-                    ),
-                ]),
+            final bar = _hifzToolBar(context, s, paper, layout.slotAxis);
+            final dockAxis = layout.landscape ? Axis.vertical : Axis.horizontal;
+            return Stack(children: [
+              Positioned.fromRect(rect: layout.pager, child: pager!),
+              if (layout.header case final h?)
+                Positioned.fromRect(
+                    rect: h,
+                    child: RepaintBoundary(child: _hifzHeader(context, paper))),
+              Positioned.fromRect(
+                rect: layout.dock,
+                child: HifzDock(
+                  axis: dockAxis,
+                  paper: paper,
+                  items: _hifzItems(context, s, paper, dockAxis),
+                  safe: layout.landscape
+                      ? EdgeInsets.only(
+                          top: pad.top, bottom: pad.bottom, right: pad.right)
+                      : EdgeInsets.only(
+                          left: pad.left, right: pad.right, bottom: pad.bottom),
+                  replacement: layout.landscape || bar == null
+                      ? null
+                      : Center(child: bar),
+                ),
               ),
-              _hifzMainTools(context, s, paper, vertical: true),
+              if (layout.landscape && bar != null)
+                Positioned.fromRect(
+                  rect: layout.slot,
+                  child: _hifzSlot(paper, layout.slotAxis, bar),
+                ),
             ]);
           },
         );
@@ -70,55 +76,152 @@ extension _HifzChrome on _MushafPageScreenState {
     );
   }
 
-  /// Room kept under two facing pages for a tool's floating row.
-  double get _hifzFloatRoom =>
-      _marking.active || _memorizing || _reviewing || _hifzTool != _HifzTool.none
-          ? 64
-          : 0;
+  /// The glyph sheets the pages' size calls for, loading now rather than
+  /// after the first paint (which would draw every line twice).
+  void _preloadGlyphs(HifzLayout layout, AppSettings s) {
+    final atlas = MushafAtlas.of(_script);
+    if (atlas == null) return;
+    final pages = layout.landscape ? 2 : 1;
+    final w = (layout.pager.width - (pages - 1) * layout.gap - 2 * layout.rail) / pages;
+    final fs = w / MushafGeometry.refEmOf(_script);
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final tier = atlas.tierFor(fs * dpr);
+    if (atlas.tiers[tier].images == null) atlas.tiers[tier].load();
+  }
 
-  // ── the line above the page ──
+  /// A tool's bar in landscape: a panel beside the dock (down the side) or
+  /// under the pages.
+  Widget _hifzSlot(MushafPaper paper, Axis axis, Widget bar) {
+    final vertical = axis == Axis.vertical;
+    return RepaintBoundary(
+      child: Align(
+        alignment: vertical ? Alignment.center : Alignment.bottomCenter,
+        child: Container(
+          constraints: vertical ? null : const BoxConstraints(maxWidth: 760),
+          padding: vertical
+              ? const EdgeInsets.symmetric(horizontal: 8, vertical: 12)
+              : const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: paper.chrome,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: paper.line.withValues(alpha: .6), width: .5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: paper.dark ? .45 : .12),
+                blurRadius: 16,
+                spreadRadius: -4,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: vertical ? SingleChildScrollView(child: bar) : bar,
+        ),
+      ),
+    );
+  }
 
-  Widget _hifzHeader(BuildContext context, MushafPaper paper, bool spread) {
+  // ── the line above the page (portrait) and the rails (landscape) ──
+
+  Widget _hifzHeader(BuildContext context, MushafPaper paper) {
     final page = _pendingPage ?? _page;
-    final first = spread ? _spreadStart(page) : page;
-    final juz = MushafRepo.juzOfPage(_script, first);
-    final surah = MushafRepo.firstVerseOfPage(_script, first).$1;
-    final pages = spread && first < _total ? '$first – ${first + 1}' : '$first';
+    final juz = MushafRepo.juzOfPage(_script, page);
+    final surah = MushafRepo.firstVerseOfPage(_script, page).$1;
     final style = uiStyle(context, size: 14, weight: FontWeight.w600, color: paper.acc);
     Widget item(String text, Division d, {TextAlign align = TextAlign.center}) =>
-        InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: () => _hifzIndex(d),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Text(text,
-                textAlign: align,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: style.copyWith(decoration: TextDecoration.underline,
-                    decorationColor: paper.acc.withValues(alpha: .4))),
+        Builder(
+          builder: (anchor) => InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => _hifzJumpList(d, anchor, AxisDirection.down),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Text(text,
+                  textAlign: align,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: style.copyWith(
+                      decoration: TextDecoration.underline,
+                      decorationColor: paper.acc.withValues(alpha: .4))),
+            ),
           ),
         );
     // Fixed left to right, as a printed page's head: sūrah · page · juzʼ.
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(children: [
-          Expanded(
-              child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: item(_tnames[surah] ?? '', Division.surah,
-                      align: TextAlign.left))),
-          item(pages, Division.page),
-          Expanded(
-              child: Align(
-                  alignment: Alignment.centerRight,
-                  child: item(context.l10n.juzN(juz), Division.juz,
-                      align: TextAlign.right))),
-        ]),
+    return Material(
+      type: MaterialType.transparency,
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(children: [
+            Expanded(
+                child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: item(_tnames[surah] ?? '', Division.surah,
+                        align: TextAlign.left))),
+            item('$page', Division.page),
+            Expanded(
+                child: Align(
+                    alignment: Alignment.centerRight,
+                    child: item(context.l10n.juzN(juz), Division.juz,
+                        align: TextAlign.right))),
+          ]),
+        ),
       ),
     );
+  }
+
+  /// A spread page's rail (see [PageRail]).
+  Widget _hifzRail(int page, MushafPaper paper, double width) => PageRail(
+        script: _script,
+        page: page,
+        width: width,
+        paper: paper,
+        onTap: (d, anchor) => _hifzJumpList(d, anchor,
+            page.isOdd ? AxisDirection.left : AxisDirection.right),
+      );
+
+  /// The sūrahs, pages or juzʼ in a list beside [anchor], opened on the
+  /// current one; picking one goes there (once the list has closed).
+  Future<void> _hifzJumpList(
+      Division d, BuildContext anchor, AxisDirection side) async {
+    final page = _pendingPage ?? _page;
+    final count = d == Division.page ? _total : divisionCount(d);
+    final current = switch (d) {
+      Division.page => page,
+      Division.juz => MushafRepo.juzOfPage(_script, page),
+      _ => MushafRepo.firstVerseOfPage(_script, page).$1,
+    };
+    final l = context.l10n;
+    final picked = await showAnchoredList(
+      context,
+      anchor: anchor,
+      side: side,
+      count: count,
+      selected: current - 1,
+      width: d == Division.surah ? 280 : 200,
+      item: (c, i, sel) {
+        final p = pal(c);
+        final n = i + 1;
+        final text = switch (d) {
+          Division.page => l.pageN(n),
+          Division.juz => l.juzN(n),
+          _ => '$n. ${_tnames[n] ?? ''}',
+        };
+        return Container(
+          color: sel ? p.accSoft : null,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          alignment: AlignmentDirectional.centerStart,
+          child: Text(text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: uiStyle(c,
+                  size: 14.5,
+                  weight: sel ? FontWeight.w700 : FontWeight.w500,
+                  color: sel ? p.acc : p.ink)),
+        );
+      },
+    );
+    if (picked == null || !mounted) return;
+    _jump(divisionFirstPage(_script, d, picked + 1));
   }
 
   void _hifzIndex(Division d) => showMushafIndex(
@@ -130,159 +233,149 @@ extension _HifzChrome on _MushafPageScreenState {
         onWord: _focusWord,
       );
 
-  // ── the toolbar ──
-
-  /// Portrait: a tool's own row in place of the main one.
-  Widget _hifzBar(BuildContext context, AppSettings s, MushafPaper paper) {
-    final pad = MediaQuery.paddingOf(context);
-    final row = _hifzToolRow(context, s, paper);
-    return Container(
-      padding: EdgeInsets.fromLTRB(8, 6, 8, pad.bottom + 6),
-      decoration: BoxDecoration(
-        color: paper.chrome,
-        border: Border(top: BorderSide(color: paper.line)),
-      ),
-      child: row ?? _hifzMainTools(context, s, paper, vertical: false),
-    );
-  }
-
-  Widget _hifzFloating(MushafPaper paper, Widget row) => Container(
-        constraints: const BoxConstraints(maxWidth: 720),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: paper.chrome,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: paper.line),
-        ),
-        child: row,
-      );
+  // ── the dock ──
 
   /// Settings · Index · Pen · Comment · Eraser · Audio · Memorize · View.
-  Widget _hifzMainTools(BuildContext context, AppSettings s, MushafPaper paper,
-      {required bool vertical}) {
+  List<DockItem> _hifzItems(
+      BuildContext context, AppSettings s, MushafPaper paper, Axis axis) {
     final l = context.l10n;
-    final accent = paper.id == 'mono' ? paper.ink : paper.acc;
-    Widget tool(IconData icon, String tip, VoidCallback onTap,
-            {bool on = false, VoidCallback? onLong}) =>
-        Tooltip(
-          message: tip,
-          triggerMode: onLong == null ? TooltipTriggerMode.longPress : TooltipTriggerMode.manual,
-          child: Material(
-            color: on ? accent.withValues(alpha: .14) : Colors.transparent,
-            shape: const CircleBorder(),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onTap,
-              onLongPress: onLong,
-              child: SizedBox.square(
-                dimension: 44,
-                child: Icon(icon, size: 22, color: on ? accent : paper.ink),
-              ),
-            ),
-          ),
-        );
-    final tools = <Widget>[
-      // Settings; holding it: the mode switcher.
-      GestureDetector(
-        onLongPress: () => showModeSheet(context),
-        child: tool(AppIcons.settings, l.settings,
-            () => openSection(context, AppSection.settings),
-            onLong: () => showModeSheet(context)),
+    // Popovers open toward the page: above a bottom dock, left of a side one.
+    final side = axis == Axis.vertical ? AxisDirection.left : AxisDirection.up;
+    return [
+      if (ProfileScope.maybeOf(context) != null)
+        DockItem(
+          icon: AppIcons.person,
+          tooltip: l.prfTitle,
+          onTap: (_) => showProfilesSheet(context),
+        ),
+      DockItem(
+        icon: AppIcons.settings,
+        tooltip: l.settings,
+        onTap: (_) => openSection(context, AppSection.settings),
+        // Holding it: the mode switcher.
+        onOptions: (_) => showModeSheet(context),
       ),
-      tool(AppIcons.indexList, l.idxIndex, () => _hifzIndex(Division.surah)),
-      tool(AppIcons.pen, l.mkMarkRecitation, _hifzPen, on: _marking.active),
-      tool(AppIcons.comment, l.mkComment, () => _hifzSetTool(_HifzTool.comment),
-          on: _hifzTool == _HifzTool.comment),
-      tool(AppIcons.eraser, l.hzEraser, () => _hifzSetTool(_HifzTool.eraser),
-          on: _hifzTool == _HifzTool.eraser, onLong: _hifzErasePage),
-      tool(AppIcons.volume, l.recitation, () => _hifzSetTool(_HifzTool.audio),
-          on: _hifzTool == _HifzTool.audio),
-      tool(AppIcons.memorize, l.mzMemorize, _hifzMemorize, on: _memorizing),
-      tool(AppIcons.pageColour, l.hzView, () => _hifzView(s)),
+      DockItem(
+        icon: AppIcons.indexList,
+        tooltip: l.idxIndex,
+        onTap: (_) => _hifzIndex(Division.surah),
+      ),
+      DockItem(
+        icon: AppIcons.pen,
+        tooltip: l.mkMarkRecitation,
+        selected: _marking.active,
+        onTap: (_) => _hifzPen(),
+        onOptions: (b) => _hifzPenOptions(b, side, paper),
+      ),
+      DockItem(
+        icon: AppIcons.comment,
+        tooltip: l.mkComment,
+        selected: _hifzTool == _HifzTool.comment,
+        onTap: (_) => _hifzSetTool(_HifzTool.comment),
+      ),
+      DockItem(
+        icon: AppIcons.eraser,
+        tooltip: l.hzEraser,
+        selected: _hifzTool == _HifzTool.eraser,
+        onTap: (_) => _hifzSetTool(_HifzTool.eraser),
+        onOptions: (b) => _hifzEraserOptions(b, side),
+      ),
+      DockItem(
+        icon: AppIcons.volume,
+        tooltip: l.recitation,
+        selected: _hifzTool == _HifzTool.audio,
+        onTap: (_) => _hifzSetTool(_HifzTool.audio),
+        onOptions: (b) => _hifzAudioOptions(b, side, s),
+      ),
+      DockItem(
+        icon: AppIcons.memorize,
+        tooltip: l.mzMemorize,
+        selected: _memorizing,
+        onTap: (_) => _hifzMemorize(),
+        onOptions: (b) => _hifzMemorizeOptions(b, side),
+      ),
+      DockItem(
+        icon: AppIcons.pageColour,
+        tooltip: l.hzView,
+        onTap: (b) => _hifzView(b, side, s),
+      ),
     ];
-    if (vertical) {
-      final pad = MediaQuery.paddingOf(context);
-      return Container(
-        width: 60 + pad.right,
-        padding: EdgeInsets.fromLTRB(4, pad.top + 6, 4 + pad.right, pad.bottom + 6),
-        decoration: BoxDecoration(
-          color: paper.chrome,
-          border: Border(left: BorderSide(color: paper.line)),
-        ),
-        child: LayoutBuilder(
-          builder: (context, c) => SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: c.maxHeight),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: tools,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Directionality(
-        textDirection: TextDirection.ltr,
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          for (final t in tools) Padding(padding: const EdgeInsets.symmetric(horizontal: 2), child: t),
-        ]),
-      ),
-    );
   }
 
-  /// The active tool's own row, or null for the main tools.
-  Widget? _hifzToolRow(BuildContext context, AppSettings s, MushafPaper paper) {
+  /// The active tool's own bar laid along [axis], or null for none.
+  Widget? _hifzToolBar(
+      BuildContext context, AppSettings s, MushafPaper paper, Axis axis) {
     final l = context.l10n;
-    if (_memorizing) return _memorizeBar(paper, compact: true);
-    if (_reviewing) return _reviewBar(paper);
-    if (_marking.active) return _markingBar(paper);
+    final vertical = axis == Axis.vertical;
+    if (_memorizing) {
+      return vertical
+          ? _memorizeBar(paper, vertical: true)
+          : _memorizeBar(paper, compact: true);
+    }
+    if (_reviewing) return _reviewBar(paper, axis: axis);
+    if (_marking.active) return _markingBar(paper, axis: axis);
     if (_hifzTool == _HifzTool.none) return null;
     final accent = paper.id == 'mono' ? paper.ink : paper.acc;
-    Widget done() => TextButton(
-          onPressed: () => _hifzSetTool(_HifzTool.none),
-          child: Text(l.nbDone,
-              style: uiStyle(context, size: 14, weight: FontWeight.w700, color: accent)),
-        );
-    Widget hint(String t) => Expanded(
-          child: Text(t,
-              maxLines: 2,
-              style: uiStyle(context, size: 13, color: paper.sub)),
-        );
+    final done = TextButton(
+      onPressed: () => _hifzSetTool(_HifzTool.none),
+      child: Text(l.nbDone,
+          style: uiStyle(context, size: 14, weight: FontWeight.w700, color: accent)),
+    );
+    Widget hint(String t) => Text(t,
+        maxLines: vertical ? 6 : 2,
+        overflow: TextOverflow.ellipsis,
+        textAlign: vertical ? TextAlign.center : TextAlign.start,
+        style: uiStyle(context, size: 12.5, color: paper.sub));
+    final List<Widget> parts;
+    final String help;
+    switch (_hifzTool) {
+      case _HifzTool.audio:
+        help = l.hzAudioHint;
+        parts = [
+          _reciteButton(context, paper, size: 42),
+          IconButton(
+            tooltip: l.stop,
+            onPressed: _stopAudio,
+            icon: Icon(AppIcons.stop, color: paper.ink),
+          ),
+          TextButton.icon(
+            onPressed: () => s.update(() => s.playbackSpeed =
+                s.playbackSpeed >= 1.25 ? .75 : s.playbackSpeed + .25),
+            icon: Icon(AppIcons.speed, size: 18, color: paper.ink),
+            label: Text('${s.playbackSpeed}×',
+                style: uiStyle(context,
+                    size: 13.5, weight: FontWeight.w700, color: paper.ink)),
+          ),
+        ];
+      case _HifzTool.comment:
+        help = l.hzCommentHint;
+        parts = [Icon(AppIcons.comment, color: accent)];
+      case _HifzTool.eraser:
+        help = l.hzEraserHint;
+        parts = [
+          Icon(AppIcons.eraser, color: accent),
+          TextButton(
+            onPressed: _hifzErasePage,
+            child: Text(l.hzErasePage,
+                style: uiStyle(context,
+                    size: 13.5, weight: FontWeight.w700, color: paper.ink)),
+          ),
+        ];
+      case _HifzTool.none:
+        return null;
+    }
+    if (vertical) {
+      return Column(mainAxisSize: MainAxisSize.min, children: [
+        for (final p in parts) ...[p, const SizedBox(height: 6)],
+        hint(help),
+        const SizedBox(height: 6),
+        done,
+      ]);
+    }
     return Row(children: [
-      if (_hifzTool == _HifzTool.audio) ...[
-        _reciteButton(context, paper, size: 42),
-        const SizedBox(width: 6),
-        IconButton(
-          tooltip: l.stop,
-          onPressed: _stopAudio,
-          icon: Icon(AppIcons.stop, color: paper.ink),
-        ),
-        TextButton.icon(
-          onPressed: () => s.update(() => s.playbackSpeed =
-              s.playbackSpeed >= 1.25 ? .75 : s.playbackSpeed + .25),
-          icon: Icon(AppIcons.speed, size: 18, color: paper.ink),
-          label: Text('${s.playbackSpeed}×',
-              style: uiStyle(context, size: 13.5, weight: FontWeight.w700, color: paper.ink)),
-        ),
-        hint(l.hzAudioHint),
-      ] else if (_hifzTool == _HifzTool.comment) ...[
-        Icon(AppIcons.comment, color: accent),
-        const SizedBox(width: 10),
-        hint(l.hzCommentHint),
-      ] else ...[
-        Icon(AppIcons.eraser, color: accent),
-        const SizedBox(width: 10),
-        hint(l.hzEraserHint),
-        TextButton(
-          onPressed: _hifzErasePage,
-          child: Text(l.hzErasePage,
-              style: uiStyle(context, size: 13.5, weight: FontWeight.w700, color: paper.ink)),
-        ),
-      ],
-      done(),
+      for (final p in parts) ...[p, const SizedBox(width: 6)],
+      Expanded(child: hint(help)),
+      done,
     ]);
   }
 
@@ -305,6 +398,125 @@ extension _HifzChrome on _MushafPageScreenState {
     } else {
       _startMemorize();
     }
+  }
+
+  // ── tool options (popovers) ──
+
+  Widget _popoverBody(BuildContext c, List<Widget> children) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children),
+      );
+
+  Widget _popoverLabel(BuildContext c, String t) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+        child: Text(t,
+            style: uiStyle(c, size: 12.5, weight: FontWeight.w700, color: pal(c).ink3)),
+      );
+
+  /// The pen's options: what each colour means, and reviewing the marks.
+  void _hifzPenOptions(BuildContext anchor, AxisDirection side, MushafPaper paper) {
+    showToolPopover<void>(context, anchor: anchor, side: side, builder: (c) {
+      return _popoverBody(c, [
+        MarkLegend(pal: markPaletteForPaper(paper)),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: () {
+            Navigator.pop(c);
+            _startReview();
+          },
+          icon: const Icon(AppIcons.repeat, size: 18),
+          label: Text(c.l10n.rvSetupTitle),
+        ),
+      ]);
+    });
+  }
+
+  /// The eraser's options: clear the page (or both pages).
+  void _hifzEraserOptions(BuildContext anchor, AxisDirection side) {
+    showToolPopover<void>(context, anchor: anchor, side: side, builder: (c) {
+      return _popoverBody(c, [
+        Text(c.l10n.hzEraserHint, style: uiStyle(c, size: 13, color: pal(c).ink2)),
+        const SizedBox(height: 10),
+        FilledButton.icon(
+          onPressed: () {
+            Navigator.pop(c);
+            _hifzErasePage();
+          },
+          icon: const Icon(AppIcons.eraser, size: 18),
+          label: Text(c.l10n.hzErasePage),
+        ),
+      ]);
+    });
+  }
+
+  /// The audio's options: reciter, speed, and what follows an āyah.
+  void _hifzAudioOptions(BuildContext anchor, AxisDirection side, AppSettings s) {
+    showToolPopover<void>(context, anchor: anchor, side: side, builder: (c) {
+      return StatefulBuilder(builder: (c, setPop) {
+        final l = c.l10n;
+        void set(VoidCallback f) {
+          s.update(f);
+          setPop(() {});
+        }
+
+        return _popoverBody(c, [
+          _popoverLabel(c, l.reciter),
+          QSegmented<String>(
+            options: [
+              ('tunaiji', l.alTunaiji, null),
+              ('alafasy', l.afasyName, null),
+              ('husary', l.husaryName, null),
+            ],
+            value: s.reciter,
+            onChanged: (v) => set(() => s.reciter = v),
+          ),
+          _popoverLabel(c, l.playbackSpeed),
+          QSegmented<double>(
+            options: const [(0.75, '0.75×', null), (1.0, '1×', null), (1.25, '1.25×', null)],
+            value: s.playbackSpeed,
+            onChanged: (v) {
+              set(() => s.playbackSpeed = v);
+              AyahAudio.instance.setRate(v);
+              WbwAudio.instance.setRate(v);
+            },
+          ),
+          _popoverLabel(c, l.afterVerse),
+          QSegmented<String>(
+            options: [
+              ('single', l.flowStop, null),
+              ('auto', l.flowContinue, null),
+              ('repeat', l.flowRepeat, null),
+            ],
+            value: s.reciteFlow,
+            onChanged: (v) => set(() => s.reciteFlow = v),
+          ),
+        ]);
+      });
+    });
+  }
+
+  /// Memorize's options: from a chosen place, or as verse cards.
+  void _hifzMemorizeOptions(BuildContext anchor, AxisDirection side) {
+    showToolPopover<void>(context, anchor: anchor, side: side, builder: (c) {
+      final l = c.l10n;
+      Widget row(IconData icon, String title, String sub, VoidCallback onTap) =>
+          ListTile(
+            leading: Icon(icon, color: pal(c).acc),
+            title: Text(title, style: uiStyle(c, size: 14.5, weight: FontWeight.w700)),
+            subtitle: Text(sub, style: uiStyle(c, size: 12.5, color: pal(c).ink3)),
+            onTap: () {
+              Navigator.pop(c);
+              onTap();
+            },
+          );
+      return _popoverBody(c, [
+        row(AppIcons.indexList, l.mzStartFrom, l.mzStartFromSub, _memorizeFrom),
+        row(AppIcons.memorize, l.mzStartCards, l.mzStartCardsSub, _memorizeAsCards),
+      ]);
+    });
   }
 
   // ── tool taps ──
@@ -449,97 +661,73 @@ extension _HifzChrome on _MushafPageScreenState {
 
   // ── View ──
 
-  /// Script, colouring, the page's colour, and light / dark / OLED.
-  void _hifzView(AppSettings s) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheet) => StatefulBuilder(builder: (sheet, setSheet) {
-        final l = sheet.l10n;
-        final p = pal(sheet);
+  /// Script, colouring, light / dark / OLED, and the page's colour — in a
+  /// popover beside the View button.
+  void _hifzView(BuildContext anchor, AxisDirection side, AppSettings s) {
+    showToolPopover<void>(context, anchor: anchor, side: side, builder: (pop) {
+      return StatefulBuilder(builder: (pop, setPop) {
+        final l = pop.l10n;
         void set(VoidCallback f) {
           s.update(f);
-          setSheet(() {});
+          setPop(() {});
         }
 
-        return SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-            children: [
-              QRow(
-                title: l.arabicScript,
-                control: QSegmented<String>(
-                  expand: false,
-                  options: [
-                    ('uthmani', l.madani, null),
-                    ('indopak', l.indoPak, null),
-                  ],
-                  value: _script,
-                  onChanged: (v) {
-                    Navigator.pop(sheet);
-                    _switchScript(v);
-                  },
-                ),
-              ),
-              QRow(
-                title: l.hzColouring,
-                control: QSegmented<String>(
-                  expand: false,
-                  options: [
-                    ('off', l.hzOff, null),
-                    ('tajwid', l.tajwid, null),
-                    ('nabr', l.hzNabr, null),
-                  ],
-                  value: s.mushafTajwid ? 'tajwid' : 'off',
-                  onChanged: (v) {
-                    if (v == 'nabr') {
-                      showQToast(sheet, l.nbFuture);
-                      return;
-                    }
-                    set(() => s.mushafTajwid = v == 'tajwid');
-                  },
-                ),
-              ),
-              QRow(
-                title: l.theme,
-                control: QSegmented<String>(
-                  expand: false,
-                  options: [
-                    ('light', l.themeLight, null),
-                    ('night', l.themeDark, null),
-                    ('oled', l.themeOled, null),
-                  ],
-                  value: s.appTheme == 'mono' ? 'light' : s.appTheme,
-                  onChanged: (v) => set(() {
-                    s.appTheme = v;
-                    s.mushafPaperDark = 'default';
-                  }),
-                ),
-              ),
-              if (s.theme == AppTheme.light) ...[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: Text(l.pageColour,
-                      style: uiStyle(sheet, size: 13, weight: FontWeight.w700, color: p.ink3)),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Wrap(spacing: 12, runSpacing: 10, children: [
-                    for (final id in const ['cream', 'white', 'madani', 'tile1', 'tile2', 'tile3'])
-                      _Swatch(
-                        paper: kMushafPapers[id]!,
-                        selected: mushafPaperOf(s, _script).id == id,
-                        onTap: () => set(() => s.mushafPaper = id),
-                      ),
-                  ]),
-                ),
-              ],
+        return _popoverBody(pop, [
+          _popoverLabel(pop, l.arabicScript),
+          QSegmented<String>(
+            options: [
+              ('uthmani', l.madani, null),
+              ('indopak', l.indoPak, null),
             ],
+            value: _script,
+            onChanged: (v) {
+              Navigator.pop(pop);
+              _switchScript(v);
+            },
           ),
-        );
-      }),
-    );
+          _popoverLabel(pop, l.hzColouring),
+          QSegmented<String>(
+            options: [
+              ('off', l.hzOff, null),
+              ('tajwid', l.tajwid, null),
+              ('nabr', l.hzNabr, null),
+            ],
+            value: s.mushafTajwid ? 'tajwid' : 'off',
+            onChanged: (v) {
+              if (v == 'nabr') {
+                showQToast(pop, l.nbFuture);
+                return;
+              }
+              set(() => s.mushafTajwid = v == 'tajwid');
+            },
+          ),
+          _popoverLabel(pop, l.theme),
+          QSegmented<String>(
+            options: [
+              ('light', l.themeLight, null),
+              ('night', l.themeDark, null),
+              ('oled', l.themeOled, null),
+            ],
+            value: s.appTheme == 'mono' ? 'light' : s.appTheme,
+            onChanged: (v) => set(() {
+              s.appTheme = v;
+              s.mushafPaperDark = 'default';
+            }),
+          ),
+          if (s.theme == AppTheme.light) ...[
+            _popoverLabel(pop, l.pageColour),
+            Wrap(spacing: 10, runSpacing: 8, children: [
+              for (final id in const ['cream', 'white', 'madani', 'tile1', 'tile2', 'tile3'])
+                _Swatch(
+                  paper: kMushafPapers[id]!,
+                  selected: mushafPaperOf(s, _script).id == id,
+                  onTap: () => set(() => s.mushafPaper = id),
+                ),
+            ]),
+          ],
+        ]);
+      });
+    });
   }
 }
 

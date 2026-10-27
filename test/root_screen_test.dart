@@ -13,6 +13,8 @@ import 'package:qiraah_arabiyyah/screens/shell/app_mode.dart';
 import 'package:qiraah_arabiyyah/screens/shell/app_shell.dart';
 import 'package:qiraah_arabiyyah/screens/tracing_screen.dart';
 
+import 'package:qiraah_arabiyyah/ui/app_icons.dart';
+
 import 'test_support.dart';
 
 /// [RootScreen]: the setup on a fresh install (the mode among its steps),
@@ -149,6 +151,25 @@ void main() {
     await tester.longPress(find.byTooltip('Settings'));
     await tester.pumpAndSettle();
     expect(find.text('Switch mode'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 300));
+  });
+
+  testWidgets('the Reader home has no back button, even after something '
+      'covered it', (tester) async {
+    useReducedMotion(tester);
+    final (settings, progress) = await _boot(mode: 'reader');
+    await tester.pumpWidget(_harness(settings, progress));
+    await tester.pumpAndSettle();
+    Finder back() => find.descendant(
+        of: find.byType(SurahListScreen), matching: find.byIcon(AppIcons.back));
+    expect(back(), findsNothing);
+    await tester.tap(find.byTooltip('Settings'));
+    await tester.pumpAndSettle();
+    progress.setLastRead(2, 255); // rebuilds the covered home
+    await tester.pump();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(back(), findsNothing);
     await tester.pump(const Duration(milliseconds: 300));
   });
 }

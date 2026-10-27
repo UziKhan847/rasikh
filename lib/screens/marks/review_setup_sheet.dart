@@ -9,6 +9,7 @@ import '../../core/settings.dart';
 import '../../core/theme.dart';
 import '../../data/divisions.dart';
 import '../../data/mushaf.dart';
+import '../../ui/adaptive_sheet.dart';
 import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
@@ -28,10 +29,8 @@ Future<(ReviewQuery, ReviewView)?> showReviewSetup(
   required int page,
   ReviewView view = ReviewView.mushaf,
 }) {
-  return showModalBottomSheet<(ReviewQuery, ReviewView)>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
+  return showAdaptiveSheet<(ReviewQuery, ReviewView)>(
+    context,
     builder: (sheet) => _ReviewSetup(
         store: store, bookId: bookId, script: script, page: page, view: view),
   );

@@ -13,6 +13,7 @@ import 'package:qiraah_arabiyyah/data/mushaf.dart';
 import 'package:qiraah_arabiyyah/data/quran.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_line.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
+import 'package:qiraah_arabiyyah/screens/reader/ayah_text.dart';
 import 'package:qiraah_arabiyyah/screens/quran_screen.dart';
 import 'package:qiraah_arabiyyah/ui/mark_style.dart';
 
@@ -345,22 +346,15 @@ void main() {
           () => Future<void>.delayed(const Duration(milliseconds: 50)));
       await tester.pump(const Duration(milliseconds: 50));
     }
-    final doubtTint = const Color(0xFF7A4FD0).withValues(alpha: .16);
-    // Walk every span — visitChildren skips spans without text of their own,
-    // and the tint sits on a parent span around the word's (tajwīd) pieces.
+    // The card paints its marks around its paragraph (see AyahText): the
+    // one marked word is the doubt.
     final tinted = <String>[];
-    void walk(InlineSpan span) {
-      if (span is! TextSpan) return;
-      if (span.style?.backgroundColor == doubtTint) {
-        tinted.add(span.toPlainText());
+    for (final a in tester.widgetList<AyahText>(find.byType(AyahText))) {
+      for (var w = 0; w < a.marks.length; w++) {
+        if (a.marks[w]?.open == MarkType.doubt) {
+          tinted.add(a.words[w].toPlainText());
+        }
       }
-      for (final c in span.children ?? const <InlineSpan>[]) {
-        walk(c);
-      }
-    }
-
-    for (final rt in tester.widgetList<RichText>(find.byType(RichText))) {
-      walk(rt.text);
     }
     expect(tinted, hasLength(1));
     // The reader's own first word of 15:7 (لَّوۡمَا).

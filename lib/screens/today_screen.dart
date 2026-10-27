@@ -14,6 +14,7 @@ import '../data/votd.dart';
 import '../ui/app_icons.dart';
 import '../ui/kit.dart';
 import 'qaidah_screen.dart';
+import '../learn/qaidah/qaidah_home.dart';
 import 'quran_screen.dart';
 import 'search.dart';
 import 'settings_screen.dart';
@@ -441,17 +442,18 @@ class _LessonCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = pal(context);
     final prog = ProgressScope.of(context);
-    final units = qaidahUnits(context);
+    // The Qāʿidah course's next item (see lib/learn/qaidah).
+    final units = courseItems(context);
     var i = units.indexWhere((u) => prog.starsFor(u.progressId) == 0);
     if (i < 0) i = units.length - 1;
     final u = units[i];
     final done = units.where((x) => prog.starsFor(x.progressId) > 0).length;
     return QCard(
       padding: const EdgeInsets.all(16),
-      onTap: () => Navigator.of(context, rootNavigator: !useDesktop(context))
-          .push(MaterialPageRoute(builder: (_) => QaidahUnitHub(unit: u))),
+      onTap: () => openCourseItem(context, u),
       child: Row(children: [
-        QGlyphTile(u.arabicBadge, hue: 165, size: 56, radius: 16),
+        QGlyphTile(u.family?.chars.first ?? u.unit!.arabicBadge,
+            hue: 165, size: 56, radius: 16),
         const SizedBox(width: 14),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -459,7 +461,7 @@ class _LessonCard extends StatelessWidget {
                 style: uiStyle(context,
                     size: 12, weight: FontWeight.w600, color: p.ink3)),
             const SizedBox(height: 2),
-            Text(u.title,
+            Text(u.title(context),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: uiStyle(context, size: 16, weight: FontWeight.w700)),

@@ -70,7 +70,8 @@ void main() {
     final atlas = MushafAtlas.of('uthmani')!;
     expect(atlas.justified, isTrue);
     expect(MushafAtlas.of('indopak')!.justified, isFalse);
-    for (final page in [1, 2, 3, 50, 300, 604]) {
+    // (Pages 1–2: their circle, below.)
+    for (final page in [3, 50, 300, 604]) {
       final lines = MushafRepo.pageSync('uthmani', page)!;
       final text = [for (var i = 0; i < lines.length; i++) if (lines[i].isText) i];
       // Each line as set, unstretched; the page's measure is its widest.
@@ -95,10 +96,39 @@ void main() {
               reason: '$where token $k: right to left, no overlap');
         }
       }
-      // Bar the first two pages and the last's short sūrahs, all but a
-      // sūrah's last line fill it.
-      if (page > 2 && page < 600) expect(full, greaterThan(text.length - 3), reason: 'p.$page');
+      // Bar the last page's short sūrahs, all but a sūrah's last line
+      // fill it.
+      if (page < 600) expect(full, greaterThan(text.length - 3), reason: 'p.$page');
     }
+  });
+
+  test('the opening pages are set in one circle: rows the same height '
+      'apart are as wide, the middle the widest, on both pages', () {
+    final atlas = MushafAtlas.of('uthmani')!;
+    double width(int page, int row) => buildAtlasLine(
+            _spec('uthmani', page, row, targetW: 1e6), atlas, 0)
+        .width;
+    for (final page in [1, 2]) {
+      expect(width(page, 3), closeTo(width(page, 5), 1), reason: 'p.$page rows 3 / 5');
+      expect(width(page, 4), greaterThan(width(page, 3)), reason: 'p.$page the middle');
+    }
+    for (final row in [3, 4, 5, 6]) {
+      expect(width(1, row), closeTo(width(2, row), 1), reason: 'row $row: one circle');
+    }
+  });
+
+  test('a line is laid out once: another size, a mark or a tick reuses its '
+      'geometry and only recolours it', () {
+    final atlas = MushafAtlas.of('uthmani')!;
+    final a = buildAtlasLine(_spec('uthmani', 50, 3), atlas, 0);
+    final bigger = buildAtlasLine(_spec('uthmani', 50, 3, fs: 33, targetW: 570), atlas, 0);
+    final line = MushafRepo.pageSync('uthmani', 50)![3];
+    final w = line.words.firstWhere((w) => !w.isMarker);
+    final ticked = buildAtlasLine(
+        _spec('uthmani', 50, 3, playAyah: w.ayah, playWord: w.wordIdx), atlas, 0);
+    expect(identical(a.geometry, bigger.geometry), isTrue, reason: 'resized');
+    expect(identical(a.geometry, ticked.geometry), isTrue, reason: 'a tick');
+    expect(bigger.width, closeTo(a.width * 33 / 22, .5));
   });
 
   test('atlas lines match the text path: positions, width, baseline', () {

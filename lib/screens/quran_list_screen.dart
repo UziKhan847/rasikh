@@ -65,8 +65,17 @@ class _SurahListScreenState extends State<SurahListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // The list follows the last read and the bookmarks, not every star and
+    // minute (the reader, on top, reports those as it scrolls).
+    final prog = ProgressScope.read(context);
+    return ValueListenableBuilder<int>(
+      valueListenable: prog.readingSignal,
+      builder: (context, _, _) => _build(context, prog),
+    );
+  }
+
+  Widget _build(BuildContext context, ProgressStore prog) {
     final p = pal(context);
-    final prog = ProgressScope.of(context);
     final meta = _meta;
     final q = _norm(_q.trim());
     final rows = meta == null
@@ -80,7 +89,7 @@ class _SurahListScreenState extends State<SurahListScreen> {
                 m
           ];
     final marks = prog.bookmarks;
-    final canPop = Navigator.of(context).canPop();
+    final canPop = canGoBack(context);
     return Scaffold(
       body: DecoratedBox(
         decoration: screenDecoration(context),
@@ -217,7 +226,7 @@ class _SurahListScreenState extends State<SurahListScreen> {
   }
 
   Widget _bookmarks(BuildContext context, List<SurahMeta> meta) {
-    final marks = ProgressScope.of(context).bookmarks;
+    final marks = ProgressScope.read(context).bookmarks;
     if (marks.isEmpty) {
       return SliverToBoxAdapter(
         child: QColumn(

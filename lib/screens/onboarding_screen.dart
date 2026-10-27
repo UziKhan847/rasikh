@@ -8,7 +8,7 @@ import '../ui/app_icons.dart';
 import '../ui/brand.dart';
 import '../ui/kit.dart';
 import 'settings_screen.dart' show setReminder;
-import 'shell/app_mode.dart';
+import 'shell/mode_preview.dart';
 
 /// The first-launch setup on the hero gradient: welcome (and language), the
 /// mode — what the app opens to ([AppMode]) — how to read (script and
@@ -82,7 +82,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
+              // The mode step's four previews take a wider row.
+              constraints: BoxConstraints(
+                  maxWidth: widget.modeOnly || _step == 1 ? 960 : 560),
               child: Column(children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 8, 18, 0),
@@ -228,36 +230,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final s = SettingsScope.of(context);
     return Column(mainAxisSize: MainAxisSize.min, children: [
       _title(context, context.l10n.obModeTitle, context.l10n.obModeSub),
-      for (final m in AppMode.values)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _Choice(
-            selected: _mode(s) == m,
-            onTap: () => setState(() => _picked = m),
-            child: Row(children: [
-              SizedBox(
-                width: 64,
-                child: Text(m.glyph,
-                    textAlign: TextAlign.center,
-                    textDirection: TextDirection.rtl,
-                    style: const TextStyle(
-                        fontFamily: 'UthmanicHafs', fontSize: 24, height: 1.6, color: _gold)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(m.title(context),
-                      style: uiStyle(context, size: 16, weight: FontWeight.w700, color: _cream)),
-                  const SizedBox(height: 2),
-                  Text(m.subtitle(context),
-                      style: uiStyle(context, size: 13, height: 1.4, color: _creamSoft)),
-                ]),
-              ),
-              const SizedBox(width: 8),
-              _Dot(on: _mode(s) == m),
-            ]),
-          ),
-        ),
+      ModeGrid(
+        selected: _mode(s),
+        onDark: true,
+        onPicked: (m) => setState(() => _picked = m),
+      ),
     ]);
   }
 

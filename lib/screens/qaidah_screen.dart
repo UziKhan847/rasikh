@@ -13,7 +13,6 @@ import '../data/letters.dart';
 import '../data/makharij.dart';
 import '../data/muqattaat.dart';
 import '../data/quran.dart' show stripTashkil;
-import '../data/small_letters.dart';
 import '../data/strokes.dart' show glyphFor;
 import '../data/tajweed.dart';
 import '../data/tanwin_allographs.dart';
@@ -31,170 +30,6 @@ import 'lessons/tajwid_lessons.dart';
 import 'tashkeel_screen.dart';
 import 'tracing_screen.dart' show TracingBoard;
 
-/// 📖 The Qaidah Path — the full beginner journey, in the order a
-/// classical Qaidah teaches it. Every unit opens onto a Learn → Test →
-/// Practice hub; nothing is locked, and Test alone awards stars.
-class QaidahScreen extends StatelessWidget {
-  const QaidahScreen({super.key, this.embedded = false});
-  final bool embedded;
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = ProgressScope.of(context);
-    final units = qaidahUnits(context);
-    final stars = [for (final u in units) progress.starsFor(u.progressId)];
-    // The first unit without stars is "current"; nothing is ever locked.
-    final current = stars.indexWhere((x) => x == 0);
-    return Scaffold(
-      appBar: embedded ? null : AppBar(title: Text(context.l10n.qaidahPath)),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 6, 20, 28),
-          children: [
-            QColumn(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 18),
-                child: Text(context.l10n.qaidahLead,
-                    style: displayStyle(context, size: 24, height: 1.25)),
-              ),
-            ),
-            for (var i = 0; i < units.length; i++)
-              QColumn(
-                child: QRiseIn(
-                  delay: Duration(milliseconds: 30 * i),
-                  child: _PathRow(
-                    n: i + 1,
-                    unit: units[i],
-                    stars: stars[i],
-                    current: i == current,
-                    last: i == units.length - 1,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// One unit on the path: a node (✓ done, ring for current, number for open)
-/// on a connecting line, and the unit card with its stars and glyph.
-class _PathRow extends StatelessWidget {
-  final int n;
-  final QaidahUnit unit;
-  final int stars;
-  final bool current;
-  final bool last;
-  const _PathRow({
-    required this.n,
-    required this.unit,
-    required this.stars,
-    required this.current,
-    required this.last,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final p = pal(context);
-    final done = stars > 0;
-    final latin = const {'en', 'fr', 'es'}
-        .contains(SettingsScope.of(context).language);
-    final label = context.l10n.unitLabel(n);
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            width: 28,
-            child: Column(children: [
-              const SizedBox(height: 20),
-              Container(
-                width: 28,
-                height: 28,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: done ? p.accBg : (current ? p.card : p.bg),
-                  border: Border.all(color: p.acc, width: 2),
-                ),
-                child: done
-                    ? const Icon(AppIcons.check, size: 15, color: Colors.white)
-                    : current
-                        ? null
-                        : Text('$n',
-                            style: uiStyle(context,
-                                size: 12,
-                                weight: FontWeight.w700,
-                                color: p.acc)),
-              ),
-              Expanded(
-                child: Container(
-                  width: 2,
-                  margin: const EdgeInsets.only(top: 4),
-                  color: last ? Colors.transparent : (done ? p.acc : p.line3),
-                ),
-              ),
-            ]),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: QCard(
-                padding: const EdgeInsets.all(14),
-                borderColor: current ? p.acc : null,
-                onTap: () => pushAdaptive(context, QaidahUnitHub(unit: unit)),
-                child: Row(children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(latin ? label.toUpperCase() : label,
-                            style: uiStyle(context,
-                                size: 11,
-                                weight: FontWeight.w700,
-                                letterSpacing: .6,
-                                color: p.ink3)),
-                        const SizedBox(height: 2),
-                        Text(unit.title,
-                            style: uiStyle(context,
-                                size: 15, weight: FontWeight.w700)),
-                        const SizedBox(height: 3),
-                        Text(unit.subtitle,
-                            style: uiStyle(context,
-                                size: 12.5, color: p.ink3, height: 1.35)),
-                        const SizedBox(height: 8),
-                        StarRow(stars, size: 15),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    width: 52,
-                    height: 52,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: p.track,
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Text(unit.arabicBadge,
-                        textDirection: TextDirection.rtl,
-                        maxLines: 1,
-                        style: quranicStyle(context,
-                            size: 22, height: 1.3, color: p.acc)),
-                  ),
-                ]),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// A unit of the Qaidah path. Every unit has three phases — Learn, Test,
 /// Practice — none of them locked; Test alone reports stars under
 /// [progressId], Practice feeds the spaced-repetition queue without ever
@@ -210,18 +45,15 @@ class QaidahUnit {
       {required this.phases});
 }
 
-/// The eleven units of the Qaidah path — shared by mobile and desktop.
+/// The Qāʿidah's units after the letters (taught family by family in
+/// lib/learn/qaidah): special shapes, the vowels and signs, reading.
 List<QaidahUnit> qaidahUnits(BuildContext context) => [
-      QaidahUnit(context.l10n.unitLetters, context.l10n.unitLettersSub, 'ا ب',
-          'qaidah.letters',
+      // Each letter's forms are taught with it (lib/learn/qaidah); this unit
+      // keeps the shapes they can't show, and its progress id.
+      QaidahUnit(context.l10n.qcSpecialTitle, context.l10n.qcSpecialSub,
+          'لا', 'qaidah.forms',
           phases: standardPhases(context,
-              learn: (_) => const LettersExplorer(),
-              test: (c) => _letterQuiz(c),
-              practice: (c) => _letterPracticeQuiz(c))),
-      QaidahUnit(context.l10n.unitJoiningForms, context.l10n.unitJoiningFormsSub,
-          'ـبـ', 'qaidah.forms',
-          phases: standardPhases(context,
-              learn: (c) => lessonEntryScreen(formsLessonRoot(c)),
+              learn: (c) => lessonEntryScreen(specialShapesLessonRoot(c)),
               test: (c) => _formsQuiz(c),
               practice: (c) => _formsPracticeQuiz(c))),
       QaidahUnit(context.l10n.unitHarakat, context.l10n.unitHarakatSub, 'بَ',
@@ -285,7 +117,7 @@ List<QaidahUnit> qaidahUnits(BuildContext context) => [
 
 /// The Learn → Test → Practice hub for one unit — pushed when its card is
 /// tapped from the path list. All three phases are always reachable.
-class QaidahUnitHub extends StatelessWidget {
+class QaidahUnitHub extends StatelessWidget with DesktopAware {
   final QaidahUnit unit;
   const QaidahUnitHub({super.key, required this.unit});
 
@@ -301,171 +133,10 @@ class QaidahUnitHub extends StatelessWidget {
             title: unit.title,
             stars: ProgressScope.of(context).starsFor(unit.progressId),
           phases: unit.phases,
-          onPick: (i) =>
-              pushAdaptive(context, Builder(builder: unit.phases[i].builder!)),
+          // Each phase lays itself out for the window (no phone frame).
+          onPick: (i) => pushAdaptive(
+              context, DesktopAwareBuilder(builder: unit.phases[i].builder!)),
         ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────── Unit 1: Letters ───────────────────────────
-
-class LettersExplorer extends StatelessWidget {
-  const LettersExplorer({super.key});
-
-  Widget _tile(BuildContext context, ArabicLetter l,
-      {required double glyph, bool dot = false, VoidCallback? onTap}) {
-    final p = pal(context);
-    return Material(
-      color: p.card,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: p.line2)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Stack(children: [
-          Center(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Text(l.char,
-                  style: arabicStyle(context, size: glyph, height: 1.3)),
-              Text(letterName(context, l),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: uiStyle(context,
-                      size: 10.5, weight: FontWeight.w600, color: p.ink3)),
-            ]),
-          ),
-          if (dot)
-            PositionedDirectional(
-              top: 8,
-              end: 8,
-              child: Container(
-                width: 6,
-                height: 6,
-                decoration:
-                    BoxDecoration(color: p.acc, shape: BoxShape.circle),
-              ),
-            ),
-        ]),
-      ),
-    );
-  }
-
-  // The grid runs right to left like the alphabet; each tile goes back to
-  // the app's direction so Latin names ("Tāʼ") don't reorder.
-  Widget _grid(BuildContext context, List<ArabicLetter> items, double extent,
-          Widget Function(ArabicLetter) tile) =>
-      Directionality(
-        textDirection: TextDirection.rtl,
-        child: GridView.builder(
-          padding: EdgeInsets.zero,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: extent,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10),
-          itemCount: items.length,
-          itemBuilder: (_, i) => Directionality(
-              textDirection: Directionality.of(context), child: tile(items[i])),
-        ),
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    final p = pal(context);
-    final progress = ProgressScope.of(context);
-    final desk = useDesktop(context);
-    bool seen(ArabicLetter l) => progress.starsFor('letter.${l.char}') > 0;
-    final explored = letters.where(seen).length;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.theLetters),
-        actions: [
-          Padding(
-            padding: const EdgeInsetsDirectional.only(end: 20),
-            child: Center(
-              child: Text(
-                  context.l10n.lettersExploredCount(explored, letters.length),
-                  style: uiStyle(context,
-                      size: 13, weight: FontWeight.w600, color: p.ink3)),
-            ),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 6, 20, 100),
-          children: [
-            QColumn(
-              kind: ContentKind.list,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _grid(
-                      context,
-                      letters,
-                      desk ? 120 : 84,
-                      (l) => _tile(context, l,
-                              glyph: desk ? 44 : 32, dot: seen(l), onTap: () {
-                            progress.report('letter.${l.char}', 1);
-                            pushAdaptive(context, LetterDetail(letter: l));
-                          })),
-                  SectionHeader(context.l10n.extraLettersTitle,
-                      subtitle: context.l10n.extraLettersSub),
-                  _grid(
-                      context,
-                      extraLetters,
-                      desk ? 120 : 84,
-                      (l) => _tile(context, l,
-                          glyph: desk ? 36 : 28,
-                          onTap: () =>
-                              pushAdaptive(context, LetterDetail(letter: l)))),
-                  SectionHeader(context.l10n.smallLettersTitle,
-                      subtitle: context.l10n.smallLettersSub),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      for (final sl in smallLetters)
-                        QCard(
-                          radius: 16,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 10),
-                          onTap: () => pushAdaptive(
-                              context,
-                              LessonDetailScreen(
-                                  node: smallLetterLessonNode(context, sl))),
-                          child: Column(mainAxisSize: MainAxisSize.min, children: [
-                            Text(sl.mark,
-                                style: quranicStyle(context,
-                                    size: 26, color: p.acc)),
-                            const SizedBox(height: 4),
-                            Text(sl.name,
-                                style: uiStyle(context,
-                                    size: 11.5, color: p.ink2)),
-                          ]),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: p.ink,
-        foregroundColor: p.bg,
-        elevation: 6,
-        onPressed: () => pushAdaptive(context, _letterQuiz(context)),
-        icon: const Icon(AppIcons.quiz),
-        label: Text(context.l10n.letterQuiz,
-            style: uiStyle(context,
-                size: 14, weight: FontWeight.w700, color: p.bg)),
       ),
     );
   }
@@ -866,7 +537,7 @@ class LetterDetail extends StatelessWidget with DesktopAware {
 final _rng = math.Random();
 
 QuizScreen letterQuizScreen(BuildContext context,
-        {String progressId = 'qaidah.letters'}) =>
+        {String progressId = 'quiz.letters'}) =>
     _letterQuiz(context, progressId: progressId);
 
 /// "Which letter is this?", one question for each of [which].
@@ -887,7 +558,7 @@ List<QuizQuestion> letterQuestions(BuildContext context, Iterable<ArabicLetter> 
 }
 
 QuizScreen _letterQuiz(BuildContext context,
-    {bool graded = true, String progressId = 'qaidah.letters'}) {
+    {bool graded = true, String progressId = 'quiz.letters'}) {
   final qs = letterQuestions(context, ([...letters]..shuffle(_rng)).take(10));
   return QuizScreen(
       title: context.l10n.letterQuiz,
@@ -1190,120 +861,11 @@ QuizQuestion? _spellQuestion(BuildContext context, String word,
   );
 }
 
-// ───────────────────────── Unit 1 practice: Letters ────────────────────────
-
-QuizQuestion _dotCountQuestion(BuildContext context, int n) {
-  final sample = ([...letters]..shuffle(_rng)).take(8).toList();
-  if (!sample.any((l) => l.dotCount == n)) {
-    sample[0] = letters.firstWhere((l) => l.dotCount == n);
-  }
-  final options = sample.map((l) => l.char).toList();
-  final correctSet = <int>{
-    for (var i = 0; i < sample.length; i++)
-      if (sample[i].dotCount == n) i,
-  };
-  return QuizQuestion(
-    prompt: context.l10n.qpChooseDotsCount(n),
-    options: options,
-    optionsAreArabic: true,
-    correctSet: correctSet,
-  );
-}
-
-QuizQuestion _dotPosQuestion(BuildContext context) {
-  const positions = ['above', 'below', 'inside'];
-  final pos = positions[_rng.nextInt(positions.length)];
-  final sample = ([...letters]..shuffle(_rng)).take(8).toList();
-  if (!sample.any((l) => l.dotPos == pos)) {
-    sample[0] = letters.firstWhere((l) => l.dotPos == pos);
-  }
-  final options = sample.map((l) => l.char).toList();
-  final correctSet = <int>{
-    for (var i = 0; i < sample.length; i++)
-      if (sample[i].dotPos == pos) i,
-  };
-  return QuizQuestion(
-    prompt: context.l10n.qpChooseDotsPos(dotPosLabel(context, pos)),
-    options: options,
-    optionsAreArabic: true,
-    correctSet: correctSet,
-  );
-}
-
-QuizQuestion? _resemblesQuestion(BuildContext context) {
-  final withFamily = letters.where((l) => l.similarGroup != null).toList()
-    ..shuffle(_rng);
-  if (withFamily.isEmpty) return null;
-  final l = withFamily.first;
-  final family =
-      similarFamilies[l.similarGroup]!.where((c) => c != l.char).toList();
-  final answer = family[_rng.nextInt(family.length)];
-  final o = buildOptions(answer, letters.map((x) => x.char).toList(), _rng);
-  return QuizQuestion(
-    prompt: context.l10n.qpWhichResembles(letterName(context, l)),
-    arabic: l.char,
-    reviewId: 'letter.resembles.${l.char}',
-    options: o.options,
-    optionsAreArabic: true,
-    correct: o.correct,
-  );
-}
-
-/// Recognise a letter by its shape even in one of the muṣḥaf's real
-/// allographs (kāf wrapping an alif, the elevated tooth, ...) — the point
-/// isn't the abstract fact "this letter has a variant", it's being able to
-/// still read the letter when the font draws it differently.
-QuizQuestion? _variantIdQuestion(BuildContext context) {
-  final eligible =
-      letterVariants.where((v) => v.letter.length == 1 || v.kind == 'ligature').toList();
-  if (eligible.isEmpty) return null;
-  final v = eligible[_rng.nextInt(eligible.length)];
-  final pool = [
-    ...letters.map((l) => l.char),
-    ...extraLetters.map((l) => l.char),
-    ...letterVariants.where((x) => x.kind == 'ligature').map((x) => x.letter),
-  ];
-  final o = buildOptions(v.letter, pool, _rng);
-  return QuizQuestion(
-    prompt: context.l10n.qpWhichLetterShapesThis,
-    arabic: v.word,
-    highlight: v.highlight,
-    reviewId: 'variant.${v.id}',
-    options: o.options,
-    optionsAreArabic: true,
-    correct: o.correct,
-  );
-}
-
-QuizScreen _letterPracticeQuiz(BuildContext context) {
-  final qs = <QuizQuestion>[
-    for (final n in pickN([0, 1, 2, 3], 2, _rng)) _dotCountQuestion(context, n),
-    _dotPosQuestion(context),
-    for (final q in [_resemblesQuestion(context), _variantIdQuestion(context)])
-      ?q,
-  ];
-  final sample = [...letters]..shuffle(_rng);
-  final pool = letters.map((l) => letterName(context, l)).toList();
-  for (final l in sample.take(4)) {
-    final o = buildOptions(letterName(context, l), pool, _rng);
-    qs.add(QuizQuestion(
-        prompt: context.l10n.qpWhichLetterIsThis,
-        arabic: l.char,
-        reviewId: 'letter.${l.char}',
-        options: o.options,
-        correct: o.correct));
-  }
-  qs.shuffle(_rng);
-  return QuizScreen(
-      title: context.l10n.letterQuiz,
-      progressId: 'qaidah.letters',
-      questions: qs,
-      graded: false);
-}
-
 // ──────────────────────── Unit 2 practice: Forms ───────────────────────────
 
-QuizQuestion _connectorQuestion(BuildContext context, ArabicLetter l) {
+/// Does [l] join the letter after it? (The Alif lesson asks it of the six
+/// that don't, and of a few that do.)
+QuizQuestion connectorQuestion(BuildContext context, ArabicLetter l) {
   final answer = l.joins ? context.l10n.optConnects : context.l10n.optDoesNotConnect;
   final o = buildOptions(
       answer, [context.l10n.optConnects, context.l10n.optDoesNotConnect], _rng);
@@ -1409,7 +971,7 @@ QuizScreen _formsPracticeQuiz(BuildContext context) {
       options: [...names]..shuffle(_rng),
       sequence: names.reversed.toList()));
   for (final l in pickN(letters, 2, _rng)) {
-    qs.add(_connectorQuestion(context, l));
+    qs.add(connectorQuestion(context, l));
   }
   for (final q in [
     _stackQuestion(context),

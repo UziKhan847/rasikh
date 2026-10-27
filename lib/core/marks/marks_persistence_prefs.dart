@@ -2,11 +2,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'marks_persistence.dart';
 
-MarksPersistence create() => _PrefsMarksPersistence();
+MarksPersistence create(String dir) => _PrefsMarksPersistence(dir);
 
 /// Web fallback (no file system): one prefs key per file.
 class _PrefsMarksPersistence implements MarksPersistence {
-  static const _prefix = 'noor.marks.';
+  _PrefsMarksPersistence(String dir)
+      : _prefix = dir == 'marks' ? 'noor.marks.' : 'noor.$dir.';
+  final String _prefix;
 
   @override
   Future<String?> read(String name) async =>
@@ -28,5 +30,13 @@ class _PrefsMarksPersistence implements MarksPersistence {
     await p.setString(
         '$_prefix$name.corrupt-${DateTime.now().millisecondsSinceEpoch}', d);
     await p.remove('$_prefix$name');
+  }
+
+  @override
+  Future<void> wipe() async {
+    final p = await SharedPreferences.getInstance();
+    for (final k in p.getKeys().where((k) => k.startsWith(_prefix)).toList()) {
+      await p.remove(k);
+    }
   }
 }

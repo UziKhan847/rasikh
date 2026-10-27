@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
+import '../../core/profiles.dart';
+import '../profiles_sheet.dart';
 import '../../core/settings.dart';
 import '../../core/theme.dart';
+import '../../ui/adaptive_sheet.dart';
 import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import '../learn_screen.dart';
@@ -12,6 +15,7 @@ import '../settings_screen.dart';
 import '../today_screen.dart';
 import '../tracing_screen.dart';
 import 'app_shell.dart' show AppSection, openMushaf, sectionIcon, sectionLabel;
+import 'mode_preview.dart';
 
 /// The four ways to use the app ([AppMode]): what each is called, says and
 /// shows, the switcher, and the way to the app's other areas from any of
@@ -82,45 +86,20 @@ void setAppMode(BuildContext context, AppMode m) {
   showQToast(context, context.l10n.modeNow(m.title(context)));
 }
 
-/// The modes as a list of cards, the current one marked — Settings' Mode
-/// section and the switcher.
+/// The modes, each with a preview of its home, the current one ringed —
+/// Settings' Mode section and the switcher.
 class ModeList extends StatelessWidget {
   final ValueChanged<AppMode>? onPicked;
   const ModeList({super.key, this.onPicked});
 
   @override
-  Widget build(BuildContext context) {
-    final s = SettingsScope.of(context);
-    final p = pal(context);
-    return Column(children: [
-      for (final m in AppMode.values)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: QCard(
-            padding: const EdgeInsets.all(12),
-            color: s.mode == m ? p.accSoft : null,
-            borderColor: s.mode == m ? p.acc : null,
-            onTap: () {
-              setAppMode(context, m);
-              onPicked?.call(m);
-            },
-            child: Row(children: [
-              QGlyphTile(m.glyph, hue: m.hue, size: 46),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(m.title(context),
-                      style: uiStyle(context, size: 15, weight: FontWeight.w700)),
-                  Text(m.subtitle(context),
-                      style: uiStyle(context, size: 12.5, color: p.ink2, height: 1.35)),
-                ]),
-              ),
-              if (s.mode == m) Icon(AppIcons.check, color: p.acc),
-            ]),
-          ),
-        ),
-    ]);
-  }
+  Widget build(BuildContext context) => ModeGrid(
+        selected: SettingsScope.of(context).mode,
+        onPicked: (m) {
+          setAppMode(context, m);
+          onPicked?.call(m);
+        },
+      );
 }
 
 /// The areas a mode doesn't open to, each a tap away.
@@ -157,10 +136,8 @@ class AlsoInApp extends StatelessWidget {
 }
 
 /// The mode switcher: the modes, then the other areas.
-Future<void> showModeSheet(BuildContext context) => showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+Future<void> showModeSheet(BuildContext context) => showAdaptiveSheet<void>(
+      context,
       builder: (sheet) => SafeArea(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(sheet).height * .9),
@@ -168,6 +145,10 @@ Future<void> showModeSheet(BuildContext context) => showModalBottomSheet<void>(
             shrinkWrap: true,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
             children: [
+              if (ProfileScope.maybeOf(context) != null) ...[
+                const ProfilesRow(),
+                const SizedBox(height: 14),
+              ],
               Text(context.l10n.modeSwitch, style: displayStyle(sheet, size: 22)),
               const SizedBox(height: 10),
               ModeList(onPicked: (_) => Navigator.pop(sheet)),

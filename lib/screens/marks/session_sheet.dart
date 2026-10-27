@@ -6,6 +6,7 @@ import '../../core/marks/marks_store.dart';
 import '../../core/marks/word_ref.dart';
 import '../../core/settings.dart';
 import '../../core/theme.dart';
+import '../../ui/adaptive_sheet.dart';
 import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
@@ -16,10 +17,8 @@ import 'marking.dart';
 /// this device. Returns the session, or null if dismissed.
 Future<RecitationSession?> showStartSessionSheet(BuildContext context,
     {required MarksStore store, required String script}) {
-  return showModalBottomSheet<RecitationSession>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
+  return showAdaptiveSheet<RecitationSession>(
+    context,
     builder: (sheet) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(sheet).bottom),
       child: _StartSession(store: store, script: script),
@@ -189,10 +188,8 @@ Future<void> showEndSessionSheet(BuildContext context,
     (int, int)? range}) async {
   final note = TextEditingController(
       text: store.session(bookId, sessionId)?.note ?? '');
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
+  await showAdaptiveSheet<void>(
+    context,
     builder: (sheet) {
       final p = pal(sheet);
       final mp = markPaletteFor(p);

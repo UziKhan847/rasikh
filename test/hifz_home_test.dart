@@ -14,7 +14,10 @@ import 'package:qiraah_arabiyyah/data/quran.dart';
 import 'package:qiraah_arabiyyah/screens/marks/word_marks_sheet.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf/memorize_bar.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_line.dart';
+import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_index_sheet.dart';
+import 'package:qiraah_arabiyyah/screens/mushaf/words_line.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
+import 'package:qiraah_arabiyyah/ui/adaptive_sheet.dart';
 
 import 'test_support.dart';
 
@@ -177,11 +180,57 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
   });
 
+  testWidgets('the header\'s page opens its list there; a pick goes to it',
+      (tester) async {
+    final (s, p, m) = await boot();
+    await pump(tester, s, p, m);
+    final page = MushafRepo.pageOfWord('uthmani', _ref.globalAyah, _ref.word0);
+    await tester.tap(find.text('$page').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Page $page'), findsOneWidget, reason: 'opened on the current page');
+    await tester.tap(find.text('Page ${page + 2}'));
+    await tester.pumpAndSettle();
+    expect(find.text('${page + 2}'), findsWidgets);
+  });
+
+  testWidgets('landscape: the index comes in from the side', (tester) async {
+    final (s, p, m) = await boot();
+    await pump(tester, s, p, m);
+    tester.view.physicalSize = const Size(1200, 700);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Index'));
+    await tester.pumpAndSettle();
+    final sheet = tester.widget<AdaptiveSheet>(find.byType(AdaptiveSheet));
+    expect(sheet.side, isTrue);
+    expect(find.byType(BottomSheet), findsNothing);
+  });
+
+  testWidgets('the index searches by mark; a pick goes to the word once the '
+      'sheet has gone', (tester) async {
+    final (s, p, m) = await boot();
+    final b = m.ensureActiveBook('Me');
+    m.addMark(b.id, _ref, MarkType.mistake);
+    await pump(tester, s, p, m);
+    await tester.tap(find.byTooltip('Index'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilterChip, 'Mistake'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Mistake · Ad-Dukhan 44:25'), findsOneWidget);
+    expect(find.byType(WordsLine), findsOneWidget);
+    await tester.tap(find.textContaining('Mistake · Ad-Dukhan 44:25'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MushafIndex), findsNothing);
+    await m.flush();
+  });
+
   test('search: by letters, whatever the vowels', () {
     final hits = searchMushaf('uthmani', 'الرحمن الرحيم');
     expect(hits.first.surah, 1);
     expect(hits.any((h) => h.surah == 1 && h.ayahInSurah == 3), isTrue);
     expect(searchMushaf('uthmani', 'قُلْ هُوَ اللَّهُ أَحَدٌ').single.surah, 112);
     expect(bareArabic('ٱلْحَمْدُ'), 'الحمد');
+    // The words a match covers.
+    final h = searchMushaf('uthmani', 'ملك يوم').firstWhere((h) => h.surah == 1);
+    expect((h.firstWord, h.lastWord), (0, 1));
   });
 }

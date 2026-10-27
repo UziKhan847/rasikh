@@ -3,15 +3,10 @@ import 'package:flutter/material.dart';
 import '../../core/l10n.dart';
 import '../../core/responsive.dart';
 import '../../core/theme.dart';
-import '../../data/glyph_names.dart';
 import '../../data/script_diff.dart';
 import '../../data/small_letters.dart';
 import '../../data/tajwid_cases.dart';
-import '../../data/tajweed.dart';
-import '../../data/tanwin_allographs.dart';
-import '../../data/tashkeel.dart';
 import '../../data/waqf.dart';
-import '../../data/wasl.dart';
 import '../../widgets/common.dart';
 import '../../widgets/lesson.dart';
 
@@ -90,39 +85,19 @@ Widget _bigScriptRow(BuildContext context, String label, String word) => Contain
       ]),
     );
 
-// ── Marks & Signs: grouped — tanwīn shapes · small letters · the two zeros ·
-// sīn over ṣād ─────────────────────────────────────────────────────────────
+// ── Marks & Signs: what only this reference covers — the small letters and
+// sīn over ṣād (the tanwīn shapes and the two zeros are taught in the
+// Qāʿidah's Tanwīn and Waṣl units) ───────────────────────────────────────────
 
 LessonNode marksLessonRoot(BuildContext context) => LessonNode(
       id: 'script.marks',
       title: context.l10n.unitMarksSigns,
       children: [
-        for (final a in tanwinAllographs) _allographNode(context, a),
         for (final s in smallLetters) _smallLetterMarkNode(context, s),
-        for (final w in [...waslOfKind('zero_rect'), ...waslOfKind('zero_round')])
-          _zeroNode(context, w),
         for (final c in tajwidCases.where((c) => c.id == 'sin_over_sad'))
           _caseAsMarkNode(context, c),
       ],
     );
-
-LessonNode _allographNode(BuildContext context, TanwinAllograph a) {
-  final rule = tajwidRules.firstWhere((r) => r.id == a.ruleId);
-  final tanwinItem = tashkil.firstWhere((t) => t.id == a.tanwinId);
-  return LessonNode(
-    id: 'script.mark.${a.id}',
-    glyph: a.highlight,
-    title: '${tashkilName(context, tanwinItem)} · ${a.form}',
-    summary: tajwidName(context, rule),
-    group: context.l10n.lsnTanwinShapes,
-    detail: LessonDetail(
-      hero: a.highlight,
-      intro: tajwidHow(context, rule),
-      facts: [(context.l10n.when, tajwidTrigger(context, rule))],
-      examples: conceptExamples(a.example, a.ref, a.moreExamples, a.highlight),
-    ),
-  );
-}
 
 LessonNode _smallLetterMarkNode(BuildContext context, SmallLetter s) => LessonNode(
       id: 'script.mark.${s.id}',
@@ -133,18 +108,6 @@ LessonNode _smallLetterMarkNode(BuildContext context, SmallLetter s) => LessonNo
         hero: s.mark,
         intro: s.note,
         examples: conceptExamples(s.example, s.ref, s.moreExamples, s.highlight),
-      ),
-    );
-
-LessonNode _zeroNode(BuildContext context, WaslItem w) => LessonNode(
-      id: 'script.mark.${w.id}',
-      glyph: w.highlight,
-      title: w.kind == 'zero_rect' ? context.l10n.zeroRectTitle : context.l10n.zeroRoundTitle,
-      group: context.l10n.lsnTwoZeros,
-      detail: LessonDetail(
-        hero: w.highlight,
-        intro: w.kind == 'zero_rect' ? context.l10n.zeroRectNote : context.l10n.zeroRoundNote,
-        examples: conceptExamples(w.example, w.ref, w.moreExamples, w.highlight),
       ),
     );
 

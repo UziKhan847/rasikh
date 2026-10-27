@@ -6,12 +6,13 @@ import '../core/l10n.dart';
 import '../core/responsive.dart';
 import '../core/settings.dart';
 import '../core/theme.dart';
-import '../data/glyph_names.dart';
 import '../data/learning_path.dart';
-import '../data/letters.dart';
 import '../ui/app_icons.dart';
 import '../ui/kit.dart';
 import '../widgets/common.dart';
+import '../learn/qaidah/families.dart';
+import '../learn/qaidah/lesson.dart';
+import '../learn/qaidah/qaidah_home.dart' show familyLessonPlayer;
 import 'qaidah_screen.dart';
 
 /// The step-by-step path (lib/data/learning_path.dart): every step in
@@ -62,7 +63,7 @@ class LearningPathScreen extends StatelessWidget {
                   step: path[i],
                   title: pathStepTitle(context, path[i], units),
                   glyph: _glyph(path[i], units),
-                  done: prog.starsFor(path[i].progressId) > 0,
+                  done: pathStepDone(prog.starsFor, path[i]),
                   current: i == next,
                   last: i == path.length - 1,
                 ),
@@ -76,42 +77,43 @@ class LearningPathScreen extends StatelessWidget {
 
 /// The first step not done yet, or -1 when the path is finished.
 int nextPathStep(ProgressStore p, List<PathStep> path) =>
-    path.indexWhere((s) => p.starsFor(s.progressId) == 0);
+    path.indexWhere((s) => !pathStepDone(p.starsFor, s));
 
 Map<String, QaidahUnit> _unitsById(BuildContext context) =>
     {for (final u in qaidahUnits(context)) u.progressId: u};
 
-ArabicLetter _letter(String char) => letters.firstWhere((l) => l.char == char);
-
 String pathStepTitle(BuildContext context, PathStep s, [Map<String, QaidahUnit>? units]) =>
     switch (s.kind) {
-      PathKind.letter => letterName(context, _letter(s.id)),
+      PathKind.lesson => familyTitle(context, familyById(s.id)),
       PathKind.unit => (units ?? _unitsById(context))[s.id]!.title,
       PathKind.quiz => context.l10n.pathQuiz(int.parse(s.id)),
     };
 
 String _glyph(PathStep s, Map<String, QaidahUnit> units) => switch (s.kind) {
-      PathKind.letter => s.id,
+      PathKind.lesson => familyById(s.id).chars.join(' '),
       PathKind.unit => units[s.id]!.arabicBadge,
       PathKind.quiz => '',
     };
 
-/// Opens [s]: a letter's page, a unit's lesson, or the quiz on the steps
-/// before it. A letter or lesson counts as done on the way back.
+/// Opens [s]: a family's lesson (done once its check earns a star), a
+/// unit's lesson (done on the way back), or the quiz on the steps before.
 Future<void> openPathStep(BuildContext context, PathStep s) async {
   final prog = ProgressScope.read(context);
   final units = _unitsById(context);
-  final Widget screen = switch (s.kind) {
-    PathKind.letter => LetterDetail(letter: _letter(s.id)),
-    PathKind.unit => Builder(builder: units[s.id]!.phases.first.builder!),
-    PathKind.quiz => _quiz(context, s, units),
-  };
-  await pushAdaptive(context, screen);
-  if (s.kind != PathKind.quiz) prog.report(s.progressId, 1);
+  switch (s.kind) {
+    case PathKind.lesson:
+      await pushAdaptive(context, familyLessonPlayer(context, familyById(s.id)));
+    case PathKind.unit:
+      await pushAdaptive(
+          context, DesktopAwareBuilder(builder: units[s.id]!.phases.first.builder!));
+      prog.report(s.progressId, 1);
+    case PathKind.quiz:
+      await pushAdaptive(context, _quiz(context, s, units));
+  }
 }
 
-/// The quiz on [quiz]'s steps: each letter once, and a couple of questions
-/// from each unit's own test.
+/// The quiz on [quiz]'s steps: a few questions on each family's letters,
+/// and a couple from each unit's own test.
 QuizScreen _quiz(BuildContext context, PathStep quiz, Map<String, QaidahUnit> units) {
   final rng = math.Random();
   List<QuizQuestion> fromUnit(QaidahUnit u) {
@@ -122,10 +124,8 @@ QuizScreen _quiz(BuildContext context, PathStep quiz, Map<String, QaidahUnit> un
   }
 
   final qs = <QuizQuestion>[
-    ...letterQuestions(context, [
-      for (final s in quiz.covers)
-        if (s.kind == PathKind.letter) _letter(s.id),
-    ]),
+    for (final s in quiz.covers)
+      if (s.kind == PathKind.lesson) ...familyQuestions(context, familyById(s.id), 2, rng: rng),
     for (final s in quiz.covers)
       if (s.kind == PathKind.unit) ...fromUnit(units[s.id]!),
   ]..shuffle(rng);

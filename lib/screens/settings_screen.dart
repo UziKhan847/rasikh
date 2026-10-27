@@ -18,6 +18,8 @@ import 'mushaf/mushaf_style_screen.dart';
 import 'mushaf_screen.dart' show mushafPaperName;
 import 'onboarding_screen.dart';
 import 'shell/app_mode.dart';
+import 'profiles_sheet.dart';
+import '../core/profiles.dart';
 
 /// Settings: theme and style, reading, recitation, learning, the app itself,
 /// your data, and About. Two columns on a wide window.
@@ -26,7 +28,7 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canPop = Navigator.of(context).canPop();
+    final canPop = canGoBack(context);
     return Scaffold(
       body: DecoratedBox(
         decoration: screenDecoration(context),
@@ -297,9 +299,12 @@ class _Mode extends StatelessWidget {
   Widget build(BuildContext context) {
     final modes = _Section(context.l10n.modeLabel, [const ModeList()]);
     final also = _Section(context.l10n.alsoInApp, [const AlsoInApp()]);
-    if (!wide) return Column(children: [modes, also]);
+    final profiles = ProfileScope.maybeOf(context) == null
+        ? const SizedBox.shrink()
+        : _Section(context.l10n.prfTitle, [const ProfilesRow()]);
+    if (!wide) return Column(children: [profiles, modes, also]);
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Expanded(child: modes),
+      Expanded(child: Column(children: [profiles, modes])),
       const SizedBox(width: 32),
       Expanded(child: also),
     ]);

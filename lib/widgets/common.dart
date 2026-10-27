@@ -624,7 +624,7 @@ class _QuizScreenState extends State<QuizScreen> {
     }
     final p = pal(context);
     final embedded = QuizHostScope.of(context);
-    final canBack = !embedded && Navigator.of(context).canPop();
+    final canBack = !embedded && canGoBack(context);
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(

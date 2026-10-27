@@ -26,6 +26,10 @@ class ReviewBar extends StatelessWidget {
 
   /// Floating pill (desktop / landscape) vs. a full-width bar.
   final bool floating;
+
+  /// Set: the Hifẓ home's slot — one dense row (the kinds in a menu) or a
+  /// column beside the pages.
+  final Axis? axis;
   const ReviewBar({
     super.key,
     required this.controller,
@@ -40,6 +44,7 @@ class ReviewBar extends StatelessWidget {
     required this.onOpenWord,
     required this.onEnd,
     this.floating = false,
+    this.axis,
   });
 
   @override
@@ -185,6 +190,64 @@ class ReviewBar extends StatelessWidget {
                     size: 14, weight: FontWeight.w700, color: accent)),
           ),
         ]);
+        if (axis == Axis.horizontal) {
+          return FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: m == null ? null : onOpenWord,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (m != null)
+                      MarkSwatch(type: fixed ? null : m.type, pal: pal, size: 14),
+                    const SizedBox(width: 6),
+                    Text(c.length > 0 ? context.l10n.rvPos(c.index + 1, c.length) : '',
+                        style: uiStyle(context,
+                            size: 12.5, weight: FontWeight.w700, color: sub)),
+                  ]),
+                ),
+              ),
+              PopupMenuButton<MarkType?>(
+                tooltip: context.l10n.rvAll,
+                icon: Icon(AppIcons.tune, color: ink),
+                onSelected: c.setOnly,
+                itemBuilder: (_) => [
+                  PopupMenuItem(value: null, child: Text(context.l10n.rvAll)),
+                  for (final t in MarkType.values)
+                    if (kinds.contains(t))
+                      PopupMenuItem(
+                        value: t,
+                        child: Row(children: [
+                          MarkSwatch(type: t, pal: pal, size: 12),
+                          const SizedBox(width: 8),
+                          Text(markTypeLabel(context, t)),
+                        ]),
+                      ),
+                ],
+              ),
+              actions,
+            ]),
+          );
+        }
+        if (axis == Axis.vertical) {
+          return Column(mainAxisSize: MainAxisSize.min, children: [
+            caption,
+            const SizedBox(height: 8),
+            Wrap(runSpacing: 6, children: [
+              chip(null),
+              for (final t in MarkType.values)
+                if (kinds.contains(t)) chip(t),
+            ]),
+            const SizedBox(height: 8),
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [...actions.children],
+            ),
+          ]);
+        }
         final body = Column(mainAxisSize: MainAxisSize.min, children: [
           caption,
           const SizedBox(height: 6),
