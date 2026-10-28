@@ -249,6 +249,10 @@ class AppSettings extends ChangeNotifier {
   /// Phone muṣḥaf on its side: two facing pages instead of one page across
   /// the full width.
   bool mushafPhoneSpread = false;
+
+  /// The Hifẓ home on its side: 'two' facing pages, 'one' as wide as they
+  /// are, or 'wide' across the whole width (see HifzLayout.pages).
+  String hifzLandscapePages = 'two';
   bool mushafTajwid = false; // tajwīd colours on the muṣḥaf page
   bool immersive = false; // hide system bars app-wide (edge-to-edge reading)
   double quranFontScale = 30 / 26; // reader Arabic size ÷ 26 (default 30px)
@@ -426,6 +430,7 @@ class AppSettings extends ChangeNotifier {
         ((m['mushafFillW'] ?? false) == true ? 'fill' : 'spread');
     immersive = m['immersive'] ?? false;
     mushafPhoneSpread = m['mushafPhoneSpread'] ?? false;
+    hifzLandscapePages = m['hifzLandscapePages'] as String? ?? 'two';
     mushafTajwid = m['mushafTajwid'] ?? false;
     reciter = m['reciter'] ?? 'tunaiji';
     readerLayout = m['readerLayout'] ?? 'cards';
@@ -496,6 +501,7 @@ class AppSettings extends ChangeNotifier {
         'mushafView': mushafView,
         'immersive': immersive,
         'mushafPhoneSpread': mushafPhoneSpread,
+        'hifzLandscapePages': hifzLandscapePages,
         'mushafTajwid': mushafTajwid,
         'qfont': quranFontScale,
         'traceTol': traceTolerance,

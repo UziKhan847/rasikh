@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf/hifz_dock.dart';
 import 'package:flutter/services.dart';
@@ -144,6 +145,64 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
+  /// The page under [at].
+  int pageAt(WidgetTester tester, Offset at) => tester
+      .renderObjectList<RenderMushafLine>(find.byType(MushafLineView))
+      .firstWhere((r) =>
+          r.attached && (r.localToGlobal(Offset.zero) & r.size).contains(at))
+      .spec
+      .page;
+
+  testWidgets('zoom stops the swipe for the pinch; off again, it swipes',
+      (tester) async {
+    await pump(tester, const Size(393, 852));
+    const mid = Offset(196, 400);
+    final before = pageAt(tester, mid);
+    // Along the dock's scroll.
+    await tester.ensureVisible(find.byTooltip('Zoom'));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Zoom'));
+    await settle(tester);
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    await tester.flingFrom(const Offset(80, 400), const Offset(300, 0), 2000);
+    await settle(tester);
+    expect(pageAt(tester, mid), before, reason: 'zoomed, a swipe turned the page');
+    await tester.tap(find.byTooltip('Zoom'));
+    await settle(tester);
+    expect(find.byType(InteractiveViewer), findsNothing);
+    await tester.flingFrom(const Offset(80, 400), const Offset(300, 0), 2000);
+    await settle(tester);
+    expect(pageAt(tester, mid), isNot(before));
+  });
+
+  testWidgets('a desktop: Ctrl and the wheel zoom, Esc goes back', (tester) async {
+    await pump(tester, const Size(1400, 900));
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    tester.binding.handlePointerEvent(const PointerScrollEvent(
+        position: Offset(500, 450), scrollDelta: Offset(0, -100)));
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await settle(tester);
+    final viewer = tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
+    expect(viewer.transformationController!.value.getMaxScaleOnAxis(),
+        greaterThan(1));
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    expect(find.byType(InteractiveViewer), findsNothing);
+  });
+
+  testWidgets('landscape, one page: no spread, the page scrolls', (tester) async {
+    final (s, _) = await pump(tester, const Size(914, 412));
+    s.update(() => s.hifzLandscapePages = 'wide');
+    await settle(tester);
+    final rects = lineRects(tester);
+    expect(rects.map((r) => r.left.round()).toSet().length, lessThan(3),
+        reason: 'one column of lines, not two pages');
+    // Taller than the window: it scrolls.
+    expect(rects.map((r) => r.bottom).reduce((a, b) => a > b ? a : b),
+        greaterThan(412));
+    await tester.pump(const Duration(milliseconds: 400)); // the save
+  });
+
   testWidgets('a mark repaints its own page, rebuilding nothing', (tester) async {
     final (_, m) = await pump(tester, const Size(1400, 900));
     var builds = 0;
@@ -200,6 +259,20 @@ void main() {
       expect(l.dock.left, 0);
       expect(l.slot.left, greaterThanOrEqualTo(l.dock.right));
       expect(l.pagesInset.left, greaterThan(0));
+    });
+
+    test('one page as wide as the spread keeps the side slot; the whole '
+        'width puts the bar over its foot', () {
+      final one = HifzLayout.resolve(const Size(1600, 900), EdgeInsets.zero,
+          pageBox: box, pages: 'one');
+      final two = HifzLayout.resolve(const Size(1600, 900), EdgeInsets.zero,
+          pageBox: box);
+      expect(one.slot, two.slot);
+      expect(one.spreadWidth, two.spreadWidth);
+      final wide = HifzLayout.resolve(const Size(1600, 900), EdgeInsets.zero,
+          pageBox: box, pages: 'wide');
+      expect(wide.slotAxis, Axis.horizontal);
+      expect(wide.pagesInset, EdgeInsets.zero);
     });
 
     test('a square window: the slot is under the pages, kept', () {

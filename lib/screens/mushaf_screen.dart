@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show RenderProxyBox;
+import 'package:flutter/rendering.dart' show RenderProxyBox, RendererBinding;
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/services.dart';
 
@@ -49,6 +49,7 @@ import 'mushaf/mushaf_marks_layer.dart';
 import 'mushaf/hifz_dock.dart';
 import 'mushaf/hifz_layout.dart';
 import 'mushaf/page_rail.dart';
+import 'mushaf/mushaf_zoom.dart';
 import 'profiles_sheet.dart';
 import '../core/profiles.dart';
 import '../core/display_rotation.dart';
@@ -155,6 +156,17 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   /// Hifẓ mode's word tool (comment, eraser, audio), when one is on.
   _HifzTool _hifzTool = _HifzTool.none;
+
+  /// The Hifẓ home's zoom: on, the pages pinch and pan and don't swipe
+  /// (see [MushafZoom]); the pager keeps its place by [_pagerKey] as zoom
+  /// wraps it.
+  bool _zoom = false;
+  final _zoomCtrl = TransformationController();
+
+  /// Zoom just turned on by touch: how it works, a moment over the page.
+  bool _zoomHint = false;
+  Timer? _zoomHintTimer;
+  final _pagerKey = GlobalKey();
 
   /// The Hifẓ home on its side: the dock on the left (camera on the right),
   /// and the window size it was worked out for.
@@ -790,6 +802,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   @override
   void dispose() {
+    _zoomCtrl.dispose();
+    _zoomHintTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     displayRotationChanges.removeListener(_rotationChanged);
     disposeRecitationTracking();
@@ -1801,6 +1815,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           // zero-length cache extent, so a page's first-visit layout cost
           // lands before the swipe reaches it, not mid-gesture.
           allowImplicitScrolling: true,
+          // Zoomed: the fingers pan and pinch the page instead.
+          physics: _zoom ? const NeverScrollableScrollPhysics() : null,
           itemCount: count,
           onPageChanged: onPage,
           itemBuilder: builder,
@@ -2380,6 +2396,25 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     }
     final k = e.logicalKey;
     final keys = HardwareKeyboard.instance;
+    if (widget.home) {
+      // Zoom: Ctrl (⌘) with + and − in and out, 0 back to the page (as Esc).
+      final ctrl = keys.isControlPressed || keys.isMetaPressed;
+      if (ctrl && (k == LogicalKeyboardKey.equal || k == LogicalKeyboardKey.add ||
+          k == LogicalKeyboardKey.numpadAdd)) {
+        _hifzZoomBy(1.25);
+        return KeyEventResult.handled;
+      }
+      if (ctrl && (k == LogicalKeyboardKey.minus || k == LogicalKeyboardKey.numpadSubtract)) {
+        _hifzZoomBy(1 / 1.25);
+        return KeyEventResult.handled;
+      }
+      if (_zoom &&
+          e is KeyDownEvent &&
+          ((ctrl && k == LogicalKeyboardKey.digit0) || k == LogicalKeyboardKey.escape)) {
+        _hifzSetZoom(false);
+        return KeyEventResult.handled;
+      }
+    }
     final mz = _memo;
     if (mz != null) {
       // Memorizing: ← (onward, as the text runs) or Space reveals the next
@@ -3665,6 +3700,8 @@ class _MushafPageView extends StatelessWidget {
             PointerDeviceKind.trackpad,
           }),
           child: SingleChildScrollView(
+            // Ctrl and the wheel zoom (see MushafZoom), not scroll.
+            physics: const CtrlYieldsScrollPhysics(),
             padding: margin.copyWith(bottom: margin.bottom + 12),
             child: sideLabel(Container(
               decoration: decoration,

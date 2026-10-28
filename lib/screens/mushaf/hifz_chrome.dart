@@ -26,20 +26,50 @@ extension _HifzChrome on _MushafPageScreenState {
         _checkRotation(c.biggest);
         final layout = HifzLayout.resolve(c.biggest, pad,
             dockLeft: _dockLeft,
+            pages: s.hifzLandscapePages,
             pageBox: (a) => MushafGeometry.pageBox(a, _script,
                 look: _look(s), header: s.mushafHeaderShown, compact: true));
-        _setPhoneSpread(layout.landscape);
+        final spread = layout.landscape && layout.pages == 'two';
+        _setPhoneSpread(spread);
         _setLandscape(layout.landscape && c.maxHeight < 520);
         _preloadGlyphs(layout, s);
-        final pager = layout.landscape
-            ? _spreadPager(s, paper,
-                margin: layout.pagesInset, rail: layout.rail, gap: layout.gap)
-            : _pager(s, paper,
-                fitWidth: false,
-                margin: EdgeInsets.symmetric(
-                    horizontal: c.maxWidth * .025, vertical: 2),
-                head: (page, _) =>
-                    RepaintBoundary(child: _hifzHeader(context, paper, page)));
+        final Widget pages;
+        if (spread) {
+          pages = _spreadPager(s, paper,
+              margin: layout.pagesInset, rail: layout.rail, gap: layout.gap);
+        } else if (layout.landscape) {
+          // One page as wide as the spread was (the bars keep their slot
+          // beside it), or across the whole width (they float over its
+          // foot): either way it runs as tall as it is and scrolls, with
+          // room past its end to bring all of it clear of a bar.
+          final inset = layout.pagesInset;
+          final side = layout.pages == 'one'
+              ? ((layout.pager.width - inset.horizontal - layout.spreadWidth) / 2)
+                  .clamp(0.0, double.infinity)
+              : 0.0;
+          pages = _pager(s, paper,
+              fitWidth: true,
+              margin: EdgeInsets.fromLTRB(inset.left + side, 6,
+                  inset.right + side,
+                  layout.slotAxis == Axis.horizontal
+                      ? layout.slot.height + 12
+                      : 6));
+        } else {
+          pages = _pager(s, paper,
+              fitWidth: false,
+              margin: EdgeInsets.symmetric(
+                  horizontal: c.maxWidth * .025, vertical: 2),
+              head: (page, _) =>
+                  RepaintBoundary(child: _hifzHeader(context, paper, page)));
+        }
+        final pager = ClipRect(
+          child: MushafZoom(
+            active: _zoom,
+            onActive: _hifzSetZoom,
+            controller: _zoomCtrl,
+            child: KeyedSubtree(key: _pagerKey, child: pages),
+          ),
+        );
         return ValueListenableBuilder<int>(
           valueListenable: _pageN,
           child: pager,
@@ -51,6 +81,20 @@ extension _HifzChrome on _MushafPageScreenState {
                 : (layout.dockLeft ? AxisDirection.right : AxisDirection.left);
             return Stack(children: [
               Positioned.fromRect(rect: layout.pager, child: pager!),
+              Positioned(
+                top: layout.pager.top + 8,
+                left: layout.pager.left + 16,
+                right: c.maxWidth - layout.pager.right + 16,
+                child: IgnorePointer(
+                  child: Center(
+                    child: AnimatedOpacity(
+                      opacity: _zoom && _zoomHint ? 1 : 0,
+                      duration: motion(context, const Duration(milliseconds: 250)),
+                      child: _hifzHintPill(paper, context.l10n.hzZoomHint),
+                    ),
+                  ),
+                ),
+              ),
 
               Positioned.fromRect(
                 rect: layout.dock,
@@ -84,13 +128,88 @@ extension _HifzChrome on _MushafPageScreenState {
     );
   }
 
+  /// The dock's zoom. Touch: the swipe stops and two fingers pinch (a
+  /// word of how, the first times). A mouse: in a little, to drag about
+  /// (Ctrl and the wheel zoom from anywhere, without it).
+  void _hifzZoomButton(BuildContext button) {
+    if (_zoom) return _hifzSetZoom(false);
+    _hifzSetZoom(true);
+    final mouse = RendererBinding.instance.mouseTracker.mouseIsConnected;
+    if (mouse) {
+      _hifzZoomBy(1.6);
+    } else {
+      // Over the page rather than as a toast, which would cover the dock.
+      _update(() => _zoomHint = true);
+      _zoomHintTimer?.cancel();
+      _zoomHintTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) _update(() => _zoomHint = false);
+      });
+    }
+  }
+
+  /// Zooms by [f] about the pages' middle (the keyboard's Ctrl + and −).
+  void _hifzZoomBy(double f) {
+    final box = _pagerKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final at = box.size.center(Offset.zero);
+    final m = Matrix4.identity()
+      ..translateByDouble(at.dx, at.dy, 0, 1)
+      ..scaleByDouble(f, f, 1, 1)
+      ..translateByDouble(-at.dx, -at.dy, 0, 1)
+      ..multiply(_zoomCtrl.value);
+    final s = m.getMaxScaleOnAxis();
+    if (s <= 1.001) return _hifzSetZoom(false);
+    if (s > MushafZoom.maxScale) return;
+    // Kept to the window, as MushafZoom keeps it.
+    final w = box.size.width, h = box.size.height;
+    final tx = m.getTranslation().x.clamp(w * (1 - s), 0.0);
+    final ty = m.getTranslation().y.clamp(h * (1 - s), 0.0);
+    _zoomCtrl.value = Matrix4.identity()
+      ..translateByDouble(tx, ty, 0, 1)
+      ..scaleByDouble(s, s, 1, 1);
+    _hifzSetZoom(true);
+  }
+
+  /// Zoom on or off; off, back to the whole page.
+  void _hifzSetZoom(bool on) {
+    if (!on) {
+      _zoomCtrl.value = Matrix4.identity();
+      _zoomHint = false;
+    }
+    if (on != _zoom) _update(() => _zoom = on);
+  }
+
+  Widget _hifzHintPill(MushafPaper paper, String text) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: paper.chrome,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: paper.line.withValues(alpha: .6), width: .5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: paper.dark ? .45 : .12),
+              blurRadius: 12,
+              spreadRadius: -4,
+            ),
+          ],
+        ),
+        child: Text(text,
+            textAlign: TextAlign.center,
+            style: uiStyle(context, size: 13, weight: FontWeight.w600, color: paper.ink)),
+      );
+
   /// The glyph sheets the pages' size calls for, loading now rather than
   /// after the first paint (which would draw every line twice).
   void _preloadGlyphs(HifzLayout layout, AppSettings s) {
     final atlas = MushafAtlas.of(_script);
     if (atlas == null) return;
-    final pages = layout.landscape ? 2 : 1;
-    final w = (layout.pager.width - (pages - 1) * layout.gap - 2 * layout.rail) / pages;
+    final w = !layout.landscape
+        ? layout.pager.width
+        : switch (layout.pages) {
+            'one' => layout.spreadWidth,
+            'wide' => layout.pager.width,
+            _ => (layout.pager.width - layout.gap - 2 * layout.rail) / 2,
+          };
     final fs = w / MushafGeometry.refEmOf(_script);
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final tier = atlas.tierFor(fs * dpr);
@@ -324,6 +443,12 @@ extension _HifzChrome on _MushafPageScreenState {
           onTap: (b) => _hifzReviewOptions(b, side),
           onOptions: (b) => _hifzReviewOptions(b, side),
         ),
+      DockItem(
+        icon: AppIcons.zoom,
+        tooltip: l.hzZoom,
+        selected: _zoom,
+        onTap: (b) => _hifzZoomButton(b),
+      ),
       DockItem(
         icon: AppIcons.pageColour,
         tooltip: l.hzView,
@@ -734,7 +859,22 @@ extension _HifzChrome on _MushafPageScreenState {
           setPop(() {});
         }
 
+        final wide = MediaQuery.sizeOf(context);
         return _popoverBody(pop, [
+          // On its side: two facing pages, or one (as wide as they are, or
+          // the whole width).
+          if (wide.width > wide.height) ...[
+            _popoverLabel(pop, l.hzLandscapePages),
+            QSegmented<String>(
+              options: [
+                ('two', l.hzPagesTwo, null),
+                ('one', l.hzPagesOne, null),
+                ('wide', l.hzPagesWide, null),
+              ],
+              value: s.hifzLandscapePages,
+              onChanged: (v) => set(() => s.hifzLandscapePages = v),
+            ),
+          ],
           _popoverLabel(pop, l.arabicScript),
           QSegmented<String>(
             options: [

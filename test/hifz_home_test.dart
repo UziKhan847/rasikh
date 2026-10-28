@@ -168,6 +168,9 @@ void main() {
   testWidgets('view: script, colouring (Nabr not yet), brightness', (tester) async {
     final (s, p, m) = await boot();
     await pump(tester, s, p, m);
+    // At the end of the dock's scroll.
+    await tester.ensureVisible(find.byTooltip('View'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('View'));
     await tester.pumpAndSettle();
     expect(find.text('Colouring'), findsOneWidget);
