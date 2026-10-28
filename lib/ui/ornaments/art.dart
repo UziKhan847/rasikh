@@ -42,6 +42,9 @@ class ClassicArt {
   /// a box between two knots.
   static final lantern1 = _of(lantern1Svg);
   static final lantern2 = _of(lantern2Svg);
+
+  /// The Hifẓ spread's page lantern: a knot above and below its window.
+  static final lantern3 = _of(lantern3Svg);
   static final indopakVerseCircle = _of(indopakVerseCircleSvg);
 
   /// The Indo-Pak header in two tiers (the name over the basmala; the

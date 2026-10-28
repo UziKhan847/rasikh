@@ -8,6 +8,7 @@ import 'surah_headers.dart' show fillBoxes;
 const _windows = {
   'lantern1': Rect.fromLTRB(.146, .601, .841, .944),
   'lantern2': Rect.fromLTRB(.164, .386, .848, .612),
+  'lantern3': Rect.fromLTRB(.058, .336, .946, .664),
 };
 
 /// A lantern in the Madani muṣḥaf's margin (where a ḥizb quarter starts):
@@ -21,6 +22,9 @@ class MarginLantern extends StatelessWidget {
   final String text;
   final Color ink;
   final Color? fill;
+
+  /// The text's colour, when not the lantern's own [ink].
+  final Color? textColor;
   const MarginLantern({
     super.key,
     required this.kind,
@@ -28,11 +32,16 @@ class MarginLantern extends StatelessWidget {
     required this.text,
     required this.ink,
     this.fill,
+    this.textColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    final art = kind == 'lantern2' ? ClassicArt.lantern2 : ClassicArt.lantern1;
+    final art = switch (kind) {
+      'lantern2' => ClassicArt.lantern2,
+      'lantern3' => ClassicArt.lantern3,
+      _ => ClassicArt.lantern1,
+    };
     final win = _windows[kind] ?? _windows['lantern1']!;
     final h = width / art.ratio;
     // A little inside the window's rule.
@@ -60,7 +69,7 @@ class MarginLantern extends StatelessWidget {
                 fontSize: 12,
                 height: 1.25,
                 fontWeight: FontWeight.w600,
-                color: ink,
+                color: textColor ?? ink,
               ),
             ),
           ),
