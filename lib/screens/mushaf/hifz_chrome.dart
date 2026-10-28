@@ -103,10 +103,13 @@ extension _HifzChrome on _MushafPageScreenState {
     if (size == _rotationFor) return;
     _rotationFor = size;
     if (size.width <= size.height) return;
-    displayRotation().then((r) {
-      final left = r == 3; // 270°: the camera on the right
-      if (mounted && left != _dockLeft) _update(() => _dockLeft = left);
-    });
+    displayRotation().then(_onRotation);
+  }
+
+  /// 270°: the camera on the right, the dock on the left.
+  void _onRotation(int r) {
+    final left = r == 3;
+    if (mounted && left != _dockLeft) _update(() => _dockLeft = left);
   }
 
   /// A tool's bar in landscape: a panel beside the dock (down the side) or

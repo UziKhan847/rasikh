@@ -229,6 +229,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // A turn from one side straight to the other: the window keeps its size,
+    // only this says so.
+    displayRotationChanges.addListener(_rotationChanged);
     initRecitationTracking();
     _doneSub = AyahAudio.instance.onComplete.listen(_onVerseDone);
     _marking.addListener(_onMarking);
@@ -788,6 +791,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    displayRotationChanges.removeListener(_rotationChanged);
     disposeRecitationTracking();
     _doneSub?.cancel();
     WbwAudio.instance.stop();
@@ -1061,6 +1065,11 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         _restoreSystemBars();
       }
     });
+  }
+
+  void _rotationChanged() {
+    final r = displayRotationChanges.value;
+    if (r >= 0 && widget.home) _onRotation(r);
   }
 
   /// Back from the background: Android shows the system bars again, so

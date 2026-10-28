@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:qiraah_arabiyyah/screens/mushaf/hifz_dock.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -118,6 +121,27 @@ void main() {
     await tester.flingFrom(const Offset(1300, 450), const Offset(400, 0), 2000);
     await settle(tester);
     expect(pageAt(mid), isNot(pageBefore), reason: 'the spread turned');
+  });
+
+  testWidgets('turned straight from one side to the other (same window '
+      'size), the dock follows', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    const channel = MethodChannel('qiraah/display');
+    var rotation = 1; // camera on the left
+    tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (_) async => rotation);
+    await pump(tester, const Size(914, 412));
+    double dockX() => tester.getTopLeft(find.byType(HifzDock)).dx;
+    expect(dockX(), greaterThan(400), reason: 'on the right');
+    // Android reports the turn; nothing else changes.
+    rotation = 3;
+    await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+        channel.name,
+        const StandardMethodCodec().encodeMethodCall(const MethodCall('rotation', 3)),
+        (_) {});
+    await settle(tester);
+    expect(dockX(), lessThan(10), reason: 'on the left');
+    debugDefaultTargetPlatformOverride = null;
   });
 
   testWidgets('a mark repaints its own page, rebuilding nothing', (tester) async {

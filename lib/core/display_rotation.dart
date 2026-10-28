@@ -14,3 +14,14 @@ Future<int> displayRotation() async {
     return 1;
   }
 }
+
+/// The rotation as Android reports each change — including a turn from one
+/// side straight to the other, which changes nothing else Flutter sees.
+final ValueNotifier<int> displayRotationChanges = () {
+  _channel.setMethodCallHandler((call) async {
+    if (call.method == 'rotation' && call.arguments is int) {
+      displayRotationChanges.value = call.arguments as int;
+    }
+  });
+  return ValueNotifier<int>(-1);
+}();
