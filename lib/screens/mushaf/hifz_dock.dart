@@ -27,6 +27,9 @@ class DockItem {
 /// end that has more. A tool's own bar can take its place ([replacement]).
 class HifzDock extends StatelessWidget {
   final Axis axis;
+
+  /// A side dock on the left edge (its right corners rounded).
+  final bool onLeft;
   final List<DockItem> items;
   final MushafPaper paper;
 
@@ -36,6 +39,7 @@ class HifzDock extends StatelessWidget {
   const HifzDock({
     super.key,
     required this.axis,
+    this.onLeft = false,
     required this.items,
     required this.paper,
     this.safe = EdgeInsets.zero,
@@ -73,22 +77,26 @@ class HifzDock extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: paper.chrome,
-          borderRadius: vertical
-              ? const BorderRadius.only(topLeft: r, bottomLeft: r)
-              : const BorderRadius.only(topLeft: r, topRight: r),
+          borderRadius: !vertical
+              ? const BorderRadius.only(topLeft: r, topRight: r)
+              : onLeft
+                  ? const BorderRadius.only(topRight: r, bottomRight: r)
+                  : const BorderRadius.only(topLeft: r, bottomLeft: r),
           border: Border.all(color: paper.line.withValues(alpha: .6), width: .5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: paper.dark ? .5 : .14),
               blurRadius: 18,
               spreadRadius: -4,
-              offset: vertical ? const Offset(-3, 0) : const Offset(0, -3),
+              offset: !vertical
+                  ? const Offset(0, -3)
+                  : Offset(onLeft ? 3 : -3, 0),
             ),
           ],
         ),
         child: Padding(
           padding: vertical
-              ? EdgeInsets.fromLTRB(6, safe.top + 10, 6 + safe.right, safe.bottom + 10)
+              ? EdgeInsets.fromLTRB(6 + safe.left, safe.top + 10, 6 + safe.right, safe.bottom + 10)
               : EdgeInsets.fromLTRB(safe.left + 6, 6, safe.right + 6, safe.bottom + 6),
           child: Center(child: body),
         ),

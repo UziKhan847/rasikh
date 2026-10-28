@@ -204,6 +204,8 @@ class _TracingScreenState extends State<TracingScreen> {
       appBar: widget.embedded
           ? null
           : AppBar(
+              // A home (no back button) sets its title in from the edge.
+              titleSpacing: canGoBack(context) ? null : 20,
               title: Text(context.l10n.tracingStudio),
               actions: [
                 const SettingsButton(),

@@ -14,10 +14,17 @@ import 'package:flutter/widgets.dart';
 class HifzLayout {
   final bool landscape;
 
-  /// The pages' area (a spread: rails and gap included).
+  /// The pages' area: in landscape the whole width between the screen's
+  /// edge and the dock, so a swipe anywhere turns the page and a page slides
+  /// all the way out; [pagesInset] keeps the spread clear of the slot.
   final Rect pager;
+  final EdgeInsets pagesInset;
 
-  /// Portrait: the line above the page; landscape: none.
+  /// Landscape: the dock on the left (the phone held with its camera on
+  /// the right), not the right.
+  final bool dockLeft;
+
+  /// A line above the pages (none: each page carries its own).
   final Rect? header;
 
   /// The toolbar.
@@ -38,6 +45,8 @@ class HifzLayout {
     required this.dock,
     required this.slot,
     required this.slotAxis,
+    this.pagesInset = EdgeInsets.zero,
+    this.dockLeft = false,
     this.gap = 0,
     this.rail = 0,
   });
@@ -48,32 +57,38 @@ class HifzLayout {
   static const headerExtent = 40.0;
 
   /// A side slot narrower than this isn't worth it: the bar goes under.
-  static const minSideSlot = 128.0;
+  static const minSideSlot = 104.0;
   static const maxSideSlot = 248.0;
 
   /// [size] with the system's [padding]; [pageBox] sizes one page to fit an
   /// area (its shape decides the width).
   static HifzLayout resolve(Size size, EdgeInsets padding,
-      {required Size Function(Size avail) pageBox}) {
+      {required Size Function(Size avail) pageBox, bool dockLeft = false}) {
     final w = size.width, h = size.height;
     if (w <= h) {
-      final header = Rect.fromLTWH(0, padding.top, w, headerExtent);
+      // The line above the page goes with each page (see the pager).
       final dockH = dockExtent + padding.bottom;
       final dock = Rect.fromLTWH(0, h - dockH, w, dockH);
       return HifzLayout._(
         landscape: false,
-        header: header,
-        pager: Rect.fromLTRB(0, header.bottom, w, dock.top),
+        header: null,
+        pager: Rect.fromLTRB(0, padding.top, w, dock.top),
         dock: dock,
         slot: dock,
         slotAxis: Axis.horizontal,
       );
     }
-    final dockW = dockExtent + padding.right;
+    // Worked out with the dock on the right, then mirrored if it's left.
+    final pad = dockLeft
+        ? EdgeInsets.fromLTRB(padding.right, padding.top, padding.left, padding.bottom)
+        : padding;
+    final dockW = dockExtent + pad.right;
     final dock = Rect.fromLTWH(w - dockW, 0, dockW, h);
     final body = Rect.fromLTRB(
-        padding.left + 4, padding.top + 6, dock.left - 4, h - padding.bottom - 6);
-    final rail = (body.height * .05).clamp(26.0, 40.0);
+        pad.left + 4, pad.top + 6, dock.left - 4, h - pad.bottom - 6);
+    // Each page's margin rail: its labels and lantern, and room to breathe
+    // between them and the page.
+    final rail = (body.height * .07).clamp(36.0, 50.0);
     final gap = (body.width * .012).clamp(12.0, 24.0);
     double spreadW(double height) {
       final page = pageBox(
@@ -82,16 +97,21 @@ class HifzLayout {
     }
 
     final spare = body.width - spreadW(body.height);
+    Rect flip(Rect r) => dockLeft ? Rect.fromLTRB(w - r.right, r.top, w - r.left, r.bottom) : r;
+    EdgeInsets flipInset(EdgeInsets e) =>
+        dockLeft ? EdgeInsets.fromLTRB(e.right, e.top, e.left, e.bottom) : e;
     if (spare >= minSideSlot) {
       final slotW = (spare - 8).clamp(minSideSlot, maxSideSlot);
       final slot = Rect.fromLTWH(body.right - slotW, body.top, slotW, body.height);
       return HifzLayout._(
         landscape: true,
         header: null,
-        pager: Rect.fromLTRB(body.left, body.top, slot.left - 4, body.bottom),
-        dock: dock,
-        slot: slot,
+        pager: flip(body),
+        pagesInset: flipInset(EdgeInsets.only(right: slotW + 4)),
+        dock: flip(dock),
+        slot: flip(slot),
         slotAxis: Axis.vertical,
+        dockLeft: dockLeft,
         gap: gap,
         rail: rail,
       );
@@ -101,10 +121,12 @@ class HifzLayout {
     return HifzLayout._(
       landscape: true,
       header: null,
-      pager: Rect.fromLTRB(body.left, body.top, body.right, slot.top - 4),
-      dock: dock,
-      slot: slot,
+      pager: flip(body),
+      pagesInset: const EdgeInsets.only(bottom: slotH + 4),
+      dock: flip(dock),
+      slot: flip(slot),
       slotAxis: Axis.horizontal,
+      dockLeft: dockLeft,
       gap: gap,
       rail: rail,
     );
@@ -115,6 +137,8 @@ class HifzLayout {
       other is HifzLayout &&
       other.landscape == landscape &&
       other.pager == pager &&
+      other.pagesInset == pagesInset &&
+      other.dockLeft == dockLeft &&
       other.header == header &&
       other.dock == dock &&
       other.slot == slot &&
@@ -124,5 +148,6 @@ class HifzLayout {
 
   @override
   int get hashCode =>
-      Object.hash(landscape, pager, header, dock, slot, slotAxis, gap, rail);
+      Object.hash(landscape, pager, pagesInset, dockLeft, header, dock, slot,
+          slotAxis, gap, rail);
 }

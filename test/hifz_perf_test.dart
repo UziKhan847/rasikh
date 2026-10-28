@@ -101,6 +101,25 @@ void main() {
     });
   }
 
+  testWidgets('landscape: a swipe in the empty margin turns the page', (tester) async {
+    await pump(tester, const Size(1400, 900));
+    final before = lineRects(tester).length;
+    expect(before, greaterThan(0));
+    // The page under a point in the middle of the spread.
+    int pageAt(Offset at) => tester
+        .renderObjectList<RenderMushafLine>(find.byType(MushafLineView))
+        .firstWhere((r) =>
+            r.attached && (r.localToGlobal(Offset.zero) & r.size).contains(at))
+        .spec
+        .page;
+    const mid = Offset(500, 450);
+    final pageBefore = pageAt(mid);
+    // Right of the spread, left of the dock: no page there, still the pager.
+    await tester.flingFrom(const Offset(1300, 450), const Offset(400, 0), 2000);
+    await settle(tester);
+    expect(pageAt(mid), isNot(pageBefore), reason: 'the spread turned');
+  });
+
   testWidgets('a mark repaints its own page, rebuilding nothing', (tester) async {
     final (_, m) = await pump(tester, const Size(1400, 900));
     var builds = 0;
@@ -145,14 +164,25 @@ void main() {
       expect(l.landscape, isTrue);
       expect(l.slotAxis, Axis.vertical);
       expect(l.slot.right, lessThanOrEqualTo(l.dock.left));
-      expect(l.pager.right, lessThanOrEqualTo(l.slot.left));
+      // The pages' area runs to the dock (a swipe anywhere turns the page);
+      // the spread keeps clear of the slot.
+      expect(l.pager.right, lessThanOrEqualTo(l.dock.left));
+      expect(l.pager.right - l.pagesInset.right, lessThanOrEqualTo(l.slot.left));
+    });
+
+    test('held with the camera on the right: the dock on the left', () {
+      final l = HifzLayout.resolve(const Size(1400, 900), EdgeInsets.zero,
+          pageBox: box, dockLeft: true);
+      expect(l.dock.left, 0);
+      expect(l.slot.left, greaterThanOrEqualTo(l.dock.right));
+      expect(l.pagesInset.left, greaterThan(0));
     });
 
     test('a square window: the slot is under the pages, kept', () {
       final l = HifzLayout.resolve(const Size(1000, 940), EdgeInsets.zero, pageBox: box);
       expect(l.landscape, isTrue);
       expect(l.slotAxis, Axis.horizontal);
-      expect(l.pager.bottom, lessThanOrEqualTo(l.slot.top));
+      expect(l.pager.bottom - l.pagesInset.bottom, lessThanOrEqualTo(l.slot.top));
     });
 
     test('portrait: header, page, dock; a bar takes the dock\'s place', () {
@@ -160,8 +190,8 @@ void main() {
           const Size(393, 852), const EdgeInsets.only(top: 24, bottom: 20),
           pageBox: box);
       expect(l.landscape, isFalse);
-      expect(l.header!.top, 24);
-      expect(l.pager.top, l.header!.bottom);
+      expect(l.header, isNull, reason: 'each page has its own line');
+      expect(l.pager.top, 24);
       expect(l.pager.bottom, l.dock.top);
       expect(l.slot, l.dock);
     });

@@ -102,19 +102,21 @@ void main() {
     }
   });
 
-  test('the opening pages are set in one circle: rows the same height '
-      'apart are as wide, the middle the widest, on both pages', () {
+  test('the opening pages are set as the print sets them: each line its '
+      'share of one circle, the same circle on both pages', () {
     final atlas = MushafAtlas.of('uthmani')!;
     double width(int page, int row) => buildAtlasLine(
             _spec('uthmani', page, row, targetW: 1e6), atlas, 0)
         .width;
-    for (final page in [1, 2]) {
-      expect(width(page, 3), closeTo(width(page, 5), 1), reason: 'p.$page rows 3 / 5');
-      expect(width(page, 4), greaterThan(width(page, 3)), reason: 'p.$page the middle');
-    }
-    for (final row in [3, 4, 5, 6]) {
-      expect(width(1, row), closeTo(width(2, row), 1), reason: 'row $row: one circle');
-    }
+    // Al-Fātiḥah's widest is its 5th line; al-Baqarah's 2nd–6th are wide,
+    // its last short — and al-Fātiḥah's 2nd and 6th shorter than their
+    // neighbours, as printed.
+    expect(width(1, 5), greaterThan(width(1, 4)));
+    expect(width(1, 2), lessThan(width(1, 3)));
+    expect(width(1, 6), lessThan(width(1, 5) * .65));
+    expect(width(2, 7), lessThan(width(2, 6) * .55));
+    // One circle: al-Fātiḥah's 5th (.93 of it) and al-Baqarah's 5th (.91).
+    expect(width(1, 5) / width(2, 5), closeTo(.93 / .91, .02));
   });
 
   test('a line is laid out once: another size, a mark or a tick reuses its '

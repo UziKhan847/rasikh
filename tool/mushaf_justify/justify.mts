@@ -101,30 +101,32 @@ const narrow = new Map<number, number>([
 ]);
 
 // The opening pages are set in a circle, as the printed Madani muṣḥaf sets
-// them: rows 1–7 (the basmala row of al-Baqarah among them) stand 1.8 em
-// apart around row 4, and each line is as wide as the circle is at its
-// height. One circle for both pages, just wide enough for the line that
-// needs it most (or --opening-d, in em); the short lines are stretched to
-// their chord with kashīdas, as printed.
-const PITCH = 1.8 * FONTSIZE;
+// them: each line's width a share of the circle's, as measured off the
+// print (rows 1–7; al-Baqarah's row 1 is its basmala) — not the circle's
+// chord at that height: the print sets some lines (al-Fātiḥah's 2nd and
+// 6th) well inside it. One circle for both pages, just wide enough that no
+// line has to be squeezed into its share (or --opening-d, in em).
+const PRINT_SHARE: Record<number, number[]> = {
+  1: [.65, .67, .84, .85, .93, .55, .41],
+  2: [0, .77, .90, .90, .91, .82, .40],
+};
 const openingLines = lines.filter(l => l.page <= 2);
 const openingWidth = new Map(openingLines.map(l => [l, H.getWidth(lineText(l), font, FONTSIZE, null) as number]));
-const rowY = (l: Line) => (l.line - 4) * PITCH;
-let r2 = 0;
-for (const l of openingLines) r2 = Math.max(r2, (openingWidth.get(l)! / 2) ** 2 + rowY(l) ** 2);
-const openingD = Number(arg('--opening-d') ?? 0) * FONTSIZE || 2 * Math.sqrt(r2);
-const openingR = openingD / 2;
+const shareOf = (l: Line) => PRINT_SHARE[l.page][l.line - 1];
 // A line of two or three words has too few places for kashīdas to fill
-// twice its width (its spaces would gape): it's stretched at most this
-// much, centred inside its chord — the circle's foot.
-const SHORT_STRETCH = Number(arg('--short-stretch') ?? 1.3);
+// half again its width (its spaces would gape): it's stretched at most this
+// much, centred inside its share.
+const SHORT_STRETCH = Number(arg('--short-stretch') ?? 1.5);
+let fit = 0;
+for (const l of openingLines) fit = Math.max(fit, openingWidth.get(l)! / shareOf(l));
+const openingD = Number(arg('--opening-d') ?? 0) * FONTSIZE || fit;
 for (const l of openingLines) {
-  const round = 2 * Math.sqrt(Math.max(0, openingR ** 2 - rowY(l) ** 2));
   const w = openingWidth.get(l)!;
-  const chord = l.end - l.first < 4 ? Math.min(round, w * SHORT_STRETCH) : round;
-  narrow.set(l.page * 15 + l.line + 1, chord / openingD);
-  console.log(`opening p${l.page} line ${l.line}: chord ${(chord / FONTSIZE).toFixed(2)} em, ` +
-    `natural ${(openingWidth.get(l)! / FONTSIZE).toFixed(2)} em (×${(chord / openingWidth.get(l)!).toFixed(2)})`);
+  const share = shareOf(l) * openingD;
+  const width = l.end - l.first < 4 ? Math.min(share, w * SHORT_STRETCH) : share;
+  narrow.set(l.page * 15 + l.line + 1, width / openingD);
+  console.log(`opening p${l.page} line ${l.line}: ${(width / FONTSIZE).toFixed(2)} em, ` +
+    `natural ${(w / FONTSIZE).toFixed(2)} em (×${(width / w).toFixed(2)})`);
 }
 console.log(`opening circle: ${(openingD / FONTSIZE).toFixed(2)} em across`);
 if (openingD / FONTSIZE > 17.3) {

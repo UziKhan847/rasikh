@@ -99,7 +99,9 @@ class QaidahHome extends StatelessWidget with DesktopAware {
           ],
         );
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.qaidahPath)),
+      appBar: AppBar(
+          titleSpacing: canGoBack(context) ? null : 20,
+          title: Text(context.l10n.qaidahPath)),
       body: SafeArea(
         top: false,
         child: ListView(

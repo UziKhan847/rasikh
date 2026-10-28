@@ -22,6 +22,7 @@ import '../../data/divisions.dart';
 import '../../data/mushaf.dart';
 import '../../data/mushaf_atlas.dart';
 import '../../data/quran.dart';
+import '../../ui/adaptive_sheet.dart';
 import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
 import '../mushaf/mushaf_line.dart';
@@ -41,10 +42,8 @@ Future<void> showReportSheet(
 }) async {
   await MushafRepo.ensure(script);
   if (!context.mounted) return;
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
+  await showAdaptiveSheet<void>(
+    context,
     builder: (sheet) => _ReportSheet(
       store: store,
       bookId: bookId,

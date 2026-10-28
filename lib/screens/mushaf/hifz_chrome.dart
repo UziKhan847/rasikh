@@ -23,7 +23,9 @@ extension _HifzChrome on _MushafPageScreenState {
       onKeyEvent: _onKey,
       child: LayoutBuilder(builder: (context, c) {
         final pad = MediaQuery.paddingOf(context);
+        _checkRotation(c.biggest);
         final layout = HifzLayout.resolve(c.biggest, pad,
+            dockLeft: _dockLeft,
             pageBox: (a) => MushafGeometry.pageBox(a, _script,
                 look: _look(s), header: s.mushafHeaderShown, compact: true));
         _setPhoneSpread(layout.landscape);
@@ -31,32 +33,38 @@ extension _HifzChrome on _MushafPageScreenState {
         _preloadGlyphs(layout, s);
         final pager = layout.landscape
             ? _spreadPager(s, paper,
-                margin: EdgeInsets.zero, rail: layout.rail, gap: layout.gap)
+                margin: layout.pagesInset, rail: layout.rail, gap: layout.gap)
             : _pager(s, paper,
                 fitWidth: false,
                 margin: EdgeInsets.symmetric(
-                    horizontal: c.maxWidth * .025, vertical: 2));
+                    horizontal: c.maxWidth * .025, vertical: 2),
+                head: (page, _) =>
+                    RepaintBoundary(child: _hifzHeader(context, paper, page)));
         return ValueListenableBuilder<int>(
           valueListenable: _pageN,
           child: pager,
           builder: (context, _, pager) {
             final bar = _hifzToolBar(context, s, paper, layout.slotAxis);
             final dockAxis = layout.landscape ? Axis.vertical : Axis.horizontal;
+            final dockSide = !layout.landscape
+                ? AxisDirection.up
+                : (layout.dockLeft ? AxisDirection.right : AxisDirection.left);
             return Stack(children: [
               Positioned.fromRect(rect: layout.pager, child: pager!),
-              if (layout.header case final h?)
-                Positioned.fromRect(
-                    rect: h,
-                    child: RepaintBoundary(child: _hifzHeader(context, paper))),
+
               Positioned.fromRect(
                 rect: layout.dock,
                 child: HifzDock(
                   axis: dockAxis,
+                  onLeft: layout.dockLeft,
                   paper: paper,
-                  items: _hifzItems(context, s, paper, dockAxis),
+                  items: _hifzItems(context, s, paper, dockSide),
                   safe: layout.landscape
                       ? EdgeInsets.only(
-                          top: pad.top, bottom: pad.bottom, right: pad.right)
+                          top: pad.top,
+                          bottom: pad.bottom,
+                          left: layout.dockLeft ? pad.left : 0,
+                          right: layout.dockLeft ? 0 : pad.right)
                       : EdgeInsets.only(
                           left: pad.left, right: pad.right, bottom: pad.bottom),
                   replacement: layout.landscape || bar == null
@@ -87,6 +95,18 @@ extension _HifzChrome on _MushafPageScreenState {
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final tier = atlas.tierFor(fs * dpr);
     if (atlas.tiers[tier].images == null) atlas.tiers[tier].load();
+  }
+
+  /// On its side, which way round the phone is held: the dock goes on the
+  /// side away from the camera. Asked again whenever the window changes.
+  void _checkRotation(Size size) {
+    if (size == _rotationFor) return;
+    _rotationFor = size;
+    if (size.width <= size.height) return;
+    displayRotation().then((r) {
+      final left = r == 3; // 270°: the camera on the right
+      if (mounted && left != _dockLeft) _update(() => _dockLeft = left);
+    });
   }
 
   /// A tool's bar in landscape: a panel beside the dock (down the side) or
@@ -122,8 +142,7 @@ extension _HifzChrome on _MushafPageScreenState {
 
   // ── the line above the page (portrait) and the rails (landscape) ──
 
-  Widget _hifzHeader(BuildContext context, MushafPaper paper) {
-    final page = _pendingPage ?? _page;
+  Widget _hifzHeader(BuildContext context, MushafPaper paper, int page) {
     final juz = MushafRepo.juzOfPage(_script, page);
     final surah = MushafRepo.firstVerseOfPage(_script, page).$1;
     final style = uiStyle(context, size: 14, weight: FontWeight.w600, color: paper.acc);
@@ -150,7 +169,7 @@ extension _HifzChrome on _MushafPageScreenState {
       child: Directionality(
         textDirection: TextDirection.ltr,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: EdgeInsets.zero,
           child: Row(children: [
             Expanded(
                 child: Align(
@@ -237,17 +256,11 @@ extension _HifzChrome on _MushafPageScreenState {
 
   /// Settings · Index · Pen · Comment · Eraser · Audio · Memorize · View.
   List<DockItem> _hifzItems(
-      BuildContext context, AppSettings s, MushafPaper paper, Axis axis) {
+      BuildContext context, AppSettings s, MushafPaper paper, AxisDirection side) {
     final l = context.l10n;
-    // Popovers open toward the page: above a bottom dock, left of a side one.
-    final side = axis == Axis.vertical ? AxisDirection.left : AxisDirection.up;
+    // Popovers open toward the page ([side]: above a bottom dock, beside a
+    // side one).
     return [
-      if (ProfileScope.maybeOf(context) != null)
-        DockItem(
-          icon: AppIcons.person,
-          tooltip: l.prfTitle,
-          onTap: (_) => showProfilesSheet(context),
-        ),
       DockItem(
         icon: AppIcons.settings,
         tooltip: l.settings,
@@ -255,6 +268,12 @@ extension _HifzChrome on _MushafPageScreenState {
         // Holding it: the mode switcher.
         onOptions: (_) => showModeSheet(context),
       ),
+      if (ProfileScope.maybeOf(context) != null)
+        DockItem(
+          icon: AppIcons.person,
+          tooltip: l.prfTitle,
+          onTap: (_) => showProfilesSheet(context),
+        ),
       DockItem(
         icon: AppIcons.indexList,
         tooltip: l.idxIndex,
@@ -294,6 +313,14 @@ extension _HifzChrome on _MushafPageScreenState {
         onTap: (_) => _hifzMemorize(),
         onOptions: (b) => _hifzMemorizeOptions(b, side),
       ),
+      if (MarksScope.maybeOf(context) != null)
+        DockItem(
+          icon: AppIcons.review,
+          tooltip: l.rvReview,
+          selected: _reviewing,
+          onTap: (b) => _hifzReviewOptions(b, side),
+          onOptions: (b) => _hifzReviewOptions(b, side),
+        ),
       DockItem(
         icon: AppIcons.pageColour,
         tooltip: l.hzView,
@@ -430,6 +457,38 @@ extension _HifzChrome on _MushafPageScreenState {
           icon: const Icon(AppIcons.repeat, size: 18),
           label: Text(c.l10n.rvSetupTitle),
         ),
+      ]);
+    });
+  }
+
+  /// Going over the marks: review them, a PDF report, the mark books.
+  void _hifzReviewOptions(BuildContext anchor, AxisDirection side) {
+    final store = MarksScope.maybeOf(context);
+    showToolPopover<void>(context, anchor: anchor, side: side, builder: (c) {
+      final l = c.l10n;
+      final book = store?.activeBook;
+      Widget row(IconData icon, String title, VoidCallback? onTap) => ListTile(
+            leading: Icon(icon, color: onTap == null ? pal(c).ink3 : pal(c).acc),
+            title: Text(title, style: uiStyle(c, size: 14.5, weight: FontWeight.w700)),
+            enabled: onTap != null,
+            onTap: onTap == null
+                ? null
+                : () {
+                    Navigator.pop(c);
+                    onTap();
+                  },
+          );
+      return _popoverBody(c, [
+        row(AppIcons.review, l.rvSetupTitle, book == null ? null : () {
+          if (_marking.active) _marking.stop();
+          if (_memorizing) _endMemorize();
+          _startReview();
+        }),
+        row(AppIcons.pdf, l.rpExport, store == null || book == null
+            ? null
+            : () => showReportSheet(context,
+                store: store, bookId: book.id, script: _script)),
+        row(AppIcons.hifz, l.mkHifz, () => openSection(context, AppSection.hifz)),
       ]);
     });
   }

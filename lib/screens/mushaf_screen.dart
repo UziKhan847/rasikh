@@ -41,6 +41,7 @@ import '../ui/tool_popover.dart';
 import '../ui/adaptive_sheet.dart';
 import 'marks/marking.dart';
 import 'marks/marking_bar.dart';
+import 'marks/report_pdf.dart' show showReportSheet;
 import 'marks/mutashabihat_screen.dart';
 import 'marks/word_marks_sheet.dart';
 import 'mushaf/mushaf_line.dart';
@@ -50,6 +51,7 @@ import 'mushaf/hifz_layout.dart';
 import 'mushaf/page_rail.dart';
 import 'profiles_sheet.dart';
 import '../core/profiles.dart';
+import '../core/display_rotation.dart';
 import 'shell/app_mode.dart' show openSection, showModeSheet;
 import 'shell/app_shell.dart';
 
@@ -130,7 +132,7 @@ const _kTopBar = 60.0;
 const _kBottomBar = 74.0;
 
 class _MushafPageScreenState extends State<MushafPageScreen>
-    with RecitationPositionMixin<MushafPageScreen> {
+    with RecitationPositionMixin<MushafPageScreen>, WidgetsBindingObserver {
   @override
   bool get isReciting => _reciting;
   // Recitation timings number words the quran.com way; _playWord is kept in
@@ -153,6 +155,11 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   /// Hifẓ mode's word tool (comment, eraser, audio), when one is on.
   _HifzTool _hifzTool = _HifzTool.none;
+
+  /// The Hifẓ home on its side: the dock on the left (camera on the right),
+  /// and the window size it was worked out for.
+  bool _dockLeft = false;
+  Size? _rotationFor;
 
   /// setState, for the Hifẓ chrome (an extension: see hifz_chrome.dart).
   void _update(VoidCallback f) => setState(f);
@@ -221,6 +228,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     initRecitationTracking();
     _doneSub = AyahAudio.instance.onComplete.listen(_onVerseDone);
     _marking.addListener(_onMarking);
@@ -779,6 +787,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     disposeRecitationTracking();
     _doneSub?.cancel();
     WbwAudio.instance.stop();
@@ -1052,6 +1061,20 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         _restoreSystemBars();
       }
     });
+  }
+
+  /// Back from the background: Android shows the system bars again, so
+  /// they're set as the page wants them (hidden on its side, while the bars
+  /// are hidden, or by the immersive setting).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || _desktop) return;
+    if (_landscape || !_chrome) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky)
+          .catchError((_) {});
+    } else {
+      _restoreSystemBars();
+    }
   }
 
   void _restoreSystemBars() {
@@ -1692,15 +1715,22 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         onEnd: _toggleMarking,
       );
 
+  /// One page per swipe; with [head], each page has its own line above it
+  /// (the Hifẓ home: sūrah · page · juzʼ, set on the page's edges).
   Widget _pager(AppSettings s, MushafPaper paper,
-          {required bool fitWidth, required EdgeInsets margin}) =>
+          {required bool fitWidth,
+          required EdgeInsets margin,
+          Widget Function(int page, double width)? head}) =>
       _swiper(
         controller: _ctrl,
         count: _total,
         onPage: _onPage,
         builder: (context, i) => _pagerItem(s, paper, i,
-            fitWidth: fitWidth, margin: margin),
+            fitWidth: fitWidth, margin: margin, head: head),
       );
+
+  /// The height of the line a page's [_pager] head takes.
+  static const _headH = 40.0;
 
   /// Two facing pages per swipe (a phone on its side; the Hifẓ home in
   /// landscape, with [rail] wide margins outside them and a [gap] between).
@@ -1771,7 +1801,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       );
 
   Widget _pagerItem(AppSettings s, MushafPaper paper, int i,
-      {required bool fitWidth, required EdgeInsets margin}) {
+      {required bool fitWidth,
+      required EdgeInsets margin,
+      Widget Function(int page, double width)? head}) {
     final page = _pageView(i + 1, s, paper, fitWidth: fitWidth, margin: margin);
     if (fitWidth) return page;
     // Portrait: a page with a scanned shape takes exactly the printed page's
@@ -1779,8 +1811,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     // its text needs and the full height between the bars, spare height
     // spreading the lines.
     return LayoutBuilder(builder: (context, c) {
-      final avail =
-          Size(c.maxWidth - margin.horizontal, c.maxHeight - margin.vertical);
+      final headH = head == null ? 0.0 : _headH;
+      final avail = Size(
+          c.maxWidth - margin.horizontal, c.maxHeight - margin.vertical - headH);
       Size box(int p) {
         final b = MushafGeometry.pageBox(avail, _script,
             look: _look(s), header: s.mushafHeaderShown, page: p);
@@ -1791,11 +1824,36 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
       mushafPageBoxOf = box;
       final b = box(i + 1);
+      // The opening pages' few lines sit together in the middle of the page:
+      // the line above it comes down to them, over the page's empty top.
+      var drop = 0.0;
+      final lines = MushafRepo.pageSync(_script, i + 1);
+      if (head != null && lines != null && mushafOpeningPage(i + 1, lines)) {
+        final fs = b.width / MushafGeometry.refEmOf(_script);
+        final block = lines.length * fs * MushafGeometry.pitch;
+        drop = ((b.height - block) / 2 - 8).clamp(0.0, b.height);
+      }
+      final sized = SizedBox(
+          width: b.width + margin.horizontal,
+          height: b.height + margin.vertical,
+          child: page);
+      if (head == null) return Center(child: sized);
       return Center(
         child: SizedBox(
-            width: b.width + margin.horizontal,
-            height: b.height + margin.vertical,
-            child: page),
+          width: b.width + margin.horizontal,
+          height: headH + b.height + margin.vertical,
+          child: Stack(children: [
+            Positioned(top: headH, left: 0, right: 0, bottom: 0, child: sized),
+            // Over the page (its empty top, on the opening pages).
+            Positioned(
+              top: drop,
+              left: margin.left,
+              width: b.width,
+              height: headH,
+              child: head(i + 1, b.width),
+            ),
+          ]),
+        ),
       );
     });
   }
