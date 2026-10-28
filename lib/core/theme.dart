@@ -276,9 +276,13 @@ class MushafPaper {
   /// filled with (Update 9: the Madani and Mono papers — white within a
   /// cream or grey margin); null: the paper shows through.
   final Color? inner;
+
+  /// Text set with the ornaments (the margin's labels and page number): a
+  /// stronger shade of [frame]; null: worked out from it.
+  final Color? frameInk;
   const MushafPaper(this.id, this.bg, this.paper, this.ink, this.line, this.acc,
       this.frame, this.soft, this.hl, this.hl2, this.chrome, this.sub,
-      {this.inner});
+      {this.inner, this.frameInk});
   bool get dark => paper.computeLuminance() < .2;
 
   /// The Mono pages: black and white only, artwork included.
@@ -346,16 +350,67 @@ const kMushafPapers = <String, MushafPaper>{
 ///
 /// The light theme's paper is [script]'s own (each script keeps its look);
 /// by default the muṣḥaf's script.
-MushafPaper mushafPaperOf(AppSettings s, [String? script]) => switch (s.theme) {
-      AppTheme.light =>
-        kMushafPapers[s.styleFor(script ?? s.mushafScript).paper] ??
-            kMushafPapers['cream']!,
-      AppTheme.mono => kMushafPapers['mono']!,
-      AppTheme.night =>
-        kMushafPapers[s.mushafPaperDark == 'mono' ? 'night_mono' : 'night']!,
-      AppTheme.oled =>
-        kMushafPapers[s.mushafPaperDark == 'mono' ? 'oled_mono' : 'oled']!,
-    };
+///
+/// The ornaments take the script's own colour ([kOrnamentSeeds]) whatever
+/// the paper, quiet beside the text: lighter on a light page, darker on a
+/// dark one. Mono pages keep theirs.
+MushafPaper mushafPaperOf(AppSettings s, [String? script]) {
+  final style = s.styleFor(script ?? s.mushafScript);
+  final paper = switch (s.theme) {
+    AppTheme.light => kMushafPapers[style.paper] ?? kMushafPapers['cream']!,
+    AppTheme.mono => kMushafPapers['mono']!,
+    AppTheme.night =>
+      kMushafPapers[s.mushafPaperDark == 'mono' ? 'night_mono' : 'night']!,
+    AppTheme.oled =>
+      kMushafPapers[s.mushafPaperDark == 'mono' ? 'oled_mono' : 'oled']!,
+  };
+  return paper.mono ? paper : _ornamented(paper, style.ornament);
+}
+
+/// The ornament colours to pick from, apart from the paper: Material
+/// seeds, one for light pages and one for dark (as the mistake marker's
+/// themes), their tones taken from the scheme each makes.
+const kOrnamentSeeds = <String, (Color, Color)>{
+  'gold': (Color(0xFF7B580C), Color(0xFFEEBF6D)),
+  'blue': (Color(0xFF35618E), Color(0xFFA0CAFD)),
+  'red': (Color(0xFF904A45), Color(0xFFFFB3B0)),
+  'green': (Color(0xFF34693F), Color(0xFF9AD4A1)),
+  'purple': (Color(0xFF735187), Color(0xFFE2B7F4)),
+};
+
+/// [ornament]'s colours on a light or [dark] page: the art's, and the text
+/// set with it. Light: a light tone (about 70) at the seed's full chroma,
+/// the text its primary (40). Dark: a dark one (about 25), the text its
+/// primary (80) eased toward the page.
+({Color art, Color text}) ornamentColours(String ornament, {required bool dark}) =>
+    _ornamentColours.putIfAbsent('$ornament/$dark', () {
+      final seeds = kOrnamentSeeds[ornament] ?? kOrnamentSeeds['gold']!;
+      final cs = ColorScheme.fromSeed(
+          seedColor: dark ? seeds.$2 : seeds.$1,
+          brightness: dark ? Brightness.dark : Brightness.light);
+      return dark
+          ? (
+              art: Color.lerp(cs.onPrimaryFixedVariant, cs.surface, .25)!,
+              text: Color.lerp(cs.primary, cs.surface, .25)!,
+            )
+          : (
+              art: Color.lerp(cs.primary, cs.primaryFixedDim, .75)!,
+              text: cs.primary,
+            );
+    });
+final _ornamentColours = <String, ({Color art, Color text})>{};
+
+/// [paper] with its ornaments in [ornament]. Kept, so a page's paper stays
+/// the same object (the muṣḥaf's page memo compares it).
+MushafPaper _ornamented(MushafPaper paper, String ornament) =>
+    _ornamentedCache.putIfAbsent('${paper.id}/$ornament', () {
+      final c = ornamentColours(ornament, dark: paper.dark);
+      return MushafPaper(paper.id, paper.bg, paper.paper, paper.ink, paper.line,
+          paper.acc, c.art, paper.soft, paper.hl, paper.hl2, paper.chrome,
+          paper.sub,
+          inner: paper.inner, frameInk: c.text);
+    });
+final _ornamentedCache = <String, MushafPaper>{};
 
 final Map<String, ThemeData> _themeCache = {};
 

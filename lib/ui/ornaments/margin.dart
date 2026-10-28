@@ -25,6 +25,10 @@ class MarginLantern extends StatelessWidget {
 
   /// The text's colour, when not the lantern's own [ink].
   final Color? textColor;
+
+  /// The text's own style (its colour aside), set at its size — shrunk
+  /// only to fit — rather than filling the window in Naskh.
+  final TextStyle? textStyle;
   const MarginLantern({
     super.key,
     required this.kind,
@@ -33,6 +37,7 @@ class MarginLantern extends StatelessWidget {
     required this.ink,
     this.fill,
     this.textColor,
+    this.textStyle,
   });
 
   @override
@@ -59,18 +64,19 @@ class MarginLantern extends StatelessWidget {
             (1 - win.bottom) * h + pad,
           ),
           child: FittedBox(
-            fit: BoxFit.contain,
+            fit: textStyle == null ? BoxFit.contain : BoxFit.scaleDown,
             child: Text(
               text,
               textAlign: TextAlign.center,
               textDirection: TextDirection.rtl,
-              style: TextStyle(
-                fontFamily: 'NotoNaskhArabic',
-                fontSize: 12,
-                height: 1.25,
-                fontWeight: FontWeight.w600,
-                color: textColor ?? ink,
-              ),
+              style: (textStyle ??
+                      const TextStyle(
+                        fontFamily: 'NotoNaskhArabic',
+                        fontSize: 12,
+                        height: 1.25,
+                        fontWeight: FontWeight.w600,
+                      ))
+                  .copyWith(color: textColor ?? ink),
             ),
           ),
         ),

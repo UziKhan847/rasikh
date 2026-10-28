@@ -30,14 +30,9 @@ class PageRail extends StatelessWidget {
     // part (right of an odd page, left of an even one).
     final toPage = width * .3;
     final w = width - toPage;
-    // Quiet beside the text: each colour part way to the page's (lighter on
-    // a light page, darker on a dark one).
-    Color soft(Color c, double t) => Color.lerp(c, paper.paper, t)!;
-    // The labels and the number: the sūrah borders' gold, a shade darker
-    // than the lantern drawn in it (on a dark page, the gold itself).
-    final text = paper.dark
-        ? soft(paper.frame, .2)
-        : Color.lerp(paper.frame, paper.ink, .2)!;
+    // The lantern in the sūrah headers' own colour; the labels and the
+    // number in the ornaments' stronger shade, to read.
+    final text = paper.frameInk ?? Color.lerp(paper.frame, paper.ink, .25)!;
     final juz = MushafRepo.juzOfPage(script, page);
     final surah = MushafRepo.firstVerseOfPage(script, page).$1;
     final label = TextStyle(
@@ -74,9 +69,13 @@ class PageRail extends StatelessWidget {
               kind: 'lantern3',
               width: w * .8,
               text: '$page',
-              // In the sūrah headers' colour; the number in the page's ink.
-              ink: soft(paper.frame, .45),
+              ink: paper.frame,
               textColor: text,
+              // As the labels, a little smaller: the window is narrow.
+              textStyle: label.copyWith(
+                  fontSize: label.fontSize! * .9,
+                  height: 1,
+                  fontFeatures: const [FontFeature.tabularFigures()]),
               fill: paper.inner,
             ),
           ),

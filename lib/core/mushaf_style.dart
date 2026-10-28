@@ -19,6 +19,10 @@ import '../ui/ornaments/tuning.dart';
 /// - [tune]: the tuning panel's overrides.
 class MushafStyle {
   String header, marker, border, margin, paper, head;
+
+  /// The ornaments' colour (sūrah headers, āyah markers, the margin's
+  /// lantern), chosen apart from the paper: a [kOrnamentSeeds] id.
+  String ornament;
   bool edgeTop, edgeRuku, edgeBottom, edge;
   Map<String, double> tune;
 
@@ -29,6 +33,7 @@ class MushafStyle {
     this.margin = 'auto',
     required this.paper,
     this.head = 'auto',
+    this.ornament = 'gold',
     this.edgeTop = true,
     this.edgeRuku = true,
     this.edgeBottom = true,
@@ -52,6 +57,7 @@ class MushafStyle {
     'margin': margin,
     'paper': paper,
     'head': head,
+    'ornament': ornament,
     'edgeTop': edgeTop,
     'edgeRuku': edgeRuku,
     'edgeBottom': edgeBottom,
@@ -68,6 +74,7 @@ class MushafStyle {
       margin: m['margin'] as String? ?? d.margin,
       paper: m['paper'] as String? ?? d.paper,
       head: m['head'] as String? ?? d.head,
+      ornament: m['ornament'] as String? ?? d.ornament,
       edgeTop: m['edgeTop'] as bool? ?? true,
       edgeRuku: m['edgeRuku'] as bool? ?? true,
       edgeBottom: m['edgeBottom'] as bool? ?? true,

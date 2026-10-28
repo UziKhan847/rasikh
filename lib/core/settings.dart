@@ -84,6 +84,11 @@ class AppSettings extends ChangeNotifier {
   String get mushafPaper => _style.paper;
   set mushafPaper(String v) => _style.paper = v;
 
+  /// The muṣḥaf script's ornament colour, apart from its paper (see
+  /// MushafStyle.ornament); in every theme but mono.
+  String get mushafOrnament => _style.ornament;
+  set mushafOrnament(String v) => _style.ornament = v;
+
   /// The night and OLED themes' muṣḥaf page: 'default' (theirs) or 'mono'
   /// (everything on it white).
   String mushafPaperDark = 'default';

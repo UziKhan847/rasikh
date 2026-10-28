@@ -776,14 +776,26 @@ extension _HifzChrome on _MushafPageScreenState {
               s.mushafPaperDark = 'default';
             }),
           ),
+          // The page and its ornaments, each chosen on its own.
           if (s.theme == AppTheme.light) ...[
             _popoverLabel(pop, l.pageColour),
             Wrap(spacing: 10, runSpacing: 8, children: [
-              for (final id in const ['cream', 'white', 'madani', 'tile1', 'tile2', 'tile3'])
+              for (final id in const ['cream', 'white', 'madani'])
                 _Swatch(
-                  paper: kMushafPapers[id]!,
+                  colour: kMushafPapers[id]!.paper,
                   selected: mushafPaperOf(s, _script).id == id,
                   onTap: () => set(() => s.mushafPaper = id),
+                ),
+            ]),
+          ],
+          if (!mushafPaperOf(s, _script).mono) ...[
+            _popoverLabel(pop, l.ornamentColour),
+            Wrap(spacing: 10, runSpacing: 8, children: [
+              for (final id in kOrnamentSeeds.keys)
+                _Swatch(
+                  colour: ornamentColours(id, dark: mushafPaperOf(s, _script).dark).art,
+                  selected: s.styleFor(_script).ornament == id,
+                  onTap: () => set(() => s.styleFor(_script).ornament = id),
                 ),
             ]),
           ],
@@ -793,31 +805,26 @@ extension _HifzChrome on _MushafPageScreenState {
   }
 }
 
-/// A page colour to pick: the paper with its accent.
+/// A colour to pick: the page's, or its ornaments'.
 class _Swatch extends StatelessWidget {
-  final MushafPaper paper;
+  final Color colour;
   final bool selected;
   final VoidCallback onTap;
-  const _Swatch({required this.paper, required this.selected, required this.onTap});
+  const _Swatch({required this.colour, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) => InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: Container(
-          width: 44,
-          height: 44,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: paper.paper,
+            color: colour,
             border: Border.all(
-                color: selected ? paper.acc : pal(context).line2, width: selected ? 3 : 1),
-          ),
-          alignment: Alignment.center,
-          child: Container(
-            width: 14,
-            height: 14,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: paper.acc),
+                color: selected ? pal(context).acc : pal(context).line2,
+                width: selected ? 3 : 1),
           ),
         ),
       );

@@ -847,6 +847,7 @@
   "landscape": "Horizontal",
   "exitLandscape": "Salir de horizontal",
   "pageColour": "Color de página",
+  "ornamentColour": "Color de los adornos",
   "goToPage": "Ir a la página",
   "focusHideMenus": "Enfoque: ocultar los menús",
   "recitePage": "Recitar esta página",
