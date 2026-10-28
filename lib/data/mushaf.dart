@@ -386,6 +386,13 @@ class MushafRepo {
     return (first, end);
   }
 
+  /// Token [t] as a word (a ۝ marker too), or null past either end.
+  static MushafWord? wordAtToken(String script, int t) {
+    final d = _data[_norm(script)];
+    if (d == null || t < 0 || t >= d.tok.length) return null;
+    return MushafWord(d.tok[t], d.tokAyah[t], d.tokWord[t]);
+  }
+
   /// The word's text as printed in [script], or '' if unknown.
   static String wordText(String script, int globalAyah, int word0) {
     final d = _data[_norm(script)];

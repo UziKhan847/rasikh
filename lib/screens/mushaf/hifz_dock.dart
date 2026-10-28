@@ -12,12 +12,16 @@ class DockItem {
 
   /// Holding the tool (or tapping it again while it's on): its options.
   final void Function(BuildContext button)? onOptions;
+
+  /// Drawn in the [icon]'s place, in its colour (a letter, say).
+  final Widget Function(Color color)? glyph;
   const DockItem({
     required this.icon,
     required this.tooltip,
     required this.onTap,
     this.selected = false,
     this.onOptions,
+    this.glyph,
   });
 }
 
@@ -131,7 +135,9 @@ class _DockButton extends StatelessWidget {
               item.onOptions == null ? null : () => item.onOptions!(context),
           child: SizedBox.square(
             dimension: 44,
-            child: Icon(item.icon, size: 22, color: on ? accent : ink),
+            child: item.glyph != null
+                ? Center(child: item.glyph!(on ? accent : ink))
+                : Icon(item.icon, size: 22, color: on ? accent : ink),
           ),
         ),
       ),

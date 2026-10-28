@@ -245,7 +245,29 @@ void main() {
     await m.flush();
   });
 
-  testWidgets('mutashābih: the pen starts link mode; taps link; Done needs '
+  testWidgets('the held word\'s sheet steps to the words either side',
+      (tester) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (s, p, m) = await _boot();
+    m.ensureActiveBook('Me');
+    await _pump(tester, s, p, m, 'uthmani');
+    await tester.longPressAt(wordCentre(tester, _ref));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('2:255  ·  word 3'), findsOneWidget);
+    await tester.tap(find.byTooltip('Next word'));
+    await tester.pump();
+    expect(find.textContaining('2:255  ·  word 4'), findsOneWidget);
+    await tester.tap(find.byTooltip('Previous word'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Previous word'));
+    await tester.pump();
+    expect(find.textContaining('2:255  ·  word 2'), findsOneWidget);
+    await m.flush();
+  });
+
+    testWidgets('mutashābih: the pen starts link mode; taps link; Done needs '
       'one; cancel with none drops it', (tester) async {
     tester.view.physicalSize = const Size(430, 900);
     tester.view.devicePixelRatio = 1;

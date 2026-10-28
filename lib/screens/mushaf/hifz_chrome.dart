@@ -49,6 +49,7 @@ extension _HifzChrome on _MushafPageScreenState {
               : 0.0;
           pages = _pager(s, paper,
               fitWidth: true,
+              head: _wideHead,
               margin: EdgeInsets.fromLTRB(inset.left + side, 6,
                   inset.right + side,
                   layout.slotAxis == Axis.horizontal
@@ -102,7 +103,8 @@ extension _HifzChrome on _MushafPageScreenState {
                   axis: dockAxis,
                   onLeft: layout.dockLeft,
                   paper: paper,
-                  items: _hifzItems(context, s, paper, dockSide),
+                  items: _hifzItems(context, s, paper, dockSide,
+                      landscape: layout.landscape),
                   safe: layout.landscape
                       ? EdgeInsets.only(
                           top: pad.top,
@@ -168,6 +170,30 @@ extension _HifzChrome on _MushafPageScreenState {
       ..translateByDouble(tx, ty, 0, 1)
       ..scaleByDouble(s, s, 1, 1);
     _hifzSetZoom(true);
+  }
+
+  /// The pages button's options: two pages, one as wide as they are, or
+  /// one across the whole width.
+  void _hifzPagesOptions(BuildContext anchor, AxisDirection side, AppSettings s) {
+    showToolPopover<void>(context, anchor: anchor, side: side, builder: (pop) {
+      final l = pop.l10n;
+      return _popoverBody(pop, [
+        _popoverLabel(pop, l.hzLandscapePages),
+        QSegmented<String>(
+          options: [
+            ('two', l.hzPagesTwo, null),
+            ('one', l.hzPagesOne, null),
+            ('wide', l.hzPagesWide, null),
+          ],
+          value: s.hifzLandscapePages,
+          onChanged: (v) {
+            Navigator.pop(pop);
+            if (v != 'two') _lastSingle = v;
+            s.update(() => s.hifzLandscapePages = v);
+          },
+        ),
+      ]);
+    });
   }
 
   /// Zoom on or off; off, back to the whole page.
@@ -264,10 +290,24 @@ extension _HifzChrome on _MushafPageScreenState {
 
   // ── the line above the page (portrait) and the rails (landscape) ──
 
-  Widget _hifzHeader(BuildContext context, MushafPaper paper, int page) {
+  /// One page across the landscape width: its line above it, as in
+  /// portrait, sized to the page (a page as wide as a portrait one has
+  /// portrait's 14 px; wider, up to 24).
+  Widget _hifzWideHead(int page, double width) {
+    final paper = mushafPaperOf(SettingsScope.of(context), _script);
+    final size = (width / 26).clamp(14.0, 24.0);
+    return SizedBox(
+      height: _MushafPageScreenState._headH * size / 14,
+      child: RepaintBoundary(
+          child: _hifzHeader(context, paper, page, size: size)),
+    );
+  }
+
+  Widget _hifzHeader(BuildContext context, MushafPaper paper, int page,
+      {double size = 14}) {
     final juz = MushafRepo.juzOfPage(_script, page);
     final surah = MushafRepo.firstVerseOfPage(_script, page).$1;
-    final style = uiStyle(context, size: 14, weight: FontWeight.w600, color: paper.acc);
+    final style = uiStyle(context, size: size, weight: FontWeight.w600, color: paper.acc);
     Widget item(String text, Division d, {TextAlign align = TextAlign.center}) =>
         Builder(
           builder: (anchor) => InkWell(
@@ -378,7 +418,8 @@ extension _HifzChrome on _MushafPageScreenState {
 
   /// Settings · Index · Pen · Comment · Eraser · Audio · Memorize · View.
   List<DockItem> _hifzItems(
-      BuildContext context, AppSettings s, MushafPaper paper, AxisDirection side) {
+      BuildContext context, AppSettings s, MushafPaper paper, AxisDirection side,
+      {bool landscape = false}) {
     final l = context.l10n;
     // Popovers open toward the page ([side]: above a bottom dock, beside a
     // side one).
@@ -443,6 +484,38 @@ extension _HifzChrome on _MushafPageScreenState {
           onTap: (b) => _hifzReviewOptions(b, side),
           onOptions: (b) => _hifzReviewOptions(b, side),
         ),
+      // On its side only: two facing pages or one, a tap apart (holding it,
+      // which one: as wide as the two, or the whole width).
+      if (landscape)
+        DockItem(
+          icon: s.hifzLandscapePages == 'two'
+              ? AppIcons.viewSpread
+              : AppIcons.viewSingle,
+          tooltip: switch (s.hifzLandscapePages) {
+            'one' => l.hzPagesOne,
+            'wide' => l.hzPagesWide,
+            _ => l.hzPagesTwo,
+          },
+          onTap: (_) {
+            final now = s.hifzLandscapePages;
+            if (now != 'two') _lastSingle = now;
+            s.update(() => s.hifzLandscapePages = now == 'two' ? _lastSingle : 'two');
+          },
+          onOptions: (b) => _hifzPagesOptions(b, side, s),
+        ),
+      // Madani or Indo-Pak, a tap apart: its ع in the script on show.
+      DockItem(
+        icon: AppIcons.textSize,
+        tooltip: '${l.arabicScript}: ${_script == 'indopak' ? l.indoPak : l.madani}',
+        glyph: (c) => Text('ع',
+            textDirection: TextDirection.rtl,
+            style: TextStyle(
+                fontFamily: MushafRepo.fontFamily(_script),
+                fontSize: 24,
+                height: 1.2,
+                color: c)),
+        onTap: (_) => _switchScript(_script == 'indopak' ? 'uthmani' : 'indopak'),
+      ),
       DockItem(
         icon: AppIcons.zoom,
         tooltip: l.hzZoom,
@@ -859,34 +932,7 @@ extension _HifzChrome on _MushafPageScreenState {
           setPop(() {});
         }
 
-        final wide = MediaQuery.sizeOf(context);
         return _popoverBody(pop, [
-          // On its side: two facing pages, or one (as wide as they are, or
-          // the whole width).
-          if (wide.width > wide.height) ...[
-            _popoverLabel(pop, l.hzLandscapePages),
-            QSegmented<String>(
-              options: [
-                ('two', l.hzPagesTwo, null),
-                ('one', l.hzPagesOne, null),
-                ('wide', l.hzPagesWide, null),
-              ],
-              value: s.hifzLandscapePages,
-              onChanged: (v) => set(() => s.hifzLandscapePages = v),
-            ),
-          ],
-          _popoverLabel(pop, l.arabicScript),
-          QSegmented<String>(
-            options: [
-              ('uthmani', l.madani, null),
-              ('indopak', l.indoPak, null),
-            ],
-            value: _script,
-            onChanged: (v) {
-              Navigator.pop(pop);
-              _switchScript(v);
-            },
-          ),
           _popoverLabel(pop, l.hzColouring),
           QSegmented<String>(
             options: [

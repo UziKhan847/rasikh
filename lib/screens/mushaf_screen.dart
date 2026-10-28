@@ -163,6 +163,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   bool _zoom = false;
   final _zoomCtrl = TransformationController();
 
+  /// The pages button's single page, as last picked ('one' or 'wide'):
+  /// a tap from two pages goes back to it.
+  String _lastSingle = 'one';
+
+  /// The line above a full-width landscape page. A method of this class:
+  /// its tear-offs are equal, so the page memo keeps the page.
+  Widget _wideHead(int page, double width) => _hifzWideHead(page, width);
+
   /// Zoom just turned on by touch: how it works, a moment over the page.
   bool _zoomHint = false;
   Timer? _zoomHintTimer;
@@ -1298,15 +1306,33 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   // ── sheets ─────────────────────────────────────────────────────────────
 
-  void _showWord(MushafWord wd) {
+  void _showWord(MushafWord held) {
     _lastWordTap = DateTime.now();
-    final (surah, ayahInSurah) = MushafRepo.surahAyahOf(wd.ayah);
     final hasMarks = MarksScope.maybeOf(context) != null;
+    // The word on show: the arrows beside it step to the words either side
+    // (a small word held wrongly on a dense page is a step away, not a
+    // close and a fresh try).
+    var wd = held;
     showAdaptiveSheet<void>(
       context,
       isScrollControlled: hasMarks,
-      builder: (sheet) {
+      builder: (sheet) => StatefulBuilder(builder: (sheet, setSheet) {
         final p = pal(sheet);
+        final (surah, ayahInSurah) = MushafRepo.surahAyahOf(wd.ayah);
+        final tok = MushafRepo.tokenOf(_script, wd.ayah, wd.wordIdx);
+        // As the text runs, right to left: the previous word is on the
+        // right, the next on the left.
+        Widget step(int by) {
+          final to = MushafRepo.wordAtToken(_script, tok + by);
+          return IconButton(
+            tooltip: by > 0 ? sheet.l10n.mzNextWord : sheet.l10n.mzPrevWord,
+            iconSize: 28,
+            color: p.ink2,
+            onPressed: to == null ? null : () => setSheet(() => wd = to),
+            icon: Icon(by > 0 ? AppIcons.chevronLeft : AppIcons.chevronRight),
+          );
+        }
+
         Widget body(ScrollController? scroll) => SafeArea(
           child: ListView(
             controller: scroll,
@@ -1316,12 +1342,22 @@ class _MushafPageScreenState extends State<MushafPageScreen>
               Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(wd.text,
-                    textDirection: TextDirection.rtl,
-                    style: TextStyle(
-                        fontFamily: MushafRepo.fontFamily(_script),
-                        fontSize: 44,
-                        color: p.ink)),
+                Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: Row(children: [
+                    step(1),
+                    Expanded(
+                      child: Text(wd.text,
+                          textAlign: TextAlign.center,
+                          textDirection: TextDirection.rtl,
+                          style: TextStyle(
+                              fontFamily: MushafRepo.fontFamily(_script),
+                              fontSize: 44,
+                              color: p.ink)),
+                    ),
+                    step(-1),
+                  ]),
+                ),
                 const SizedBox(height: 6),
                 Text(
                     wd.isMarker
@@ -1349,6 +1385,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
             ),
               if (hasMarks)
                 WordMarksPanel(
+                  // A fresh panel for each word stepped to.
+                  key: ValueKey((wd.ayah, wd.wordIdx)),
                   ref: WordRef.fromGlobal(wd.ayah, wd.wordIdx),
                   sessionId: _marking.active
                       ? _marking.sessionId
@@ -1368,7 +1406,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           maxChildSize: .94,
           builder: (_, scroll) => body(scroll),
         );
-      },
+      }),
     );
   }
 
@@ -1549,7 +1587,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           {bool fitWidth = false,
           EdgeInsets margin = EdgeInsets.zero,
           String? spine,
-          bool compact = false}) =>
+          bool compact = false,
+          Widget Function(int page, double width)? topLine}) =>
       _memoPage(
         page: page,
         paper: paper,
@@ -1558,6 +1597,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         margin: margin,
         spine: spine,
         compact: compact,
+        topLine: topLine,
       );
 
   // ── page widgets, memoised ──
@@ -1594,6 +1634,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     required EdgeInsets margin,
     required String? spine,
     bool compact = false,
+    Widget Function(int page, double width)? topLine,
   }) {
     _handlers
       // Reading: a tap plays the word; holding it plays it and opens its
@@ -1650,6 +1691,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       _script, paper, _look(s), fitWidth, s.mushafHeaderShown, margin, spine,
       _names, mine ? _playAyah : -1, mine ? _playWord : -1,
       mine && _reciting, markPal, tajwid, compact, focus, hideFrom, shade,
+      topLine,
     ];
     final key = '$page/${spine ?? ''}';
     final memo = _pageMemo.remove(key);
@@ -1678,6 +1720,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       compact: compact,
       focus: focus,
       hideFrom: hideFrom,
+      topLine: topLine,
     );
     // The least recently used go first (a spread keeps six pages alive).
     while (_pageMemo.length >= 20) {
@@ -1829,7 +1872,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       {required bool fitWidth,
       required EdgeInsets margin,
       Widget Function(int page, double width)? head}) {
-    final page = _pageView(i + 1, s, paper, fitWidth: fitWidth, margin: margin);
+    // Laid out to the full width, the page scrolls: its line goes inside,
+    // above it (equal each build, so the page memo keeps the page).
+    final page = _pageView(i + 1, s, paper,
+        fitWidth: fitWidth, margin: margin, topLine: fitWidth ? head : null);
     if (fitWidth) return page;
     // Portrait: a page with a scanned shape takes exactly the printed page's
     // proportions (MushafGeometry.pageRatio); otherwise it takes the width
@@ -3386,6 +3432,21 @@ class _MushafPageView extends StatelessWidget {
 
   /// Memorize: the first hidden token on this page, or -1.
   final int hideFrom;
+
+  /// [page] under its [topLine], if it has one.
+  Widget _withHead(Widget page) {
+    final line = topLine;
+    if (line == null) return page;
+    return Column(children: [
+      LayoutBuilder(builder: (context, c) => line(this.page, c.maxWidth)),
+      page,
+    ]);
+  }
+
+  /// A page laid out to the full width: the line above it (the Hifẓ
+  /// home's sūrah · page · juzʼ), given the page's width; it scrolls with
+  /// the page.
+  final Widget Function(int page, double width)? topLine;
   const _MushafPageView({
     required this.page,
     required this.script,
@@ -3407,6 +3468,7 @@ class _MushafPageView extends StatelessWidget {
     this.compact = false,
     this.focus = -1,
     this.hideFrom = -1,
+    this.topLine,
   });
 
   @override
@@ -3703,7 +3765,7 @@ class _MushafPageView extends StatelessWidget {
             // Ctrl and the wheel zoom (see MushafZoom), not scroll.
             physics: const CtrlYieldsScrollPhysics(),
             padding: margin.copyWith(bottom: margin.bottom + 12),
-            child: sideLabel(Container(
+            child: _withHead(sideLabel(Container(
               decoration: decoration,
               foregroundDecoration: foreground,
               padding: padding,
@@ -3715,7 +3777,7 @@ class _MushafPageView extends StatelessWidget {
                   ?pageNumber,
                 ],
               ),
-            )),
+            ))),
           ),
         );
       }

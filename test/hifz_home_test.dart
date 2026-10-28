@@ -106,6 +106,39 @@ void main() {
     expect(find.byIcon(Icons.close), findsNothing, reason: 'the home has nothing to close');
   });
 
+  testWidgets('the script and (on its side) the pages: a tap each',
+      (tester) async {
+    final (s, p, m) = await boot();
+    await pump(tester, s, p, m);
+    expect(find.byTooltip('Two pages'), findsNothing, reason: 'portrait: no pages button');
+    final script = find.byTooltip('Arabic script: Madani');
+    await tester.ensureVisible(script);
+    await tester.pump();
+    await tester.tap(script);
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(s.mushafScript, 'indopak');
+    for (var i = 0; i < 6; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 40)));
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+
+    tester.view.physicalSize = const Size(914, 412);
+    await tester.pump();
+    Future<void> tapPages(String now) async {
+      await tester.ensureVisible(find.byTooltip(now));
+      await tester.pump();
+      await tester.tap(find.byTooltip(now));
+      await tester.pump();
+    }
+
+    await tapPages('Two pages');
+    expect(s.hifzLandscapePages, 'one');
+    await tapPages('One page');
+    expect(s.hifzLandscapePages, 'two');
+    await tester.pump(const Duration(milliseconds: 500)); // the save
+  });
+
   testWidgets('comment: a tap opens the word\'s bubble', (tester) async {
     final (s, p, m) = await boot();
     await pump(tester, s, p, m);

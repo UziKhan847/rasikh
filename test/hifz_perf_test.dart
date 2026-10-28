@@ -197,6 +197,8 @@ void main() {
     final rects = lineRects(tester);
     expect(rects.map((r) => r.left.round()).toSet().length, lessThan(3),
         reason: 'one column of lines, not two pages');
+    // Its line above it, as in portrait.
+    expect(find.textContaining('Juz'), findsWidgets);
     // Taller than the window: it scrolls.
     expect(rects.map((r) => r.bottom).reduce((a, b) => a > b ? a : b),
         greaterThan(412));
