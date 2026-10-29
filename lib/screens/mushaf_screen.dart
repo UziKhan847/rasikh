@@ -42,6 +42,7 @@ import '../ui/adaptive_sheet.dart';
 import 'marks/marking.dart';
 import 'marks/marking_bar.dart';
 import 'marks/report_pdf.dart' show showReportSheet;
+import 'marks/pages_pdf.dart' show showPagesExportSheet;
 import 'marks/mutashabihat_screen.dart';
 import 'marks/word_marks_sheet.dart';
 import 'mushaf/mushaf_line.dart';
@@ -4214,3 +4215,30 @@ class _RenderReportHeight extends RenderProxyBox {
     SchedulerBinding.instance.addPostFrameCallback((_) => onHeight(h));
   }
 }
+
+/// One muṣḥaf page as the app draws it — sūrah headers, basmalas, āyah
+/// markers and [marks] — for painting off screen (the page export). No
+/// running head, no taps, nothing playing.
+Widget mushafPageForPrint({
+  required int page,
+  required String script,
+  required Map<int, String> names,
+  required MushafPaper paper,
+  required MushafLook look,
+  required MushafMarksSource marks,
+}) =>
+    _MushafPageView(
+      page: page,
+      script: script,
+      names: names,
+      paper: paper,
+      look: look,
+      wideLayout: false,
+      showHeader: false,
+      playAyah: -1,
+      playWord: -1,
+      reciting: false,
+      marks: marks,
+      markPal: markPaletteForPaper(paper),
+      handlers: MushafTapHandlers(),
+    );

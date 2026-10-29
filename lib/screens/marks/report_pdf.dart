@@ -288,7 +288,7 @@ Future<void> makeReport(BuildContext context, Report report, String script,
     // On desktop there's no share sheet to hand it to (and the printing
     // plugin's Linux "share" waits on xdg-open on the UI thread, freezing
     // the window until the viewer closes): save it and open it, unblocked.
-    final path = await _saveAndOpen(bytes, name);
+    final path = await saveAndOpenPdf(bytes, name);
     if (context.mounted) {
       showQToast(context,
           path == null ? context.l10n.rpShare : context.l10n.rpSavedTo(path));
@@ -301,7 +301,7 @@ Future<void> makeReport(BuildContext context, Report report, String script,
 /// Writes [bytes] to the Downloads folder (else Documents) as [name] and
 /// opens it in the desktop's PDF viewer without waiting for it. Returns the
 /// path, or null if it couldn't be written.
-Future<String?> _saveAndOpen(Uint8List bytes, String name) async {
+Future<String?> saveAndOpenPdf(Uint8List bytes, String name) async {
   try {
     final dir = await getDownloadsDirectory() ??
         await getApplicationDocumentsDirectory();

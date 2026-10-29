@@ -367,6 +367,14 @@ MushafPaper mushafPaperOf(AppSettings s, [String? script]) {
   return paper.mono ? paper : _ornamented(paper, style.ornament);
 }
 
+/// The muṣḥaf on paper (the page export): white whatever the theme, its
+/// ornaments in the colour chosen; a mono page stays mono.
+MushafPaper mushafPrintPaperOf(AppSettings s, String script) {
+  final style = s.styleFor(script);
+  if (kMushafPapers[style.paper]?.mono ?? false) return kMushafPapers['mono']!;
+  return _ornamented(kMushafPapers['white']!, style.ornament);
+}
+
 /// The ornament colours to pick from, apart from the paper: Material
 /// seeds, one for light pages and one for dark (as the mistake marker's
 /// themes), their tones taken from the scheme each makes.

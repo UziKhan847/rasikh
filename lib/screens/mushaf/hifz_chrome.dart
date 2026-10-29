@@ -503,17 +503,11 @@ extension _HifzChrome on _MushafPageScreenState {
           },
           onOptions: (b) => _hifzPagesOptions(b, side, s),
         ),
-      // Madani or Indo-Pak, a tap apart: its ع in the script on show.
+      // Madani or Indo-Pak, a tap apart. (A stand-in icon, until the
+      // script's own.)
       DockItem(
         icon: AppIcons.textSize,
         tooltip: '${l.arabicScript}: ${_script == 'indopak' ? l.indoPak : l.madani}',
-        glyph: (c) => Text('ع',
-            textDirection: TextDirection.rtl,
-            style: TextStyle(
-                fontFamily: MushafRepo.fontFamily(_script),
-                fontSize: 24,
-                height: 1.2,
-                color: c)),
         onTap: (_) => _switchScript(_script == 'indopak' ? 'uthmani' : 'indopak'),
       ),
       DockItem(
@@ -689,6 +683,14 @@ extension _HifzChrome on _MushafPageScreenState {
             ? null
             : () => showReportSheet(context,
                 store: store, bookId: book.id, script: _script)),
+        // The pages themselves, marked, to hand to a student.
+        row(AppIcons.document, l.ppExport, store == null || book == null
+            ? null
+            : () => showPagesExportSheet(context,
+                store: store,
+                bookId: book.id,
+                script: _script,
+                currentPage: _pendingPage ?? _page)),
         row(AppIcons.hifz, l.mkHifz, () => openSection(context, AppSection.hifz)),
       ]);
     });

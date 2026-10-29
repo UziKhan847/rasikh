@@ -1327,6 +1327,16 @@ class RenderMushafLine extends RenderBox {
     return buildAtlasLine(_spec, atlas, tier);
   }
 
+  /// Where word [i] of the line is drawn, in this line's coordinates (the
+  /// page export leads its notes from it); null before it's laid out.
+  Rect? wordRect(int i) {
+    final l = laidLine;
+    if (l == null || i < 0 || i >= l.boxes.length) return null;
+    final o = textOffset;
+    final (left, right) = l.boxes[i];
+    return Rect.fromLTWH(o.dx + left, o.dy, right - left, l.height);
+  }
+
   @visibleForTesting
   Offset get textOffset {
     final l = laidLine;
