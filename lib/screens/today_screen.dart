@@ -15,7 +15,7 @@ import '../ui/app_icons.dart';
 import '../ui/kit.dart';
 import 'qaidah_screen.dart';
 import '../learn/qaidah/qaidah_home.dart';
-import 'quran_screen.dart';
+import 'reader/reader_host.dart';
 import 'search.dart';
 import 'settings_screen.dart';
 import 'shell/app_shell.dart';
@@ -187,7 +187,7 @@ Future<void> openReader(BuildContext context, int surah, {int? ayah}) async {
   Navigator.of(context, rootNavigator: !useDesktop(context)).push(
       MaterialPageRoute(
           builder: (_) =>
-              SurahReaderScreen(meta: meta[surah - 1], startAyah: ayah)));
+              ReaderHost(meta: meta[surah - 1], startAyah: ayah)));
 }
 
 class _ContinueCard extends StatelessWidget {

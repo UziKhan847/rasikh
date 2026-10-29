@@ -8,6 +8,7 @@ import 'package:flutter/services.dart'
     show SystemChrome, SystemUiMode, SystemUiOverlayStyle;
 
 import 'core/audio.dart';
+import 'core/fluency/fluency_store.dart';
 import 'core/jank_watch.dart';
 import 'core/l10n.dart';
 import 'core/marks/marks_store.dart';
@@ -32,6 +33,9 @@ Future<void> main() async {
   // The profile in use decides whose progress and marks load.
   await profiles.load(settings);
   await progress.load();
+  // The Reader's fluency work: small, per profile.
+  final fluency = FluencyStore();
+  await fluency.load();
   // Marks load in the background: nothing on the first frame needs them,
   // and the marks UI waits for `ready`.
   final marks = MarksStore(persistence: profiles.marksPersistence);
@@ -59,7 +63,8 @@ Future<void> main() async {
       progress: progress,
       marks: marks,
       sync: sync,
-      profiles: profiles));
+      profiles: profiles,
+      fluency: fluency));
 }
 
 class QiraahArabiyyahApp extends StatelessWidget {
@@ -68,6 +73,7 @@ class QiraahArabiyyahApp extends StatelessWidget {
   final MarksStore? marks;
   final SyncEngine? sync;
   final ProfileStore? profiles;
+  final FluencyStore? fluency;
   const QiraahArabiyyahApp({
     super.key,
     required this.settings,
@@ -75,6 +81,7 @@ class QiraahArabiyyahApp extends StatelessWidget {
     this.marks,
     this.sync,
     this.profiles,
+    this.fluency,
   });
 
   @override
@@ -126,8 +133,10 @@ class QiraahArabiyyahApp extends StatelessWidget {
         ),
       ),
     );
-    final m = marks, sy = sync, pr = profiles;
-    final withProfiles = pr == null ? app : ProfileScope(profiles: pr, child: app);
+    final m = marks, sy = sync, pr = profiles, fl = fluency;
+    final withFluency = fl == null ? app : FluencyScope(store: fl, child: app);
+    final withProfiles =
+        pr == null ? withFluency : ProfileScope(profiles: pr, child: withFluency);
     if (m == null) return withProfiles;
     final scoped = MarksScope(store: m, child: withProfiles);
     return sy == null ? scoped : SyncScope(engine: sy, child: scoped);

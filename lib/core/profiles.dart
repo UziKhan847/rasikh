@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fluency/fluency_store.dart';
 import 'marks/marks_persistence.dart';
 import 'marks/marks_store.dart';
 import 'settings.dart';
@@ -131,6 +132,7 @@ class ProfileStore extends ChangeNotifier {
     required AppSettings settings,
     required ProgressStore progress,
     MarksStore? marks,
+    FluencyStore? fluency,
   }) async {
     if (id == _active || !profiles.any((p) => p.id == id)) return;
     active.mode = settings.appMode;
@@ -139,6 +141,7 @@ class ProfileStore extends ChangeNotifier {
     ProgressStore.profileSuffix = suffixOf(id);
     await progress.reload();
     await marks?.reopen(marksPersistence);
+    await fluency?.reload();
     settings.update(() => settings.appMode = active.mode);
     notifyListeners();
     await _save();
@@ -153,6 +156,7 @@ class ProfileStore extends ChangeNotifier {
     for (final k in ProgressStore.keysOf(suffixOf(id))) {
       await p.remove(k);
     }
+    await p.remove('${FluencyStore.keyBase}${suffixOf(id)}');
     await persistenceFor(marksDirOf(id)).wipe();
     notifyListeners();
     await _save();

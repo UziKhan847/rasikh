@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/fluency/fluency_store.dart';
+import '../../core/fluency/words.dart';
 import '../../core/marks/marks_model.dart';
 import '../../core/marks/marks_store.dart';
 import '../../core/marks/word_ref.dart';
@@ -12,6 +14,9 @@ import '../../data/mushaf.dart';
 abstract interface class MushafMarksSource {
   /// How each marked word is drawn, by [WordRef.key] (word 0 = the ۝).
   Map<int, MarkVisual> get visuals;
+
+  /// The Reader's fluency marks, by [WordRef.key] (none elsewhere).
+  Map<int, FluencyVisual> get fluency;
 
   /// Fires when [page]'s marks change.
   Listenable pageSignal(int page);
@@ -26,6 +31,39 @@ class MushafMarksLayer implements MushafMarksSource {
 
   @override
   Map<int, MarkVisual> get visuals => _visuals;
+
+  FluencyStore? _fluencyStore;
+  Map<int, FluencyVisual> _fluency = const {};
+
+  @override
+  Map<int, FluencyVisual> get fluency => _fluency;
+
+  /// Follows [store]'s fluency marks (the Reader's page view); null: none.
+  void bindFluency(FluencyStore? store) {
+    if (identical(store, _fluencyStore)) return;
+    _fluencyStore?.removeListener(_onFluency);
+    _fluencyStore = store;
+    store?.addListener(_onFluency);
+    _onFluency();
+  }
+
+  void _onFluency() {
+    final f = _fluencyStore;
+    final next = f == null ? const <int, FluencyVisual>{} : f.visuals((r) => nextWordOf(_script, r));
+    if (identical(next, _fluency)) return;
+    final old = _fluency;
+    _fluency = next;
+    final touched = <int>{};
+    for (final k in {...old.keys, ...next.keys}) {
+      if (old[k] == next[k]) continue;
+      final r = WordRef.fromKey(k);
+      final t = MushafRepo.tokenOf(_script, r.globalAyah, r.word0);
+      if (t >= 0) touched.add(MushafRepo.pageOfToken(_script, t));
+    }
+    for (final p in touched) {
+      _pages[p]?.ping();
+    }
+  }
 
   @override
   Listenable pageSignal(int page) => _pages.putIfAbsent(page, _Signal.new);
@@ -90,6 +128,8 @@ class MushafMarksLayer implements MushafMarksSource {
   }
 
   void dispose() {
+    _fluencyStore?.removeListener(_onFluency);
+    _fluencyStore = null;
     _store?.removeListener(_onStore);
     _store = null;
     for (final s in _pages.values) {

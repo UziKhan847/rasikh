@@ -8,7 +8,7 @@ import '../data/letters.dart';
 import '../data/quran.dart';
 import '../data/tajweed.dart';
 import 'qaidah_screen.dart' show LetterDetail;
-import 'quran_screen.dart' show SurahReaderScreen;
+import 'reader/reader_host.dart' show ReaderHost;
 import 'tajweed_screen.dart' show TajwidRuleScreen;
 import '../ui/app_icons.dart';
 import '../ui/kit.dart';
@@ -246,7 +246,7 @@ class GlobalSearch extends SearchDelegate<void> {
     final p = h.payload;
     if (p is SurahMeta) {
       Navigator.push(context,
-          MaterialPageRoute(builder: (_) => SurahReaderScreen(meta: p)));
+          MaterialPageRoute(builder: (_) => ReaderHost(meta: p)));
     } else if (p is ArabicLetter) {
       pushAdaptive(context, LetterDetail(letter: p));
     } else if (p is TajwidRule) {

@@ -9,6 +9,7 @@ import 'package:pdf/pdf.dart' show PdfColor, PdfPageFormat, PdfPoint;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../core/fluency/fluency_store.dart' show FluencyVisual;
 import '../../core/l10n.dart';
 import '../../core/marks/marks_model.dart';
 import '../../core/marks/marks_store.dart';
@@ -375,6 +376,8 @@ class _FixedMarks implements MushafMarksSource {
   @override
   final Map<int, MarkVisual> visuals;
   _FixedMarks(this.visuals);
+  @override
+  Map<int, FluencyVisual> get fluency => const {};
   @override
   Listenable pageSignal(int page) => const _Never();
 }

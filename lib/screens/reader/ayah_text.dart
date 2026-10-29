@@ -2,8 +2,10 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
+import '../../core/fluency/fluency_store.dart' show FluencyVisual;
 import '../../core/marks/marks_model.dart';
 import '../../core/tap_longpress.dart';
+import '../../ui/fluency_style.dart';
 import '../../ui/mark_style.dart';
 
 /// An āyah's words as ONE paragraph, shaped once: the word being recited
@@ -28,6 +30,10 @@ class AyahText extends LeafRenderObjectWidget {
   final List<MarkVisual?> marks;
   final MarkPalette? markPal;
 
+  /// Each word's fluency marks (the Reader's), in [fluencyColor].
+  final List<FluencyVisual?> fluency;
+  final Color fluencyColor;
+
   final void Function(int word) onTap;
   final void Function(int word) onLongPress;
   const AyahText({
@@ -38,6 +44,8 @@ class AyahText extends LeafRenderObjectWidget {
     required this.highlight,
     required this.marks,
     required this.markPal,
+    this.fluency = const [],
+    this.fluencyColor = const Color(0xFFC27C12),
     required this.onTap,
     required this.onLongPress,
   });
@@ -95,12 +103,14 @@ class RenderAyahText extends RenderBox {
     } else if (w.playWord != old.playWord ||
         w.highlight != old.highlight ||
         !_sameMarks(w.marks, old.marks) ||
+        !_sameMarks(w.fluency, old.fluency) ||
+        w.fluencyColor != old.fluencyColor ||
         w.markPal != old.markPal) {
       markNeedsPaint();
     }
   }
 
-  static bool _sameMarks(List<MarkVisual?> a, List<MarkVisual?> b) {
+  static bool _sameMarks(List<Object?> a, List<Object?> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
       if (a[i] != b[i]) return false;
@@ -147,6 +157,25 @@ class RenderAyahText extends RenderBox {
       }
     }
     _tp.paint(canvas, o);
+    // A word's box is a line of text tall; its font size, about half.
+    var endDrawn = false;
+    for (var i = 0; i < _boxes.length && i < _w.fluency.length; i++) {
+      final v = _w.fluency[i];
+      final drawn = endDrawn;
+      endDrawn = false;
+      if (v == null || _boxes[i].isEmpty) continue;
+      final r = _boxes[i].first.shift(o);
+      Rect? to;
+      if (v.pairStart && i + 1 < _boxes.length && _boxes[i + 1].isNotEmpty) {
+        final n = _boxes[i + 1].first.shift(o);
+        if ((n.center.dy - r.center.dy).abs() < r.height / 2) {
+          to = n;
+          endDrawn = true;
+        }
+      }
+      paintFluency(canvas, r, v,
+          fs: r.height * .5, color: _w.fluencyColor, pairTo: to, endDrawn: drawn);
+    }
     if (mp == null) return;
     for (var i = 0; i < _boxes.length && i < _w.marks.length; i++) {
       final v = _w.marks[i];

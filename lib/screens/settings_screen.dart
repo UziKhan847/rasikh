@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/fluency/fluency_store.dart' show FluencyScope;
 import '../core/l10n.dart';
 import '../core/marks/marks_store.dart';
 import '../core/sync/sync_engine.dart';
@@ -714,7 +715,8 @@ class _Data extends StatelessWidget {
             QOutlineButton(context.l10n.backUp,
                 icon: AppIcons.upload, onTap: () async {
               final path = await BackupService.export(SettingsScope.of(context),
-                  marks: MarksScope.maybeOf(context));
+                  marks: MarksScope.maybeOf(context),
+                  fluency: FluencyScope.read(context));
               if (!context.mounted) return;
               showQToast(
                   context,
@@ -726,7 +728,8 @@ class _Data extends StatelessWidget {
                 icon: AppIcons.download, onTap: () async {
               final ok = await BackupService.restore(
                   SettingsScope.of(context), ProgressScope.read(context),
-                  marks: MarksScope.maybeOf(context));
+                  marks: MarksScope.maybeOf(context),
+                  fluency: FluencyScope.read(context));
               if (!context.mounted) return;
               showQToast(context,
                   ok ? context.l10n.backupRestored : context.l10n.noBackupFound);

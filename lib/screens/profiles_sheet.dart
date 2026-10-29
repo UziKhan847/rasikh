@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/fluency/fluency_store.dart';
 import '../core/l10n.dart';
 import '../core/marks/marks_store.dart';
 import '../core/profiles.dart';
@@ -79,7 +80,10 @@ class _ProfilesSheet extends StatelessWidget {
     final nav = Navigator.of(host, rootNavigator: true);
     Navigator.pop(sheet);
     await profiles.switchTo(p.id,
-        settings: settings, progress: progress, marks: marks);
+        settings: settings,
+        progress: progress,
+        marks: marks,
+        fluency: FluencyScope.read(host));
     // Back to the profile's home (its mode, its page).
     nav.popUntil((r) => r.isFirst);
     if (host.mounted) {

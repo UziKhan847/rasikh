@@ -9,6 +9,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
+import '../../core/fluency/fluency_store.dart' show FluencyVisual;
 import '../../core/marks/marks_model.dart';
 import '../../core/marks/qc_words.dart';
 import '../../core/marks/word_ref.dart';
@@ -17,6 +18,7 @@ import '../../core/tap_longpress.dart';
 import '../../data/mushaf.dart';
 import '../../data/mushaf_atlas.dart';
 import '../../ui/ornaments/ayah_markers.dart';
+import '../../ui/fluency_style.dart';
 import '../../ui/mark_style.dart';
 import 'mushaf_marks_layer.dart';
 
@@ -1253,7 +1255,45 @@ class RenderMushafLine extends RenderBox {
 
   void _marksChanged() {
     final m = _marks;
-    if (m != null) spec = _spec.withMarks(m.visuals);
+    if (m == null) return;
+    spec = _spec.withMarks(m.visuals);
+    // Fluency marks are painted over the line, not part of its spec.
+    if (m.fluency.isNotEmpty || _hadFluency) markNeedsPaint();
+  }
+
+  bool _hadFluency = false;
+
+  /// The Reader's fluency marks on this line's words (see fluency_style).
+  void _paintFluency(Canvas canvas, Offset offset) {
+    final f = _marks?.fluency ?? const <int, FluencyVisual>{};
+    _hadFluency = false;
+    if (f.isEmpty) return;
+    final words = _spec.line.words;
+    final colour = fluencyColor(dark: _spec.ink.computeLuminance() > .5);
+    // A pair's second word on this line: one bridge, drawn by the first.
+    final endDrawn = <int>{};
+    for (var i = 0; i < words.length; i++) {
+      final w = words[i];
+      if (w.isMarker) continue;
+      final v = f[WordRef.fromGlobal(w.ayah, w.wordIdx).key];
+      if (v == null) continue;
+      final r = wordRect(i);
+      if (r == null) continue;
+      _hadFluency = true;
+      Rect? to;
+      if (v.pairStart) {
+        var j = i + 1;
+        while (j < words.length && words[j].isMarker) {
+          j++;
+        }
+        if (j < words.length) {
+          to = wordRect(j)?.shift(offset);
+          if (to != null) endDrawn.add(j);
+        }
+      }
+      paintFluency(canvas, r.shift(offset), v,
+          fs: _spec.fontSize, color: colour, pairTo: to, endDrawn: endDrawn.contains(i));
+    }
   }
 
   @override
@@ -1371,6 +1411,7 @@ class RenderMushafLine extends RenderBox {
     final atlas = _atlas;
     if (atlas != null) {
       _paintAtlas(context.canvas, offset, atlas);
+      _paintFluency(context.canvas, offset);
       return;
     }
     // Painting only happens on screen; a line still unshaped by then is
@@ -1391,6 +1432,7 @@ class RenderMushafLine extends RenderBox {
     l.painter.paint(context.canvas, o);
     paintLineMarks(context.canvas, o, l, _spec);
     paintLineFocus(context.canvas, o, l, _spec);
+    _paintFluency(context.canvas, offset);
   }
 
   // ── taps ──

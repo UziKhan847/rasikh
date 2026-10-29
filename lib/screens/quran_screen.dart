@@ -28,6 +28,12 @@ import 'marks/word_marks_sheet.dart';
 import 'mushaf/mushaf_index_sheet.dart';
 import 'mushaf_screen.dart';
 import 'reader/ayah_text.dart';
+import 'reader/reader_host.dart';
+import 'fluency/fluency_tools.dart';
+import 'fluency/passage_screen.dart' show openPassage, passageFrom;
+import '../core/fluency/fluency_store.dart';
+import '../core/fluency/words.dart';
+import '../ui/fluency_style.dart';
 
 export 'quran_list_screen.dart' show SurahListScreen, openSurah;
 
@@ -104,7 +110,12 @@ Color ayahMarkerStroke(BuildContext context) {
 class SurahReaderScreen extends StatefulWidget with DesktopAware {
   final SurahMeta meta;
   final int? startAyah; // open scrolled to this āyah (1-based)
-  const SurahReaderScreen({super.key, required this.meta, this.startAyah});
+
+  /// In the Reader (see ReaderHost): the way to its page view, and to other
+  /// places. Its marks are fluency's, not Hifẓ's.
+  final ReaderLink? link;
+  const SurahReaderScreen(
+      {super.key, required this.meta, this.startAyah, this.link});
 
   @override
   State<SurahReaderScreen> createState() => _SurahReaderScreenState();
@@ -207,8 +218,48 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
     return WordRef(widget.meta.n, ayahIdx + 1, first + 1);
   }
 
-  void _markCardWord(int ayahIdx, int w) =>
-      _marking.apply(context, _refOf(ayahIdx, w));
+  void _markCardWord(int ayahIdx, int w) {
+    final tool = _fluency;
+    if (tool != null) {
+      applyFluency(context, tool, SettingsScope.of(context).mushafScript, _refOf(ayahIdx, w));
+      return;
+    }
+    _marking.apply(context, _refOf(ayahIdx, w));
+  }
+
+  /// The Reader's fluency tool, while it's on.
+  FluencyTool? _fluency;
+
+  /// The Reader's fluency marks, as drawn.
+  Map<int, FluencyVisual> _fluencyMarks = const {};
+
+  Widget _fluencyButton(BuildContext context, {double size = 40}) => QIconButton(
+      size: size,
+      icon: AppIcons.bolt,
+      tooltip: context.l10n.flTool,
+      active: _fluency != null,
+      onTap: () {
+        if (_fluency == null) _stopAll();
+        setState(() => _fluency = _fluency == null ? FluencyTool.slow : null);
+      });
+
+  /// A tap marks (Hifẓ's pen, or the Reader's fluency tool) rather than
+  /// plays.
+  bool get _marksTool => _marking.active || _fluency != null;
+
+  /// The fluency marks on card word [w] of āyah [ayahIdx] (the muṣḥaf words
+  /// it covers, together).
+  FluencyVisual? _fluencyOf(Map<int, FluencyVisual> f, String script, int ayahIdx, int w) {
+    if (f.isEmpty) return null;
+    final g = globalAyahIndex(widget.meta.n, ayahIdx + 1);
+    final (first, last) = cardToMushaf(script, g, w);
+    FluencyVisual? out;
+    for (var k = first; k <= last; k++) {
+      final v = f[WordRef(widget.meta.n, ayahIdx + 1, k + 1).key];
+      if (v != null) out = out == null ? v : out.merge(v);
+    }
+    return out;
+  }
 
   void _markAyah(int ayahIdx) =>
       _marking.apply(context, WordRef(widget.meta.n, ayahIdx + 1, 0));
@@ -242,6 +293,12 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
     super.initState();
     _marking.addListener(_onMarking);
     initRecitationTracking();
+    // The Reader's fluency marks are the muṣḥaf's words: its text, at hand.
+    if (widget.link != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) MushafRepo.ensure(SettingsScope.of(context).mushafScript);
+      });
+    }
     // Fire-and-forget: opening the reader is also a good moment to silently
     // top up any quran.com-sourced cache older than 7 days (Quran
     // Foundation's offline-caching condition) — see refreshStaleQuranCache.
@@ -514,6 +571,10 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
       _stopAll();
       return;
     }
+    // Heard in the Reader: not an unseen passage for a cold read any more.
+    if (widget.link != null) {
+      FluencyScope.read(context)?.markHeard(globalAyahIndex(widget.meta.n, ayahIdx + 1));
+    }
     _handle?.cancel();
     setState(() {
       playingAyah = ayahIdx;
@@ -643,15 +704,23 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
   Future<void> _openMushaf() async {
     final script = SettingsScope.of(context).mushafScript;
     final last = ProgressScope.read(context).lastRead;
+    // The āyah at the top of the screen (else the one opened on): the page
+    // that shows it.
+    final top = _topVisibleAyah();
+    final here = top >= 0 ? top + 1 : widget.startAyah;
     await MushafRepo.ensure(script);
     if (!mounted) return;
-    final p = last != null && last.$1 == widget.meta.n
+    final p = here != null
+        ? MushafRepo.pageForGlobalAyah(
+            script, MushafRepo.globalAyahOf(widget.meta.n, here))
+        : last != null && last.$1 == widget.meta.n
         ? MushafRepo.pageForGlobalAyah(
             script,
             MushafRepo.globalAyahOf(last.$1, last.$2),
           )
         : await MushafRepo.pageForSurah(script, widget.meta.n);
     if (!mounted) return;
+    if (widget.link case final link?) return link.toPage(p);
     final nav = Navigator.of(context);
     final route = MaterialPageRoute<void>(
       builder: (_) => MushafPageScreen(startPage: p, script: script),
@@ -677,6 +746,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
     );
     final (su, ay) = to ?? (0, 0);
     if (su == 0 || !mounted) return;
+    if (widget.link case final link?) return link.toVerses(su, ay);
     final nav = Navigator.of(context);
     final route = MaterialPageRoute<void>(
       builder: (_) => SurahReaderScreen(meta: metas[su - 1], startAyah: ay),
@@ -717,11 +787,17 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
     }
     final p = pal(context);
     final store = MarksScope.maybeOf(context);
-    final markBook = store?.ready == true ? store!.activeBookId : null;
+    final markBook = store?.ready == true && widget.link == null
+        ? store!.activeBookId
+        : null;
     _marks = markBook == null || !s.showMarks
         ? const {}
         : store!.visuals(markBook, showFixed: s.showFixedMarks);
     _markPal = markPaletteFor(p, mono: s.appTheme == 'mono');
+    final fl = widget.link == null ? null : FluencyScope.maybeOf(context);
+    _fluencyMarks = fl == null
+        ? const {}
+        : fl.visuals((r) => nextWordOf(s.mushafScript, r));
     final desktop = useDesktop(context);
     // The reading measure: the window's width on desktop (word grid, verse
     // cards), full width on phones.
@@ -753,7 +829,23 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
                     ? Center(child: CircularProgressIndicator(color: p.acc))
                     : _list(context, s, maxW, hidden),
               ),
-              if (_marking.active)
+              if (_fluency case final tool?)
+                Container(
+                  padding: EdgeInsets.fromLTRB(
+                      12, 8, 12, 8 + MediaQuery.paddingOf(context).bottom),
+                  decoration: BoxDecoration(
+                    color: p.card,
+                    border: Border(top: BorderSide(color: p.line2)),
+                  ),
+                  child: QColumn(
+                    child: FluencyBar(
+                      tool: tool,
+                      onTool: (v) => setState(() => _fluency = v),
+                      onDone: () => setState(() => _fluency = null),
+                    ),
+                  ),
+                )
+              else if (_marking.active)
                 Container(
                   padding: EdgeInsets.fromLTRB(
                       8, 6, 8, 6 + MediaQuery.paddingOf(context).bottom),
@@ -793,9 +885,9 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
               ),
             if (s.playerDock == 'floating' &&
                 words != null &&
-                !_marking.active)
+                !_marksTool)
               Positioned.fill(child: _FloatingPlayer(state: this)),
-            if (s.playerDock == 'hidden' && words != null && !_marking.active)
+            if (s.playerDock == 'hidden' && words != null && !_marksTool)
               PositionedDirectional(
                 end: 24,
                 bottom: 24 + MediaQuery.paddingOf(context).bottom,
@@ -816,8 +908,8 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
     final px = readerPx(s).clamp(kReaderMinPx, readerMaxPx(context));
     final grid = s.wordByWord && s.readerLayout != 'mushaf';
     final narrow = MediaQuery.sizeOf(context).width < 400;
-    final title = Expanded(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    final hosted = widget.link != null;
+    final titleText = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(m.tname,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -826,7 +918,25 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: uiStyle(context, size: 12, color: p.ink3)),
-      ]),
+      ]);
+    // In the Reader the title is the way to the index.
+    final title = Expanded(
+      child: hosted
+          ? Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Tooltip(
+                message: context.l10n.idxIndex,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: _openIndex,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: titleText,
+                  ),
+                ),
+              ),
+            )
+          : titleText,
     );
     final gap = const SizedBox(width: 8);
     return Padding(
@@ -842,19 +952,28 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
         ],
         title,
         gap,
-        QIconButton(
-            icon: AppIcons.indexList,
-            tooltip: context.l10n.idxIndex,
-            onTap: _openIndex),
-        gap,
+        if (hosted) ...[
+          _viewSwitch(context, compact: !desktop),
+          gap,
+          _fluencyButton(context),
+          gap,
+        ] else ...[
+          QIconButton(
+              icon: AppIcons.indexList,
+              tooltip: context.l10n.idxIndex,
+              onTap: _openIndex),
+          gap,
+        ],
         if (desktop) ...[
           _sizeStepper(context, s, px, 40),
           if (grid) ...[gap, _gapStepper(context, s, 40)],
-          gap,
-          QIconButton(
-              icon: AppIcons.mushaf,
-              tooltip: context.l10n.k15LineMushaf,
-              onTap: _openMushaf),
+          if (!hosted) ...[
+            gap,
+            QIconButton(
+                icon: AppIcons.mushaf,
+                tooltip: context.l10n.k15LineMushaf,
+                onTap: _openMushaf),
+          ],
           gap,
           QIconButton(
               icon: AppIcons.tajweed,
@@ -863,16 +982,17 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
               onTap: _toggleTajwid),
           gap,
           _downloadButton(context),
-          if (MarksScope.maybeOf(context) != null) ...[
+          if (_hifzPen) ...[
             gap,
             _penButton(context),
           ],
         ] else ...[
-          QIconButton(
-              icon: AppIcons.mushaf,
-              tooltip: context.l10n.k15LineMushaf,
-              onTap: _openMushaf),
-          if (!narrow) ...[
+          if (!hosted)
+            QIconButton(
+                icon: AppIcons.mushaf,
+                tooltip: context.l10n.k15LineMushaf,
+                onTap: _openMushaf),
+          if (!narrow && !hosted) ...[
             gap,
             QIconButton(
                 icon: AppIcons.tajweed,
@@ -880,7 +1000,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
                 active: s.tajwidColors,
                 onTap: _toggleTajwid),
           ],
-          if (!narrow && MarksScope.maybeOf(context) != null) ...[
+          if (!narrow && _hifzPen) ...[
             gap,
             _penButton(context),
           ],
@@ -889,17 +1009,45 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
               active: _quickOpen,
               onTap: () => setState(() => _quickOpen = !_quickOpen)),
         ],
-        gap,
-        QIconButton(
-            icon: AppIcons.tune,
-            tooltip: context.l10n.readerOptions,
-            onTap: () => _openSettings(context)),
-        gap,
-        QIconButton(
-            icon: AppIcons.chevronUp,
-            tooltip: context.l10n.hideHeader,
-            onTap: () => s.update(() => s.readerHeaderCollapsed = true)),
+        // A phone in the Reader has the switch here instead: the options
+        // and hiding the header are in the Aa row.
+        if (desktop || !hosted) ...[
+          gap,
+          _optionsButton(context),
+          gap,
+          _hideButton(context, s),
+        ],
       ]),
+    );
+  }
+
+  Widget _optionsButton(BuildContext context, {double size = 40}) => QIconButton(
+      size: size,
+      icon: AppIcons.tune,
+      tooltip: context.l10n.readerOptions,
+      onTap: () => _openSettings(context));
+
+  Widget _hideButton(BuildContext context, AppSettings s, {double size = 40}) =>
+      QIconButton(
+          size: size,
+          icon: AppIcons.chevronUp,
+          tooltip: context.l10n.hideHeader,
+          onTap: () => s.update(() => s.readerHeaderCollapsed = true));
+
+  /// The Hifẓ pen and its marks: not in the Reader (it has fluency's).
+  bool get _hifzPen => widget.link == null && MarksScope.maybeOf(context) != null;
+
+  /// The Reader's Verses | Page switch.
+  Widget _viewSwitch(BuildContext context, {bool compact = false}) {
+    final p = pal(context);
+    return ReaderViewSwitch(
+      page: false,
+      compact: compact,
+      onChanged: (_) => _openMushaf(),
+      ink: p.ink2,
+      accent: p.acc,
+      track: p.track,
+      onAccent: Colors.white,
     );
   }
 
@@ -961,17 +1109,21 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
         children: [
           _sizeStepper(context, s, px, 44),
           if (grid) _gapStepper(context, s, 44),
-          if (narrow) ...[
+          if (narrow || widget.link != null) ...[
             QIconButton(
                 size: 44,
                 icon: AppIcons.tajweed,
                 tooltip: context.l10n.tajwidColors,
                 active: s.tajwidColors,
                 onTap: _toggleTajwid),
-            if (MarksScope.maybeOf(context) != null)
+            if (_hifzPen)
               _penButton(context, size: 44),
           ],
           _downloadButton(context, size: 44),
+          if (widget.link != null) ...[
+            _optionsButton(context, size: 44),
+            _hideButton(context, s, size: 44),
+          ],
         ],
       ),
     );
@@ -1114,9 +1266,11 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
         const SizedBox(height: 8),
         LayoutBuilder(builder: (context, c) {
           // Narrow cards drop the "2:255" text first (the marker already
-          // shows the āyah), and only the narrowest lose the pill labels.
-          final showRef = c.maxWidth >= 370;
-          final compact = c.maxWidth < 330;
+          // shows the āyah), and only the narrowest lose the pill labels
+          // (sooner in the Reader, with its Practise pill too).
+          final practise = widget.link != null;
+          final showRef = c.maxWidth >= (practise ? 480 : 370);
+          final compact = c.maxWidth < (practise ? 420 : 330);
           return Row(children: [
           GestureDetector(
             onTap: _marking.active ? () => _markAyah(i) : null,
@@ -1152,6 +1306,22 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
             active: isActive && recitingAyah,
             onTap: () => _playRecitation(i),
           ),
+          // The Reader: this āyah (and the next few) as a practice passage.
+          if (widget.link != null) ...[
+            const SizedBox(width: 6),
+            _MiniPill(
+              icon: AppIcons.bolt,
+              label: context.l10n.psPractise,
+              compact: c.maxWidth < 480,
+              active: false,
+              onTap: () {
+                _stopAll();
+                final (a, b) = passageFrom(SettingsScope.of(context).mushafScript,
+                    globalAyahIndex(widget.meta.n, i + 1));
+                openPassage(context, a, b);
+              },
+            ),
+          ],
         ]);
         }),
       ]),
@@ -1179,8 +1349,12 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
       highlight: p.hl,
       marks: [for (var w = 0; w < tokens.length; w++) _visualOf(s.quranScript, i, w)],
       markPal: _markPal,
+      fluency: [
+        for (var w = 0; w < tokens.length; w++) _fluencyOf(_fluencyMarks, s.quranScript, i, w)
+      ],
+      fluencyColor: fluencyColor(dark: p.isDark),
       onTap: (w) {
-        if (_marking.active) {
+        if (_marksTool) {
           _markCardWord(i, w);
           return;
         }
@@ -1188,7 +1362,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
         _playGroup(i, w, w);
       },
       onLongPress: (w) {
-        if (!_marking.active) _playGroup(i, w, w);
+        if (!_marksTool) _playGroup(i, w, w);
         _showWord(i, w);
       },
     );
@@ -1253,7 +1427,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
         playingAyah == ayahIdx && playingWord >= first && playingWord <= last;
     final grid = wbwMode && s.readerLayout != 'mushaf';
 
-    final marking = _marking.active;
+    final marking = _marksTool;
     final mp = _markPal;
     MarkVisual? segVisual;
     // Looked up once per segment, not per word / tajwīd piece.
@@ -1400,12 +1574,12 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
   void _showWord(int ayahIdx, int w) {
     final s = SettingsScope.of(context);
     final word = words![ayahIdx][w];
-    final hasMarks = MarksScope.maybeOf(context) != null;
+    final hasMarks = _hifzPen;
     final ref = _refOf(ayahIdx, w);
     showModalBottomSheet(
       context: context,
-      isScrollControlled: hasMarks,
-      showDragHandle: hasMarks,
+      isScrollControlled: hasMarks || widget.link != null,
+      showDragHandle: hasMarks || widget.link != null,
       builder: (sheet) {
         final p = pal(sheet);
         Widget body(ScrollController? scroll) => SafeArea(
@@ -1448,10 +1622,12 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
                   ref: ref,
                   sessionId: _marking.active ? _marking.sessionId : null,
                 ),
+              if (widget.link != null)
+                FluencyWordPanel(script: s.mushafScript, ref: ref),
             ],
           ),
         );
-        if (!hasMarks) return body(null);
+        if (!hasMarks && widget.link == null) return body(null);
         return DraggableScrollableSheet(
           expand: false,
           initialChildSize: .6,

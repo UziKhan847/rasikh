@@ -16,10 +16,15 @@
                                 after a reboot. POST_NOTIFICATIONS comes
                                 from the notifications plugin and is only
                                 asked for when the reminder is switched on.
+         RECORD_AUDIO         — the Reader's fluency practice: a cold read
+                                is recorded, to play back and count its
+                                stalls and madd errors. Asked for only when
+                                a recording starts; kept on the device.
          No storage permissions are needed: downloads are written to the
          app's own documents directory (scoped storage), and no external
-         media, camera, mic, or location access is used.            -->
+         media, camera, or location access is used.                 -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 

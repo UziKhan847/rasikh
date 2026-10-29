@@ -7,6 +7,7 @@ import 'package:qiraah_arabiyyah/core/l10n.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
 import 'package:qiraah_arabiyyah/data/quran.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf/memorize_bar.dart';
+import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_index_sheet.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
 
 import 'test_support.dart';
@@ -74,7 +75,7 @@ void main() {
     await loadMushaf('uthmani');
   });
 
-  testWidgets('phone: tap toggles the bars, page colour cycles the theme', (
+  testWidgets('phone: tap toggles the bars; the page line opens the index', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -93,18 +94,26 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(_barOpacity(tester), 1);
 
-    // The button cycles the brightness: light → dark → OLED → light (the
-    // paper cycle is the muṣḥaf customisation's, off for now).
-    expect(s.appTheme, 'light');
-    final colour = find.byTooltip('Page colour');
-    final cycle = kMushafCustomization
-        ? const <String>[]
-        : const ['night', 'oled', 'light'];
-    for (final t in cycle) {
-      await tester.tap(colour);
-      await tester.pump();
-      expect(s.appTheme, t);
-    }
+    // The page colour is in the settings now; the bar keeps to the page.
+    expect(find.byTooltip('Page colour'), findsNothing);
+    await tester.tap(find.byTooltip('Muṣḥaf settings'));
+    await tester.pumpAndSettle();
+    await tester.dragUntilVisible(
+        find.text('Dark'), find.byType(ListView).last, const Offset(0, -200));
+    await tester.ensureVisible(find.text('Dark').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dark').last);
+    await tester.pump();
+    expect(s.appTheme, 'night');
+    await tester.tapAt(const Offset(195, 20)); // out of the sheet
+    await tester.pumpAndSettle();
+    // The page line opens the index; there's no separate button for it.
+    expect(find.byTooltip('Go to page'), findsOneWidget);
+    await tester.tap(find.byTooltip('Go to page'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MushafIndex), findsOneWidget);
+    await tester.tapAt(const Offset(195, 20));
+    await tester.pumpAndSettle();
 
     // Turning the page is remembered for next time.
     await tester.tap(find.byTooltip('Next page'));

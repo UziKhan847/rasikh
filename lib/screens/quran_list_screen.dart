@@ -8,7 +8,8 @@ import '../data/quran.dart';
 import '../ui/app_icons.dart';
 import '../ui/kit.dart';
 import 'shell/app_mode.dart' show SettingsButton;
-import 'quran_screen.dart';
+import 'reader/reader_host.dart';
+import 'fluency/fluency_home.dart';
 
 /// The Qurʼān: search, Sūrahs | Bookmarks, the Last read card and the sūrah
 /// list (number, names, Meccan/Medinan, āyah count).
@@ -60,7 +61,7 @@ class _SurahListScreenState extends State<SurahListScreen> {
 
   void _open(SurahMeta m, {int? ayah}) {
     Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => SurahReaderScreen(meta: m, startAyah: ayah)));
+        builder: (_) => ReaderHost(meta: m, startAyah: ayah)));
   }
 
   @override
@@ -146,6 +147,8 @@ class _SurahListScreenState extends State<SurahListScreen> {
                         onChanged: (v) => setState(() => _tab = v),
                       ),
                       const SizedBox(height: 14),
+                      // The fluency practice: a way in from the Reader's home.
+                      if (_tab == 'surahs' && q.isEmpty) const FluencyEntryCard(),
                       if (_tab == 'surahs' && q.isEmpty && prog.lastRead != null && meta != null)
                         _LastRead(
                           meta: meta[prog.lastRead!.$1 - 1],
@@ -429,5 +432,5 @@ class _BookmarkCard extends StatelessWidget {
 /// the section).
 void openSurah(BuildContext context, SurahMeta m, {int? ayah}) {
   Navigator.of(context, rootNavigator: !useDesktop(context)).push(
-      MaterialPageRoute(builder: (_) => SurahReaderScreen(meta: m, startAyah: ayah)));
+      MaterialPageRoute(builder: (_) => ReaderHost(meta: m, startAyah: ayah)));
 }

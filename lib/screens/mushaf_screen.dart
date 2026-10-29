@@ -51,6 +51,9 @@ import 'mushaf/hifz_dock.dart';
 import 'mushaf/hifz_layout.dart';
 import 'mushaf/page_rail.dart';
 import 'mushaf/mushaf_zoom.dart';
+import 'reader/reader_host.dart';
+import 'fluency/fluency_tools.dart';
+import '../core/fluency/fluency_store.dart';
 import 'profiles_sheet.dart';
 import '../core/profiles.dart';
 import '../core/display_rotation.dart';
@@ -95,6 +98,10 @@ class MushafPageScreen extends StatefulWidget with DesktopAware {
   /// The app's home (Hifẓ mode): nothing to close back to; the Hifẓ
   /// toolbar (see [_hifzBody]).
   final bool home;
+
+  /// The Reader's page view (see ReaderHost): back goes to the index, the
+  /// switch to the verses; no Hifẓ tools or marks (fluency's instead).
+  final ReaderLink? reader;
   const MushafPageScreen(
       {super.key,
       this.home = false,
@@ -104,7 +111,8 @@ class MushafPageScreen extends StatefulWidget with DesktopAware {
       this.startMarking = false,
       this.focus,
       this.review,
-      this.memorize});
+      this.memorize,
+      this.reader});
 
   @override
   State<MushafPageScreen> createState() => _MushafPageScreenState();
@@ -1160,37 +1168,6 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         .catchError((_) {});
   }
 
-  /// Cream → white → Madani → mono → night → night mono → OLED → OLED mono,
-  /// setting the app theme as it goes (cream, white and Madani are the light
-  /// theme; the mono pages of night and OLED are theirs).
-  ///
-  /// Without customisation ([kMushafCustomization]): light → dark → OLED.
-  void _cyclePaper(AppSettings s) {
-    if (!kMushafCustomization) {
-      s.update(s.cycleBrightness);
-      return;
-    }
-    const light = ['cream', 'white', 'madani', 'tile1', 'tile2', 'tile3'];
-    const order = [
-      ...light, 'mono', //
-      'night', 'night_mono', 'oled', 'oled_mono',
-    ];
-    final cur = mushafPaperOf(s, _script).id;
-    final next = order[(order.indexOf(cur) + 1) % order.length];
-    s.update(() {
-      if (light.contains(next)) {
-        s.appTheme = 'light';
-        s.mushafPaper = next;
-      } else if (next.endsWith('_mono')) {
-        s.appTheme = next.substring(0, next.length - 5);
-        s.mushafPaperDark = 'mono';
-      } else {
-        s.appTheme = next;
-        if (next != 'mono') s.mushafPaperDark = 'default';
-      }
-    });
-  }
-
   // ── audio ──────────────────────────────────────────────────────────────
   void _onVerseDone(void _) {
     if (!mounted || !_reciting) return;
@@ -1242,6 +1219,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   Future<void> _playVerse(int global,
       {bool userTap = true, String? reciter}) async {
     if (userTap) _lastWordTap = DateTime.now();
+    // Heard in the Reader: not an unseen passage for a cold read any more.
+    if (widget.reader != null) FluencyScope.read(context)?.markHeard(global);
     if (userTap && _reciting && _playAyah == global) {
       _stopAudio();
       return;
@@ -1309,14 +1288,16 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   void _showWord(MushafWord held) {
     _lastWordTap = DateTime.now();
-    final hasMarks = MarksScope.maybeOf(context) != null;
+    final hasMarks = MarksScope.maybeOf(context) != null && widget.reader == null;
+    // The Reader's word sheet has its fluency marks instead.
+    final tall = hasMarks || widget.reader != null;
     // The word on show: the arrows beside it step to the words either side
     // (a small word held wrongly on a dense page is a step away, not a
     // close and a fresh try).
     var wd = held;
     showAdaptiveSheet<void>(
       context,
-      isScrollControlled: hasMarks,
+      isScrollControlled: tall,
       builder: (sheet) => StatefulBuilder(builder: (sheet, setSheet) {
         final p = pal(sheet);
         final (surah, ayahInSurah) = MushafRepo.surahAyahOf(wd.ayah);
@@ -1397,10 +1378,15 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                     _startLinking(m);
                   },
                 ),
+              if (widget.reader != null && !wd.isMarker)
+                FluencyWordPanel(
+                    key: ValueKey(('fl', wd.ayah, wd.wordIdx)),
+                    script: _script,
+                    ref: WordRef.fromGlobal(wd.ayah, wd.wordIdx)),
             ],
           ),
         );
-        if (!hasMarks || AdaptiveSheet.isSide(sheet)) return body(null);
+        if (!tall || AdaptiveSheet.isSide(sheet)) return body(null);
         return DraggableScrollableSheet(
           expand: false,
           initialChildSize: .6,
@@ -1417,6 +1403,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   Future<void> _openReader() async {
     _stopAudio();
     final (su, ay) = MushafRepo.firstVerseOfPage(_script, _pendingPage ?? _page);
+    if (widget.reader case final r?) return r.toVerses(su, ay);
     final metas = await QuranRepo.meta();
     if (!mounted) return;
     final nav = Navigator.of(context);
@@ -1461,7 +1448,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
             Navigator.pop(sheet);
             _switchScript(v);
           },
-          onReview: MarksScope.maybeOf(context)?.activeBook == null
+          onReview: widget.reader != null ||
+                  MarksScope.maybeOf(context)?.activeBook == null
               ? null
               : () {
                   Navigator.pop(sheet);
@@ -1469,20 +1457,24 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                   if (_memorizing) _endMemorize();
                   _startReview();
                 },
-          onMemorize: _memorizing
+          onMemorize: _memorizing || widget.reader != null
               ? null
               : () {
                   Navigator.pop(sheet);
                   _startMemorize();
                 },
-          onMemorizeFrom: () {
-            Navigator.pop(sheet);
-            _memorizeFrom();
-          },
-          onMemorizeCards: () {
-            Navigator.pop(sheet);
-            _memorizeAsCards();
-          },
+          onMemorizeFrom: widget.reader != null
+              ? null
+              : () {
+                  Navigator.pop(sheet);
+                  _memorizeFrom();
+                },
+          onMemorizeCards: widget.reader != null
+              ? null
+              : () {
+                  Navigator.pop(sheet);
+                  _memorizeAsCards();
+                },
         );
 
   // ── build ──────────────────────────────────────────────────────────────
@@ -1655,6 +1647,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       // Holding a ۝: the whole āyah's sheet, to mark it (memorizing: once
       // it shows).
       ..onLongPressVerse = _memorizing ? _memoHold : _showWord;
+    // The Reader's fluency tool: a tap marks the word.
+    if (_fluencyTool case final tool? when widget.reader != null) {
+      _handlers.onTapWord = (wd) {
+        if (!wd.isMarker) {
+          applyFluency(context, tool, _script, WordRef.fromGlobal(wd.ayah, wd.wordIdx));
+        }
+      };
+    }
     // The Hifẓ home: the word tool's taps (comment, eraser, audio, or none).
     if (widget.home && !_memorizing && !_marking.active && !_reviewing) {
       _hifzHandlers();
@@ -1742,17 +1742,65 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// The active mark book's marks, as the pages draw them.
   final _marksLayer = MushafMarksLayer();
 
-  void _bindMarks(AppSettings s) => _marksLayer.bind(
-        store: MarksScope.maybeOf(context),
-        script: _script,
-        show: s.showMarks,
-        showFixed: s.showFixedMarks,
+  void _bindMarks(AppSettings s) {
+    _marksLayer.bind(
+      store: MarksScope.maybeOf(context),
+      script: _script,
+      show: s.showMarks && widget.reader == null,
+      showFixed: s.showFixedMarks,
+    );
+    _marksLayer.bindFluency(widget.reader == null ? null : FluencyScope.read(context));
+  }
+
+  /// The Reader's fluency tool, while it's on (see FluencyBar).
+  FluencyTool? _fluencyTool;
+
+  Widget _fluencyButton(MushafPaper paper, {double size = 40, bool shadow = false}) =>
+      _PaperButton(
+          paper: paper,
+          icon: AppIcons.bolt,
+          size: size,
+          shadow: shadow,
+          active: _fluencyTool != null,
+          tooltip: context.l10n.flTool,
+          onTap: () {
+            if (_fluencyTool == null) _stopAudio();
+            setState(() => _fluencyTool = _fluencyTool == null ? FluencyTool.slow : null);
+          });
+
+  /// The fluency bar over the page (on its side, and on desktop).
+  Widget _floatingFluencyBar(MushafPaper paper) => Container(
+        constraints: const BoxConstraints(maxWidth: 520),
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        decoration: BoxDecoration(
+          color: paper.chrome,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: paper.line.withValues(alpha: .6), width: .5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: paper.dark ? .45 : .12),
+              blurRadius: 16,
+              spreadRadius: -4,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: _fluencyBar(paper),
+      );
+
+  Widget _fluencyBar(MushafPaper paper) => FluencyBar(
+        tool: _fluencyTool!,
+        onTool: (v) => setState(() => _fluencyTool = v),
+        onDone: () => setState(() => _fluencyTool = null),
       );
 
   /// The pen button for the bars (starts or ends marking).
   Widget? _penButton(BuildContext context, MushafPaper paper,
       {double size = 40, bool shadow = false}) {
-    if (MarksScope.maybeOf(context) == null || _reviewing || _memorizing) {
+    if (MarksScope.maybeOf(context) == null ||
+        _reviewing ||
+        _memorizing ||
+        widget.reader != null) {
       return null;
     }
     return _PaperButton(
@@ -1970,15 +2018,13 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           child: SizedBox(
             height: _kTopBar - 17,
             child: Row(children: [
-              _PaperButton(
-                  paper: paper,
-                  icon: AppIcons.close,
-                  tooltip: context.l10n.closeMushaf,
-                  onTap: _close),
+              _closeButton(context, paper),
               const SizedBox(width: 8),
               Expanded(child: _titleBlock(context, paper, center: true)),
               const SizedBox(width: 8),
-              if (!isDesktopPlatform()) ...[
+              // (In the Reader, turning is down by the page line: the
+              // switch needs the room.)
+              if (!isDesktopPlatform() && widget.reader == null) ...[
                 _PaperButton(
                     paper: paper,
                     icon: AppIcons.rotate,
@@ -1990,11 +2036,16 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                 pen,
                 const SizedBox(width: 8),
               ],
-              _PaperButton(
-                  paper: paper,
-                  icon: AppIcons.reader,
-                  tooltip: context.l10n.navReader,
-                  onTap: _openReader),
+              if (widget.reader != null) ...[
+                _viewSwitch(paper, compact: true),
+                const SizedBox(width: 8),
+                _fluencyButton(paper),
+              ] else
+                _PaperButton(
+                    paper: paper,
+                    icon: AppIcons.reader,
+                    tooltip: context.l10n.navReader,
+                    onTap: _openReader),
               const SizedBox(width: 8),
               _PaperButton(
                   paper: paper,
@@ -2024,19 +2075,27 @@ class _MushafPageScreenState extends State<MushafPageScreen>
               _reviewBar(paper)
             else if (_marking.active)
               _markingBar(paper)
+            else if (_fluencyTool != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: _fluencyBar(paper),
+              )
             else
             // The page turns are book controls, fixed in every language: the
             // left arrow is the next page.
             Directionality(
               textDirection: TextDirection.ltr,
               child: Row(children: [
-                _PaperButton(
-                    paper: paper,
-                    icon: AppIcons.pageColour,
-                    tooltip: context.l10n.pageColour,
-                    onTap: () => _cyclePaper(s)),
+                if (!isDesktopPlatform() && widget.reader != null) ...[
+                  _PaperButton(
+                      paper: paper,
+                      icon: AppIcons.rotate,
+                      tooltip: context.l10n.landscape,
+                      border: false,
+                      onTap: () => _rotate(false)),
+                  const SizedBox(width: 2),
+                ],
                 if (!narrow) ...[
-                  const SizedBox(width: 6),
                   _PaperButton(
                       paper: paper,
                       icon: AppIcons.chevronLeft,
@@ -2054,12 +2113,6 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                       onTap: _page > 1 ? () => _turn(-1) : null),
                   const SizedBox(width: 6),
                 ],
-                _PaperButton(
-                    paper: paper,
-                    icon: AppIcons.indexList,
-                    tooltip: context.l10n.goToPage,
-                    onTap: _showIndex),
-                const SizedBox(width: 8),
                 _reciteButton(context, paper, size: 44),
               ]),
             ),
@@ -2078,7 +2131,22 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     ]);
   }
 
+  /// The sūrah's name over the muṣḥaf's; in the Reader (and on desktop,
+  /// [index]), a tap opens the index.
   Widget _titleBlock(BuildContext context, MushafPaper paper,
+      {bool center = false, String? subtitle, bool index = false}) {
+    final block = _titleText(context, paper, center: center, subtitle: subtitle);
+    if (widget.reader == null && !index) return block;
+    return Tooltip(
+      message: context.l10n.idxIndex,
+      child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: _showIndex,
+          child: block),
+    );
+  }
+
+  Widget _titleText(BuildContext context, MushafPaper paper,
       {bool center = false, String? subtitle}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -2102,20 +2170,56 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     );
   }
 
+  /// "Page 5 · Juzʼ 1": a tap opens the index (go to a page, a sūrah…).
   Widget _pageLabel(BuildContext context, AppSettings s, MushafPaper paper) {
     final page = _dragPage ?? _page;
     final juz = MushafRepo.juzOfPage(_script, page);
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      Text(context.l10n.pageJuz(page, juz),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: uiStyle(context,
-              size: 13, weight: FontWeight.w700, color: paper.ink)),
-      Text(mushafPaperName(context, paper.id),
-          maxLines: 1,
-          style: uiStyle(context, size: 11.5, color: paper.sub)),
-    ]);
+    return Tooltip(
+      message: context.l10n.goToPage,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: _showIndex,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Flexible(
+              child: Text(context.l10n.pageJuz(page, juz),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: uiStyle(context,
+                      size: 13.5, weight: FontWeight.w700, color: paper.ink)),
+            ),
+            const SizedBox(width: 2),
+            Icon(AppIcons.chevronDown, size: 16, color: paper.sub),
+          ]),
+        ),
+      ),
+    );
   }
+
+  /// The way out: back to the Reader's index (in the Reader), else close.
+  Widget _closeButton(BuildContext context, MushafPaper paper,
+          {double size = 44, bool shadow = false}) =>
+      _PaperButton(
+          paper: paper,
+          icon: widget.reader != null ? AppIcons.back : AppIcons.close,
+          size: size,
+          shadow: shadow,
+          tooltip: widget.reader != null
+              ? MaterialLocalizations.of(context).backButtonTooltip
+              : context.l10n.closeMushaf,
+          onTap: _close);
+
+  /// The Reader's Verses | Page switch, on the page's paper.
+  Widget _viewSwitch(MushafPaper paper, {bool compact = false}) => ReaderViewSwitch(
+        page: true,
+        compact: compact,
+        onChanged: (_) => _openReader(),
+        ink: paper.ink,
+        accent: paper.id == 'mono' ? paper.ink : paper.acc,
+        track: paper.line,
+        onAccent: paper.dark ? paper.paper : Colors.white,
+      );
 
   /// The page progress line, right to left like the book; tap or drag it to
   /// move through the muṣḥaf.
@@ -2245,13 +2349,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         top: pad.top + 14,
         start: pad.left + 12,
         child: _fade(Column(children: [
-          _PaperButton(
-              paper: paper,
-              icon: AppIcons.close,
-              size: 46,
-              shadow: true,
-              tooltip: context.l10n.closeMushaf,
-              onTap: _close),
+          _closeButton(context, paper, size: 46, shadow: true),
           const SizedBox(height: 8),
           _PaperButton(
               paper: paper,
@@ -2261,12 +2359,11 @@ class _MushafPageScreenState extends State<MushafPageScreen>
               tooltip: context.l10n.mushafSettings,
               onTap: _showSettings),
           const SizedBox(height: 8),
-          _PaperButton(
+          // The page number: a tap opens the index.
+          _PagePill(
               paper: paper,
-              icon: AppIcons.indexList,
-              size: 46,
-              shadow: true,
-              tooltip: context.l10n.idxIndex,
+              page: _dragPage ?? _page,
+              tooltip: context.l10n.goToPage,
               onTap: _showIndex),
           // Its place on the right is taken by memorize's bar.
           if (_sideBar) ...[
@@ -2281,6 +2378,13 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           ],
         ])),
       ),
+      if (widget.reader != null)
+        Positioned(
+          top: pad.top + 14,
+          left: 0,
+          right: 0,
+          child: _fade(Center(child: _viewSwitch(paper))),
+        ),
       // (Memorizing two pages, the right margin holds memorize's bar.)
       if (!_sideBar)
       Positioned(
@@ -2307,22 +2411,19 @@ class _MushafPageScreenState extends State<MushafPageScreen>
               onTap: () => s.update(
                   () => s.mushafPhoneSpread = !s.mushafPhoneSpread)),
           const SizedBox(height: 8),
-          _PaperButton(
-              paper: paper,
-              icon: AppIcons.pageColour,
-              size: 46,
-              shadow: true,
-              tooltip: context.l10n.pageColour,
-              onTap: () => _cyclePaper(s)),
-          const SizedBox(height: 8),
-          _PaperButton(
-              paper: paper,
-              icon: AppIcons.reader,
-              size: 46,
-              shadow: true,
-              tooltip: context.l10n.navReader,
-              onTap: _openReader),
-          const SizedBox(height: 8),
+          if (widget.reader == null) ...[
+            _PaperButton(
+                paper: paper,
+                icon: AppIcons.reader,
+                size: 46,
+                shadow: true,
+                tooltip: context.l10n.navReader,
+                onTap: _openReader),
+            const SizedBox(height: 8),
+          ] else ...[
+            _fluencyButton(paper, size: 46, shadow: true),
+            const SizedBox(height: 8),
+          ],
           if (_penButton(context, paper, size: 46, shadow: true)
               case final pen?) ...[
             pen,
@@ -2375,6 +2476,13 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           left: 0,
           right: 0,
           child: Center(child: _measured(_markingBar(paper, floating: true))),
+        )
+      else if (_fluencyTool != null)
+        Positioned(
+          bottom: pad.bottom + 10,
+          left: 96,
+          right: 96,
+          child: Center(child: _measured(_floatingFluencyBar(paper))),
         )
       else
       Positioned(
@@ -2612,17 +2720,13 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(children: [
-        _PaperButton(
-            paper: paper,
-            icon: AppIcons.close,
-            tooltip: context.l10n.closeMushaf,
-            onTap: _close),
+        _closeButton(context, paper),
         const SizedBox(width: 10),
         Flexible(
           flex: 3,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minWidth: 140),
-            child: _titleBlock(context, paper, subtitle: subtitle),
+            child: _titleBlock(context, paper, subtitle: subtitle, index: true),
           ),
         ),
         const SizedBox(width: 10),
@@ -2652,12 +2756,6 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         const SizedBox(width: 10),
         _reciteButton(context, paper, pill: true),
         const SizedBox(width: 10),
-        _PaperButton(
-            paper: paper,
-            icon: AppIcons.pageColour,
-            tooltip: context.l10n.pageColour,
-            onTap: () => _cyclePaper(s)),
-        const SizedBox(width: 10),
         _ViewModes(
           paper: paper,
           value: view,
@@ -2667,21 +2765,20 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           },
         ),
         const SizedBox(width: 10),
-        _PaperButton(
-            paper: paper,
-            icon: AppIcons.indexList,
-            tooltip: context.l10n.goToPage,
-            onTap: _showIndex),
-        const SizedBox(width: 10),
         if (_penButton(context, paper) case final pen?) ...[
           pen,
           const SizedBox(width: 10),
         ],
-        _PaperButton(
-            paper: paper,
-            icon: AppIcons.reader,
-            tooltip: context.l10n.navReader,
-            onTap: _openReader),
+        if (widget.reader != null) ...[
+          _viewSwitch(paper),
+          const SizedBox(width: 10),
+          _fluencyButton(paper),
+        ] else
+          _PaperButton(
+              paper: paper,
+              icon: AppIcons.reader,
+              tooltip: context.l10n.navReader,
+              onTap: _openReader),
         const SizedBox(width: 10),
         _PaperButton(
             paper: paper,
@@ -2898,6 +2995,13 @@ class _MushafPageScreenState extends State<MushafPageScreen>
               left: 0,
               right: 0,
               child: Center(child: _measured(_markingBar(paper, floating: true))),
+            )
+          else if (_fluencyTool != null)
+            Positioned(
+              bottom: 12,
+              left: 0,
+              right: 0,
+              child: Center(child: _measured(_floatingFluencyBar(paper))),
             ),
           if (_chrome) ...[
             Positioned(
@@ -2948,6 +3052,55 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
 /// A round button drawn in the muṣḥaf paper's colours (the bars sit on the
 /// paper, not on the app theme).
+/// The page number in a round paper button (on its side, where there's no
+/// page line): a tap opens the index.
+class _PagePill extends StatelessWidget {
+  final MushafPaper paper;
+  final int page;
+  final String tooltip;
+  final VoidCallback onTap;
+  const _PagePill(
+      {required this.paper, required this.page, required this.tooltip, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+        message: tooltip,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: qShadows(context, const [
+              BoxShadow(
+                  color: Color(0x59000000),
+                  blurRadius: 16,
+                  offset: Offset(0, 6),
+                  spreadRadius: -8),
+            ]),
+          ),
+          child: Material(
+            color: paper.paper,
+            shape: CircleBorder(side: BorderSide(color: paper.line)),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: SizedBox.square(
+                dimension: 46,
+                child: Center(
+                  child: FittedBox(
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Text('$page',
+                          style: uiStyle(context,
+                              size: 14, weight: FontWeight.w700, color: paper.ink)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
 class _PaperButton extends StatelessWidget {
   final MushafPaper paper;
   final IconData icon;
@@ -3205,6 +3358,22 @@ class _MushafSettingsSheet extends StatelessWidget {
               ],
               value: script,
               onChanged: onScript,
+            ),
+          ),
+          QRow(
+            title: context.l10n.pageColour,
+            control: QSegmented<String>(
+              expand: false,
+              options: [
+                ('light', context.l10n.themeLight, null),
+                ('night', context.l10n.themeDark, null),
+                ('oled', context.l10n.themeOled, null),
+              ],
+              value: s.appTheme == 'mono' ? 'light' : s.appTheme,
+              onChanged: (v) => s.update(() {
+                s.appTheme = v;
+                s.mushafPaperDark = 'default';
+              }),
             ),
           ),
           QRow(

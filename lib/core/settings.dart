@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/mushaf.dart' show MushafLook;
 import '../ui/ornaments/tuning.dart';
 import 'mushaf_style.dart';
+import 'fluency/fluency_store.dart' show FluencyStore;
 import 'marks/marks_store.dart';
 import 'theme.dart' show AppTheme, appThemeFrom;
 
@@ -270,6 +271,10 @@ class AppSettings extends ChangeNotifier {
   String fontIndopak = 'DigitalKhattIndoPak';
   String reciter = 'tunaiji'; // 'tunaiji' | 'alafasy' | 'husary'
   String readerLayout = 'cards'; // 'cards' | 'mushaf' (continuous flow)
+
+  /// The Reader's view, as last left: 'verses' (the layouts above) or
+  /// 'page' (the 15-line muṣḥaf).
+  String readerView = 'verses';
   String reciteFlow = 'single'; // 'single' | 'auto' (continue) | 'repeat'
   /// The recitation player: 'pinned' (docked) | 'floating' (draggable card)
   /// | 'hidden' (a round restore button only).
@@ -434,6 +439,7 @@ class AppSettings extends ChangeNotifier {
     mushafTajwid = m['mushafTajwid'] ?? false;
     reciter = m['reciter'] ?? 'tunaiji';
     readerLayout = m['readerLayout'] ?? 'cards';
+    readerView = m['readerView'] as String? ?? 'verses';
     reciteFlow = m['reciteFlow'] ?? 'single';
     quranFontScale = (m['qfont'] ?? 30 / 26).toDouble();
     traceTolerance = (m['traceTol'] ?? 1.0).toDouble();
@@ -507,6 +513,7 @@ class AppSettings extends ChangeNotifier {
         'traceTol': traceTolerance,
         'reciter': reciter,
         'readerLayout': readerLayout,
+        'readerView': readerView,
         'reciteFlow': reciteFlow,
         'playerDock': playerDock,
         'playerMin': playerMinimised,
@@ -1103,12 +1110,15 @@ class BackupService {
   static const _file = 'noor_qaidah_backup.json';
 
   /// [marks] (the word-marks store) is included when given: its books,
-  /// sessions, marks and fixes go into the same file.
-  static Future<String?> export(AppSettings s, {MarksStore? marks}) async {
+  /// sessions, marks and fixes go into the same file; so is [fluency]
+  /// (the Reader's fluency practice).
+  static Future<String?> export(AppSettings s,
+      {MarksStore? marks, FluencyStore? fluency}) async {
     try {
       final p = await SharedPreferences.getInstance();
       final data = {
         if (marks != null && marks.ready) 'marks': marks.exportJson(),
+        if (fluency != null && fluency.loaded) 'fluency': fluency.toJson(),
         'settings': p.getString(AppSettings._key),
         'progress': p.getString(ProgressStore._key),
         'streak': p.getString(ProgressStore._streakKey),
@@ -1127,7 +1137,7 @@ class BackupService {
   /// Marks in the backup are MERGED into [marks] (never replacing what's
   /// already here: a restore can't lose marks made since the backup).
   static Future<bool> restore(AppSettings s, ProgressStore prog,
-      {MarksStore? marks}) async {
+      {MarksStore? marks, FluencyStore? fluency}) async {
     try {
       final dir = await getApplicationDocumentsDirectory();
       final f = File('${dir.path}/$_file');
@@ -1148,6 +1158,11 @@ class BackupService {
       final mk = m['marks'];
       if (marks != null && marks.ready && mk is Map) {
         marks.importJson(mk.cast<String, dynamic>());
+      }
+      // The fluency work: the backup's, if it has any.
+      final fl = m['fluency'];
+      if (fluency != null && fl is Map) {
+        await fluency.restore(fl.cast<String, dynamic>());
       }
       await s.load();
       await prog.load();
