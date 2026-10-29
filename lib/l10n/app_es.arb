@@ -1405,5 +1405,16 @@
   "plWindow": "Ventana de lectura (una línea)",
   "plFadeWindow": "Solo para pasajes nuevos, y luego déjala",
   "plFadeModel": "Ahora: escúchalo tras tu primer intento",
-  "plFadeModelNone": "Ahora: lee sin oírlo antes"
+  "plFadeModelNone": "Ahora: lee sin oírlo antes",
+  "vrTitle": "Aleya por aleya",
+  "vrSub": "Una aleya cada vez: marca las palabras que te frenan, escúchalas y valóralas",
+  "vrFromHere": "Repasar aleya por aleya desde aquí",
+  "vrMarkedAyahs": "Aleyas que marcaste",
+  "vrMarkedAyahsSub": "{n} aleyas con marcas de fluidez",
+  "vrHearAyah": "Escuchar la aleya (Ḥuṣarī)",
+  "vrMarked": "Marcado en esta aleya",
+  "vrNone": "Aún no hay nada marcado. Toca una palabra arriba para marcarla.",
+  "vrRetired": "al instante",
+  "vrPrev": "Aleya anterior",
+  "vrNext": "Aleya siguiente"
 }

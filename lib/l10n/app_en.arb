@@ -2703,5 +2703,17 @@
   "@crCorrectN": {"placeholders": {"n": {"type": "int"}}},
   "@crPerMinute": {"placeholders": {"n": {"type": "int"}}},
   "@crSinceStart": {"placeholders": {"n": {"type": "int"}}},
-  "@plWeek": {"placeholders": {"n": {"type": "int"}, "phase": {"type": "String"}}}
+  "@plWeek": {"placeholders": {"n": {"type": "int"}, "phase": {"type": "String"}}},
+  "vrTitle": "Verse by verse",
+  "vrSub": "An āyah at a time: mark the words that slow you down, hear and rate them",
+  "vrFromHere": "Review verse by verse from here",
+  "vrMarkedAyahs": "Āyāt you've marked",
+  "vrMarkedAyahsSub": "{n} āyāt with fluency marks",
+  "@vrMarkedAyahsSub": {"placeholders": {"n": {"type": "int"}}},
+  "vrHearAyah": "Hear the āyah (Ḥuṣarī)",
+  "vrMarked": "Marked in this āyah",
+  "vrNone": "Nothing marked here yet. Tap a word above to mark it.",
+  "vrRetired": "read at once",
+  "vrPrev": "Previous āyah",
+  "vrNext": "Next āyah"
 }

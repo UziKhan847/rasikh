@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:qiraah_arabiyyah/core/fluency/fluency_store.dart';
 import 'package:qiraah_arabiyyah/core/l10n.dart';
+import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
 import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
 import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
 import 'package:qiraah_arabiyyah/core/settings.dart';
@@ -11,6 +13,7 @@ import 'package:qiraah_arabiyyah/data/quran.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_index_sheet.dart';
 import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
 import 'package:qiraah_arabiyyah/screens/quran_screen.dart';
+import 'package:qiraah_arabiyyah/screens/reader/ayah_text.dart';
 import 'package:qiraah_arabiyyah/screens/reader/reader_host.dart';
 
 import 'test_support.dart';
@@ -27,6 +30,9 @@ void main() {
     await QuranRepo.meta();
     await loadMushaf('uthmani');
   });
+
+  late FluencyStore fluency;
+  setUp(() => fluency = FluencyStore());
 
   Future<(AppSettings, NavigatorState)> pump(WidgetTester tester,
       {String view = 'verses'}) async {
@@ -47,7 +53,10 @@ void main() {
     m.ensureActiveBook('Me');
     final meta = (await QuranRepo.meta())[1]; // Al-Baqarah
     final nav = GlobalKey<NavigatorState>();
-    await tester.pumpWidget(MarksScope(
+    await fluency.load();
+    await tester.pumpWidget(FluencyScope(
+      store: fluency,
+      child: MarksScope(
       store: m,
       child: SettingsScope(
         settings: s,
@@ -62,7 +71,7 @@ void main() {
           ),
         ),
       ),
-    ));
+    )));
     nav.currentState!.push(MaterialPageRoute<void>(
         builder: (_) => ReaderHost(meta: meta, startAyah: 30)));
     await settle(tester);
@@ -116,6 +125,20 @@ void main() {
     await tester.tap(find.byTooltip('Index'));
     await tester.pumpAndSettle();
     expect(find.byType(MushafIndex), findsOneWidget);
+  });
+
+  testWidgets('verses: a fluency mark shows on its card at once', (tester) async {
+    await pump(tester);
+    for (var i = 0; i < 4; i++) {
+      await settle(tester);
+    }
+    fluency.toggleSlow(const WordRef(2, 30, 3), 'x');
+    await tester.pump();
+    final marked = tester
+        .widgetList<AyahText>(find.byType(AyahText))
+        .any((a) => a.fluency.any((v) => v?.slow ?? false));
+    expect(marked, isTrue);
+    await fluency.flush();
   });
 }
 

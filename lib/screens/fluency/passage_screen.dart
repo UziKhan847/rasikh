@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/audio.dart';
+import '../../core/fluency/fluency_audio.dart';
 import '../../core/fluency/fluency_store.dart';
 import '../../core/fluency/words.dart';
 import '../../core/l10n.dart';
@@ -112,8 +113,7 @@ class _PassageScreenState extends State<PassageScreen> {
   void dispose() {
     _tick?.cancel();
     _focus.dispose();
-    WbwAudio.instance.stop();
-    AyahAudio.instance.stop();
+    FluencyAudio.instance.stop();
     super.dispose();
   }
 

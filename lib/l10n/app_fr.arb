@@ -1405,5 +1405,16 @@
   "plWindow": "Fenêtre de lecture (une ligne)",
   "plFadeWindow": "Seulement pour les nouveaux passages, puis l'abandonner",
   "plFadeModel": "Maintenant : l'écouter après un premier essai",
-  "plFadeModelNone": "Maintenant : lire sans l'écouter avant"
+  "plFadeModelNone": "Maintenant : lire sans l'écouter avant",
+  "vrTitle": "Verset par verset",
+  "vrSub": "Un verset à la fois : marquez les mots qui vous ralentissent, écoutez-les et notez-les",
+  "vrFromHere": "Réviser verset par verset d'ici",
+  "vrMarkedAyahs": "Versets marqués",
+  "vrMarkedAyahsSub": "{n} versets avec des marques de fluidité",
+  "vrHearAyah": "Écouter le verset (Ḥuṣarī)",
+  "vrMarked": "Marqué dans ce verset",
+  "vrNone": "Rien de marqué ici. Touchez un mot ci-dessus pour le marquer.",
+  "vrRetired": "lu d'emblée",
+  "vrPrev": "Verset précédent",
+  "vrNext": "Verset suivant"
 }

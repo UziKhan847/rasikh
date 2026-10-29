@@ -13,6 +13,7 @@ import '../../core/fluency/plan.dart';
 import 'cold_read_screen.dart';
 import 'deck_screen.dart';
 import 'tracker_screen.dart';
+import 'verse_review_screen.dart';
 import 'madd_screen.dart';
 import 'passage_screen.dart';
 
@@ -150,6 +151,14 @@ class _FluencyHomeState extends State<FluencyHome> {
             QColumn(child: QSectionLabel(l.flPassages)),
             QColumn(
               child: QGroup(children: [
+                row(AppIcons.review, l.vrTitle, l.vrSub, () {
+                  final last = ProgressScope.read(context).lastRead;
+                  final g = last == null ? 7 : MushafRepo.globalAyahOf(last.$1, last.$2);
+                  pushAdaptive(context, VerseReviewScreen(ayahs: ayahsToSurahEnd(g), title: l.vrTitle));
+                }),
+                row(AppIcons.bolt, l.vrMarkedAyahs, l.vrMarkedAyahsSub(markedAyahs(store).length),
+                    () => pushAdaptive(context,
+                        VerseReviewScreen(ayahs: markedAyahs(store), title: l.vrMarkedAyahs))),
                 row(AppIcons.recite, l.psPractisePassage, l.psPractisePassageSub, passage),
                 row(AppIcons.timer, l.mdTitle, l.mdSub,
                     () => pushAdaptive(context, const MaddScreen())),

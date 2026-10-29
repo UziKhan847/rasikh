@@ -12,6 +12,7 @@ import '../../ui/adaptive_sheet.dart';
 import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import 'passage_screen.dart' show PassageScreen, passageFrom;
+import 'verse_review_screen.dart';
 
 /// The Reader's fluency marking: a tap on a word marks it not fluent,
 /// pairs it with the next word, or opens its split into stem and
@@ -130,6 +131,18 @@ class FluencyWordPanel extends StatelessWidget {
           subtitle: chunk == null ? l.flSplitSub : _splitShown(form, chunk.prefix, chunk.suffix),
           chevron: true,
           onTap: () => showChunkEditor(context, script, ref),
+        ),
+        QRow(
+          title: l.vrFromHere,
+          subtitle: l.vrSub,
+          chevron: true,
+          onTap: () {
+            final nav = Navigator.of(context);
+            final title = l.vrTitle;
+            nav.pop();
+            nav.push(MaterialPageRoute<void>(
+                builder: (_) => VerseReviewScreen(ayahs: ayahsToSurahEnd(ref.globalAyah), title: title)));
+          },
         ),
         QRow(
           title: l.psPractisePassage,

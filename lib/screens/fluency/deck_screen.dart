@@ -3,11 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/audio.dart';
 import '../../core/fluency/chunks.dart';
+import '../../core/fluency/fluency_audio.dart';
 import '../../core/fluency/fluency_store.dart';
 import '../../core/l10n.dart';
-import '../../core/marks/qc_words.dart';
 import '../../core/marks/word_ref.dart';
 import '../../core/responsive.dart';
 import '../../core/settings.dart';
@@ -86,21 +85,33 @@ List<FluencyCard> deckCards(BuildContext context, FluencyStore store, String scr
     }
   }
 
+  void pairs() {
+    for (final m in store.marksOf(FluencyKind.pair)) {
+      add(FluencyCard(m.cardId, m.form,
+          note: joinLabel(context, m.join), words: [m.ref, ...refsAt(_tokAfter(script, m.ref), 1)]));
+    }
+  }
+
+  void chunks() {
+    for (final m in store.marksOf(FluencyKind.chunk)) {
+      add(FluencyCard(m.cardId, m.form, chunk: (m.prefix, m.suffix), words: [m.ref]));
+    }
+  }
+
   switch (deck) {
     case Deck.warmup:
+      // Everything marked (words, pairs, chunks), then the plan week's
+      // common words.
       words();
+      pairs();
+      chunks();
       if (tierOfWeek(store.week) case final t?) tier(t);
     case Deck.words:
       words();
     case Deck.pairs:
-      for (final m in store.marksOf(FluencyKind.pair)) {
-        add(FluencyCard(m.cardId, m.form,
-            note: joinLabel(context, m.join), words: [m.ref, ...refsAt(_tokAfter(script, m.ref), 1)]));
-      }
+      pairs();
     case Deck.chunks:
-      for (final m in store.marksOf(FluencyKind.chunk)) {
-        add(FluencyCard(m.cardId, m.form, chunk: (m.prefix, m.suffix), words: [m.ref]));
-      }
+      chunks();
     case Deck.tier1:
       tier(1);
     case Deck.tier2:
@@ -124,19 +135,8 @@ List<FluencyCard> deckCards(BuildContext context, FluencyStore store, String scr
 
 int _tokAfter(String script, WordRef r) => MushafRepo.tokenOf(script, r.globalAyah, r.word0) + 1;
 
-/// Plays [words]: together if they're one āyah's, in a row; else the first.
-void playFluencyWords(List<WordRef> words) {
-  if (words.isEmpty) return;
-  final a = words.first;
-  final qc = qcWordOf(a.globalAyah, a.word0) + 1;
-  final sameAyah = words.every((w) => w.surah == a.surah && w.ayah == a.ayah);
-  if (words.length > 1 && sameAyah) {
-    final last = qcWordOf(a.globalAyah, words.last.word0) + 1;
-    WbwAudio.instance.playWords(a.surah, a.ayah, qc, last, (_) {});
-  } else {
-    WbwAudio.instance.playWord(a.surah, a.ayah, qc);
-  }
-}
+/// Plays [words] as Ḥuṣarī recites them, joined (see FluencyAudio).
+void playFluencyWords(List<WordRef> words) => FluencyAudio.instance.play(words);
 
 class DeckScreen extends StatefulWidget with DesktopAware {
   final Deck deck;
@@ -196,7 +196,7 @@ class _DeckScreenState extends State<DeckScreen> {
   void dispose() {
     _tick?.cancel();
     _focus.dispose();
-    WbwAudio.instance.stop();
+    FluencyAudio.instance.stop();
     super.dispose();
   }
 

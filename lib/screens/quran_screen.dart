@@ -1430,6 +1430,12 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
     final marking = _marksTool;
     final mp = _markPal;
     MarkVisual? segVisual;
+    // The Reader's fluency marks on the segment's words, together.
+    FluencyVisual? segFluency;
+    for (var w = first; w <= last; w++) {
+      final v = _fluencyOf(_fluencyMarks, s.quranScript, ayahIdx, w);
+      if (v != null) segFluency = segFluency == null ? v : segFluency.merge(v);
+    }
     // Looked up once per segment, not per word / tajwīd piece.
     final qs = quranStyle(context);
     final tjColors = tj == null ? null : tajwidColorsFor(p);
@@ -1467,9 +1473,9 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
     final Widget textWidget = CustomPaint(
       // The pattern line goes at the foot of the box, below the kasrahs (a
       // text decoration would cut through them).
-      foregroundPainter: segVisual == null || mp == null
+      foregroundPainter: (segVisual == null || mp == null) && segFluency == null
           ? null
-          : _SegmentMarkPainter(segVisual!, mp),
+          : _SegmentMarkPainter(segVisual, mp, segFluency, fluencyColor(dark: p.isDark)),
       child:
           Text.rich(TextSpan(children: spans), textDirection: TextDirection.rtl),
     );
@@ -1711,20 +1717,30 @@ class _BookmarkButton extends StatelessWidget {
 }
 
 /// A marked word's pattern line, along the foot of its segment box.
+/// A segment's marks: Hifẓ's pattern line at its foot, the Reader's
+/// fluency marks around it.
 class _SegmentMarkPainter extends CustomPainter {
-  final MarkVisual v;
-  final MarkPalette pal;
-  _SegmentMarkPainter(this.v, this.pal);
+  final MarkVisual? v;
+  final MarkPalette? pal;
+  final FluencyVisual? fluency;
+  final Color fluencyColour;
+  _SegmentMarkPainter(this.v, this.pal, this.fluency, this.fluencyColour);
 
   @override
   void paint(Canvas canvas, Size size) {
     const t = 1.8;
-    paintMarkLine(canvas, Offset(2, size.height - t), size.width - 4, v, pal,
-        thickness: t);
+    if (v != null && pal != null) {
+      paintMarkLine(canvas, Offset(2, size.height - t), size.width - 4, v!, pal!,
+          thickness: t);
+    }
+    if (fluency case final f?) {
+      paintFluency(canvas, Offset.zero & size, f, fs: size.height * .45, color: fluencyColour);
+    }
   }
 
   @override
-  bool shouldRepaint(_SegmentMarkPainter old) => old.v != v || old.pal != pal;
+  bool shouldRepaint(_SegmentMarkPainter old) =>
+      old.v != v || old.pal != pal || old.fluency != fluency || old.fluencyColour != fluencyColour;
 }
 
 class _AaButton extends StatelessWidget {

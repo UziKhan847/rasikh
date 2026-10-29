@@ -3,7 +3,7 @@ import 'dart:ui';
 import '../core/fluency/fluency_store.dart';
 
 /// How fluency marks are drawn, on the verse cards and the muṣḥaf's lines
-/// alike: not fluent, a dotted line under the word; a pair, a bridge under
+/// alike: not fluent, a soft amber wash and a dotted line under the word; a pair, a bridge under
 /// the gap between its words (each word draws its half); a word split into
 /// stem and attachments, a dot above it.
 
@@ -24,6 +24,9 @@ void paintFluency(Canvas canvas, Rect word, FluencyVisual v,
     ..strokeCap = StrokeCap.round
     ..strokeWidth = (fs * .05).clamp(1.2, 2.6);
   if (v.slow) {
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(word.inflate(fs * .06), Radius.circular(fs * .2)),
+        Paint()..color = color.withValues(alpha: .13));
     final dot = Paint()..color = color;
     final r = (fs * .035).clamp(1.0, 2.2);
     final step = r * 3.2;
