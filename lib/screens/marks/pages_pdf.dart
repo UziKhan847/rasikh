@@ -81,13 +81,38 @@ class _PagesSheet extends StatefulWidget {
 
 class _PagesSheetState extends State<_PagesSheet> {
   _Range _range = _Range.pages;
-  late int _from = widget.currentPage, _to = widget.currentPage;
+  // What's typed in each field, left as typed: neither moves the other
+  // (typing 45 on the way to 450 would). The range is the two numbers
+  // either way round.
+  late final _fromText = TextEditingController(text: '${widget.currentPage}');
+  late final _toText = TextEditingController(text: '${widget.currentPage}');
   late int _surah = MushafRepo.firstVerseOfPage(widget.script, widget.currentPage).$1;
   late int _juz = MushafRepo.juzOfPage(widget.script, widget.currentPage);
   Set<MarkType> _types = const {};
   ReviewStatus _status = ReviewStatus.open;
   bool _onlyMarked = false;
   Map<int, String> _tnames = const {};
+
+  @override
+  void dispose() {
+    _fromText.dispose();
+    _toText.dispose();
+    super.dispose();
+  }
+
+  /// [c]'s page, if it's one of the muṣḥaf's.
+  int? _pageIn(TextEditingController c) {
+    final n = int.tryParse(c.text.trim());
+    return n != null && n >= 1 && n <= MushafRepo.pageCountSync(widget.script)
+        ? n
+        : null;
+  }
+
+  List<int> get _typedPages {
+    final a = _pageIn(_fromText), b = _pageIn(_toText);
+    if (a == null || b == null) return const [];
+    return [for (var p = a < b ? a : b; p <= (a < b ? b : a); p++) p];
+  }
 
   @override
   void initState() {
@@ -102,7 +127,7 @@ class _PagesSheetState extends State<_PagesSheet> {
         bookId: widget.bookId,
         script: widget.script,
         pages: switch (_range) {
-          _Range.pages => [for (var p = _from; p <= _to; p++) p],
+          _Range.pages => _typedPages,
           _Range.surah => pagesOfSurah(widget.script, _surah),
           _Range.juz => pagesOfJuz(widget.script, _juz),
         },
@@ -125,17 +150,17 @@ class _PagesSheetState extends State<_PagesSheet> {
     final mp = markPaletteFor(p, mono: SettingsScope.of(context).appTheme == 'mono');
     final total = MushafRepo.pageCountSync(widget.script);
     final pages = _export.chosenPages();
-    Widget pageField(int value, ValueChanged<int> onChanged, String label) =>
-        Expanded(
-          child: TextFormField(
-            key: ValueKey('$label/$value'),
-            initialValue: '$value',
+    Widget pageField(TextEditingController c, String label) => Expanded(
+          child: TextField(
+            controller: c,
             keyboardType: TextInputType.number,
-            decoration: InputDecoration(labelText: label, isDense: true),
-            onChanged: (v) {
-              final n = int.tryParse(v);
-              if (n != null && n >= 1 && n <= total) setState(() => onChanged(n));
-            },
+            decoration: InputDecoration(
+              labelText: label,
+              isDense: true,
+              // Only once something's typed that isn't a page.
+              errorText: c.text.isEmpty || _pageIn(c) != null ? null : '1–$total',
+            ),
+            onChanged: (_) => setState(() {}),
           ),
         );
     return SafeArea(
@@ -158,17 +183,14 @@ class _PagesSheetState extends State<_PagesSheet> {
             ),
             const SizedBox(height: 10),
             switch (_range) {
-              _Range.pages => Row(children: [
-                  pageField(_from, (n) {
-                    _from = n;
-                    if (_to < n) _to = n;
-                  }, l.ppFrom),
-                  const SizedBox(width: 12),
-                  pageField(_to, (n) {
-                    _to = n;
-                    if (_from > n) _from = n;
-                  }, l.ppTo),
-                ]),
+              _Range.pages => Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    pageField(_fromText, l.ppFrom),
+                    const SizedBox(width: 12),
+                    pageField(_toText, l.ppTo),
+                  ],
+                ),
               _Range.surah => DropdownButton<int>(
                   isExpanded: true,
                   value: _surah,

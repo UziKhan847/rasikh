@@ -29,6 +29,53 @@ void main() {
     expect(pagesOfJuz('uthmani', 1), [for (var p = 1; p <= 21; p++) p]);
   });
 
+  testWidgets('typing one end of the range leaves the other be', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final s = AppSettings();
+    await s.load();
+    final m = MarksStore(persistence: MemoryMarksPersistence(), saveDelay: Duration.zero);
+    await m.load();
+    final b = m.ensureActiveBook('Zayd').id;
+    await tester.pumpWidget(SettingsScope(
+      settings: s,
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+        home: Builder(
+          builder: (c) => TextButton(
+            onPressed: () => showPagesExportSheet(c,
+                store: m, bookId: b, script: 'uthmani', currentPage: 450),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    final from = find.widgetWithText(TextField, 'From page');
+    final to = find.widgetWithText(TextField, 'To page');
+    String text(Finder f) => tester.widget<TextField>(f).controller!.text;
+    // On the way from 450 to 455: 45, then 455.
+    await tester.enterText(to, '45');
+    await tester.pump();
+    expect(text(from), '450');
+    expect(find.text('6 pages'), findsNothing);
+    await tester.enterText(to, '455');
+    await tester.pump();
+    expect(text(from), '450');
+    expect(find.text('6 pages'), findsOneWidget);
+    // Either way round.
+    await tester.enterText(from, '460');
+    await tester.pump();
+    expect(find.text('6 pages'), findsOneWidget);
+    await tester.enterText(to, '700');
+    await tester.pump();
+    expect(find.text('1–604'), findsOneWidget);
+    expect(find.text('No pages to export'), findsOneWidget);
+    await m.flush();
+  });
+
   testWidgets('each mark on the pages gets its note and leader, on the '
       'nearer side; filters and "only marked" hold', (tester) async {
     SharedPreferences.setMockInitialValues({});
