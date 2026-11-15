@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
 import '../../core/marks/marks_model.dart';
+import '../../core/responsive.dart';
+import '../../core/settings.dart';
 import '../../core/theme.dart';
 import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
 import 'marking.dart';
+
+/// Desktop mode's pens, in the order of their keys (1 to 5).
+const kMarkPens = [...MarkType.pens, MarkType.note];
 
 /// The bar shown while marking: the order a tap steps a word's mark through
 /// (mistake → tajwīd → hesitation → doubt → off), what the last tap did, then
@@ -24,6 +29,10 @@ class MarkingBar extends StatelessWidget {
   /// Set: the Hifẓ home's slot — one dense row (its caption in a tooltip)
   /// or a column beside the pages. Unset: caption over the controls.
   final Axis? axis;
+
+  /// Mark mode's own tools beside the cycle (the muṣḥaf home's comment
+  /// and eraser).
+  final List<Widget> tools;
   const MarkingBar({
     super.key,
     required this.controller,
@@ -37,6 +46,7 @@ class MarkingBar extends StatelessWidget {
     required this.onUndo,
     this.floating = false,
     this.axis,
+    this.tools = const [],
   });
 
   @override
@@ -45,8 +55,30 @@ class MarkingBar extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         final last = controller.lastType;
+        // Desktop mode's pens: chosen like a notes app's (keys 1 to 5 too), or
+        // the tap steps through the kinds; a swatch's tap goes to the pen.
+        final settings = SettingsScope.maybeOf(context);
+        final desktop = settings != null && useDesktop(context);
+        final penMode = desktop && settings.markMethod == 'pen';
+        final pen = penMode ? MarkType.fromCode(settings.markPen) : null;
+        final steps = penMode ? kMarkPens : MarkType.pens;
+        void Function()? choose(MarkType t) => desktop
+            ? () => settings.update(() {
+                  settings.markMethod = 'pen';
+                  settings.markPen = t.code;
+                })
+            : null;
+        String tip(MarkType t) {
+          final label = markTypeLabel(context, t);
+          final n = kMarkPens.indexOf(t) + 1;
+          return desktop && n > 0 ? '$label ($n)' : label;
+        }
+
         final String title, hint;
-        if (!controller.tapped) {
+        if (penMode && !controller.tapped) {
+          title = markTypeLabel(context, pen!);
+          hint = context.l10n.mkPenHint;
+        } else if (!controller.tapped) {
           title = '';
           hint = context.l10n.mkTapToMark;
         } else if (last == null) {
@@ -61,19 +93,27 @@ class MarkingBar extends StatelessWidget {
         // is ringed. Laid out left to right explicitly: the icon font mirrors
         // chevrons inside right-to-left text.
         final cycle = Row(mainAxisSize: MainAxisSize.min, children: [
-          for (final (i, t) in MarkType.pens.reversed.indexed) ...[
+          for (final (i, t) in steps.reversed.indexed) ...[
             if (i > 0)
-              Icon(AppIcons.chevronLeft, size: 14, color: sub),
+              penMode
+                  ? const SizedBox(width: 4)
+                  : Icon(AppIcons.chevronLeft, size: 14, color: sub),
             _CycleStep(
               type: t,
-              current: controller.tapped && t == last,
+              current: penMode ? t == pen : controller.tapped && t == last,
               pal: pal,
               ring: ink,
-              tooltip: markTypeLabel(context, t),
+              tooltip: tip(t),
+              onTap: choose(t),
             ),
           ],
         ]);
         final actions = Row(mainAxisSize: MainAxisSize.min, children: [
+          if (tools.isNotEmpty) ...[
+            Container(width: 1, height: 28, color: line),
+            const SizedBox(width: 2),
+            ...tools,
+          ],
           Container(width: 1, height: 28, color: line),
           const SizedBox(width: 4),
           IconButton(
@@ -131,17 +171,25 @@ class MarkingBar extends StatelessWidget {
           return Column(mainAxisSize: MainAxisSize.min, children: [
             caption,
             const SizedBox(height: 10),
-            for (final (i, t) in MarkType.pens.indexed) ...[
-              if (i > 0) Icon(AppIcons.chevronDown, size: 14, color: sub),
+            for (final (i, t) in steps.indexed) ...[
+              if (i > 0)
+                penMode
+                    ? const SizedBox(height: 4)
+                    : Icon(AppIcons.chevronDown, size: 14, color: sub),
               _CycleStep(
                 type: t,
-                current: controller.tapped && t == last,
+                current: penMode ? t == pen : controller.tapped && t == last,
                 pal: pal,
                 ring: ink,
-                tooltip: markTypeLabel(context, t),
+                tooltip: tip(t),
+                onTap: choose(t),
               ),
             ],
             const SizedBox(height: 8),
+            if (tools.isNotEmpty) ...[
+              Container(height: 1, width: 40, color: line),
+              ...tools,
+            ],
             Container(height: 1, width: 40, color: line),
             IconButton(
               tooltip: context.l10n.mkUndo,
@@ -200,12 +248,14 @@ class _CycleStep extends StatelessWidget {
   final MarkPalette pal;
   final Color ring;
   final String tooltip;
+  final VoidCallback? onTap;
   const _CycleStep({
     required this.type,
     required this.current,
     required this.pal,
     required this.ring,
     required this.tooltip,
+    this.onTap,
   });
 
   @override
@@ -216,19 +266,26 @@ class _CycleStep extends StatelessWidget {
       child: Semantics(
         selected: current,
         label: tooltip,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: current ? c.withValues(alpha: .18) : Colors.transparent,
-            border: Border.all(
-                color: current ? c : ring.withValues(alpha: .15),
-                width: current ? 2.2 : 1),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: MouseRegion(
+            cursor: onTap == null ? MouseCursor.defer : SystemMouseCursors.click,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: current ? c.withValues(alpha: .18) : Colors.transparent,
+                border: Border.all(
+                    color: current ? c : ring.withValues(alpha: .15),
+                    width: current ? 2.2 : 1),
+              ),
+              alignment: Alignment.center,
+              child: MarkSwatch(type: type, pal: pal, size: 16),
+            ),
           ),
-          alignment: Alignment.center,
-          child: MarkSwatch(type: type, pal: pal, size: 16),
         ),
       ),
     );
@@ -253,7 +310,7 @@ class MarkLegend extends StatelessWidget {
           ],
         );
     return Wrap(spacing: 14, runSpacing: 6, children: [
-      for (final t in MarkType.values) item(t, markTypeLabel(context, t)),
+      for (final t in MarkType.marking) item(t, markTypeLabel(context, t)),
       if (includeFixed) item(null, context.l10n.mkFixed),
     ]);
   }

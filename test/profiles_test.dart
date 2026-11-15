@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/marks/marks_model.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
-import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
-import 'package:qiraah_arabiyyah/core/profiles.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
+import 'package:rasikh/core/marks/marks_model.dart';
+import 'package:rasikh/core/marks/marks_persistence.dart';
+import 'package:rasikh/core/marks/marks_store.dart';
+import 'package:rasikh/core/marks/word_ref.dart';
+import 'package:rasikh/core/profiles.dart';
+import 'package:rasikh/core/settings.dart';
 
 /// Profiles: the default one is what was here before (nothing moves); a
 /// new one starts empty and picks its mode; switching back brings
@@ -32,7 +32,6 @@ void main() {
         disks.putIfAbsent(dir, MemoryMarksPersistence.new);
     settings = AppSettings();
     await settings.load();
-    settings.appMode = 'hifz';
     profiles = ProfileStore(persistenceFor: disk);
     await profiles.load(settings);
     progress = ProgressStore();
@@ -52,7 +51,7 @@ void main() {
     expect(disks.keys, ['marks']);
   });
 
-  test('a new profile starts empty and picks its mode; back again, '
+  test('a new profile starts empty; back again, '
       'everything is as it was', () async {
     final x = await profiles.add('Aisha');
     await profiles.switchTo(x.id, settings: settings, progress: progress, marks: marks);
@@ -62,10 +61,8 @@ void main() {
     expect(progress.bookmarks, isEmpty);
     expect(marks.ready, isTrue);
     expect(marks.books, isEmpty);
-    expect(settings.mode, isNull, reason: 'a new profile chooses its mode');
 
     progress.report('qaidah.forms', 2);
-    settings.appMode = 'learn';
     await Future<void>.delayed(const Duration(milliseconds: 50));
 
     await profiles.switchTo(ProfileStore.defaultId,
@@ -74,11 +71,9 @@ void main() {
     expect(progress.starsFor('qaidah.forms'), 0);
     expect(progress.lastMushafPage, 245);
     expect(marks.activeBook?.name, 'Me');
-    expect(settings.mode, AppMode.hifz);
 
     await profiles.switchTo(x.id, settings: settings, progress: progress, marks: marks);
     expect(progress.starsFor('qaidah.forms'), 2);
-    expect(settings.mode, AppMode.learn);
   });
 
   test('deleting a profile takes its data with it', () async {

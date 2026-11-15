@@ -41,7 +41,10 @@ class _MarksStatsScreenState extends State<MarksStatsScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_pagesReady || _meta.isNotEmpty) return;
-    _script = SettingsScope.of(context).mushafScript;
+    // (Old Madani counts under Madani: the same words.)
+    _script = SettingsScope.of(context).mushafScript == 'indopak'
+        ? 'indopak'
+        : 'uthmani';
     _bookId = widget.bookId;
     _loadPages();
   }
@@ -333,6 +336,7 @@ class _MarksStatsScreenState extends State<MarksStatsScreen> {
       title: context.l10n.mkStatistics,
       subtitle: store.book(bookId)?.name,
       maxWidth: 900,
+      lazy: true,
       actions: [
         QIconButton(
           icon: AppIcons.pdf,

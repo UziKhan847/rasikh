@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -7,21 +8,31 @@ import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/services.dart';
 
 import '../core/audio.dart';
+import '../core/follow/follow_session.dart';
 import '../core/l10n.dart';
 import '../core/marks/marks_model.dart';
 import '../core/marks/marks_store.dart';
 import '../core/marks/qc_words.dart';
+import '../core/bookmarks.dart';
+import '../core/desktop_window.dart';
+import '../core/keymap.dart';
 import '../core/marks/word_ref.dart';
 import '../core/perf_log.dart';
 import '../core/responsive.dart';
 import '../core/settings.dart';
 import '../core/theme.dart';
 import '../data/mushaf_atlas.dart';
+import '../data/original/original_atlas.dart';
 import 'mushaf/mushaf_style_screen.dart';
+import 'button_guide.dart';
+import 'keyboard_sheet.dart';
+import 'marks/word_menu.dart';
 import 'mushaf/trackpad_pager.dart';
 import 'mushaf/mushaf_index_sheet.dart';
+import 'mushaf/pack_sheet.dart';
 import 'quran_screen.dart';
 import '../core/memorize.dart';
+import '../core/mushaf_edition.dart' show mushafEditionName;
 import '../core/recite_back.dart';
 import 'mushaf/memorize_bar.dart';
 import 'mushaf/memorize_cards_screen.dart';
@@ -30,7 +41,8 @@ import 'marks/review_bar.dart';
 import 'marks/review_cards_screen.dart';
 import '../ui/ornaments/ornaments.dart';
 import '../ui/tajwid_colors.dart';
-import '../data/divisions.dart' show Division, divisionCount, manzilOf, rukuCountOf;
+import '../data/divisions.dart'
+    show Division, divisionCount, manzilOf, rukuCountOf;
 import '../data/page_details.dart';
 import '../data/mushaf.dart';
 import '../data/quran.dart';
@@ -41,13 +53,18 @@ import '../ui/tool_popover.dart';
 import '../ui/adaptive_sheet.dart';
 import 'marks/marking.dart';
 import 'marks/marking_bar.dart';
-import 'marks/report_pdf.dart' show showReportSheet;
-import 'marks/pages_pdf.dart' show showPagesExportSheet;
+import 'marks/export_sheet.dart'
+    show ExportPickUnit, ExportPicked, showExportSheet;
 import 'marks/mutashabihat_screen.dart';
 import 'marks/word_marks_sheet.dart';
+import 'mushaf/edition_picker.dart';
 import 'mushaf/mushaf_line.dart';
+import 'mushaf/original_page.dart';
 import 'mushaf/mushaf_marks_layer.dart';
-import 'mushaf/hifz_dock.dart';
+import 'mushaf/header_chips.dart';
+import 'mushaf/tool_circles.dart';
+import 'mushaf/tool_popovers.dart';
+import 'marks/review_setup_sheet.dart' show ReviewView;
 import 'mushaf/hifz_layout.dart';
 import 'mushaf/page_rail.dart';
 import 'mushaf/mushaf_zoom.dart';
@@ -57,10 +74,15 @@ import '../core/fluency/fluency_store.dart';
 import 'profiles_sheet.dart';
 import '../core/profiles.dart';
 import '../core/display_rotation.dart';
-import 'shell/app_mode.dart' show openSection, showModeSheet;
+import 'shell/sections.dart' show openSection;
 import 'shell/app_shell.dart';
+import '../ui/overlay_screen.dart';
+
+import 'follow/follow_ui.dart';
+import 'marks/word_sheet.dart';
 
 part 'mushaf/hifz_chrome.dart';
+part 'mushaf/follow_chrome.dart';
 
 /// 📖 True 15-line Muṣḥaf — page-for-page and line-for-line with the printed
 /// QUL/DigitalKhatt layout, in Madani (Uthmānī) *and* Indo-Pak scripts.
@@ -99,20 +121,21 @@ class MushafPageScreen extends StatefulWidget with DesktopAware {
   /// toolbar (see [_hifzBody]).
   final bool home;
 
-  /// The Reader's page view (see ReaderHost): back goes to the index, the
+  /// The Reader's page view (see VersesView): back goes to the index, the
   /// switch to the verses; no Hifẓ tools or marks (fluency's instead).
   final ReaderLink? reader;
-  const MushafPageScreen(
-      {super.key,
-      this.home = false,
-      this.startPage = 1,
-      this.script,
-      this.pageScript,
-      this.startMarking = false,
-      this.focus,
-      this.review,
-      this.memorize,
-      this.reader});
+  const MushafPageScreen({
+    super.key,
+    this.home = false,
+    this.startPage = 1,
+    this.script,
+    this.pageScript,
+    this.startMarking = false,
+    this.focus,
+    this.review,
+    this.memorize,
+    this.reader,
+  });
 
   @override
   State<MushafPageScreen> createState() => _MushafPageScreenState();
@@ -166,6 +189,98 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// Hifẓ mode's word tool (comment, eraser, audio), when one is on.
   _HifzTool _hifzTool = _HifzTool.none;
 
+  /// Following: the page it last turned to itself (one turned by hand is
+  /// where they'll go on), and whether it was paused as the app went away.
+  int? _followTurnTo;
+  bool _followPausedAway = false;
+
+  /// Memorizing, revealing what's recited (Follow my recitation).
+  bool _memoFollow = false;
+
+  /// Tests: how far memorize has revealed.
+  @visibleForTesting
+  int get debugMemoEnd => _memo?.revealedEnd ?? -1;
+  void _followWordL() => _onFollowWord();
+
+  // ── Shift and a drag: one mark over many words ──
+
+  WordRef? _spanFrom, _spanTo;
+  OverlayEntry? _spanLabel;
+  Offset _spanAt = Offset.zero;
+  String _spanText = '';
+
+  void _spanStart(WordRef from) {
+    _spanFrom = _spanTo = from;
+    GestureBinding.instance.pointerRouter.addGlobalRoute(_spanRoute);
+  }
+
+  void _spanRoute(PointerEvent e) {
+    final from = _spanFrom;
+    if (from == null) return;
+    if (e is PointerMoveEvent) {
+      final w = mushafWordAtGlobal(e.position);
+      if (w != null && !w.isMarker) _spanTo = WordRef.fromGlobal(w.ayah, w.wordIdx);
+      _spanAt = e.position;
+      _spanShowLabel();
+    } else if (e is PointerUpEvent || e is PointerCancelEvent) {
+      GestureBinding.instance.pointerRouter.removeGlobalRoute(_spanRoute);
+      _spanLabel?.remove();
+      _spanLabel = null;
+      final to = _spanTo;
+      _spanFrom = _spanTo = null;
+      if (!mounted || e is PointerCancelEvent || to == null) return;
+      if (to.key == from.key) {
+        _marking.stepMark(context, from);
+      } else {
+        _marking.markSpan(context, from, to);
+      }
+      _lastWordTap = DateTime.now();
+    }
+  }
+
+  /// Beside the pointer while dragging: from where to where, how many words.
+  void _spanShowLabel() {
+    final from = _spanFrom, to = _spanTo;
+    if (from == null || to == null || !mounted) return;
+    String ref(WordRef w) => '${w.surah}:${w.ayah}:${w.word}';
+    final (a, b) = from.globalAyah < to.globalAyah ||
+            (from.globalAyah == to.globalAyah && from.word0 <= to.word0)
+        ? (from, to)
+        : (to, from);
+    final n = Mark(id: '', bookId: '', ref: a, to: b, type: MarkType.mistake,
+                authorId: '', createdAt: 0, clientUpdated: 0)
+            .spanWords(MarksStore.ayahWords)
+            ?.length;
+    final text = a.key == b.key ? ref(a) : '${ref(a)} → ${ref(b)}${n == null ? '' : ' · $n'}';
+    _spanText = text;
+    final fresh = _spanLabel == null;
+    final entry = _spanLabel ??= OverlayEntry(
+      builder: (context) => Positioned(
+        left: _spanAt.dx + 14,
+        top: _spanAt.dy + 14,
+        child: IgnorePointer(
+          child: Material(
+            color: Colors.black.withValues(alpha: .78),
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Text(_spanText,
+                  key: const ValueKey('span-label'),
+                  style: const TextStyle(color: Colors.white, fontSize: 12)),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (fresh) {
+      Overlay.of(context).insert(entry);
+    } else {
+      entry.markNeedsBuild();
+    }
+  }
+  void _followJumpL() => _onFollowJump();
+  void _followStatusL() => _onFollowStatus();
+
   /// The Hifẓ home's zoom: on, the pages pinch and pan and don't swipe
   /// (see [MushafZoom]); the pager keeps its place by [_pagerKey] as zoom
   /// wraps it.
@@ -187,7 +302,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   /// The Hifẓ home on its side: the dock on the left (camera on the right),
   /// and the window size it was worked out for.
-  bool _dockLeft = false;
+  final _dockLeftOn = ValueNotifier(false);
+  bool _dockByCamera = false;
+  bool get _dockLeft => _dockLeftOn.value;
+
+  /// The muṣḥaf home's ⋯ fan, open; its button (the fan's popovers open
+  /// from it).
+  bool _fanOpen = false;
+  final _moreKey = GlobalKey();
   Size? _rotationFor;
 
   /// setState, for the Hifẓ chrome (an extension: see hifz_chrome.dart).
@@ -257,6 +379,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   @override
   void initState() {
     super.initState();
+    if (widget.home) HomeLink._home = this;
     WidgetsBinding.instance.addObserver(this);
     // A turn from one side straight to the other: the window keeps its size,
     // only this says so.
@@ -264,6 +387,23 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     initRecitationTracking();
     _doneSub = AyahAudio.instance.onComplete.listen(_onVerseDone);
     _marking.addListener(_onMarking);
+    FollowSession.instance.word.addListener(_followWordL);
+    FollowSession.instance.jumps.addListener(_followJumpL);
+    FollowSession.instance.status.addListener(_followStatusL);
+    // Fed a recording in place of the microphone (desktop, for checking
+    // the whole of it): following starts by itself.
+    if (widget.home && SherpaFollowEngine.feedFile != null) {
+      Future<void>.delayed(const Duration(seconds: 4), () {
+        if (!mounted || _following) return;
+        // RASIKH_FOLLOW_MEMO: memorizing, revealing what's recited.
+        if (Platform.environment['RASIKH_FOLLOW_MEMO'] != null) {
+          _startMemorize();
+          _memoListen();
+        } else {
+          _hifzFollow();
+        }
+      });
+    }
     PerfLog.start();
   }
 
@@ -290,8 +430,178 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     _load();
   }
 
+  /// Choosing the export's pages by tapping them (see [_pickExportRange]).
+  _ExportPick? _exportPick;
+
+  bool _resumed = false;
+
+  /// The app was left in the Reader: back there, at its last verse. Back out
+  /// and the page shows where the reading got to.
+  /// Coming back to the Reader: the page, which is built under it first, isn't
+  /// to be seen. Covered from the first frame until the Reader is up.
+  late bool _resumeCover = () {
+    if (!widget.home) return false;
+    final prog = ProgressScope.read(context);
+    return prog.inVerses && prog.lastRead != null;
+  }();
+
+  Future<void> _uncoverResume() async {
+    for (var i = 0; i < 2 && mounted; i++) {
+      SchedulerBinding.instance.scheduleFrame();
+      await SchedulerBinding.instance.endOfFrame;
+    }
+    if (mounted && _resumeCover) setState(() => _resumeCover = false);
+  }
+
+  void _resumeReader() {
+    if (_resumed || !widget.home) return;
+    _resumed = true;
+    final prog = ProgressScope.read(context);
+    final last = prog.lastRead;
+    if (!prog.inVerses || last == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // The page settles first: it comes back when the Reader is closed.
+      for (var i = 0; i < 3 && mounted; i++) {
+        SchedulerBinding.instance.scheduleFrame();
+        await SchedulerBinding.instance.endOfFrame;
+      }
+      if (!mounted) return;
+      final p = await resumeVerses(
+        context,
+        _script,
+        last.$1,
+        last.$2,
+        onPushed: _uncoverResume,
+      );
+      if (!mounted) return;
+      if (p != null) {
+        _jump(p.page);
+        return _carryOn(p.mode);
+      }
+      final now = prog.lastRead ?? last;
+      _jump(
+        MushafRepo.pageForGlobalAyah(
+          _script,
+          MushafRepo.globalAyahOf(now.$1, now.$2),
+        ),
+      );
+    });
+  }
+
+  // ── the print's page atlases ──
+
+  /// The set this device draws Old Madani from, while it's the muṣḥaf open.
+  OriginalAtlas? _original;
+  bool _originalLite = false;
+
+  /// False if the print's files aren't here (see [_packGone]).
+  Future<bool> _openOriginal() async {
+    if (!isOriginalScript(_script)) return true;
+    final lite = _originalLite = SettingsScope.of(context).lite;
+    final tier = await originalTierOfDevice(lite: lite);
+    final OriginalAtlas a;
+    try {
+      a = await OriginalAtlas.open(_script, tier);
+    } on Object catch (e) {
+      debugPrint('muṣḥaf: $e');
+      if (mounted && isOriginalScript(_script)) _packGone(_script);
+      return false;
+    }
+    if (!mounted || !isOriginalScript(_script) || identical(a, _original)) return true;
+    _original?.release(this);
+    _original = a;
+    _pageMemo.clear();
+    _holdOriginal();
+    final s = _settingsRef;
+    if (s != null) {
+      final (first, last) = _originalPagesAt(_page, s);
+      await a.whenReady(first, maxMs: 1500);
+      if (last != first) await a.whenReady(last, maxMs: 500);
+    }
+    if (mounted && _ready) setState(() {});
+    return true;
+  }
+
+  /// The print's files have gone (a folder moved, a drive away): back to New
+  /// Madani at the same place, and a way to point to them again.
+  void _packGone(String script) {
+    final l = context.l10n;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final name = mushafEditionName(l, script);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _switchScript('uthmani');
+      messenger?.showSnackBar(SnackBar(
+        persist: false,
+        duration: const Duration(seconds: 6),
+        content: Text(l.packGone(name)),
+        action: SnackBarAction(
+          label: l.packChoose,
+          onPressed: () async {
+            if (!mounted) return;
+            if (await showPackSheet(context, script) && mounted) _switchScript(script);
+          },
+        ),
+      ));
+    });
+  }
+
+  void _releaseOriginal() {
+    _original?.release(_jumpHold);
+    _original?.release(this);
+    _original = null;
+  }
+
+  /// Keeps what's on screen and 3 pages each way in memory: a swipe disposes
+  /// the far side and loads the near one (two of each with two pages facing).
+  void _holdOriginal({int reach = 3}) {
+    final a = _original;
+    final s = _settingsRef;
+    if (a == null || s == null) return;
+    final (first, last) = _originalPagesAt(_pendingPage ?? _page, s);
+    a.warmClassic = s.oldMadaniCircle == 'classic';
+    a.hold(this, first, last, reach: reach);
+  }
+
+  /// The pages on screen with [page]: of two facing, both.
+  (int, int) _originalPagesAt(int page, AppSettings s) {
+    final spread = (_desktop && _view(s) == 'spread') || _phoneSpread;
+    final first = spread ? _spreadStart(page) : page;
+    return (first, spread ? first + 1 : first);
+  }
+
+  /// The system is short of memory: only the pages next to this one, so a
+  /// swipe still finds its page; the next page change widens it again.
+  @override
+  void didHaveMemoryPressure() => _holdOriginal(reach: 1);
+
+  /// While a jump waits for its page to load, that page's hold.
+  final Object _jumpHold = Object();
+
+  /// [t] is outside the window: goes there once its page has loaded (or very
+  /// soon regardless), so it never arrives blank.
+  Future<void> _jumpWhenReady(
+    OriginalAtlas a,
+    int t, {
+    required bool animate,
+  }) async {
+    // Quick turns add up meanwhile, and only the latest goes.
+    final token = ++_jumpToken;
+    if (animate) _turningTo = t;
+    final (first, last) = _originalPagesAt(t, _settingsRef!);
+    a.hold(_jumpHold, first, last, reach: 0);
+    await a.whenReady(first, maxMs: 400);
+    if (last != first) await a.whenReady(last, maxMs: 200);
+    if (!mounted || !identical(a, _original) || token != _jumpToken) return;
+    _jumpNow(t, animate: animate);
+    a.release(_jumpHold);
+  }
+
+  int _jumpToken = 0;
+
   Future<void> _load() async {
     await MushafRepo.ensure(_script);
+    if (!mounted) return;
     final from = widget.pageScript;
     if (!_mappedStart && from != null && from != _script) {
       _mappedStart = true;
@@ -302,11 +612,15 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       _ctrl = PageController(initialPage: _page - 1);
       if (_spreadCtrl != null) {
         _spreadCtrl!.dispose();
-        _spreadCtrl =
-            PageController(initialPage: (_spreadStart(_page) - 1) ~/ 2);
+        _spreadCtrl = PageController(
+          initialPage: (_spreadStart(_page) - 1) ~/ 2,
+        );
       }
     }
     _mappedStart = true;
+    // The print's pages: the first ready before it's shown. Without its
+    // files, [_packGone] has it switching to New Madani.
+    if (!await _openOriginal() || !mounted) return;
     // The glyph atlas (usually loaded at startup already). Until it's ready
     // the page is shaped as text; when it arrives the lines switch to it.
     if (MushafAtlas.of(_script) == null) {
@@ -335,6 +649,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     ProgressScope.read(context).setLastMushafPage(_page, _script);
     _pageN.value = _page;
     _prewarm(_page);
+    _holdOriginal();
+    _resumeReader();
     // Focus mode: the page opens bare (a tap brings the bars back).
     if (!_focusApplied && SettingsScope.of(context).focusMode) {
       _focusApplied = true;
@@ -412,6 +728,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     }
   }
 
+  /// [page] of [script], shown in this page's script: the same first word.
+  void _showAt(int page, String? script) {
+    if (script == null || script == _script) return _showPage(page);
+    final (first, _) = MushafRepo.pageTokens(script, page);
+    final (g, w) = MushafRepo.tokenAt(script, first);
+    _showPage(MushafRepo.pageOfWord(_script, g, w < 0 ? 0 : w));
+  }
+
   /// A count in the index: that mark's word, in focus.
   void _focusWord(WordRef w) {
     setState(() => _focus = w);
@@ -440,10 +764,58 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     setState(() {});
   }
 
+  /// Memorizing with [c], handed back from the cards.
+  void _memorizeWith(MemorizeController c) {
+    if (!identical(_memo, c)) {
+      _stopAudio();
+      if (_marking.active) _marking.stop();
+      _review?.end();
+      _memo?.removeListener(_onMemo);
+      _memo = c
+        ..addListener(_onMemo)
+        ..screenOf = _screenOf;
+    }
+    _showPage(c.viewPage);
+    if (!SettingsScope.of(context).focusMode) _setChrome(true);
+    setState(() {});
+  }
+
+  /// Reviewing as verse cards, from the page's review: the cards hand it back.
+  Future<void> _reviewAsCards() async {
+    final r = _review;
+    if (r == null) return;
+    _stopAudio();
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ReviewCardsScreen(controller: r, script: _script),
+      ),
+    );
+  }
+
+  /// What a switch from the verses carries on here.
+  void _carryOn(ViewMode m) {
+    final kind = m.markKind;
+    if (kind != null) {
+      _marking.resumeNext = m.sessionId;
+      _hifzStartMark(kind);
+    } else if (m.audio) {
+      _hifzSetTool(_HifzTool.audio);
+    } else if (m.follow && FollowSession.instance.active) {
+      // Following came back from the verses: ours again.
+      FollowSession.instance.owner = this;
+      _update(() => _hifzTool = _HifzTool.follow);
+      _onFollowWord();
+    }
+  }
+
   /// Memorize from a sūrah, juzʼ, page… chosen in the index.
   Future<void> _memorizeFrom() async {
-    final t = await chooseMemorizeStart(context,
-        script: _script, currentPage: _pendingPage ?? _page);
+    final t = await chooseMemorizeStart(
+      context,
+      script: _script,
+      currentPage: _pendingPage ?? _page,
+      fromLeft: _dockLeftOn,
+    );
     if (t == null || !mounted) return;
     if (_memorizing) _endMemorize();
     _startMemorize(token: t);
@@ -452,6 +824,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// Memorize as verse cards: from the page in view (or carrying on from
   /// where the page view is), in large writing. Ending there ends it here.
   Future<void> _memorizeAsCards() async {
+    // (The cards listen for themselves.)
+    if (_memoFollow) await _memoListen();
+    if (!mounted) return;
     if (_memo == null) _startMemorize();
     final m = _memo;
     if (m == null) return;
@@ -467,10 +842,64 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     setState(() {});
   }
 
+  /// Reveal as I recite: following from the first hidden word, each word
+  /// heard revealed. Again: off.
+  Future<void> _memoListen() async {
+    final fs = FollowSession.instance;
+    if (_memoFollow) {
+      _update(() => _memoFollow = false);
+      if (identical(fs.owner, this)) await fs.stop();
+      return;
+    }
+    final m = _memo;
+    if (m == null || m.atEnd) return;
+    _stopAudio();
+    // (Not waited for: listening needn't wait on the player.)
+    ReciteBack.instance.stop();
+    final (g, w) = MushafRepo.tokenAt(_script, m.nextHiddenWord);
+    _update(() => _memoFollow = true);
+    final ok = await startFollow(context, this, g, w < 0 ? 0 : w);
+    if (mounted && !ok) _update(() => _memoFollow = false);
+  }
+
+  /// A word heard while memorizing: shown (with what's before it). A jump
+  /// far on (a look-alike misheard) reveals nothing: it's told where they
+  /// are instead.
+  void _memoHeard() {
+    final m = _memo;
+    final place = FollowSession.instance.place;
+    if (m == null || place == null) return;
+    final t = MushafRepo.tokenOf(_script, place.$1, place.$2);
+    if (SherpaFollowEngine.feedFile != null) {
+      debugPrint('memo: heard token $t, revealed to ${m.revealedEnd}');
+    }
+    if (t < m.revealedEnd) return;
+    if (t > m.revealedEnd + 30) {
+      final (g, w) = MushafRepo.tokenAt(_script, m.nextHiddenWord);
+      FollowSession.instance.setPosition(g, w < 0 ? 0 : w);
+      return;
+    }
+    m.revealThrough(t);
+  }
+
   void _endMemorize() {
+    if (_memoFollow) {
+      _memoFollow = false;
+      if (identical(FollowSession.instance.owner, this)) FollowSession.instance.stop();
+    }
     ReciteBack.instance.stop();
     _memo?.removeListener(_onMemo);
     setState(() => _memo = null);
+  }
+
+  /// Ḥuṣarī reciting [clips] (each āyah as far as it shows).
+  Future<void> _playClips(List<(int, int)> clips) async {
+    if (clips.isEmpty) return;
+    await ReciteBack.instance.stop();
+    _stopAudio();
+    if (!mounted) return;
+    final err = await ReciteBack.instance.play(clips, rate: SettingsScope.of(context).playbackSpeed);
+    if (mounted && err != null) showQToast(context, err);
   }
 
   /// Ḥuṣarī reciting what's showing: the āyah being memorized up to the
@@ -572,9 +1001,14 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         compact: compact,
         vertical: vertical,
         screen: _screenOf(_pendingPage ?? _page),
-        // The Hifẓ home's Play: everything showing on the page.
-        onPlay: widget.home ? () => _playRevealed(page: true) : _playRevealed,
+        // A tap: the āyah being memorized, as far as it shows. Held: which
+        // āyah (or all that shows).
+        onPlay: _playRevealed,
         onPlayPage: () => _playRevealed(page: true),
+        onPlayClips: _playClips,
+        onListen: _memoListen,
+        listening: _memoFollow,
+        // (Revealing what's recited: its status is over the pages.)
         onSwitchView: _memorizeAsCards,
         onEnd: _endMemorize,
         minimal: s.focusMode,
@@ -622,9 +1056,11 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   void _memoPlayVerse(int g) {
     _lastWordTap = DateTime.now();
-    if (!_memoShows(MushafWord('', g, -1))) return;
+    // Only what of it shows.
+    final clip = _memo?.clipOf(g);
+    if (clip == null || !_memoShows(MushafWord('', g, -1))) return;
     _stopAudio();
-    ReciteBack.instance.play([(g, -1)],
+    ReciteBack.instance.play([clip],
         rate: SettingsScope.of(context).playbackSpeed);
   }
 
@@ -637,22 +1073,30 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     }
   }
 
-  Future<void> _startReview() async {
+  Future<void> _startReview({
+    bool ask = false,
+    ReviewView as = ReviewView.mushaf,
+  }) async {
     _stopAudio();
-    await startReview(context,
-        script: _script,
-        page: _pendingPage ?? _page,
-        onMushaf: (c) {
-          _attachReview(c);
-          _setChrome(true);
-        });
+    await startReview(
+      context,
+      script: _script,
+      page: _pendingPage ?? _page,
+      ask: ask,
+      as: as,
+      scope: SettingsScope.of(context).reviewScope,
+      onMushaf: (c) {
+        _attachReview(c);
+        _setChrome(true);
+      },
+    );
   }
 
   Future<void> _endReview() async {
     final r = _review;
     if (r == null) return;
-    final again = await showReviewSummary(context, r);
-    if (again && mounted) _startReview();
+    // Ending it lets go of the page too (see _onReview).
+    endReview(context, r);
   }
 
   void _repeatReviewed({bool verse = false}) {
@@ -691,6 +1135,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// Pen button: start (or resume) a session, or end the current one.
   Future<void> _toggleMarking() async {
     if (_marking.active) {
+      _hifzTool = _HifzTool.none;
       await _marking.end(context);
       return;
     }
@@ -719,6 +1164,31 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   void _markWord(MushafWord wd) {
     _lastWordTap = DateTime.now();
     _marking.apply(context, WordRef.fromGlobal(wd.ayah, wd.wordIdx));
+  }
+
+  /// A right-click's menu on a word or ۝.
+  void _wordMenu(MushafWord wd, Offset at) {
+    _lastWordTap = DateTime.now();
+    final ref = WordRef.fromGlobal(wd.ayah, wd.isMarker ? -1 : wd.wordIdx);
+    showWordMenu(
+      context,
+      at,
+      ref: ref,
+      script: _script,
+      sessionId: _marking.active ? _marking.sessionId : null,
+      onEdit: _marking.recordOp,
+      onFluency: _marking.recordStep,
+      onComment: () => widget.home ? _hifzComment(ref) : _showWord(wd),
+      // Memorizing: only what shows, as far as it shows.
+      onPlay: () {
+        if (_memorizing) {
+          if (!_memoShows(wd)) return;
+          if (wd.isMarker) return _memoPlayVerse(wd.ayah);
+        }
+        wd.isMarker ? _playVerse(wd.ayah) : _playWordAudio(wd);
+      },
+      onMore: () => _showWord(wd),
+    );
   }
 
   /// Link mode on: [m]'s likenesses are tapped on any page.
@@ -819,12 +1289,21 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   @override
   void dispose() {
+    if (identical(HomeLink._home, this)) HomeLink._home = null;
     _zoomCtrl.dispose();
     _zoomHintTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     displayRotationChanges.removeListener(_rotationChanged);
     disposeRecitationTracking();
     _doneSub?.cancel();
+    if (_spanFrom != null) {
+      GestureBinding.instance.pointerRouter.removeGlobalRoute(_spanRoute);
+      _spanLabel?.remove();
+    }
+    FollowSession.instance.word.removeListener(_followWordL);
+    FollowSession.instance.jumps.removeListener(_followJumpL);
+    FollowSession.instance.status.removeListener(_followStatusL);
+    if (identical(FollowSession.instance.owner, this)) FollowSession.instance.stop();
     WbwAudio.instance.stop();
     AyahAudio.instance.stop();
     _ctrl?.dispose();
@@ -846,6 +1325,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     _marking.dispose();
     _marksLayer.dispose();
     MushafLineScheduler.reset();
+    _releaseOriginal();
+    _dockLeftOn.dispose();
+    _exportPick?.done.complete(null);
     MushafAtlas.of(_script)?.releaseLarge();
     PerfLog.where = 'app';
     final n = _shell?.focus;
@@ -871,9 +1353,17 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   int _spreadStart(int p) => ((p - 1) >> 1) * 2 + 1;
 
   void _settle(int page) {
+    _turningTo = null;
+    if (widget.home && DesktopWindow.ready) {
+      final surah = MushafRepo.firstVerseOfPage(_script, page).$1;
+      DesktopWindow.setTitle(
+        '${_tnames[surah] ?? ''} · $page — ${context.l10n.appName}',
+      );
+    }
     final sw = kMushafPerf ? (Stopwatch()..start()) : null;
     PerfLog.where = 'muṣḥaf p.$page';
     _page = page;
+    _followSettled(page);
     // A word an index count led to stays outlined until the page moves on
     // (a review's focus follows the review instead).
     if (!_reviewing && _focus != null && _pageOfWord(_focus!) != page) {
@@ -883,6 +1373,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     ProgressScope.read(context).setLastMushafPage(page, _script);
     _notePage(page);
     _prewarm(page);
+    _holdOriginal();
     _pageN.value = page;
     if (sw != null) {
       PerfLog.log('→ page $page (bookkeeping ${sw.elapsedMicroseconds} µs)');
@@ -896,14 +1387,16 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   void _prewarm(int page) {
     final s = _settingsRef;
     if (s == null) return;
-    // Drawn from the glyph atlas: nothing to prepare.
-    if (MushafAtlas.of(_script) != null) return;
+    // Drawn from an atlas: nothing to prepare.
+    if (isOriginalScript(_script) || MushafAtlas.of(_script) != null) return;
     final spread = (_desktop && _view(s) == 'spread') || _phoneSpread;
     final first = spread ? _spreadStart(page) : page;
     final order = spread
         ? [first + 2, first + 3, first - 1, first - 2]
         : [page + 1, page - 1, page + 2, page - 2];
-    MushafLineScheduler.addJob(_warm(order, _script, mushafPaperOf(s, _script)));
+    MushafLineScheduler.addJob(
+      _warm(order, _script, mushafPaperOf(s, _script)),
+    );
   }
 
   /// How the pages are dressed: ornaments and border, focus mode applied.
@@ -966,6 +1459,15 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// Shows [p] — the PageView on a phone, a fade-and-slide turn on desktop.
   void _jump(int p, {bool animate = false}) {
     final t = p < 1 ? 1 : (p > _total ? _total : p);
+    final a = _original;
+    if (a != null && a.window.imageOf(t) == null) {
+      _jumpWhenReady(a, t, animate: animate);
+      return;
+    }
+    _jumpNow(t, animate: animate);
+  }
+
+  void _jumpNow(int t, {required bool animate}) {
     if (_desktop) {
       setState(() {
         _turnDir = t >= _page ? 1 : -1;
@@ -975,14 +1477,25 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     }
     final c = _phoneSpread ? _spreadCtrl : _ctrl;
     final idx = _phoneSpread ? (_spreadStart(t) - 1) ~/ 2 : t - 1;
-    if (c == null || !c.hasClients || c.page?.round() == idx) {
+    // Already there. (Mid-turn a page can round to here and still be on its
+    // way elsewhere: that turn's sent back, below.)
+    final at = c == null || !c.hasClients ? null : c.page;
+    if (c == null ||
+        at == null ||
+        (at - idx).abs() < .001 ||
+        (_turningTo == null && at.round() == idx)) {
+      // (Barely begun on its way elsewhere: that's stopped.)
+      if (_turningTo != null) c?.jumpToPage(idx);
       setState(() => _settle(t));
       return;
     }
     if (animate && !noMotion(context)) {
-      c.animateToPage(idx,
-          duration: const Duration(milliseconds: 380),
-          curve: const Cubic(.2, .8, .2, 1));
+      _turningTo = t;
+      c.animateToPage(
+        idx,
+        duration: const Duration(milliseconds: 380),
+        curve: const Cubic(.2, .8, .2, 1),
+      );
     } else {
       c.jumpToPage(idx);
     }
@@ -991,20 +1504,27 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// One step forward (+1) or back (−1): a spread at a time in spread view.
   void _turn(int dir) {
     final s = SettingsScope.of(context);
+    // From where it's already on its way to: quick turns add up.
+    final from = _turningTo ?? _page;
     if (_desktop && _view(s) == 'spread') {
-      _jump(_spreadStart(_page) + 2 * dir);
+      _jump(_spreadStart(from) + 2 * dir);
     } else if (_phoneSpread) {
-      _jump(_spreadStart(_page) + 2 * dir, animate: true);
+      _jump(_spreadStart(from) + 2 * dir, animate: true);
     } else {
-      _jump(_page + dir, animate: true);
+      _jump(from + dir, animate: true);
     }
   }
+
+  /// Where a turn in progress is headed.
+  int? _turningTo;
 
   /// The pager moved to a new page (fires halfway through a swipe). Only
   /// remembered here: the screen updates when the swipe has settled (see
   /// [_onScroll]), so nothing rebuilds while the finger is still moving.
   void _onPage(int i) {
     _pendingPage = i + 1;
+    // Half-way through the swipe: its next pages start loading now.
+    _holdOriginal();
     PerfLog.where = 'muṣḥaf p.${i + 1}';
   }
 
@@ -1032,6 +1552,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       return;
     }
     _stopAudio();
+    _releaseOriginal();
     final from = _script, fromPage = _pendingPage ?? _page;
     setState(() {
       _ready = false;
@@ -1050,7 +1571,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     // page: the page we were on. (Mapping back by the middle word could
     // land one page off, since the two scripts break pages differently.)
     final back = _lastSwitch;
-    final p = back != null &&
+    final p =
+        back != null &&
             back.to == from &&
             back.toPage == fromPage &&
             back.from == v
@@ -1077,8 +1599,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     } else if (on) {
       _restoreSystemBars();
     } else {
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky)
-          .catchError((_) {});
+      SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.immersiveSticky,
+      ).catchError((_) {});
     }
   }
 
@@ -1090,8 +1613,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (_landscape) {
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky)
-            .catchError((_) {});
+        SystemChrome.setEnabledSystemUIMode(
+          SystemUiMode.immersiveSticky,
+        ).catchError((_) {});
       } else if (_chrome) {
         _restoreSystemBars();
       }
@@ -1108,10 +1632,25 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// are hidden, or by the immersive setting).
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Following: the mic off while the app is away, back on its return.
+    final follow = FollowSession.instance;
+    if (identical(follow.owner, this)) {
+      if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+        if (follow.status.value == FollowStatus.listening ||
+            follow.status.value == FollowStatus.searching) {
+          _followPausedAway = true;
+          follow.pause();
+        }
+      } else if (state == AppLifecycleState.resumed && _followPausedAway) {
+        _followPausedAway = false;
+        follow.resume();
+      }
+    }
     if (state != AppLifecycleState.resumed || _desktop) return;
     if (_landscape || !_chrome) {
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky)
-          .catchError((_) {});
+      SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.immersiveSticky,
+      ).catchError((_) {});
     } else {
       _restoreSystemBars();
     }
@@ -1132,6 +1671,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// āyah number, whose own recognisers fire first on the same pointer-up.
   void _onPageTap() {
     if (DateTime.now().difference(_lastWordTap).inMilliseconds < 250) return;
+    if (_exportPick != null) return _pickExportAt(page: _pageUnderTap());
     // Linking: the page stays as it is (taps are for words and ۝).
     if (_linking != null) return;
     // The Hifẓ home keeps its toolbar.
@@ -1149,12 +1689,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   }
 
   void _close() {
-    final nav = Navigator.of(context);
-    if (nav.canPop()) {
-      nav.maybePop();
-    } else {
-      ShellScope.goTo(context, AppSection.today);
-    }
+    // The muṣḥaf is the app's home: closing it only leaves a screen over it.
+    Navigator.of(context).maybePop();
   }
 
   void _rotate(bool landscape) {
@@ -1288,112 +1824,17 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   void _showWord(MushafWord held) {
     _lastWordTap = DateTime.now();
-    final hasMarks = MarksScope.maybeOf(context) != null && widget.reader == null;
-    // The Reader's word sheet has its fluency marks instead.
-    final tall = hasMarks || widget.reader != null;
-    // The word on show: the arrows beside it step to the words either side
-    // (a small word held wrongly on a dense page is a step away, not a
-    // close and a fresh try).
-    var wd = held;
-    showAdaptiveSheet<void>(
+    showWordSheet(
       context,
-      isScrollControlled: tall,
-      builder: (sheet) => StatefulBuilder(builder: (sheet, setSheet) {
-        final p = pal(sheet);
-        final (surah, ayahInSurah) = MushafRepo.surahAyahOf(wd.ayah);
-        final tok = MushafRepo.tokenOf(_script, wd.ayah, wd.wordIdx);
-        // As the text runs, right to left: the previous word is on the
-        // right, the next on the left.
-        Widget step(int by) {
-          final to = MushafRepo.wordAtToken(_script, tok + by);
-          return IconButton(
-            tooltip: by > 0 ? sheet.l10n.mzNextWord : sheet.l10n.mzPrevWord,
-            iconSize: 28,
-            color: p.ink2,
-            onPressed: to == null ? null : () => setSheet(() => wd = to),
-            icon: Icon(by > 0 ? AppIcons.chevronLeft : AppIcons.chevronRight),
-          );
-        }
-
-        Widget body(ScrollController? scroll) => SafeArea(
-          child: ListView(
-            controller: scroll,
-            shrinkWrap: scroll == null,
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
-            children: [
-              Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Directionality(
-                  textDirection: TextDirection.ltr,
-                  child: Row(children: [
-                    step(1),
-                    Expanded(
-                      child: Text(wd.text,
-                          textAlign: TextAlign.center,
-                          textDirection: TextDirection.rtl,
-                          style: TextStyle(
-                              fontFamily: MushafRepo.fontFamily(_script),
-                              fontSize: 44,
-                              color: p.ink)),
-                    ),
-                    step(-1),
-                  ]),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                    wd.isMarker
-                        ? '${_tnames[surah] ?? ''}  ·  $surah:$ayahInSurah  ·  '
-                            '${context.l10n.mkWholeAyah}'
-                        : context.l10n.wordN(_tnames[surah] ?? '',
-                            '$surah:$ayahInSurah', wd.wordIdx + 1),
-                    style: uiStyle(sheet,
-                        size: 13, weight: FontWeight.w600, color: p.ink3)),
-                const SizedBox(height: 16),
-                Wrap(spacing: 10, runSpacing: 10, children: [
-                  if (!wd.isMarker)
-                    QPrimaryButton(context.l10n.playWord,
-                        icon: AppIcons.volume, onTap: () {
-                      Navigator.pop(sheet);
-                      _playWordAudio(wd);
-                    }),
-                  QOutlineButton(context.l10n.reciteFromHere,
-                      icon: AppIcons.recite, onTap: () {
-                    Navigator.pop(sheet);
-                    _playVerse(wd.ayah, userTap: false);
-                  }),
-                ]),
-              ],
-            ),
-              if (hasMarks)
-                WordMarksPanel(
-                  // A fresh panel for each word stepped to.
-                  key: ValueKey((wd.ayah, wd.wordIdx)),
-                  ref: WordRef.fromGlobal(wd.ayah, wd.wordIdx),
-                  sessionId: _marking.active
-                      ? _marking.sessionId
-                      : _review?.sessionId,
-                  onLink: (m) {
-                    Navigator.pop(sheet);
-                    _startLinking(m);
-                  },
-                ),
-              if (widget.reader != null && !wd.isMarker)
-                FluencyWordPanel(
-                    key: ValueKey(('fl', wd.ayah, wd.wordIdx)),
-                    script: _script,
-                    ref: WordRef.fromGlobal(wd.ayah, wd.wordIdx)),
-            ],
-          ),
-        );
-        if (!tall || AdaptiveSheet.isSide(sheet)) return body(null);
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: .6,
-          maxChildSize: .94,
-          builder: (_, scroll) => body(scroll),
-        );
-      }),
+      script: _script,
+      word: held,
+      surahName: (n) => _tnames[n] ?? '',
+      fromLeft: _dockLeftOn,
+      onPlayWord: _playWordAudio,
+      onRecite: (wd) => _playVerse(wd.ayah, userTap: false),
+      sessionId: () => _marking.active ? _marking.sessionId : _review?.sessionId,
+      // The home links a mutashābih's likenesses on its own pages.
+      onLink: _startLinking,
     );
   }
 
@@ -1428,6 +1869,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   void _showSettings() {
     showAdaptiveSheet<void>(
       context,
+      fromLeft: _dockLeftOn,
       builder: (sheet) => AdaptiveSheet.isSide(sheet)
           ? _settingsSheet(sheet, null)
           : DraggableScrollableSheet(
@@ -1483,11 +1925,28 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   Widget build(BuildContext context) {
     PerfLog.screenBuilt();
     final s = SettingsScope.of(context);
+    // Its tool let go (another mode, Esc…): following stops, if it's ours.
+    if (!_following && !_memoFollow && FollowSession.instance.active &&
+        identical(FollowSession.instance.owner, this)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_following && !_memoFollow &&
+            identical(FollowSession.instance.owner, this)) {
+          FollowSession.instance.stop();
+        }
+      });
+    }
     if (s.lite != MushafAtlas.smallOnly) {
       // Lite mode toggled: rebuilt pages hand their lines a fresh spec,
       // which redraws them from the right sheets.
       MushafAtlas.setSmallOnly(s.lite);
       _pageMemo.clear();
+    }
+    if (_original != null && s.lite != _originalLite) {
+      // Lite mode draws from the low set.
+      _originalLite = s.lite;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openOriginal();
+      });
     }
     if (_booted && _ready && s.mushafScript != _seenSetting) {
       _seenSetting = s.mushafScript;
@@ -1512,20 +1971,25 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     }
     _wasDesktop = desktop;
     final paper = mushafPaperOf(s, _script);
-    return PopScope(
-      canPop: _chrome,
+    final screen = PopScope(
+      canPop: _chrome && _exportPick == null,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && !_chrome) _setChrome(true);
+        if (didPop) return;
+        if (_exportPick != null) return _endExportPick(cancel: true);
+        if (!_chrome) _setChrome(true);
       },
       child: Scaffold(
         backgroundColor: _look(s).edge ? paper.paper : paper.bg,
-        body: _withLinkBar(paper, !_ready
-            ? Center(child: CircularProgressIndicator(color: paper.acc))
-            : widget.home
-                ? _hifzBody(context, s, paper)
-            : desktop
-                ? _desktopBody(context, s, paper)
-                : LayoutBuilder(builder: (context, c) {
+        body: _withLinkBar(
+          paper,
+          !_ready
+              ? Center(child: CircularProgressIndicator(color: paper.acc))
+              : widget.home
+              ? _hifzBody(context, s, paper)
+              : desktop
+              ? _desktopBody(context, s, paper)
+              : LayoutBuilder(
+                  builder: (context, c) {
                     // A phone on its side: short and wide. The page then uses
                     // the full width and scrolls vertically.
                     final landscape =
@@ -1533,20 +1997,37 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                     _setPhoneSpread(landscape && s.mushafPhoneSpread);
                     _setLandscape(landscape);
                     final pager = !landscape
-                        ? _pager(s, paper,
+                        ? _pager(
+                            s,
+                            paper,
                             fitWidth: false,
                             // Edge to edge: the page meets the screen's edges.
                             margin: _look(s).edge
                                 ? EdgeInsets.zero
-                                : const EdgeInsets.fromLTRB(8, 8, 8, 8))
+                                : const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                          )
                         : _phoneSpread
-                            ? _spreadPager(s, paper,
-                                margin: EdgeInsets.fromLTRB(
-                                    68, 4, 72, 4 + _landscapeBarRoom))
-                            : _pager(s, paper,
-                                fitWidth: true,
-                                margin: EdgeInsets.fromLTRB(
-                                    68, 10, 72, _landscapeBarRoom));
+                        ? _spreadPager(
+                            s,
+                            paper,
+                            margin: EdgeInsets.fromLTRB(
+                              68,
+                              4,
+                              72,
+                              4 + _landscapeBarRoom,
+                            ),
+                          )
+                        : _pager(
+                            s,
+                            paper,
+                            fitWidth: true,
+                            margin: EdgeInsets.fromLTRB(
+                              68,
+                              10,
+                              72,
+                              _landscapeBarRoom,
+                            ),
+                          );
                     // A page turn only refreshes the bars (title, page label,
                     // progress): the pager is handed through as the same
                     // widget, so its pages aren't rebuilt.
@@ -1557,8 +2038,24 @@ class _MushafPageScreenState extends State<MushafPageScreen>
                           ? _landscapeBody(context, s, paper, pager!)
                           : _portraitBody(context, s, paper, pager!),
                     );
-                  })),
+                  },
+                ),
+        ),
       ),
+    );
+    if (!_resumeCover) return screen;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        screen,
+        // In the Reader's own background, so its first frame changes nothing.
+        AbsorbPointer(
+          child: ColoredBox(
+            color: pal(context).bg,
+            child: DecoratedBox(decoration: screenDecoration(context)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1647,17 +2144,80 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       // Holding a ۝: the whole āyah's sheet, to mark it (memorizing: once
       // it shows).
       ..onLongPressVerse = _memorizing ? _memoHold : _showWord;
-    // The Reader's fluency tool: a tap marks the word.
-    if (_fluencyTool case final tool? when widget.reader != null) {
+    final plain = _memorizing || _linking != null || _exportPick != null;
+    _handlers.onMouseWord = plain
+        ? null
+        : (wd, buttons, at) {
+            // Shift and a drag (desktop): one mark over every word to where
+            // it's let go — a click alone steps the word's mark as ever.
+            if (!wd.isMarker &&
+                useDesktop(context) &&
+                s.keymap.mouseActionFor(buttons) == MouseAction.stepMark) {
+              _spanStart(WordRef.fromGlobal(wd.ayah, wd.wordIdx));
+              _lastWordTap = DateTime.now();
+              return true;
+            }
+            final done = wordMouse(
+              context,
+              WordRef.fromGlobal(wd.ayah, wd.isMarker ? -1 : wd.wordIdx),
+              buttons,
+              _marking,
+              menu: () => _wordMenu(wd, at),
+            );
+            if (done) _lastWordTap = DateTime.now();
+            return done;
+          };
+    // The fluency tool (the Reader's, or Mark's fluency kind on the home):
+    // a tap marks the word.
+    if (_fluencyTool case final tool?
+        when widget.reader != null || widget.home) {
       _handlers.onTapWord = (wd) {
         if (!wd.isMarker) {
-          applyFluency(context, tool, _script, WordRef.fromGlobal(wd.ayah, wd.wordIdx));
+          applyFluency(
+            context,
+            tool,
+            _script,
+            WordRef.fromGlobal(wd.ayah, wd.wordIdx),
+            undo: _marking,
+          );
+        }
+      };
+      // Holding a chunk: its split, to move.
+      _handlers.onLongPressWord = (wd) {
+        final ref = WordRef.fromGlobal(wd.ayah, wd.wordIdx);
+        final f = FluencyScope.read(context);
+        if (!wd.isMarker && f?.markAt(FluencyKind.chunk, ref) != null) {
+          showChunkEditor(context, _script, ref);
+        } else {
+          _showWord(wd);
         }
       };
     }
-    // The Hifẓ home: the word tool's taps (comment, eraser, audio, or none).
-    if (widget.home && !_memorizing && !_marking.active && !_reviewing) {
+    // The Hifẓ home: the word tool's taps (comment, eraser, audio, or none);
+    // marking, its comment and eraser.
+    if (widget.home &&
+        !_memorizing &&
+        !_reviewing &&
+        _fluencyTool == null &&
+        (!_marking.active || _hifzTool != _HifzTool.none)) {
       _hifzHandlers();
+    }
+    // Picking the export's pages: a tap on anything chooses its page.
+    if (_exportPick != null) {
+      void pickToken(int t, int ayah) {
+        _lastWordTap = DateTime.now();
+        _pickExportAt(page: MushafRepo.pageOfToken(_script, t), ayah: ayah);
+      }
+
+      void pickWord(MushafWord wd) => pickToken(
+        MushafRepo.tokenOf(_script, wd.ayah, wd.isMarker ? -1 : wd.wordIdx),
+        wd.ayah,
+      );
+      _handlers
+        ..onTapWord = pickWord
+        ..onLongPressWord = pickWord
+        ..onTapVerse = ((g) => pickToken(MushafRepo.tokenOf(_script, g, -1), g))
+        ..onLongPressVerse = pickWord;
     }
     // Link mode: words and ۝ link (or unlink) whatever else is on.
     if (_linking != null) {
@@ -1670,7 +2230,12 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         ..onLongPressVerse = ((wd) => _linkTap(word(wd)));
     }
     final (lo, hi) = _ayahsOn(page);
-    final mine = _playAyah >= 0 && _playAyah >= lo && _playAyah <= hi;
+    // Following lights its word (and tints its āyah) as recitation does.
+    final follow = _followPlace;
+    final hlAyah = follow?.$1 ?? _playAyah;
+    final hlWord = follow?.$2 ?? _playWord;
+    final hlReciting = follow != null || _reciting;
+    final mine = hlAyah >= 0 && hlAyah >= lo && hlAyah <= hi;
     // Memorizing (revision too): a word's marks appear as the word does —
     // hidden words draw nothing, marks included. Each page gets only its
     // own cut, so pages away from it keep their look.
@@ -1681,18 +2246,35 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     // Only the page holding the focused word gets it: the others' lines
     // keep their cached look.
     final f = _focus;
-    final focus =
-        f != null && !_memorizing && _pageOfWord(f) == page ? f.key : -1;
+    final focus = f != null && !_memorizing && _pageOfWord(f) == page
+        ? f.key
+        : -1;
     final hideFrom = _memo?.hideFromOn(page) ?? -1;
     final tajwid = s.mushafTajwid ? tajwidColorsForDark(paper.dark) : null;
     // The spine's shade: the desktop's own spread; the Hifẓ home's pages lie
     // flat, a line between them.
     final shade = !widget.home && s.useGradients;
     final inputs = <Object?>[
-      _script, paper, _look(s), fitWidth, s.mushafHeaderShown, margin, spine,
-      _names, mine ? _playAyah : -1, mine ? _playWord : -1,
-      mine && _reciting, markPal, tajwid, compact, focus, hideFrom, shade,
+      _script,
+      paper,
+      _look(s),
+      fitWidth,
+      s.mushafHeaderShown,
+      margin,
+      spine,
+      _names,
+      mine ? hlAyah : -1,
+      mine ? hlWord : -1,
+      mine && hlReciting,
+      markPal,
+      tajwid,
+      compact,
+      focus,
+      hideFrom,
+      shade,
       topLine,
+      _original,
+      s.oldMadaniCircle,
     ];
     final key = '$page/${spine ?? ''}';
     final memo = _pageMemo.remove(key);
@@ -1710,9 +2292,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       showHeader: s.mushafHeaderShown,
       margin: margin,
       spine: spine,
-      playAyah: mine ? _playAyah : -1,
-      playWord: mine ? _playWord : -1,
-      reciting: mine && _reciting,
+      playAyah: mine ? hlAyah : -1,
+      playWord: mine ? hlWord : -1,
+      reciting: mine && hlReciting,
       marks: _marksLayer,
       markPal: markPal,
       shade: shade,
@@ -1722,6 +2304,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       focus: focus,
       hideFrom: hideFrom,
       topLine: topLine,
+      original: _original,
+      classicCircle: s.oldMadaniCircle == 'classic',
     );
     // The least recently used go first (a spread keeps six pages alive).
     while (_pageMemo.length >= 20) {
@@ -1748,25 +2332,35 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       script: _script,
       show: s.showMarks && widget.reader == null,
       showFixed: s.showFixedMarks,
+      showBreath: s.showBreath,
     );
-    _marksLayer.bindFluency(widget.reader == null ? null : FluencyScope.read(context));
+    // Fluency marks: the home's and the reader's page (mark mode makes them).
+    _marksLayer.bindFluency(
+      widget.reader == null && !widget.home ? null : FluencyScope.read(context),
+    );
   }
 
   /// The Reader's fluency tool, while it's on (see FluencyBar).
   FluencyTool? _fluencyTool;
 
-  Widget _fluencyButton(MushafPaper paper, {double size = 40, bool shadow = false}) =>
-      _PaperButton(
-          paper: paper,
-          icon: AppIcons.bolt,
-          size: size,
-          shadow: shadow,
-          active: _fluencyTool != null,
-          tooltip: context.l10n.flTool,
-          onTap: () {
-            if (_fluencyTool == null) _stopAudio();
-            setState(() => _fluencyTool = _fluencyTool == null ? FluencyTool.slow : null);
-          });
+  Widget _fluencyButton(
+    MushafPaper paper, {
+    double size = 40,
+    bool shadow = false,
+  }) => _PaperButton(
+    paper: paper,
+    icon: AppIcons.bolt,
+    size: size,
+    shadow: shadow,
+    active: _fluencyTool != null,
+    tooltip: context.l10n.flTool,
+    onTap: () {
+      if (_fluencyTool == null) _stopAudio();
+      setState(
+        () => _fluencyTool = _fluencyTool == null ? FluencyTool.fluency : null,
+      );
+    },
+  );
 
   /// The fluency bar over the page (on its side, and on desktop).
   Widget _floatingFluencyBar(MushafPaper paper) => Container(
@@ -1788,11 +2382,11 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         child: _fluencyBar(paper),
       );
 
-  Widget _fluencyBar(MushafPaper paper) => FluencyBar(
-        tool: _fluencyTool!,
-        onTool: (v) => setState(() => _fluencyTool = v),
-        onDone: () => setState(() => _fluencyTool = null),
-      );
+  Widget _fluencyBar(MushafPaper paper, {bool hint = true}) => FluencyBar(
+    hint: hint,
+    marking: _marking,
+    onDone: () => setState(() => _fluencyTool = null),
+  );
 
   /// The pen button for the bars (starts or ends marking).
   Widget? _penButton(BuildContext context, MushafPaper paper,
@@ -1815,20 +2409,25 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         onTap: _toggleMarking);
   }
 
-  Widget _markingBar(MushafPaper paper, {bool floating = false, Axis? axis}) =>
-      MarkingBar(
-        axis: axis,
-        controller: _marking,
-        pal: markPaletteForPaper(paper),
-        bg: paper.chrome,
-        ink: paper.ink,
-        sub: paper.sub,
-        line: paper.line,
-        accent: paper.id == 'mono' ? paper.ink : paper.acc,
-        floating: floating,
-        onUndo: () => _marking.undo(context),
-        onEnd: _toggleMarking,
-      );
+  Widget _markingBar(
+    MushafPaper paper, {
+    bool floating = false,
+    Axis? axis,
+    List<Widget> tools = const [],
+  }) => MarkingBar(
+    axis: axis,
+    tools: tools,
+    controller: _marking,
+    pal: markPaletteForPaper(paper),
+    bg: paper.chrome,
+    ink: paper.ink,
+    sub: paper.sub,
+    line: paper.line,
+    accent: paper.id == 'mono' ? paper.ink : paper.acc,
+    floating: floating,
+    onUndo: () => _marking.undo(context),
+    onEnd: _toggleMarking,
+  );
 
   /// One page per swipe; with [head], each page has its own line above it
   /// (the Hifẓ home: sūrah · page · juzʼ, set on the page's edges).
@@ -1873,11 +2472,13 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   void _setPhoneSpread(bool on) {
     if (on == _phoneSpread) return;
     _phoneSpread = on;
+    _holdOriginal();
     _ctrl?.dispose();
     _ctrl = PageController(initialPage: _page - 1);
     _spreadCtrl?.dispose();
-    _spreadCtrl =
-        on ? PageController(initialPage: (_spreadStart(_page) - 1) ~/ 2) : null;
+    _spreadCtrl = on
+        ? PageController(initialPage: (_spreadStart(_page) - 1) ~/ 2)
+        : null;
   }
 
   Widget _swiper({
@@ -1885,18 +2486,18 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     required int count,
     required ValueChanged<int> onPage,
     required IndexedWidgetBuilder builder,
-  }) =>
-      Listener(
-        // A finger on the pages pauses background work until it lifts.
-        onPointerDown: (e) {
-          _lastDown = e.position;
-          MushafLineScheduler.pointerDown();
-        },
-        onPointerUp: (_) => MushafLineScheduler.pointerUp(),
-        onPointerCancel: (_) => MushafLineScheduler.pointerUp(),
-        child: NotificationListener<ScrollNotification>(
-        onNotification: _onScroll,
-        child: GestureDetector(
+  }) => Listener(
+    onPointerSignal: _sideways.signal,
+    // A finger on the pages pauses background work until it lifts.
+    onPointerDown: (e) {
+      _lastDown = e.position;
+      MushafLineScheduler.pointerDown();
+    },
+    onPointerUp: (_) => MushafLineScheduler.pointerUp(),
+    onPointerCancel: (_) => MushafLineScheduler.pointerUp(),
+    child: NotificationListener<ScrollNotification>(
+      onNotification: _onScroll,
+      child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: _onPageTap,
         child: PageView.builder(
@@ -1908,74 +2509,117 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           // lands before the swipe reaches it, not mid-gesture.
           allowImplicitScrolling: true,
           // Zoomed: the fingers pan and pinch the page instead.
-          physics: _zoom ? const NeverScrollableScrollPhysics() : null,
+          physics: _zoom
+              ? const NeverScrollableScrollPhysics()
+              : const NoPointerScrollPhysics(),
           itemCount: count,
           onPageChanged: onPage,
           itemBuilder: builder,
         ),
       ),
-      ),
-      );
+    ),
+  );
 
-  Widget _pagerItem(AppSettings s, MushafPaper paper, int i,
-      {required bool fitWidth,
-      required EdgeInsets margin,
-      Widget Function(int page, double width)? head}) {
+  late final _sideways = SidewaysScroll(onTurn: _turn, standAside: () => _zoom);
+
+  Widget _pagerItem(
+    AppSettings s,
+    MushafPaper paper,
+    int i, {
+    required bool fitWidth,
+    required EdgeInsets margin,
+    Widget Function(int page, double width)? head,
+  }) {
     // Laid out to the full width, the page scrolls: its line goes inside,
     // above it (equal each build, so the page memo keeps the page).
-    final page = _pageView(i + 1, s, paper,
-        fitWidth: fitWidth, margin: margin, topLine: fitWidth ? head : null);
+    final page = _pageView(
+      i + 1,
+      s,
+      paper,
+      fitWidth: fitWidth,
+      margin: margin,
+      topLine: fitWidth ? head : null,
+    );
     if (fitWidth) return page;
-    // Portrait: a page with a scanned shape takes exactly the printed page's
-    // proportions (MushafGeometry.pageRatio); otherwise it takes the width
-    // its text needs and the full height between the bars, spare height
-    // spreading the lines.
-    return LayoutBuilder(builder: (context, c) {
-      final headH = head == null ? 0.0 : _headH;
-      final avail = Size(
-          c.maxWidth - margin.horizontal, c.maxHeight - margin.vertical - headH);
-      Size box(int p) {
-        final b = MushafGeometry.pageBox(avail, _script,
-            look: _look(s), header: s.mushafHeaderShown, page: p);
-        return MushafGeometry.pageRatio(_script, p) == null
-            ? Size(b.width, avail.height)
-            : b;
-      }
+    // Portrait: every page takes one box, the width its text needs and the
+    // full height between the bars, spare height spreading the lines: the
+    // same line grid on every page, so a turn moves nothing and the phone's
+    // screen is filled whatever the page's own shape in print.
+    return LayoutBuilder(
+      builder: (context, c) {
+        final headH = head == null ? 0.0 : _headH;
+        final avail = Size(
+          c.maxWidth - margin.horizontal,
+          c.maxHeight - margin.vertical - headH,
+        );
+        Size box(int _) {
+          final b = MushafGeometry.pageBox(
+            avail,
+            _script,
+            look: _look(s),
+            header: s.mushafHeaderShown,
+          );
+          return Size(b.width, avail.height);
+        }
 
-      mushafPageBoxOf = box;
-      final b = box(i + 1);
-      // The opening pages' few lines sit together in the middle of the page:
-      // the line above it comes down to them, over the page's empty top.
-      var drop = 0.0;
-      final lines = MushafRepo.pageSync(_script, i + 1);
-      if (head != null && lines != null && mushafOpeningPage(i + 1, lines)) {
-        final fs = b.width / MushafGeometry.refEmOf(_script);
-        final block = lines.length * fs * MushafGeometry.pitch;
-        drop = ((b.height - block) / 2 - 8).clamp(0.0, b.height);
-      }
-      final sized = SizedBox(
+        mushafPageBoxOf = box;
+        final b = box(i + 1);
+        // The opening pages' few lines sit together in the middle of the page:
+        // the line above it comes down to them, over the page's empty top.
+        var drop = 0.0;
+        final lines = MushafRepo.pageSync(_script, i + 1);
+        final print = _original;
+        if (print != null) {
+          // The print's opening pages: down to their border.
+          if (head != null && print.pages.rows.containsKey(i + 1)) {
+            final d = print.dataOf(i + 1);
+            final fit = b.width / d.blockW;
+            final top =
+                (b.height - 15 * d.pitch * fit) / 2 +
+                (d.rowCentres.first - d.pitch * .55) * fit;
+            drop = (top - 8).clamp(0.0, b.height);
+          }
+        } else if (head != null &&
+            lines != null &&
+            mushafOpeningPage(i + 1, lines)) {
+          final fs = b.width / MushafGeometry.openingEmOf(_script);
+          final block =
+              lines.length * fs * MushafGeometry.openingPitchOf(_script);
+          drop = ((b.height - block) / 2 - 8).clamp(0.0, b.height);
+        }
+        final sized = SizedBox(
           width: b.width + margin.horizontal,
           height: b.height + margin.vertical,
-          child: page);
-      if (head == null) return Center(child: sized);
-      return Center(
-        child: SizedBox(
-          width: b.width + margin.horizontal,
-          height: headH + b.height + margin.vertical,
-          child: Stack(children: [
-            Positioned(top: headH, left: 0, right: 0, bottom: 0, child: sized),
-            // Over the page (its empty top, on the opening pages).
-            Positioned(
-              top: drop,
-              left: margin.left,
-              width: b.width,
-              height: headH,
-              child: head(i + 1, b.width),
+          child: page,
+        );
+        if (head == null) return Center(child: sized);
+        return Center(
+          child: SizedBox(
+            width: b.width + margin.horizontal,
+            height: headH + b.height + margin.vertical,
+            child: Stack(
+              children: [
+                Positioned(
+                  top: headH,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: sized,
+                ),
+                // Over the page (its empty top, on the opening pages).
+                Positioned(
+                  top: drop,
+                  left: margin.left,
+                  width: b.width,
+                  height: headH,
+                  child: head(i + 1, b.width),
+                ),
+              ],
             ),
-          ]),
-        ),
-      );
-    });
+          ),
+        );
+      },
+    );
   }
 
   /// Fades a bar in and out with the chrome (250ms), and stops it catching
@@ -2211,15 +2855,28 @@ class _MushafPageScreenState extends State<MushafPageScreen>
           onTap: _close);
 
   /// The Reader's Verses | Page switch, on the page's paper.
-  Widget _viewSwitch(MushafPaper paper, {bool compact = false}) => ReaderViewSwitch(
-        page: true,
-        compact: compact,
-        onChanged: (_) => _openReader(),
-        ink: paper.ink,
-        accent: paper.id == 'mono' ? paper.ink : paper.acc,
-        track: paper.line,
-        onAccent: paper.dark ? paper.paper : Colors.white,
-      );
+  Widget _viewSwitch(
+    MushafPaper paper, {
+    bool compact = false,
+    bool dense = false,
+    Axis axis = Axis.horizontal,
+  }) {
+    // Small, in the line above the page: quietly in the sūrah headers' colour.
+    final ornament = paper.frameInk ?? Color.lerp(paper.frame, paper.ink, .25)!;
+    return ReaderViewSwitch(
+      page: true,
+      compact: compact,
+      dense: dense,
+      axis: axis,
+      onChanged: (_) => widget.home ? _hifzVerses() : _openReader(),
+      ink: dense ? ornament.withValues(alpha: .65) : paper.ink,
+      accent: dense
+          ? paper.frame.withValues(alpha: .4)
+          : (paper.id == 'mono' ? paper.ink : paper.acc),
+      track: dense ? paper.frame.withValues(alpha: .12) : paper.line,
+      onAccent: dense ? ornament : (paper.dark ? paper.paper : Colors.white),
+    );
+  }
 
   /// The page progress line, right to left like the book; tap or drag it to
   /// move through the muṣḥaf.
@@ -2549,121 +3206,125 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     if (e is! KeyDownEvent && e is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
-    final k = e.logicalKey;
-    final keys = HardwareKeyboard.instance;
+    final down = e is KeyDownEvent;
+    final s = SettingsScope.of(context);
+    final km = s.keymap;
+    bool hit(KeyAction a) => km.matches(a, e);
+    KeyEventResult did(VoidCallback f) {
+      f();
+      return KeyEventResult.handled;
+    }
+
     if (widget.home) {
-      // Zoom: Ctrl (⌘) with + and − in and out, 0 back to the page (as Esc).
-      final ctrl = keys.isControlPressed || keys.isMetaPressed;
-      if (ctrl && (k == LogicalKeyboardKey.equal || k == LogicalKeyboardKey.add ||
-          k == LogicalKeyboardKey.numpadAdd)) {
-        _hifzZoomBy(1.25);
-        return KeyEventResult.handled;
-      }
-      if (ctrl && (k == LogicalKeyboardKey.minus || k == LogicalKeyboardKey.numpadSubtract)) {
-        _hifzZoomBy(1 / 1.25);
-        return KeyEventResult.handled;
-      }
-      if (_zoom &&
-          e is KeyDownEvent &&
-          ((ctrl && k == LogicalKeyboardKey.digit0) || k == LogicalKeyboardKey.escape)) {
-        _hifzSetZoom(false);
-        return KeyEventResult.handled;
+      if (hit(KeyAction.zoomIn)) return did(() => _hifzZoomBy(1.25));
+      if (hit(KeyAction.zoomOut)) return did(() => _hifzZoomBy(1 / 1.25));
+      if (_zoom && down && (hit(KeyAction.zoomReset) || hit(KeyAction.leave))) {
+        return did(() => _hifzSetZoom(false));
       }
     }
     final mz = _memo;
     if (mz != null) {
-      // Memorizing: ← (onward, as the text runs) or Space reveals the next
-      // word, → hides it again; with Shift, a whole āyah. PageDown: the rest
-      // of the page. P: hear what's showing. Esc: end.
-      final shift = keys.isShiftPressed;
-      if (k == LogicalKeyboardKey.arrowLeft ||
-          (k == LogicalKeyboardKey.space && e is KeyDownEvent)) {
-        shift ? mz.nextVerse() : mz.nextWord();
-        return KeyEventResult.handled;
-      }
-      if (k == LogicalKeyboardKey.arrowRight ||
-          k == LogicalKeyboardKey.backspace) {
-        shift ? mz.prevVerse() : mz.prevWord();
-        return KeyEventResult.handled;
-      }
-      if (k == LogicalKeyboardKey.pageDown && e is KeyDownEvent) {
-        mz.nextPage();
-        return KeyEventResult.handled;
-      }
-      if (e is KeyDownEvent && k == LogicalKeyboardKey.keyP) {
-        _playRevealed(page: shift);
-        return KeyEventResult.handled;
-      }
-      if (e is KeyDownEvent && k == LogicalKeyboardKey.escape) {
-        _endMemorize();
-        return KeyEventResult.handled;
-      }
+      if (hit(KeyAction.memoNextVerse)) return did(mz.nextVerse);
+      if (hit(KeyAction.memoNextWord)) return did(mz.nextWord);
+      if (hit(KeyAction.memoPrevVerse)) return did(mz.prevVerse);
+      if (hit(KeyAction.memoPrevWord)) return did(mz.prevWord);
+      if (down && hit(KeyAction.memoNextPage)) return did(mz.nextPage);
+      if (down && hit(KeyAction.memoPlay)) return did(() => _playRevealed(page: false));
+      if (down && hit(KeyAction.memoPlayPage)) return did(() => _playRevealed(page: true));
+      if (down && hit(KeyAction.leave)) return did(_endMemorize);
     }
     final r = _review;
     if (r != null && _reviewing) {
-      // Reviewing: the arrows step through the marks (← is onward, as the
-      // book reads right to left), R repeats (Shift: the verse), F fixes.
-      if (k == LogicalKeyboardKey.arrowLeft) {
-        r.next();
-        return KeyEventResult.handled;
-      }
-      if (k == LogicalKeyboardKey.arrowRight) {
-        r.prev();
-        return KeyEventResult.handled;
-      }
-      if (e is KeyDownEvent) {
-        if (k == LogicalKeyboardKey.keyR) {
-          _repeatReviewed(verse: keys.isShiftPressed);
-          return KeyEventResult.handled;
+      if (hit(KeyAction.reviewNext)) return did(r.next);
+      if (hit(KeyAction.reviewPrev)) return did(r.prev);
+      if (down) {
+        if (r.onFluency) {
+          if (hit(KeyAction.fluencyInstant)) return did(() => r.rate(Recall.instant));
+          if (hit(KeyAction.fluencySlow)) return did(() => r.rate(Recall.slow));
+          if (hit(KeyAction.fluencyWrong)) return did(() => r.rate(Recall.wrong));
         }
-        if (k == LogicalKeyboardKey.keyF) {
-          r.markFixed();
-          return KeyEventResult.handled;
-        }
-        if (k == LogicalKeyboardKey.keyZ &&
-            (keys.isControlPressed || keys.isMetaPressed)) {
-          r.undo();
-          return KeyEventResult.handled;
-        }
-        if (k == LogicalKeyboardKey.escape) {
-          _endReview();
-          return KeyEventResult.handled;
-        }
+        if (hit(KeyAction.reviewRepeat)) return did(() => _repeatReviewed(verse: false));
+        if (hit(KeyAction.reviewRepeatVerse)) return did(() => _repeatReviewed(verse: true));
+        if (hit(KeyAction.reviewFix)) return did(r.markFixed);
+        if (hit(KeyAction.undo)) return did(r.undo);
+        if (hit(KeyAction.leave)) return did(_endReview);
       }
     }
-    if (e is KeyDownEvent && _marking.active) {
-      if (k == LogicalKeyboardKey.keyZ &&
-          (keys.isControlPressed || keys.isMetaPressed)) {
-        _marking.undo(context);
-        return KeyEventResult.handled;
+    if (down) {
+      // Undo and redo, in Mark mode and just after it.
+      if (hit(KeyAction.redo) && _marking.canRedo) return did(() => _marking.redo(context));
+      if (hit(KeyAction.undo) && _marking.canUndo) return did(() => _marking.undo(context));
+      if (_marking.active) {
+        if (useDesktop(context)) {
+          const pens = [
+            KeyAction.pen1,
+            KeyAction.pen2,
+            KeyAction.pen3,
+            KeyAction.pen4,
+            KeyAction.pen5,
+          ];
+          for (final (i, a) in pens.indexed) {
+            if (hit(a)) {
+              return did(
+                () => s.update(() {
+                  s.markMethod = 'pen';
+                  s.markPen = kMarkPens[i].code;
+                }),
+              );
+            }
+          }
+        }
+        if (hit(KeyAction.leave)) return did(_toggleMarking);
       }
-      if (k == LogicalKeyboardKey.escape) {
-        _toggleMarking();
-        return KeyEventResult.handled;
+      if (hit(KeyAction.markMode) && MarksScope.maybeOf(context) != null) {
+        return did(_toggleMarking);
       }
-    }
-    if (e is KeyDownEvent &&
-        k == LogicalKeyboardKey.keyM &&
-        MarksScope.maybeOf(context) != null) {
-      _toggleMarking();
-      return KeyEventResult.handled;
-    }
-    if (k == LogicalKeyboardKey.arrowLeft) {
-      _turn(1); // the book reads right to left: ← is forward
-    } else if (k == LogicalKeyboardKey.arrowRight) {
-      _turn(-1);
-    } else if (k == LogicalKeyboardKey.space && e is KeyDownEvent) {
-      _togglePlay();
-    } else if (k == LogicalKeyboardKey.escape && e is KeyDownEvent) {
-      if (!_chrome) {
-        _setChrome(true);
-      } else {
-        return KeyEventResult.ignored;
+      if (widget.home) {
+        final wide = MediaQuery.sizeOf(context);
+        if (hit(KeyAction.togglePages) && wide.width > wide.height) {
+          return did(() => _toggleTwoPages(s));
+        }
+        if (hit(KeyAction.darkMode)) return did(() => s.update(s.toggleDark));
+        if (hit(KeyAction.review)) return did(_hifzReview);
+        if (hit(KeyAction.memorize)) return did(_hifzMemorize);
+        if (hit(KeyAction.recitation)) return did(() => _hifzSetTool(_HifzTool.audio));
+        if (hit(KeyAction.follow)) return did(_hifzFollow);
+        if (hit(KeyAction.history)) {
+          return did(
+            () => openSection(context, AppSection.hifz, fromLeft: _dockLeftOn),
+          );
+        }
+        if (hit(KeyAction.bookmarkPage)) {
+          return did(
+            () => ProgressScope.read(
+              context,
+            ).togglePageBookmark(_script, _pendingPage ?? _page),
+          );
+        }
+        if (hit(KeyAction.openIndex)) return did(() => _hifzIndex(Division.surah));
+        if (hit(KeyAction.search)) return did(() => _hifzIndex(Division.surah, focusField: true));
+        if (hit(KeyAction.goToPage)) return did(() => _hifzIndex(Division.page, focusField: true));
+        if (hit(KeyAction.settings)) {
+          return did(
+            () => openSection(
+              context,
+              AppSection.settings,
+              fromLeft: _dockLeftOn,
+            ),
+          );
+        }
+        if (hit(KeyAction.export)) return did(_hifzExport);
       }
-    } else {
-      return KeyEventResult.ignored;
+      if (hit(KeyAction.shortcuts)) return did(() => showKeyboardSheet(context));
     }
-    return KeyEventResult.handled;
+    if (hit(KeyAction.nextPage)) return did(() => _turn(1)); // ← is forward
+    if (hit(KeyAction.prevPage)) return did(() => _turn(-1));
+    if (down && hit(KeyAction.playPause)) return did(_togglePlay);
+    if (down && hit(KeyAction.leave)) {
+      if (!_chrome) return did(() => _setChrome(true));
+      if (DesktopWindow.fullscreen) return did(DesktopWindow.leaveFullscreen);
+    }
+    return KeyEventResult.ignored;
   }
 
   Widget _desktopBody(BuildContext context, AppSettings s, MushafPaper paper) {
@@ -3303,218 +3964,257 @@ class _MushafSettingsSheet extends StatelessWidget {
       controller: controller,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
       children: [
-        Text(context.l10n.mushafSettings, style: displayStyle(context, size: 24)),
+        Text(
+          context.l10n.mushafSettings,
+          style: displayStyle(context, size: 24),
+        ),
         const SizedBox(height: 12),
-        QGroup(children: [
-          if (onMemorize != null)
+        QGroup(
+          children: [
+            if (onMemorize != null)
+              QRow(
+                leading: Icon(AppIcons.memorize, color: pal(context).acc),
+                title: context.l10n.mzStart,
+                subtitle: context.l10n.mzStartSub,
+                chevron: true,
+                onTap: onMemorize,
+              ),
+            if (onMemorizeFrom != null)
+              QRow(
+                leading: Icon(AppIcons.indexList, color: pal(context).acc),
+                title: context.l10n.mzStartFrom,
+                subtitle: context.l10n.mzStartFromSub,
+                chevron: true,
+                onTap: onMemorizeFrom,
+              ),
+            if (onMemorizeCards != null)
+              QRow(
+                leading: Icon(AppIcons.cards, color: pal(context).acc),
+                title: context.l10n.mzStartCards,
+                subtitle: context.l10n.mzStartCardsSub,
+                chevron: true,
+                onTap: onMemorizeCards,
+              ),
             QRow(
-              leading: Icon(AppIcons.memorize, color: pal(context).acc),
-              title: context.l10n.mzStart,
-              subtitle: context.l10n.mzStartSub,
-              chevron: true,
-              onTap: onMemorize,
-            ),
-          if (onMemorizeFrom != null)
-            QRow(
-              leading: Icon(AppIcons.indexList, color: pal(context).acc),
-              title: context.l10n.mzStartFrom,
-              subtitle: context.l10n.mzStartFromSub,
-              chevron: true,
-              onTap: onMemorizeFrom,
-            ),
-          if (onMemorizeCards != null)
-            QRow(
-              leading: Icon(AppIcons.cards, color: pal(context).acc),
-              title: context.l10n.mzStartCards,
-              subtitle: context.l10n.mzStartCardsSub,
-              chevron: true,
-              onTap: onMemorizeCards,
-            ),
-          QRow(
-            title: context.l10n.fcFocus,
-            subtitle: context.l10n.fcFocusSub,
-            control: QSwitch(
-                value: s.focusMode,
-                onChanged: (v) => s.update(() => s.focusMode = v)),
-          ),
-          ...memorizeTapRows(context, s),
-          if (onReview != null)
-            QRow(
-              leading: Icon(AppIcons.review, color: pal(context).acc),
-              title: context.l10n.rvSetupTitle,
-              chevron: true,
-              onTap: onReview,
-            ),
-        ]),
-        QSectionLabel(context.l10n.reading),
-        QGroup(children: [
-          QRow(
-            title: context.l10n.arabicScript,
-            control: QSegmented<String>(
-              expand: false,
-              options: [
-                ('uthmani', context.l10n.madani, null),
-                ('indopak', context.l10n.indoPak, null),
-              ],
-              value: script,
-              onChanged: onScript,
-            ),
-          ),
-          QRow(
-            title: context.l10n.pageColour,
-            control: QSegmented<String>(
-              expand: false,
-              options: [
-                ('light', context.l10n.themeLight, null),
-                ('night', context.l10n.themeDark, null),
-                ('oled', context.l10n.themeOled, null),
-              ],
-              value: s.appTheme == 'mono' ? 'light' : s.appTheme,
-              onChanged: (v) => s.update(() {
-                s.appTheme = v;
-                s.mushafPaperDark = 'default';
-              }),
-            ),
-          ),
-          QRow(
-            title: context.l10n.tajwidColors,
-            control: QSwitch(
-                value: s.mushafTajwid,
-                onChanged: (v) => s.update(() => s.mushafTajwid = v)),
-          ),
-          if (kMushafCustomization) ...[
-          QRow(
-            title: context.l10n.pageHeader,
-            control: QSwitch(
-                value: s.mushafHeader,
-                onChanged: (v) => s.update(() => s.mushafHeader = v)),
-          ),
-          QRow(
-            title: context.l10n.msEdgeToEdge,
-            subtitle: context.l10n.msEdgeToEdgeSub,
-            control: QSwitch(
-                value: s.styleFor(script).edge,
-                onChanged: (v) => s.update(() => s.styleFor(script).edge = v)),
-          ),
-          ],
-          if (MarksScope.maybeOf(context)?.activeBook != null)
-            QRow(
-              leading: Icon(AppIcons.link, color: pal(context).acc),
-              title: context.l10n.mtTitle,
-              subtitle: context.l10n.mtTitleSub,
-              chevron: true,
-              onTap: () => pushAdaptive(context, const MutashabihatScreen()),
-            ),
-          // Customisation (off for now, kMushafCustomization).
-          if (kMushafCustomization) ...[
-          QRow(
-            title: context.l10n.msTitle,
-            subtitle: context.l10n.msTitleSub,
-            chevron: true,
-            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => const MushafStyleScreen())),
-          ),
-          // Quick switches; every ornament is on the style screen above.
-          QRow(
-            title: context.l10n.pageBorder,
-            subtitle: context.l10n.pageBorderSub,
-            control: QSwitch(
-                value: s.orBorder != 'none',
-                onChanged: (v) =>
-                    s.update(() => s.orBorder = v ? 'auto' : 'none')),
-          ),
-          QRow(
-            title: context.l10n.marginInfo,
-            control: QSwitch(
-                value: s.orMargin != 'none',
-                onChanged: (v) =>
-                    s.update(() => s.orMargin = v ? 'auto' : 'none')),
-          ),
-          ],
-          QRow(
-            title: context.l10n.liteMode,
-            subtitle: context.l10n.liteModeSub,
-            control: QSwitch(
-                value: s.lite, onChanged: (v) => s.update(() => s.lite = v)),
-          ),
-          if (!isDesktopPlatform())
-            QRow(
-              title: context.l10n.immersiveHideSystemBars,
+              title: context.l10n.fcFocus,
+              subtitle: context.l10n.fcFocusSub,
               control: QSwitch(
-                  value: s.immersive,
-                  onChanged: (v) => s.update(() => s.immersive = v)),
+                value: s.focusMode,
+                onChanged: (v) => s.update(() => s.focusMode = v),
+              ),
             ),
-        ]),
+            ...memorizeTapRows(context, s),
+            if (onReview != null)
+              QRow(
+                leading: Icon(AppIcons.review, color: pal(context).acc),
+                title: context.l10n.rvSetupTitle,
+                chevron: true,
+                onTap: onReview,
+              ),
+          ],
+        ),
+        QSectionLabel(context.l10n.reading),
+        QGroup(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+              child: MushafEditionPicker(value: script, onChanged: onScript),
+            ),
+            QRow(
+              title: context.l10n.pageColour,
+              control: QSegmented<String>(
+                expand: false,
+                options: [
+                  ('light', context.l10n.themeLight, null),
+                  ('night', context.l10n.themeDark, null),
+                  ('oled', context.l10n.themeOled, null),
+                ],
+                value: s.appTheme == 'mono' ? 'light' : s.appTheme,
+                onChanged: (v) => s.update(() {
+                  s.appTheme = v;
+                  s.mushafPaperDark = 'default';
+                }),
+              ),
+            ),
+            // Phones on their side: which end the tools take.
+            if (!isDesktopPlatform())
+              QRow(
+                title: context.l10n.dockByCamera,
+                subtitle: context.l10n.dockByCameraSub,
+                control: QSwitch(
+                  value: s.dockByCamera,
+                  onChanged: (v) => s.update(() => s.dockByCamera = v),
+                ),
+              ),
+            // (A printed word is one image: it can't colour its letters.)
+            QRow(
+              title: context.l10n.tajwidColors,
+              subtitle: isOriginalScript(script)
+                  ? context.l10n.edNoColouring
+                  : null,
+              control: QSwitch(
+                value: s.mushafTajwid && !isOriginalScript(script),
+                onChanged: isOriginalScript(script)
+                    ? null
+                    : (v) => s.update(() => s.mushafTajwid = v),
+              ),
+            ),
+            if (kMushafCustomization) ...[
+              QRow(
+                title: context.l10n.pageHeader,
+                control: QSwitch(
+                  value: s.mushafHeader,
+                  onChanged: (v) => s.update(() => s.mushafHeader = v),
+                ),
+              ),
+              QRow(
+                title: context.l10n.msEdgeToEdge,
+                subtitle: context.l10n.msEdgeToEdgeSub,
+                control: QSwitch(
+                  value: s.styleFor(script).edge,
+                  onChanged: (v) => s.update(() => s.styleFor(script).edge = v),
+                ),
+              ),
+            ],
+            if (MarksScope.maybeOf(context)?.activeBook != null)
+              QRow(
+                leading: Icon(AppIcons.link, color: pal(context).acc),
+                title: context.l10n.mtTitle,
+                subtitle: context.l10n.mtTitleSub,
+                chevron: true,
+                onTap: () => showOverlayScreen(
+                  context,
+                  const MutashabihatScreen(),
+                  wide: true,
+                ),
+              ),
+            // Customisation (off for now, kMushafCustomization).
+            if (kMushafCustomization) ...[
+              QRow(
+                title: context.l10n.msTitle,
+                subtitle: context.l10n.msTitleSub,
+                chevron: true,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const MushafStyleScreen(),
+                  ),
+                ),
+              ),
+              // Quick switches; every ornament is on the style screen above.
+              QRow(
+                title: context.l10n.pageBorder,
+                subtitle: context.l10n.pageBorderSub,
+                control: QSwitch(
+                  value: s.orBorder != 'none',
+                  onChanged: (v) =>
+                      s.update(() => s.orBorder = v ? 'auto' : 'none'),
+                ),
+              ),
+              QRow(
+                title: context.l10n.marginInfo,
+                control: QSwitch(
+                  value: s.orMargin != 'none',
+                  onChanged: (v) =>
+                      s.update(() => s.orMargin = v ? 'auto' : 'none'),
+                ),
+              ),
+            ],
+            QRow(
+              title: context.l10n.liteMode,
+              subtitle: context.l10n.liteModeSub,
+              control: QSwitch(
+                value: s.lite,
+                onChanged: (v) => s.update(() => s.lite = v),
+              ),
+            ),
+            if (!isDesktopPlatform())
+              QRow(
+                title: context.l10n.immersiveHideSystemBars,
+                control: QSwitch(
+                  value: s.immersive,
+                  onChanged: (v) => s.update(() => s.immersive = v),
+                ),
+              ),
+          ],
+        ),
         if (MarksScope.maybeOf(context) case final store?) ...[
           QSectionLabel(context.l10n.mkMarks),
-          QGroup(children: [
-            QRow(
-              title: context.l10n.mkShowMarks,
-              control: QSwitch(
+          QGroup(
+            children: [
+              QRow(
+                title: context.l10n.mkShowMarks,
+                control: QSwitch(
                   value: s.showMarks,
-                  onChanged: (v) => s.update(() => s.showMarks = v)),
-            ),
-            QRow(
-              title: context.l10n.mkShowFixed,
-              subtitle: context.l10n.mkShowFixedSub,
-              control: QSwitch(
-                  value: s.showFixedMarks,
-                  onChanged: (v) => s.update(() => s.showFixedMarks = v)),
-            ),
-            if (store.books.length > 1)
-              for (final b in store.books)
-                QRadioRow(
-                  title: b.name,
-                  subtitle: context.l10n.mkMarkBook,
-                  selected: b.id == store.activeBookId,
-                  onTap: () => store.setActiveBook(b.id),
+                  onChanged: (v) => s.update(() => s.showMarks = v),
                 ),
-          ]),
+              ),
+              QRow(
+                title: context.l10n.mkShowFixed,
+                subtitle: context.l10n.mkShowFixedSub,
+                control: QSwitch(
+                  value: s.showFixedMarks,
+                  onChanged: (v) => s.update(() => s.showFixedMarks = v),
+                ),
+              ),
+              if (store.books.length > 1)
+                for (final b in store.books)
+                  QRadioRow(
+                    title: b.name,
+                    subtitle: context.l10n.mkMarkBook,
+                    selected: b.id == store.activeBookId,
+                    onTap: () => store.setActiveBook(b.id),
+                  ),
+            ],
+          ),
         ],
         QSectionLabel(context.l10n.recitation),
-        QGroup(children: [
-          for (final (id, name) in [
-            ('tunaiji', context.l10n.alTunaiji),
-            ('alafasy', context.l10n.afasyName),
-            ('husary', context.l10n.husaryName),
-          ])
-            QRadioRow(
-              title: name,
-              subtitle: id == 'tunaiji' ? null : context.l10n.wordHighlighting,
-              selected: s.reciter == id,
-              onTap: () => s.update(() => s.reciter = id),
+        QGroup(
+          children: [
+            for (final (id, name) in [
+              ('tunaiji', context.l10n.alTunaiji),
+              ('alafasy', context.l10n.afasyName),
+              ('husary', context.l10n.husaryName),
+            ])
+              QRadioRow(
+                title: name,
+                subtitle: id == 'tunaiji'
+                    ? null
+                    : context.l10n.wordHighlighting,
+                selected: s.reciter == id,
+                onTap: () => s.update(() => s.reciter = id),
+              ),
+            QRow(
+              title: context.l10n.afterVerse,
+              control: QSegmented<String>(
+                expand: false,
+                options: [
+                  ('single', context.l10n.flowStop, null),
+                  ('auto', context.l10n.flowContinue, null),
+                  ('repeat', context.l10n.flowRepeat, null),
+                ],
+                value: s.reciteFlow,
+                onChanged: (v) => s.update(() => s.reciteFlow = v),
+              ),
             ),
-          QRow(
-            title: context.l10n.afterVerse,
-            control: QSegmented<String>(
-              expand: false,
-              options: [
-                ('single', context.l10n.flowStop, null),
-                ('auto', context.l10n.flowContinue, null),
-                ('repeat', context.l10n.flowRepeat, null),
-              ],
-              value: s.reciteFlow,
-              onChanged: (v) => s.update(() => s.reciteFlow = v),
+            QRow(
+              title: context.l10n.playbackSpeed,
+              control: QSegmented<double>(
+                expand: false,
+                options: const [
+                  (0.75, '0.75×', null),
+                  (1.0, '1×', null),
+                  (1.25, '1.25×', null),
+                ],
+                value: s.playbackSpeed,
+                onChanged: (v) {
+                  s.update(() => s.playbackSpeed = v);
+                  AyahAudio.instance.setRate(v);
+                  WbwAudio.instance.setRate(v);
+                },
+              ),
             ),
-          ),
-          QRow(
-            title: context.l10n.playbackSpeed,
-            control: QSegmented<double>(
-              expand: false,
-              options: const [
-                (0.75, '0.75×', null),
-                (1.0, '1×', null),
-                (1.25, '1.25×', null)
-              ],
-              value: s.playbackSpeed,
-              onChanged: (v) {
-                s.update(() => s.playbackSpeed = v);
-                AyahAudio.instance.setRate(v);
-                WbwAudio.instance.setRate(v);
-              },
-            ),
-          ),
-        ]),
+          ],
+        ),
       ],
     );
   }
@@ -3563,6 +4263,69 @@ class MushafPagePreview extends StatelessWidget {
       );
     });
   }
+}
+
+/// The home muṣḥaf, for the screens over it (the Reader, the cards) to hand
+/// back what they're doing as they switch to the page: one app, two views.
+abstract final class HomeLink {
+  static _MushafPageScreenState? _home;
+
+  static bool get ready => _home?.mounted ?? false;
+
+  static _MushafPageScreenState? _back(BuildContext from) {
+    final h = _home;
+    if (h == null || !h.mounted) return null;
+    Navigator.of(from, rootNavigator: true).popUntil((r) => r.isFirst);
+    return h;
+  }
+
+  /// Back to the page, reviewing [c] there.
+  static void review(BuildContext from, ReviewController c) {
+    final h = _back(from);
+    if (h == null) return;
+    h._attachReview(c);
+    h._setChrome(true);
+  }
+
+  /// Back to the page, memorizing with [c] there.
+  static void memorize(BuildContext from, MemorizeController c) =>
+      _back(from)?._memorizeWith(c);
+
+  /// Whether the page has taken [c] on (so the cards mustn't dispose of it).
+  static bool holds(MemorizeController c) => identical(_home?._memo, c);
+
+  static void switchScript(String v) => _home?._switchScript(v);
+
+  /// Back to the page, at [page] of [script] (the same words in the page's
+  /// own script, if it's another) — or where it was, with no page. What
+  /// History, the statistics and the rest open, in place of a muṣḥaf of
+  /// their own.
+  static void show(BuildContext from, {int? page, String? script}) {
+    final h = _back(from);
+    if (h != null && page != null) h._showAt(page, script);
+  }
+
+  /// Back to the page, [w] in focus there (a mutashābih, a count).
+  static void focus(BuildContext from, WordRef w) => _back(from)?._focusWord(w);
+
+  /// Back to the page at mutashābih [m]'s word, tapping the passages it's
+  /// confused with (from the Reader, the cards, a right-click's menu).
+  static void link(BuildContext from, Mark m) {
+    final h = _back(from);
+    if (h == null) return;
+    if (h._marking.active) h._marking.stop();
+    h._goToWord(m.ref);
+    h._startLinking(m);
+  }
+}
+
+/// What's been chosen so far on the muṣḥaf for an export: pages, sūrah numbers
+/// or global āyahs, by [unit].
+class _ExportPick {
+  ExportPickUnit unit;
+  int? first, last;
+  final done = Completer<ExportPicked?>();
+  _ExportPick(this.unit);
 }
 
 class _MushafPageView extends StatelessWidget {
@@ -3617,6 +4380,10 @@ class _MushafPageView extends StatelessWidget {
   /// home's sūrah · page · juzʼ), given the page's width; it scrolls with
   /// the page.
   final Widget Function(int page, double width)? topLine;
+
+  /// Draws the page from the print's own atlases.
+  final OriginalAtlas? original;
+  final bool classicCircle;
   const _MushafPageView({
     required this.page,
     required this.script,
@@ -3639,6 +4406,8 @@ class _MushafPageView extends StatelessWidget {
     this.focus = -1,
     this.hideFrom = -1,
     this.topLine,
+    this.original,
+    this.classicCircle = false,
   });
 
   @override
@@ -4021,22 +4790,55 @@ class _MushafPageView extends StatelessWidget {
   /// band, [band] wide, its first [gap] kept clear of the frame) — the
   /// ḥizb-quarter lanterns and rukūʿ marks level with their lines. Sūrah
   /// headers reach [bleed] past the text, to the frame.
-  Widget _grid(BuildContext context, List<MushafLine> lines, double vw,
-      double vh,
-      {double bleed = 0,
-      double toBand = 0,
-      double band = 0,
-      double gap = 0,
-      double fs = 0,
-      bool outerRight = true}) {
+  Widget _grid(
+    BuildContext context,
+    List<MushafLine> lines,
+    double vw,
+    double vh, {
+    double bleed = 0,
+    double toBand = 0,
+    double band = 0,
+    double gap = 0,
+    double fs = 0,
+    bool outerRight = true,
+  }) {
     final ink = paper.ink;
+    if (original case final atlas?) {
+      return OriginalPageView(
+        handlers: handlers,
+        marks: this.marks,
+        spec: OriginalPageSpec(
+          atlas: atlas,
+          page: page,
+          ink: ink,
+          ornament: paper.frame,
+          accent: paper.acc,
+          strongBg: paper.hl2,
+          verseBg: paper.hl,
+          playAyah: playAyah,
+          playWord: playWord,
+          reciting: reciting,
+          markPal: markPal,
+          focus: focus,
+          hideFrom: hideFrom,
+          fitWidth: wideLayout,
+          classicCircle: classicCircle,
+        ),
+      );
+    }
     // A short-and-wide viewport (phone landscape) lays the page out to the
     // FULL width and lets it run taller than the viewport (see _page, which
     // scrolls it); [vh] is 0 then.
     final fitWidth = wideLayout;
     mushafLastViewport = (Size(vw, vh), fitWidth);
-    final (textFs, slotH, contentH) =
-        mushafPageGeometry(script, page, lines, vw, vh, fitWidth: fitWidth);
+    final (textFs, slotH, contentH) = mushafPageGeometry(
+      script,
+      page,
+      lines,
+      vw,
+      vh,
+      fitWidth: fitWidth,
+    );
     if (kMushafPerf) PerfLog.pageFontSize = textFs;
     final opening = mushafOpeningPage(page, lines);
     // Each row and the slots it spans: the Indo-Pak sūrah header takes a
@@ -4050,7 +4852,8 @@ class _MushafPageView extends StatelessWidget {
           : OverflowBox(
               maxWidth: vw + 2 * bleed,
               minWidth: vw + 2 * bleed,
-              child: child);
+              child: child,
+            );
       if (look.header == 'indopak' &&
           l.isHeader &&
           i + 1 < lines.length &&
@@ -4063,16 +4866,27 @@ class _MushafPageView extends StatelessWidget {
         rows.add((
           1,
           Center(
-              child: wide(_slot(
-                  context, i, l, textFs, vw + 2 * bleed, slotH, ink))),
+            child: wide(
+              _slot(context, i, l, textFs, vw + 2 * bleed, slotH, ink),
+            ),
+          ),
         ));
         continue;
       }
       rows.add((
         1,
         Center(
-            child: _slot(context, i, l, textFs, vw, slotH, ink,
-                justify: !opening)),
+          child: _slot(
+            context,
+            i,
+            l,
+            textFs,
+            vw,
+            slotH,
+            ink,
+            justify: !opening,
+          ),
+        ),
       ));
     }
 
@@ -4085,9 +4899,7 @@ class _MushafPageView extends StatelessWidget {
     // (away from the frame).
     Positioned outerMark(int line, double w, double h, Widget child) =>
         Positioned(
-          left: outerRight
-              ? vw + toBand + band - w - 2
-              : -(toBand + band) + 2,
+          left: outerRight ? vw + toBand + band - w - 2 : -(toBand + band) + 2,
           top: lineY(line) - h / 2,
           width: w,
           height: h,
@@ -4104,7 +4916,11 @@ class _MushafPageView extends StatelessWidget {
             band - gap,
             fs * 1.9,
             _RukuMark(
-                number: number, ayahs: ayahs, size: fs * .5, ink: paper.ink),
+              number: number,
+              ayahs: ayahs,
+              size: fs * .5,
+              ink: paper.ink,
+            ),
           ),
     ];
 
@@ -4224,8 +5040,16 @@ class _MushafPageView extends StatelessWidget {
         tune: look.tune,
       );
 
-  Widget _slot(BuildContext context, int index, MushafLine l, double fs,
-      double targetW, double slotH, Color ink, {bool justify = true}) {
+  Widget _slot(
+    BuildContext context,
+    int index,
+    MushafLine l,
+    double fs,
+    double targetW,
+    double slotH,
+    Color ink, {
+    bool justify = true,
+  }) {
     if (l.isHeader) {
       final glyph = (l.surah >= 1 && l.surah <= surahGlyphCodes.length)
           ? surahGlyphCodes[l.surah - 1]
@@ -4256,26 +5080,59 @@ class _MushafPageView extends StatelessWidget {
       );
     }
     if (l.isBasmala) {
+      // Al-Baqarah's opening: al-Fātiḥah's own words, only to look at.
+      if (MushafRepo.openingBasmala(script, page) case final words?) {
+        return IgnorePointer(
+          child: _lineView(
+            index,
+            words,
+            fs,
+            targetW,
+            slotH,
+            ink,
+            justify: false,
+            inert: true,
+          ),
+        );
+      }
       // As printed: most of the line's height, at most 60% of its width.
       return SizedBox(
         width: targetW * .6,
         height: slotH,
         child: FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text(MushafRepo.bismillahChar,
-              textDirection: TextDirection.rtl,
-              style: TextStyle(
-                  fontFamily: 'Bismillah',
-                  fontSize: slotH * .62 * look.tune['basmalaScale'],
-                  height: 1,
-                  color: ink)),
+          child: Text(
+            MushafRepo.bismillahChar,
+            textDirection: TextDirection.rtl,
+            style: TextStyle(
+              fontFamily: 'Bismillah',
+              fontSize: slotH * .62 * look.tune['basmalaScale'],
+              height: 1,
+              color: ink,
+            ),
+          ),
         ),
       );
     }
+    return _lineView(index, l, fs, targetW, slotH, ink, justify: justify);
+  }
+
+  /// A text line; [inert] leaves out recitation, marks and focus (the words
+  /// aren't this page's).
+  Widget _lineView(
+    int index,
+    MushafLine l,
+    double fs,
+    double targetW,
+    double slotH,
+    Color ink, {
+    required bool justify,
+    bool inert = false,
+  }) {
     final marker = markerOf(look, paper);
     return MushafLineView(
       handlers: handlers,
-      marks: marks,
+      marks: inert ? null : marks,
       spec: MushafLineSpec(
         script: script,
         page: page,
@@ -4288,14 +5145,14 @@ class _MushafPageView extends StatelessWidget {
         accent: paper.acc,
         strongBg: paper.hl2,
         verseBg: paper.hl,
-        playAyah: playAyah,
-        playWord: playWord,
-        reciting: reciting,
-        marks: marks?.visuals ?? const {},
+        playAyah: inert ? -1 : playAyah,
+        playWord: inert ? -1 : playWord,
+        reciting: !inert && reciting,
+        marks: inert ? const {} : marks?.visuals ?? const {},
         markPal: markPal,
         tajwid: tajwid,
-        focus: focus,
-        hideFrom: hideFrom,
+        focus: inert ? -1 : focus,
+        hideFrom: inert ? -1 : hideFrom,
         justify: justify,
         ornament: marker.color,
         ornamentFill: marker.fill,
@@ -4395,19 +5252,22 @@ Widget mushafPageForPrint({
   required MushafPaper paper,
   required MushafLook look,
   required MushafMarksSource marks,
-}) =>
-    _MushafPageView(
-      page: page,
-      script: script,
-      names: names,
-      paper: paper,
-      look: look,
-      wideLayout: false,
-      showHeader: false,
-      playAyah: -1,
-      playWord: -1,
-      reciting: false,
-      marks: marks,
-      markPal: markPaletteForPaper(paper),
-      handlers: MushafTapHandlers(),
-    );
+  OriginalAtlas? original,
+  bool classicCircle = false,
+}) => _MushafPageView(
+  page: page,
+  script: script,
+  names: names,
+  paper: paper,
+  look: look,
+  wideLayout: false,
+  showHeader: false,
+  playAyah: -1,
+  playWord: -1,
+  reciting: false,
+  marks: marks,
+  markPal: markPaletteForPaper(paper),
+  handlers: MushafTapHandlers(),
+  original: original,
+  classicCircle: classicCircle,
+);

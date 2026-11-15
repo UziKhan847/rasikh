@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/core/theme.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
-import 'package:qiraah_arabiyyah/screens/shell/app_shell.dart';
-import 'package:qiraah_arabiyyah/screens/tracing_screen.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/core/theme.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/quran.dart';
+import 'package:rasikh/screens/mushaf_screen.dart';
 
 import 'test_support.dart';
 
@@ -78,25 +76,5 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
     expect(pageBuilds, 0, reason: 'pages rebuilt on a chrome toggle');
-  });
-
-  testWidgets('after the Writing home, the app goes idle (no endless frames)',
-      (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final (s, p) = await _boot(desktop: false);
-    s.appMode = 'write';
-    await tester.pumpWidget(_app(s, p, const AppShell()));
-    await _settle(tester);
-    expect(find.byType(TracingScreen), findsOneWidget);
-    s.update(() => s.appMode = 'reader');
-    // The new home's entrances run their course (a few seconds), then stop.
-    for (var i = 0; i < 4; i++) {
-      await tester.pump(const Duration(seconds: 1));
-    }
-    expect(find.byType(TracingScreen), findsNothing);
-    expect(tester.binding.hasScheduledFrame, isFalse,
-        reason: 'something keeps animating after the mode changed');
   });
 }

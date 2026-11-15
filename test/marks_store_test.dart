@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_model.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
-import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
+import 'package:rasikh/core/marks/marks_model.dart';
+import 'package:rasikh/core/marks/marks_persistence.dart';
+import 'package:rasikh/core/marks/marks_store.dart';
+import 'package:rasikh/core/marks/word_ref.dart';
 
 class _Clock {
   int t = 1700000000000;
@@ -60,6 +60,32 @@ void main() {
     final s2 = store.startSession(bookId: b, script: 'indopak').id;
     store.toggle(b, w1, MarkType.doubt, sessionId: s2);
     expect(store.marksAt(b, w1), hasLength(3));
+  });
+
+  test('undo gives the edit that redoes it, over and over', () async {
+    final store = MarksStore(persistence: MemoryMarksPersistence(), saveDelay: Duration.zero);
+    await store.load();
+    final b = store.ensureActiveBook('Me').id;
+    const w = WordRef(2, 255, 3);
+    final s = store.startSession(bookId: b, script: 'uthmani').id;
+    final (first, _) = store.cycle(b, w, sessionId: s);
+    expect(store.marksAt(b, w).single.type, MarkType.mistake);
+    final (second, _) = store.cycle(b, w, sessionId: s);
+    expect(store.marksAt(b, w).single.type, MarkType.tajwid);
+
+    final redoSecond = store.undo(second);
+    expect(store.marksAt(b, w).single.type, MarkType.mistake);
+    final undoSecond = store.undo(redoSecond);
+    expect(store.marksAt(b, w).single.type, MarkType.tajwid);
+    final redoAgain = store.undo(undoSecond);
+    expect(store.marksAt(b, w).single.type, MarkType.mistake);
+    final redoFirst = store.undo(first);
+    expect(store.marksAt(b, w), isEmpty, reason: 'a mark it made goes');
+    store.undo(redoFirst);
+    expect(store.marksAt(b, w).single.type, MarkType.mistake, reason: 'and comes back');
+    store.undo(redoAgain);
+    expect(store.marksAt(b, w).single.type, MarkType.tajwid);
+    await store.flush();
   });
 
   test('cycle: a tap steps the mark mistake → tajwīd → hesitation → doubt → off',

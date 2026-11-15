@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/screens/settings_screen.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/screens/settings_screen.dart';
 
 /// Reachability check for the new Downloads screen: Settings → "Manage
 /// downloads" → the Downloads screen. Doesn't wait for [DownloadsScreen]'s

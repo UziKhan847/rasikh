@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_model.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_stats.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
-import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
+import 'package:rasikh/core/marks/marks_model.dart';
+import 'package:rasikh/core/marks/marks_persistence.dart';
+import 'package:rasikh/core/marks/marks_stats.dart';
+import 'package:rasikh/core/marks/marks_store.dart';
+import 'package:rasikh/core/marks/word_ref.dart';
 
 void main() {
   test('counts by bucket, sūrah, juzʼ, page, session; problem words',

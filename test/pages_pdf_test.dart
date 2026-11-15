@@ -1,16 +1,20 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_model.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
-import 'package:qiraah_arabiyyah/core/marks/review.dart';
-import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
-import 'package:qiraah_arabiyyah/screens/marks/pages_pdf.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/core/marks/marks_model.dart';
+import 'package:rasikh/core/marks/marks_persistence.dart';
+import 'package:rasikh/core/marks/marks_store.dart';
+import 'package:rasikh/core/marks/review.dart';
+import 'package:rasikh/core/marks/word_ref.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/data/quran.dart';
+import 'package:rasikh/screens/marks/export_sheet.dart';
+import 'package:rasikh/screens/marks/pages_pdf.dart';
+import 'package:rasikh/screens/marks/report_pdf.dart' show marksPdfName;
 
 import 'test_support.dart';
 
@@ -27,6 +31,45 @@ void main() {
     expect(pagesOfSurah('uthmani', 1), [1]);
     expect(pagesOfSurah('uthmani', 2), [for (var p = 2; p <= 49; p++) p]);
     expect(pagesOfJuz('uthmani', 1), [for (var p = 1; p <= 21; p++) p]);
+  });
+
+  test('an export\'s name: whose, marks, its pages, the date', () {
+    final d = DateTime(2026, 11, 4);
+    expect(marksPdfName('Zayd', 570, 573, d), 'Zayd_marks_570-573_2026-11-04.pdf');
+    expect(marksPdfName('Zayd', 7, 7, d), 'Zayd_marks_7-7_2026-11-04.pdf');
+    expect(marksPdfName('زيد علي', 1, 2, d), 'زيد_علي_marks_1-2_2026-11-04.pdf');
+    expect(marksPdfName('a/b: c?', 1, 2, d), 'a_b_c_marks_1-2_2026-11-04.pdf');
+    expect(marksPdfName(' ', 1, 2, d), 'Rasikh_marks_1-2_2026-11-04.pdf');
+  });
+
+  testWidgets('Pages + report, the default, can choose "only pages with marks" '
+      'too', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final s = AppSettings();
+    await s.load();
+    final m = MarksStore(persistence: MemoryMarksPersistence(), saveDelay: Duration.zero);
+    await m.load();
+    final b = m.ensureActiveBook('Zayd').id;
+    await tester.pumpWidget(SettingsScope(
+      settings: s,
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+        home: Builder(
+          builder: (c) => TextButton(
+            onPressed: () =>
+                showExportSheet(c, store: m, bookId: b, script: 'uthmani', currentPage: 570),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text('The pages numbered, then the report'), findsOneWidget);
+    expect(find.text('Only pages with marks'), findsOneWidget);
+    await m.flush();
   });
 
   testWidgets('typing one end of the range leaves the other be', (tester) async {
@@ -76,8 +119,8 @@ void main() {
     await m.flush();
   });
 
-  testWidgets('each mark on the pages gets its note and leader, on the '
-      'nearer side; filters and "only marked" hold', (tester) async {
+  testWidgets('each mark on the pages is numbered on its word and listed '
+      'beside the page; filters and "only marked" hold', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final s = AppSettings();
     await s.load();
@@ -114,15 +157,25 @@ void main() {
     await tester.runAsync(() async {
       final sheets = await preparePages(ctx, e, [6]);
       final sheet = sheets.single;
-      expect(sheet.leaders.length, 3, reason: 'one leader per mark');
-      for (final (pts, _) in sheet.leaders) {
-        // From the word out to the margin it's nearer to.
-        final wordX = pts[0], endX = pts[pts.length - 2];
-        final toLeft = endX < wordX;
-        expect(toLeft, wordX < 595 / 2);
+      // Each mark numbered on its word, in reading order (2:31, 2:33, 2:34),
+      // and listed beside the page under its number; no lines between.
+      expect([for (final b in sheet.badges) b.$3], [1, 2, 3]);
+      expect([for (final n in sheet.notes) n.$1], [1, 2, 3]);
+      final ys = [for (final b in sheet.badges) b.$2];
+      expect(ys[0], lessThanOrEqualTo(ys[1]), reason: 'down the page in order');
+      for (final (bx, by, _, _) in sheet.badges) {
+        expect(bx, inInclusiveRange(sheet.pageX, sheet.pageX + sheet.page.width + 6));
+        expect(by, inInclusiveRange(sheet.pageY, sheet.pageY + sheet.page.height));
       }
+      final panel = sheet.panel!;
+      expect(panel.left, greaterThanOrEqualTo(sheet.pageX + sheet.page.width),
+          reason: 'beside the page, not over it');
+      expect(panel.right, lessThanOrEqualTo(595));
+      expect(sheet.page.height, greaterThan(560));
       final bytes = await buildPagesPdf(sheets);
       expect(String.fromCharCodes(bytes.take(4)), '%PDF');
+      const keep = String.fromEnvironment('PAGES_PDF');
+      if (keep.isNotEmpty) File(keep).writeAsBytesSync(bytes);
     });
     await m.flush();
   });

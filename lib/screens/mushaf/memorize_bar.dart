@@ -22,6 +22,19 @@ class MemorizeBar extends StatelessWidget {
   final VoidCallback onPlayPage;
   final VoidCallback onEnd;
 
+  /// Held (or right-clicked), Play offers the āyāt showing, each to be
+  /// heard just as far as it shows: these are played.
+  final void Function(List<(int, int)> clips)? onPlayClips;
+
+  /// Reveal what's recited (Follow my recitation): on or off; [listening]
+  /// while it is.
+  final VoidCallback? onListen;
+  final bool listening;
+
+  /// While [listening]: shown in place of the hint (its status, and the
+  /// warning), so the bar keeps its height.
+  final Widget? listenStatus;
+
   /// Floating pill (desktop / landscape) vs. a full-width bar.
   final bool floating;
 
@@ -58,6 +71,10 @@ class MemorizeBar extends StatelessWidget {
     required this.accent,
     required this.onPlay,
     required this.onPlayPage,
+    this.onPlayClips,
+    this.onListen,
+    this.listening = false,
+    this.listenStatus,
     required this.onEnd,
     this.floating = false,
     this.cards = false,
@@ -68,6 +85,55 @@ class MemorizeBar extends StatelessWidget {
     this.compact = false,
     this.vertical = false,
   });
+
+  /// Which to hear: each āyah showing (as far as it shows), or all of
+  /// them; without [onPlayClips], the page so far, as before.
+  Future<void> _choose(BuildContext context) async {
+    final play = onPlayClips;
+    if (play == null) return onPlayPage();
+    final c = controller;
+    final clips = [for (final g in c.shownAyahs()) ?c.clipOf(g)];
+    if (clips.isEmpty) return;
+    final l = context.l10n;
+    // Above the bar.
+    final box = context.findRenderObject() as RenderBox?;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (box == null || overlay == null) return;
+    final at = box.localToGlobal(Offset.zero, ancestor: overlay);
+    String label((int, int) clip) {
+      final (g, w) = clip;
+      final (su, ay) = MushafRepo.surahAyahOf(g);
+      final name = surahNames[su] ?? '';
+      final where = '$name $su:$ay';
+      return w < 0 ? where : '$where · ${l.mzPlayUpTo(w + 1)}';
+    }
+
+    final picked = await showMenu<int>(
+      context: context,
+      position: RelativeRect.fromLTRB(at.dx, at.dy, overlay.size.width - at.dx - box.size.width,
+          overlay.size.height - at.dy),
+      items: [
+        for (final (i, clip) in clips.indexed)
+          PopupMenuItem<int>(
+            key: ValueKey('memo-play-${clip.$1}'),
+            value: i,
+            child: Row(children: [
+              Icon(AppIcons.play, size: 16, color: accent),
+              const SizedBox(width: 8),
+              Flexible(child: Text(label(clip))),
+            ]),
+          ),
+        if (clips.length > 1)
+          PopupMenuItem<int>(
+            key: const ValueKey('memo-play-all'),
+            value: -1,
+            child: Text(l.mzPlayAllShown),
+          ),
+      ],
+    );
+    if (picked == null) return;
+    play(picked < 0 ? clips : [clips[picked]]);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +173,9 @@ class MemorizeBar extends StatelessWidget {
                     color: on == null ? sub.withValues(alpha: .5) : ink),
               ),
             );
-        final caption = Row(children: [
+        final caption = listening && listenStatus != null
+            ? Row(children: [Expanded(child: listenStatus!)])
+            : Row(children: [
           Expanded(
             child: Text.rich(
               TextSpan(children: [
@@ -188,12 +256,23 @@ class MemorizeBar extends StatelessWidget {
               icon(cards ? AppIcons.mushaf : AppIcons.cards,
                   cards ? context.l10n.mzAsPage : context.l10n.mzAsCards,
                   onSwitchView),
+            if (onListen != null)
+              IconButton(
+                key: const ValueKey('memo-listen'),
+                tooltip: context.l10n.mzListen,
+                isSelected: listening,
+                onPressed: c.atEnd ? null : onListen,
+                icon: Icon(AppIcons.mic, color: listening ? accent : ink),
+                style: IconButton.styleFrom(
+                    backgroundColor: listening ? accent.withValues(alpha: .14) : null),
+              ),
             Tooltip(
               message: cards ? context.l10n.mzPlayCards : context.l10n.mzPlay,
               child: InkWell(
                 borderRadius: BorderRadius.circular(999),
                 onTap: c.atStart ? null : onPlay,
-                onLongPress: c.atStart ? null : onPlayPage,
+                onLongPress: c.atStart ? null : () => _choose(context),
+                onSecondaryTap: c.atStart ? null : () => _choose(context),
                 child: Padding(
                   padding: EdgeInsets.all(vertical ? 7 : 10),
                   child: Icon(playing ? AppIcons.pause : AppIcons.play,
@@ -244,12 +323,21 @@ class MemorizeBar extends StatelessWidget {
                   ),
                   icon(AppIcons.chevronRight, context.l10n.mzPrevWord,
                       c.atStart ? null : c.prevWord),
+                  if (onListen != null)
+                    IconButton(
+                      key: const ValueKey('memo-listen'),
+                      tooltip: context.l10n.mzListen,
+                      isSelected: listening,
+                      onPressed: c.atEnd ? null : onListen,
+                      icon: Icon(AppIcons.mic, color: listening ? accent : ink),
+                    ),
                   Tooltip(
                     message: cards ? context.l10n.mzPlayCards : context.l10n.mzPlay,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(999),
                       onTap: c.atStart ? null : onPlay,
-                      onLongPress: c.atStart ? null : onPlayPage,
+                      onLongPress: c.atStart ? null : () => _choose(context),
+                      onSecondaryTap: c.atStart ? null : () => _choose(context),
                       child: Padding(
                         padding: const EdgeInsets.all(10),
                         child: Icon(playing ? AppIcons.pause : AppIcons.play,

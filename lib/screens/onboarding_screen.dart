@@ -1,25 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../core/l10n.dart';
-import '../core/reminder.dart';
 import '../core/settings.dart';
 import '../core/theme.dart';
 import '../ui/app_icons.dart';
 import '../ui/brand.dart';
 import '../ui/kit.dart';
-import 'settings_screen.dart' show setReminder;
-import 'shell/mode_preview.dart';
 
-/// The first-launch setup on the hero gradient: welcome (and language), the
-/// mode — what the app opens to ([AppMode]) — how to read (script and
-/// reciter), appearance, and for the learning modes a gentle daily goal.
-/// Skip or finish both mark it done, with the mode picked (Reader unless
-/// another was). [pushed] when reopened from Settings ("Show welcome
-/// again"); [modeOnly] for an install from before the modes: just the mode.
+/// The first launch: welcome, how to read (script and reciter), and the
+/// look. Skip or finish both mark it done. [pushed] when reopened from
+/// Settings ("Show welcome again").
 class OnboardingScreen extends StatefulWidget {
   final bool pushed;
-  final bool modeOnly;
-  const OnboardingScreen({super.key, this.pushed = false, this.modeOnly = false});
+  const OnboardingScreen({super.key, this.pushed = false});
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
@@ -30,17 +23,10 @@ const _gold = kHeroGold;
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   int _step = 0;
-  AppMode? _picked;
-
-  AppMode _mode(AppSettings s) => _picked ?? s.mode ?? AppMode.reader;
 
   void _finish() {
     final s = SettingsScope.of(context);
-    final m = _mode(s);
-    s.update(() {
-      s.onboarded = true;
-      s.appMode = m.name;
-    });
+    s.update(() => s.onboarded = true);
     if (widget.pushed && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
@@ -49,17 +35,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final g = gradientsOf(context);
-    final s = SettingsScope.of(context);
-    final m = _mode(s);
-    final steps = widget.modeOnly
-        ? [_modes(context)]
-        : [
-            _welcome(context),
-            _modes(context),
-            if (m == AppMode.hifz || m == AppMode.reader) _read(context),
-            _look(context),
-            if (m == AppMode.learn || m == AppMode.write) _goal(context),
-          ];
+    final steps = [_welcome(context), _read(context), _look(context)];
     if (_step >= steps.length) _step = steps.length - 1;
     final last = _step == steps.length - 1;
     final cta = last
@@ -84,7 +60,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: ConstrainedBox(
               // The mode step's four previews take a wider row.
               constraints: BoxConstraints(
-                  maxWidth: widget.modeOnly || _step == 1 ? 960 : 560),
+                  maxWidth: 560),
               child: Column(children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 8, 18, 0),
@@ -173,8 +149,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const AppLogoTile(
               size: 88,
               radius: 26,
-              inset: 16,
-              glyph: _gold,
+              inset: 10,
+              glyph: _cream,
               background: Color(0x14F2EEE4)),
           const SizedBox(height: 22),
           const Text('بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ',
@@ -186,9 +162,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   height: 1.8,
                   color: _gold)),
           const SizedBox(height: 4),
-          const Text('Qiraah',
-              style: TextStyle(
+          Text(context.l10n.appName,
+              style: const TextStyle(
                   fontFamily: 'SourceSerif4',
+                  // Its name in Arabic and Urdu.
+                  fontFamilyFallback: ['NotoNaskhArabic'],
                   fontSize: 46,
                   height: 1.05,
                   color: _cream)),
@@ -224,19 +202,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
         ],
       );
-
-  /// The mode: what the app opens to.
-  Widget _modes(BuildContext context) {
-    final s = SettingsScope.of(context);
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      _title(context, context.l10n.obModeTitle, context.l10n.obModeSub),
-      ModeGrid(
-        selected: _mode(s),
-        onDark: true,
-        onPicked: (m) => setState(() => _picked = m),
-      ),
-    ]);
-  }
 
   /// Light, dark or OLED.
   Widget _look(BuildContext context) {
@@ -350,49 +315,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ]);
   }
 
-  Widget _goal(BuildContext context) {
-    final s = SettingsScope.of(context);
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      _title(context, context.l10n.obGoal, context.l10n.obGoalSub),
-      Row(children: [
-        for (final m in const [5, 10, 15, 20]) ...[
-          if (m != 5) const SizedBox(width: 10),
-          Expanded(
-            child: _Choice(
-              selected: s.dailyGoalMinutes == m,
-              onTap: () => s.update(() => s.dailyGoalMinutes = m),
-              child: Column(children: [
-                Text('$m',
-                    style: const TextStyle(
-                        fontFamily: 'SourceSerif4', fontSize: 30, color: _cream)),
-                Text(context.l10n.minutesUnit,
-                    style: uiStyle(context, size: 12.5, color: _creamSoft)),
-              ]),
-            ),
-          ),
-        ],
-      ]),
-      if (DailyReminder.supported) ...[
-        const SizedBox(height: 14),
-        _Choice(
-          selected: s.reminderOn,
-          onTap: () => setReminder(context, !s.reminderOn),
-          child: Row(children: [
-            const Icon(AppIcons.bell, color: _cream, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(context.l10n.dailyReminder,
-                  style: uiStyle(context,
-                      size: 15, weight: FontWeight.w600, color: _cream)),
-            ),
-            Switch(
-                value: s.reminderOn,
-                onChanged: (v) => setReminder(context, v)),
-          ]),
-        ),
-      ],
-    ]);
-  }
 }
 
 class _Choice extends StatelessWidget {

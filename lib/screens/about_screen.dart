@@ -6,7 +6,7 @@ import '../ui/app_icons.dart';
 import '../ui/brand.dart';
 import '../ui/kit.dart';
 
-/// About — what Qiraah Arabiyyah teaches, where its text, audio and fonts
+/// About — what Rāsikh is for, where its text, audio and fonts
 /// come from, and who we thank. (The settings that used to live here are in
 /// Settings.)
 class AboutScreen extends StatelessWidget {
@@ -58,12 +58,12 @@ class AboutScreen extends StatelessWidget {
         QHeroCard(
           child: Row(children: [
             const AppLogoTile(
-                size: 56, radius: 16, inset: 10, glyph: kHeroGold,
+                size: 56, radius: 16, inset: 7, glyph: kHeroInk,
                 background: Color(0x14F2EEE4)),
             const SizedBox(width: 16),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(context.l10n.qiraahArabiyyah,
+                Text(context.l10n.appName,
                     style: displayStyle(context, size: 26, color: kHeroInk)),
                 const SizedBox(height: 4),
                 Text(context.l10n.completeJourneyQurAnicArabic,
@@ -89,7 +89,7 @@ class AboutScreen extends StatelessWidget {
             QOutlineButton(context.l10n.openSourceLicences,
                 icon: AppIcons.document,
                 onTap: () => showLicensePage(
-                    context: context, applicationName: 'Qiraah Arabiyyah')),
+                    context: context, applicationName: context.l10n.appName)),
           ]),
         ),
         QSectionLabel(context.l10n.creditsGratitude),
@@ -104,6 +104,7 @@ class AboutScreen extends StatelessWidget {
             AppIcons.mushaf, 28),
         credit(context.l10n.creditDigitalKhattTitle,
             context.l10n.creditDigitalKhattBody, AppIcons.brush, 230),
+        credit(context.l10n.followTitle, context.l10n.followCredit, AppIcons.mic, 200),
         const SizedBox(height: 18),
         Center(
           child: Text('وَرَتِّلِ ٱلۡقُرۡءَانَ تَرۡتِيلًا',

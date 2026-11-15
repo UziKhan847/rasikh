@@ -2,18 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_line.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/quran.dart';
+import 'package:rasikh/screens/mushaf/mushaf_line.dart';
+import 'package:rasikh/screens/mushaf_screen.dart';
 
 import 'shots/shots_test.dart' show loadFonts;
 import 'test_support.dart';
 
-/// Pages take the scanned Madani muṣḥaf's proportions, a phone on its side
-/// can show two facing pages, and the one-page landscape view scrolls the
+/// A portrait page fills the screen, the same box on every page; on its side
+/// pages take the scanned Madani muṣḥaf's proportions, a phone can show two
+/// facing pages, and the one-page landscape view scrolls the
 /// whole page (paper and frame), not a window inside it.
 Future<(AppSettings, ProgressStore)> _boot({bool spread = false}) async {
   SharedPreferences.setMockInitialValues({});
@@ -105,21 +106,38 @@ void main() {
     }
   });
 
-  testWidgets('a portrait page is laid out in its scanned shape', (
-    tester,
-  ) async {
+  testWidgets('every portrait page takes one box, filling the height: a wide '
+      'page and a narrow one share their line grid', (tester) async {
     _view(tester, const Size(393, 852));
     final (s, p) = await _boot();
-    await tester.pumpWidget(_app(s, p, const MushafPageScreen(startPage: 50)));
+    Future<(double, double)> gridOf(int page) async {
+      await tester.pumpWidget(_app(s, p, MushafPageScreen(key: ValueKey(page), startPage: page)));
+      await _settle(tester);
+      final line = tester
+          .renderObjectList<RenderMushafLine>(find.byType(MushafLineView))
+          .firstWhere((r) => r.spec.page == page);
+      return (line.spec.slotH, line.spec.targetW);
+    }
+
+    final (slot30, _) = await gridOf(30);
+    final (slot31, _) = await gridOf(31);
+    expect(slot31, closeTo(slot30, .01));
+    expect(slot30 * 15, greaterThan(852 * .8), reason: 'fills the screen');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('page 2 draws al-Fātiḥah\'s basmala, out of reach of taps', (tester) async {
+    _view(tester, const Size(393, 852));
+    final (s, p) = await _boot();
+    await tester.pumpWidget(_app(s, p, const MushafPageScreen(startPage: 2)));
     await _settle(tester);
-    final line = tester
-        .renderObjectList<RenderMushafLine>(find.byType(MushafLineView))
-        .firstWhere((r) => r.spec.page == 50);
-    final textH = line.spec.slotH * MushafRepo.pageSync('uthmani', 50)!.length;
-    expect(
-      line.spec.targetW / textH,
-      closeTo(MushafGeometry.pageRatio('uthmani', 50)!, .01),
-    );
+    final view = find.byWidgetPredicate((w) =>
+        w is MushafLineView && w.spec.page == 2 && w.spec.index == 1);
+    expect(view, findsOneWidget);
+    expect(tester.widget<MushafLineView>(view).spec.line.firstTok,
+        MushafRepo.pageSync('uthmani', 1)![1].firstTok);
+    expect(find.ancestor(of: view, matching: find.byType(IgnorePointer)), findsWidgets);
+    expect(find.text(MushafRepo.bismillahChar), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
 

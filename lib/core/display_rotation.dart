@@ -15,6 +15,16 @@ Future<int> displayRotation() async {
   }
 }
 
+/// The device's memory in MB, or null where it can't tell.
+Future<int?> deviceRamMb() async {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return null;
+  try {
+    return await _channel.invokeMethod<int>('ramMb');
+  } catch (_) {
+    return null;
+  }
+}
+
 /// The rotation as Android reports each change — including a turn from one
 /// side straight to the other, which changes nothing else Flutter sees.
 final ValueNotifier<int> displayRotationChanges = () {

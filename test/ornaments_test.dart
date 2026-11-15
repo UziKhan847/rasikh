@@ -4,11 +4,11 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/data/divisions.dart' show rukuCountOf;
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/page_details.dart';
-import 'package:qiraah_arabiyyah/ui/ornaments/ornaments.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/data/divisions.dart' show rukuCountOf;
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/page_details.dart';
+import 'package:rasikh/ui/ornaments/ornaments.dart';
 
 import 'test_support.dart' show loadMushaf;
 
@@ -46,13 +46,13 @@ void main() {
       final s = await _from({'orHeader': 'madani', 'orBorder': 'none'});
       final m = s.mushafLook('uthmani', focus: false);
       final i = s.mushafLook('indopak', focus: false);
-      // Madani: cream, the gold double frame, line-art header, head inside.
+      // Madani: white, the gold double frame, line-art header, head inside.
       expect((m.header, m.marker, m.border, m.margin, m.head),
           ('madani', 'font', 'double', 'none', 'inside'));
       expect((i.header, i.marker, i.border, i.margin, i.head),
           ('indopak', 'indopak', 'indopak', 'text', 'edges'));
       expect((s.styleFor('uthmani').paper, s.styleFor('indopak').paper),
-          ('cream', 'mono'));
+          ('white', 'mono'));
     }, skip: _custom);
 
     test('the old printed Madani default moves to the new one; a choice '
@@ -63,7 +63,7 @@ void main() {
             },
           };
       final old = await _from(saved('madani', 'auto'));
-      expect(old.styleFor('uthmani').paper, 'cream');
+      expect(old.styleFor('uthmani').paper, 'white');
       final chosen = await _from(saved('madani', 'thinnest3'));
       expect(chosen.styleFor('uthmani').paper, 'madani');
     });

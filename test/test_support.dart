@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/mushaf_atlas.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/mushaf_atlas.dart';
 
 /// Turns on the OS reduce-motion flag for this test, so screens with
 /// repeating animations let `pumpAndSettle()` return.

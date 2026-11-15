@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qiraah_arabiyyah/core/marks/qc_words.dart';
-import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
+import 'package:rasikh/core/marks/qc_words.dart';
+import 'package:rasikh/core/marks/word_ref.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/quran.dart';
 
 /// Word marks are keyed by (sūrah, āyah, word) and must land on the same word
 /// in the Madani and the Indo-Pak muṣḥaf. That only holds while both texts

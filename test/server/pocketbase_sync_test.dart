@@ -15,13 +15,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/marks/marks_model.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
-import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
-import 'package:qiraah_arabiyyah/core/sync/pocketbase_backend.dart';
-import 'package:qiraah_arabiyyah/core/sync/sync_backend.dart';
-import 'package:qiraah_arabiyyah/core/sync/sync_engine.dart';
+import 'package:rasikh/core/marks/marks_model.dart';
+import 'package:rasikh/core/marks/marks_persistence.dart';
+import 'package:rasikh/core/marks/marks_store.dart';
+import 'package:rasikh/core/marks/word_ref.dart';
+import 'package:rasikh/core/sync/pocketbase_backend.dart';
+import 'package:rasikh/core/sync/sync_backend.dart';
+import 'package:rasikh/core/sync/sync_engine.dart';
 
 const _url = String.fromEnvironment('PB_URL');
 const _admin = String.fromEnvironment('PB_ADMIN');

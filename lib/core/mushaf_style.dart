@@ -9,7 +9,7 @@ import '../ui/ornaments/tuning.dart';
 /// - [border]: 'none' | 'line' | 'double' | 'auto' | 'madani' | 'indopak'
 ///   | 'tile1'…'tile3' | 'thin1'…'thin3' | 'thinnest1'…'thinnest3';
 /// - [margin]: 'none' | 'auto' | 'lantern1' | 'lantern2' | 'text';
-/// - [paper]: the light theme's page colours ('cream', 'white', 'madani',
+/// - [paper]: the light theme's page colours ('white', 'cream', 'madani',
 ///   'mono', 'tile1'…'tile3');
 /// - [head]: the running head — 'auto' | 'inside' | 'frame' | 'edges', and
 ///   for 'edges' which of its parts show ([edgeTop], [edgeRuku],
@@ -41,12 +41,12 @@ class MushafStyle {
     Map<String, double>? tune,
   }) : tune = tune ?? {};
 
-  /// The script's default look: Madani — cream, a thin double gold frame
+  /// The script's default look: Madani — white, a thin double gold frame
   /// with the running head inside, the line-art header (its printed look
   /// is a preset); Indo-Pak — its own frame and two-tier header, in black
   /// and white, the page's details along the frame.
   factory MushafStyle.defaultsFor(String script) =>
-      MushafStyle(paper: script == 'indopak' ? 'mono' : 'cream');
+      MushafStyle(paper: script == 'indopak' ? 'mono' : 'white');
 
   OrnamentTuning get tuning => OrnamentTuning(tune);
 

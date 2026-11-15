@@ -25,7 +25,7 @@ abstract interface class MushafMarksSource {
 class MushafMarksLayer implements MushafMarksSource {
   MarksStore? _store;
   String _script = 'uthmani';
-  bool _show = true, _showFixed = true;
+  bool _show = true, _showFixed = true, _showBreath = true;
   Map<int, MarkVisual> _visuals = const {};
   final Map<int, _Signal> _pages = {};
 
@@ -74,6 +74,7 @@ class MushafMarksLayer implements MushafMarksSource {
     required String script,
     required bool show,
     required bool showFixed,
+    bool showBreath = true,
   }) {
     if (!identical(store, _store)) {
       _store?.removeListener(_onStore);
@@ -85,6 +86,7 @@ class MushafMarksLayer implements MushafMarksSource {
     _script = script;
     _show = show;
     _showFixed = showFixed;
+    _showBreath = showBreath;
     _refresh(all: all);
   }
 
@@ -92,10 +94,10 @@ class MushafMarksLayer implements MushafMarksSource {
 
   Map<int, MarkVisual> _compute() {
     final s = _store;
-    if (s == null || !s.ready || !_show) return const {};
+    if (s == null || !s.ready || (!_show && !_showBreath)) return const {};
     final book = s.activeBookId;
     if (book == null) return const {};
-    return s.visuals(book, showFixed: _showFixed);
+    return s.visuals(book, showFixed: _showFixed, showMarks: _show, showBreath: _showBreath);
   }
 
   void _refresh({bool all = false}) {

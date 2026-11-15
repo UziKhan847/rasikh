@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/desktop_window.dart';
+import '../../core/keymap.dart';
 import '../../core/l10n.dart';
 import '../../core/responsive.dart';
 import '../../core/profiles.dart';
 import '../../core/settings.dart';
 import '../../ui/app_icons.dart';
-import '../learn_screen.dart';
 import '../mushaf_screen.dart';
-import '../quran_screen.dart';
-import '../tracing_screen.dart';
-import 'app_mode.dart' show openSection;
+import 'sections.dart' show openSection;
 
-/// The top-level places of the app.
-enum AppSection { today, quran, mushaf, hifz, learn, trace, settings }
+/// The top-level places of the app: the muṣḥaf (its home), the Hifẓ
+/// history, the settings.
+enum AppSection { mushaf, hifz, settings }
 
 /// Lets any screen inside the shell switch section (Today's tiles open the
 /// reader, Learn or Trace this way).
@@ -50,8 +50,17 @@ class ShellScope extends InheritedWidget {
 /// Opens the 15-line muṣḥaf full-screen: at [page] in [script] (both default
 /// to the last page read / the muṣḥaf setting), optionally straight into
 /// marking mode.
-void openMushaf(BuildContext context,
-    {int? page, String? script, bool startMarking = false}) {
+void openMushaf(
+  BuildContext context, {
+  int? page,
+  String? script,
+  bool startMarking = false,
+}) {
+  // The muṣḥaf is the home page: back to it, never a second one over it.
+  if (HomeLink.ready && !startMarking) {
+    HomeLink.show(context, page: page, script: script);
+    return;
+  }
   final prog = ProgressScope.read(context);
   Navigator.of(context, rootNavigator: !useDesktop(context)).push(
       MaterialPageRoute(
@@ -63,29 +72,19 @@ void openMushaf(BuildContext context,
 }
 
 String sectionLabel(BuildContext context, AppSection s) => switch (s) {
-      AppSection.today => context.l10n.navToday,
-      AppSection.quran => context.l10n.navReader,
-      AppSection.mushaf => context.l10n.navMushaf,
-      AppSection.hifz => context.l10n.mkHifz,
-      AppSection.learn => context.l10n.navLearn,
-      AppSection.trace => context.l10n.navTrace,
-      AppSection.settings => context.l10n.settings,
-    };
+  AppSection.mushaf => context.l10n.navMushaf,
+  AppSection.hifz => context.l10n.hsTitle,
+  AppSection.settings => context.l10n.settings,
+};
 
 IconData sectionIcon(AppSection s) => switch (s) {
-      AppSection.today => AppIcons.today,
-      AppSection.quran => AppIcons.reader,
-      AppSection.mushaf => AppIcons.mushaf,
-      AppSection.hifz => AppIcons.hifz,
-      AppSection.learn => AppIcons.learn,
-      AppSection.trace => AppIcons.trace,
-      AppSection.settings => AppIcons.settings,
-    };
+  AppSection.mushaf => AppIcons.mushaf,
+  AppSection.hifz => AppIcons.hifz,
+  AppSection.settings => AppIcons.settings,
+};
 
-/// The app shell: the chosen mode's home, full screen, on every layout —
-/// the muṣḥaf (Hifẓ), the reader, the learning modules or the tracing
-/// studio. Everything else is a tap away from its settings button (long
-/// press: the mode switcher; see app_mode.dart).
+/// The app shell: the muṣḥaf, full screen, on every layout. Everything else
+/// is a tap away from its tools.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
   @override
@@ -108,37 +107,45 @@ class _AppShellState extends State<AppShell> {
     super.dispose();
   }
 
-  /// Ctrl+Shift+L switches between the desktop and phone layouts. A global
+  /// F11 (or what it's been changed to), from wherever: the window on a
+  /// computer; the system's bars on a phone or tablet.
+  bool _fullscreen(KeyEvent e) {
+    final s = SettingsScope.of(context);
+    if (!s.keymap.matches(KeyAction.fullscreen, e)) return false;
+    // A letter it's been changed to is still a letter in a text field.
+    final field = FocusManager.instance.primaryFocus?.context
+        ?.findAncestorWidgetOfExactType<EditableText>();
+    if (field != null) return false;
+    if (isDesktopPlatform()) {
+      DesktopWindow.toggleFullscreen();
+    } else {
+      s.update(() => s.immersive = !s.immersive);
+    }
+    return true;
+  }
+
+  /// Ctrl+Shift+L (unless changed) switches between the desktop and phone
+  /// layouts. A global
   /// handler rather than a Shortcuts widget, so it works whatever has focus
   /// (the muṣḥaf keeps focus for its arrow keys).
   bool _onKey(KeyEvent e) {
-    if (e is! KeyDownEvent || e.logicalKey != LogicalKeyboardKey.keyL) {
-      return false;
-    }
-    final k = HardwareKeyboard.instance;
-    if (!k.isShiftPressed || !(k.isControlPressed || k.isMetaPressed)) {
-      return false;
-    }
-    if (!mounted || !canUseDesktopShell(context)) return false;
+    if (e is KeyDownEvent && mounted && _fullscreen(e)) return true;
+    if (e is! KeyDownEvent || !mounted) return false;
+    if (!SettingsScope.of(context).keymap.matches(KeyAction.toggleLayout, e)) return false;
     toggleLayout(context);
     return true;
   }
 
   @override
   Widget build(BuildContext context) {
-    final s = SettingsScope.of(context);
     // read, not of: the home must not rebuild on every progress change.
     final prog = ProgressScope.read(context);
-    final Widget home = switch (s.mode ?? AppMode.reader) {
-      AppMode.hifz => MushafPageScreen(
-          key: const ValueKey('home-mushaf'),
-          home: true,
-          startPage: prog.lastMushafPage ?? 1,
-          pageScript: prog.lastMushafScript),
-      AppMode.reader => const SurahListScreen(key: ValueKey('home-reader')),
-      AppMode.learn => const LearnScreen(key: ValueKey('home-learn')),
-      AppMode.write => const TracingScreen(key: ValueKey('home-write')),
-    };
+    final Widget home = MushafPageScreen(
+      key: const ValueKey('home-mushaf'),
+      home: true,
+      startPage: prog.lastMushafPage ?? 1,
+      pageScript: prog.lastMushafScript,
+    );
     // Another profile: its home afresh (its page, its mode).
     final profile = ProfileScope.maybeOf(context)?.active.id ?? '';
     return ShellScope(

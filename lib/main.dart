@@ -8,6 +8,7 @@ import 'package:flutter/services.dart'
     show SystemChrome, SystemUiMode, SystemUiOverlayStyle;
 
 import 'core/audio.dart';
+import 'core/desktop_window.dart';
 import 'core/fluency/fluency_store.dart';
 import 'core/jank_watch.dart';
 import 'core/l10n.dart';
@@ -26,6 +27,7 @@ import 'screens/shell/app_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await DesktopWindow.start();
   final settings = AppSettings();
   final progress = ProgressStore();
   final profiles = ProfileStore();
@@ -53,6 +55,10 @@ Future<void> main() async {
     final script = settings.mushafScript;
     unawaited(MushafRepo.ensure(script).then(
         (_) => MushafAtlas.load(script, MushafRepo.tokensSync(script))));
+    // A mark over several words is laid on each of them, by the text's
+    // words in each āyah.
+    MarksStore.ayahWords = (g) => MushafRepo.wordCount('uthmani', g);
+    unawaited(MushafRepo.ensure('uthmani').then((_) => marks.respan()));
   });
   // Slow-frame logging in profile builds (or with MUSHAF_PERF=true).
   PerfLog.start();
@@ -103,7 +109,7 @@ class QiraahArabiyyahApp extends StatelessWidget {
               // onGenerateTitle, not title: this callback is handed a context
               // BELOW the Localizations widget, so l10n is available. Reading
               // context.l10n for `title` here would throw.
-              onGenerateTitle: (context) => context.l10n.qiraahArabiyyah,
+              onGenerateTitle: (context) => context.l10n.appName,
               debugShowCheckedModeBanner: false,
               scaffoldMessengerKey: rootMessengerKey,
               theme: buildTheme(settings),
@@ -305,15 +311,13 @@ class _SystemUiSyncState extends State<_SystemUiSync>
 }
 
 /// The first-launch setup until it has been finished or skipped, then the
-/// app shell — the chosen mode's home ([AppShell]). An install from before
-/// the modes picks one, once.
+/// app shell: the muṣḥaf ([AppShell]).
 class RootScreen extends StatelessWidget {
   const RootScreen({super.key});
   @override
   Widget build(BuildContext context) {
     final s = SettingsScope.of(context);
     if (!s.onboarded) return const OnboardingScreen();
-    if (s.mode == null) return const OnboardingScreen(modeOnly: true);
     return const AppShell();
   }
 }

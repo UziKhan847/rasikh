@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/main.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/main.dart';
 
 import 'test_support.dart';
 

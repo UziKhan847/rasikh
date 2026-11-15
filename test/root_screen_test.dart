@@ -2,26 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/main.dart';
-import 'package:qiraah_arabiyyah/screens/learn_screen.dart';
-import 'package:qiraah_arabiyyah/screens/onboarding_screen.dart';
-import 'package:qiraah_arabiyyah/screens/quran_list_screen.dart';
-import 'package:qiraah_arabiyyah/screens/settings_screen.dart';
-import 'package:qiraah_arabiyyah/screens/shell/app_mode.dart';
-import 'package:qiraah_arabiyyah/screens/shell/app_shell.dart';
-import 'package:qiraah_arabiyyah/screens/tracing_screen.dart';
-
-import 'package:qiraah_arabiyyah/ui/app_icons.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/data/quran.dart';
+import 'package:rasikh/main.dart';
+import 'package:rasikh/screens/mushaf_screen.dart';
+import 'package:rasikh/screens/onboarding_screen.dart';
 
 import 'test_support.dart';
 
-/// [RootScreen]: the setup on a fresh install (the mode among its steps),
-/// the mode alone once for an install from before the modes, then the
-/// chosen mode's home; Settings switches mode.
-Future<(AppSettings, ProgressStore)> _boot(
-    {bool onboarded = true, String mode = 'reader'}) async {
+/// [RootScreen]: the welcome on a fresh install, then — finished or skipped
+/// — the muṣḥaf, the app's one home.
+Future<(AppSettings, ProgressStore)> _boot({bool onboarded = true}) async {
   SharedPreferences.setMockInitialValues({});
   final settings = AppSettings();
   final progress = ProgressStore();
@@ -29,147 +21,61 @@ Future<(AppSettings, ProgressStore)> _boot(
   await progress.load();
   settings
     ..onboarded = onboarded
-    ..appMode = mode
     ..desktopMode = 'off';
   return (settings, progress);
 }
 
-Widget _harness(AppSettings settings, ProgressStore progress) {
-  return SettingsScope(
-    settings: settings,
-    child: ProgressScope(
-      progress: progress,
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        locale: const Locale('en'),
-        home: const RootScreen(),
+Widget _harness(AppSettings settings, ProgressStore progress) => SettingsScope(
+      settings: settings,
+      child: ProgressScope(
+        progress: progress,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+          home: const RootScreen(),
+        ),
       ),
-    ),
-  );
-}
+    );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  testWidgets('a fresh install: the setup, with the mode; then its home',
-      (tester) async {
-    useReducedMotion(tester);
-    tester.view.physicalSize = const Size(430, 1000);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final (settings, progress) = await _boot(onboarded: false, mode: '');
-    await tester.pumpWidget(_harness(settings, progress));
-    await tester.pumpAndSettle();
-    expect(find.byType(OnboardingScreen), findsOneWidget);
-
-    await tester.tap(find.text('Begin')); // welcome → mode
-    await tester.pumpAndSettle();
-    expect(find.text('How will you use Qiraah?'), findsOneWidget);
-    await tester.tap(find.text('Learning'));
-    await tester.pumpAndSettle();
-    // Learning: appearance, then the daily goal; no script step.
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    expect(find.text('Appearance'), findsOneWidget);
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byType(InkWell).last); // finish
-    await tester.pumpAndSettle();
-    expect(settings.onboarded, isTrue);
-    expect(settings.mode, AppMode.learn);
-    expect(find.byType(LearnScreen), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 300)); // settings save
+  setUpAll(() async {
+    mockAudioPlugins();
+    await QuranRepo.meta();
+    await loadMushaf('uthmani');
   });
 
-  testWidgets('skipping picks the Reader', (tester) async {
-    useReducedMotion(tester);
-    final (settings, progress) = await _boot(onboarded: false, mode: '');
-    await tester.pumpWidget(_harness(settings, progress));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Skip'));
-    await tester.pumpAndSettle();
-    expect(settings.mode, AppMode.reader);
-    expect(find.byType(SurahListScreen), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 300));
-  });
-
-  testWidgets('an install from before the modes chooses one, once',
-      (tester) async {
-    useReducedMotion(tester);
-    tester.view.physicalSize = const Size(430, 1000);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final (settings, progress) = await _boot(mode: '');
-    await tester.pumpWidget(_harness(settings, progress));
-    await tester.pumpAndSettle();
-    expect(find.text('How will you use Qiraah?'), findsOneWidget);
-    expect(find.text('Begin'), findsNothing, reason: 'the mode step only');
-    await tester.tap(find.text('Writing'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byType(InkWell).last);
-    await tester.pumpAndSettle();
-    expect(settings.mode, AppMode.write);
-    expect(find.byType(TracingScreen), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 300));
-  });
-
-  for (final (mode, home) in [
-    ('reader', SurahListScreen),
-    ('learn', LearnScreen),
-    ('write', TracingScreen),
-  ]) {
-    testWidgets('$mode opens to its home', (tester) async {
-      useReducedMotion(tester);
-      final (settings, progress) = await _boot(mode: mode);
-      await tester.pumpWidget(_harness(settings, progress));
-      await tester.pumpAndSettle();
-      expect(find.byType(AppShell), findsOneWidget);
-      expect(find.byType(home), findsOneWidget);
-    });
+  Future<void> settle(WidgetTester tester) async {
+    for (var i = 0; i < 6; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 40)));
+      await tester.pump(const Duration(milliseconds: 60));
+    }
   }
 
-  testWidgets('settings: switch mode; long press: the switcher', (tester) async {
-    useReducedMotion(tester);
-    tester.view.physicalSize = const Size(430, 1600);
+  testWidgets('a fresh install: the welcome; skipped, the muṣḥaf', (tester) async {
+    tester.view.physicalSize = const Size(430, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final (settings, progress) = await _boot(mode: 'learn');
-    await tester.pumpWidget(_harness(settings, progress));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Settings'));
-    await tester.pumpAndSettle();
-    expect(find.byType(SettingsScreen), findsOneWidget);
-    expect(find.byType(AlsoInApp), findsOneWidget);
-    await tester.tap(find.text('Writing'));
-    await tester.pumpAndSettle();
-    expect(settings.mode, AppMode.write);
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    expect(find.byType(TracingScreen), findsOneWidget);
-
-    await tester.longPress(find.byTooltip('Settings'));
-    await tester.pumpAndSettle();
-    expect(find.text('Switch mode'), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 300));
+    final (s, p) = await _boot(onboarded: false);
+    await tester.pumpWidget(_harness(s, p));
+    await settle(tester);
+    expect(find.byType(OnboardingScreen), findsOneWidget);
+    await tester.tap(find.text('Skip'));
+    await settle(tester);
+    expect(s.onboarded, isTrue);
+    expect(find.byType(MushafPageScreen), findsOneWidget);
+    expect(tester.widget<MushafPageScreen>(find.byType(MushafPageScreen)).home, isTrue);
+    await tester.pump(const Duration(milliseconds: 500));
   });
 
-  testWidgets('the Reader home has no back button, even after something '
-      'covered it', (tester) async {
-    useReducedMotion(tester);
-    final (settings, progress) = await _boot(mode: 'reader');
-    await tester.pumpWidget(_harness(settings, progress));
-    await tester.pumpAndSettle();
-    Finder back() => find.descendant(
-        of: find.byType(SurahListScreen), matching: find.byIcon(AppIcons.back));
-    expect(back(), findsNothing);
-    await tester.tap(find.byTooltip('Settings'));
-    await tester.pumpAndSettle();
-    progress.setLastRead(2, 255); // rebuilds the covered home
-    await tester.pump();
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    expect(back(), findsNothing);
-    await tester.pump(const Duration(milliseconds: 300));
+  testWidgets('once set up, the app opens on the muṣḥaf', (tester) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (s, p) = await _boot();
+    await tester.pumpWidget(_harness(s, p));
+    await settle(tester);
+    expect(find.byType(MushafPageScreen), findsOneWidget);
   });
 }

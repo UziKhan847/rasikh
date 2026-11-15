@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../core/fluency/fluency_store.dart' show Recall;
 import '../../core/l10n.dart';
 import '../../core/marks/marks_model.dart';
 import '../../core/marks/review.dart';
+import '../../data/divisions.dart';
 import '../../core/theme.dart';
 import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
 import 'marking.dart';
+import '../../ui/bidi.dart';
 
 /// The bar shown while reviewing marks (muṣḥaf and verse cards): what the
 /// current mark is and where it stands in the queue, which kind the arrows
@@ -79,7 +82,7 @@ class ReviewBar extends StatelessWidget {
                   ),
                   if (m != null && m.comment.isNotEmpty)
                     TextSpan(
-                        text: '  ${m.comment}',
+                        text: '  ${isolateArabic(m.comment)}',
                         style: uiStyle(context, size: 12.5, color: sub)),
                   if (m != null && m.comment.isEmpty)
                     TextSpan(
@@ -131,6 +134,7 @@ class ReviewBar extends StatelessWidget {
         final chips = SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(children: [
+            _WhereChip(controller: c, ink: ink, line: line, accent: accent),
             chip(null),
             for (final t in MarkType.values)
               if (kinds.contains(t)) chip(t),
@@ -142,11 +146,12 @@ class ReviewBar extends StatelessWidget {
               icon: Icon(i, color: on == null ? sub.withValues(alpha: .5) : ink),
             );
         final actions = Row(mainAxisSize: MainAxisSize.min, children: [
-          // Right to left like the text: "previous" points right.
-          icon(AppIcons.chevronRight, context.l10n.rvPrev,
-              c.hasPrev ? c.prev : null),
+          // Right to left like the text: "next" points left and stands on
+          // the left, "previous" on the right.
           icon(AppIcons.chevronLeft, context.l10n.rvNext,
               c.hasNext ? c.next : null),
+          icon(AppIcons.chevronRight, context.l10n.rvPrev,
+              c.hasPrev ? c.prev : null),
           Tooltip(
             message: context.l10n.rvRepeatHint,
             child: InkWell(
@@ -164,19 +169,40 @@ class ReviewBar extends StatelessWidget {
               m == null ? null : onRepeatVerse),
           icon(AppIcons.undo, context.l10n.mkUndo, c.canUndo ? c.undo : null),
           const SizedBox(width: 2),
-          FilledButton.icon(
-            onPressed: m == null || fixed || !m.type.fixable
-                ? null
-                : () => c.markFixed(),
-            icon: const Icon(AppIcons.check, size: 18),
-            label: Text(context.l10n.mkMarkFixed),
-            style: FilledButton.styleFrom(
-              backgroundColor: pal.fixed,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              minimumSize: const Size(0, 38),
+          // A fluency mark is read better, not fixed: how it went.
+          if (c.onFluency)
+            for (final (r, label, colour) in [
+              (Recall.instant, context.l10n.flInstant, const Color(0xFF2E8B57)),
+              (Recall.slow, context.l10n.flSlowRead, const Color(0xFFC27C12)),
+              (Recall.wrong, context.l10n.flWrong, const Color(0xFFB4483B)),
+            ])
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: FilledButton(
+                  onPressed: () => c.rate(r),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: colour,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    minimumSize: const Size(0, 38),
+                  ),
+                  child: Text(label),
+                ),
+              )
+          else
+            FilledButton.icon(
+              onPressed: m == null || fixed || !m.type.fixable
+                  ? null
+                  : () => c.markFixed(),
+              icon: const Icon(AppIcons.check, size: 18),
+              label: Text(context.l10n.mkMarkFixed),
+              style: FilledButton.styleFrom(
+                backgroundColor: pal.fixed,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                minimumSize: const Size(0, 38),
+              ),
             ),
-          ),
           const SizedBox(width: 4),
           TextButton(
             onPressed: onEnd,
@@ -280,6 +306,105 @@ class ReviewBar extends StatelessWidget {
           child: body,
         );
       },
+    );
+  }
+}
+
+/// Where the arrows step: everywhere in the review, or one sūrah, juzʼ,
+/// manzil, ḥizb or page of those it has marks in (each with its count).
+class _WhereChip extends StatelessWidget {
+  final ReviewController controller;
+  final Color ink, line, accent;
+  const _WhereChip(
+      {required this.controller, required this.ink, required this.line, required this.accent});
+
+  static const _divisions = [
+    Division.surah,
+    Division.juz,
+    Division.manzil,
+    Division.hizb,
+    Division.page,
+  ];
+
+  static String placeLabel(BuildContext context, Division d, int n) {
+    final l = context.l10n;
+    return switch (d) {
+      Division.surah => '${l.idxSurah} $n',
+      Division.juz => l.juzN(n),
+      Division.manzil => l.idxManzilN(n),
+      Division.hizb => l.idxHizbN(n),
+      Division.rub => l.idxRubN(n),
+      _ => l.pageN(n),
+    };
+  }
+
+  static String divisionLabel(BuildContext context, Division d) {
+    final l = context.l10n;
+    return switch (d) {
+      Division.surah => l.idxSurah,
+      Division.juz => l.idxJuz,
+      Division.manzil => l.idxManzil,
+      Division.hizb => l.idxHizb,
+      Division.rub => l.idxRub,
+      _ => l.idxPage,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    final where = c.where;
+    final on = where != null;
+    final label = where == null
+        ? context.l10n.rvWholeBook
+        : placeLabel(context, where.$1, where.$2);
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: 6),
+      child: MenuAnchor(
+        menuChildren: [
+          MenuItemButton(
+            key: const ValueKey('where-all'),
+            leadingIcon: where == null ? const Icon(Icons.check, size: 16) : null,
+            onPressed: () => c.setWhere(null),
+            child: Text('${context.l10n.rvWholeBook} · ${c.length}'),
+          ),
+          for (final d in _divisions)
+            SubmenuButton(
+              key: ValueKey('where-${d.name}'),
+              menuChildren: [
+                for (final (n, count) in c.placesOf(d))
+                  MenuItemButton(
+                    key: ValueKey('where-${d.name}-$n'),
+                    leadingIcon: where == (d, n) ? const Icon(Icons.check, size: 16) : null,
+                    onPressed: () => c.setWhere((d, n)),
+                    child: Text('${placeLabel(context, d, n)} · $count'),
+                  ),
+              ],
+              child: Text(divisionLabel(context, d)),
+            ),
+        ],
+        builder: (context, menu, _) => InkWell(
+          key: const ValueKey('review-where'),
+          borderRadius: BorderRadius.circular(999),
+          onTap: () => menu.isOpen ? menu.close() : menu.open(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: on ? accent.withValues(alpha: .16) : Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: on ? accent : line, width: on ? 1.6 : 1),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.place_outlined, size: 14, color: ink),
+              const SizedBox(width: 4),
+              Text(label,
+                  style: uiStyle(context,
+                      size: 12.5, weight: on ? FontWeight.w700 : FontWeight.w500, color: ink)),
+              Icon(Icons.arrow_drop_down, size: 16, color: ink),
+            ]),
+          ),
+        ),
+      ),
     );
   }
 }

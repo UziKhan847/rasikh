@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qiraah_arabiyyah/core/marks/card_align.dart';
-import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
+import 'package:rasikh/core/marks/card_align.dart';
+import 'package:rasikh/core/marks/word_ref.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/quran.dart';
 
 /// card_align.g.dart (from tools/marks/gen_card_align.py) must agree with the
 /// app's own tokenizer and the muṣḥaf data: a mark made in the card reader

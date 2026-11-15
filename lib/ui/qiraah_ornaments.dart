@@ -2,105 +2,10 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-import '../core/theme.dart' show AppTheme;
+export 'package:qiraah_ui/gradients.dart';
 import 'ornaments/ayah_markers.dart';
 
 /// Very slight, dark gradients. When Settings → Gradients is off, use the flat fallbacks.
-class QGradients {
-  final List<Color> hero, primary, screen, side;
-  final Color heroFlat, primaryFlat, screenFlat, sideFlat;
-  const QGradients(
-    this.hero,
-    this.primary,
-    this.screen,
-    this.side,
-    this.heroFlat,
-    this.primaryFlat,
-    this.screenFlat,
-    this.sideFlat,
-  );
-  static const light = QGradients(
-    [Color(0xFF09271F), Color(0xFF0C3229), Color(0xFF0F3B32)],
-    [Color(0xFF0B5F4C), Color(0xFF0E7059)],
-    [Color(0xFFF4F2EC), Color(0xFFEFECE4)],
-    [Color(0xFFFAF9F5), Color(0xFFF5F2EB)],
-    Color(0xFF0F3B32),
-    Color(0xFF0F7A62),
-    Color(0xFFF5F3EE),
-    Color(0xFFFBFAF7),
-  );
-  static const mono = QGradients(
-    [Color(0xFF0A0A0A), Color(0xFF151515), Color(0xFF1E1E1E)],
-    [Color(0xFF0A0A0A), Color(0xFF1E1E1E)],
-    [Color(0xFFF3F3F3), Color(0xFFEDEDED)],
-    [Color(0xFFFAFAFA), Color(0xFFF4F4F4)],
-    Color(0xFF1A1A1A),
-    Color(0xFF111111),
-    Color(0xFFF4F4F4),
-    Color(0xFFFAFAFA),
-  );
-  static const night = QGradients(
-    [Color(0xFF061915), Color(0xFF09251F), Color(0xFF0C2E27)],
-    [Color(0xFF106E58), Color(0xFF14806A)],
-    [Color(0xFF0F1513), Color(0xFF0C1210)],
-    [Color(0xFF121916), Color(0xFF0F1513)],
-    Color(0xFF0F3B32),
-    Color(0xFF16856A),
-    Color(0xFF0E1412),
-    Color(0xFF121916),
-  );
-  static const oled = QGradients(
-    [Color(0xFF020C0A), Color(0xFF06190F), Color(0xFF08221C)],
-    [Color(0xFF106E58), Color(0xFF14806A)],
-    [Color(0xFF000000), Color(0xFF000000)],
-    [Color(0xFF000000), Color(0xFF000000)],
-    Color(0xFF0F3B32),
-    Color(0xFF16856A),
-    Color(0xFF000000),
-    Color(0xFF000000),
-  );
-  static QGradients of(AppTheme t) => switch (t) {
-    AppTheme.light => light,
-    AppTheme.mono => mono,
-    AppTheme.night => night,
-    AppTheme.oled => oled,
-  };
-
-  // CSS 140deg ≈ top-left → bottom-right
-  Decoration heroDeco(bool on, {double r = 26}) => BoxDecoration(
-    borderRadius: BorderRadius.circular(r),
-    color: on ? null : heroFlat,
-    gradient: on
-        ? LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: hero,
-            stops: const [0, .55, 1],
-          )
-        : null,
-  );
-  Decoration primaryDeco(bool on, {double r = 999}) => BoxDecoration(
-    borderRadius: BorderRadius.circular(r),
-    color: on ? null : primaryFlat,
-    gradient: on
-        ? LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: primary,
-          )
-        : null,
-  );
-  Decoration screenDeco(bool on) => BoxDecoration(
-    color: on ? null : screenFlat,
-    gradient: on
-        ? LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: screen,
-          )
-        : null,
-  );
-}
 
 /// 8-point star (two overlapping squares). Used for rosettes and āyah markers.
 Path _star(Offset c, double half) {

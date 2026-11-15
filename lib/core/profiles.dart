@@ -85,7 +85,7 @@ class ProfileStore extends ChangeNotifier {
       } catch (_) {}
     }
     if (!profiles.any((x) => x.id == defaultId)) {
-      profiles.insert(0, Profile(id: defaultId, name: '', hue: 165, mode: settings.appMode));
+      profiles.insert(0, Profile(id: defaultId, name: '', hue: 165));
     }
     if (!profiles.any((x) => x.id == _active)) _active = defaultId;
     ProgressStore.profileSuffix = suffixOf(_active);
@@ -117,16 +117,8 @@ class ProfileStore extends ChangeNotifier {
     await _save();
   }
 
-  /// Notes [mode] as the active profile's.
-  void setMode(String mode) {
-    if (active.mode == mode) return;
-    active.mode = mode;
-    _save();
-  }
-
   /// Makes [id] the profile in use: what's pending is saved, then the
-  /// progress and marks are the other profile's, and the app opens to its
-  /// mode (a new profile picks one).
+  /// progress and marks are the other profile's.
   Future<void> switchTo(
     String id, {
     required AppSettings settings,
@@ -135,14 +127,13 @@ class ProfileStore extends ChangeNotifier {
     FluencyStore? fluency,
   }) async {
     if (id == _active || !profiles.any((p) => p.id == id)) return;
-    active.mode = settings.appMode;
     _active = id;
     active.lastUsedAt = DateTime.now().millisecondsSinceEpoch;
     ProgressStore.profileSuffix = suffixOf(id);
     await progress.reload();
     await marks?.reopen(marksPersistence);
     await fluency?.reload();
-    settings.update(() => settings.appMode = active.mode);
+    settings.update(() {});
     notifyListeners();
     await _save();
   }

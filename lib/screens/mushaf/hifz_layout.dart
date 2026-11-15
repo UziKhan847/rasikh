@@ -77,7 +77,8 @@ class HifzLayout {
   static HifzLayout resolve(Size size, EdgeInsets padding,
       {required Size Function(Size avail) pageBox,
       bool dockLeft = false,
-      String pages = 'two'}) {
+      String pages = 'two',
+      String align = 'auto'}) {
     final w = size.width, h = size.height;
     if (w <= h) {
       // The line above the page goes with each page (see the pager).
@@ -115,14 +116,28 @@ class HifzLayout {
     Rect flip(Rect r) => dockLeft ? Rect.fromLTRB(w - r.right, r.top, w - r.left, r.bottom) : r;
     EdgeInsets flipInset(EdgeInsets e) =>
         dockLeft ? EdgeInsets.fromLTRB(e.right, e.top, e.left, e.bottom) : e;
-    if (pages != 'wide' && spare >= minSideSlot) {
-      final slotW = (spare - 8).clamp(minSideSlot, maxSideSlot);
-      final slot = Rect.fromLTWH(body.right - slotW, body.top, slotW, body.height);
+    // Where the pages stand, worked out with the dock on the right: the side
+    // slot (a mode's bar) takes the room on their other side.
+    // ('auto': away from the dock.)
+    final side = align == 'auto' || !dockLeft
+        ? (align == 'auto' ? 'left' : align)
+        : switch (align) { 'left' => 'right', 'right' => 'left', _ => align };
+    final centred = side == 'center';
+    final room = centred ? spare / 2 : spare;
+    if (pages != 'wide' && room >= minSideSlot) {
+      final slotW = (room - 8).clamp(minSideSlot, maxSideSlot);
+      final slot = side == 'right'
+          ? Rect.fromLTWH(body.left, body.top, slotW, body.height)
+          : Rect.fromLTWH(body.right - slotW, body.top, slotW, body.height);
       return HifzLayout._(
         landscape: true,
         header: null,
         pager: flip(body),
-        pagesInset: flipInset(EdgeInsets.only(right: slotW + 4)),
+        pagesInset: flipInset(switch (side) {
+          'center' => EdgeInsets.zero,
+          'right' => EdgeInsets.only(left: slotW + 4),
+          _ => EdgeInsets.only(right: slotW + 4),
+        }),
         dock: flip(dock),
         slot: flip(slot),
         slotAxis: Axis.vertical,

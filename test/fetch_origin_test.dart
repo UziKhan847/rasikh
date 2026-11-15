@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qiraah_arabiyyah/core/audio.dart';
+import 'package:rasikh/core/audio.dart';
 
 /// Which host a downloaded verse actually came from decides whether the
 /// weekly-refresh requirement (Quran Foundation's condition for offline

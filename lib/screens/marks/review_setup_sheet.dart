@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/fluency/fluency_store.dart';
 import '../../core/l10n.dart';
 import '../../core/marks/marks_model.dart';
 import '../../core/marks/marks_store.dart';
@@ -55,14 +56,16 @@ class _ReviewSetup extends StatefulWidget {
 }
 
 class _ReviewSetupState extends State<_ReviewSetup> {
-  late ReviewQuery _q = ReviewQuery(script: widget.script);
+  late ReviewQuery _q = ReviewQuery(
+      script: widget.script, scope: reviewScopeOf(SettingsScope.of(context).reviewScope));
   late ReviewView _view = widget.view;
 
   int _pageOf(WordRef r) => MushafRepo.pageOfWord(
       widget.script, r.globalAyah, r.word <= 0 ? 0 : r.word - 1);
 
-  int _count(ReviewQuery q) =>
-      buildReviewQueue(widget.store, widget.bookId, q, pageOf: _pageOf).length;
+  int _count(ReviewQuery q) => buildReviewQueue(widget.store, widget.bookId, q,
+          pageOf: _pageOf, fluency: FluencyScope.maybeOf(context))
+      .length;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +80,7 @@ class _ReviewSetupState extends State<_ReviewSetup> {
       (Division.surah, s, '${context.l10n.idxSurah} $s'),
       (Division.juz, divisionOf(Division.juz, s, a),
           context.l10n.juzN(divisionOf(Division.juz, s, a))),
+      (Division.manzil, manzilOf(s, a), context.l10n.idxManzilN(manzilOf(s, a))),
       (Division.hizb, hizbOf(s, a), context.l10n.idxHizbN(hizbOf(s, a))),
       (Division.rub, rubOf(s, a), context.l10n.idxRubN(rubOf(s, a))),
     ];
@@ -90,7 +94,18 @@ class _ReviewSetupState extends State<_ReviewSetup> {
           children: [
             Text(context.l10n.rvSetupTitle,
                 style: displayStyle(context, size: 24)),
-            QSectionLabel(context.l10n.rvTypes),
+            // What: the memorization marks, the fluency marks, or all.
+            QSegmented<ReviewScope>(
+              options: [
+                (ReviewScope.marks, context.l10n.rvScopeMarks, null),
+                (ReviewScope.fluency, context.l10n.rvScopeFluency, null),
+                (ReviewScope.all, context.l10n.rvScopeAll, null),
+              ],
+              value: _q.scope,
+              onChanged: (v) => setState(() => _q = _q.copyWith(scope: v)),
+            ),
+            if (_q.scope != ReviewScope.fluency) QSectionLabel(context.l10n.rvTypes),
+            if (_q.scope != ReviewScope.fluency)
             Wrap(spacing: 8, runSpacing: 8, children: [
               FilterChip(
                 label: Text(context.l10n.rvAll),
@@ -98,7 +113,7 @@ class _ReviewSetupState extends State<_ReviewSetup> {
                 onSelected: (_) =>
                     setState(() => _q = _q.copyWith(types: const {})),
               ),
-              for (final t in MarkType.values)
+              for (final t in MarkType.marking)
                 FilterChip(
                   avatar: MarkSwatch(type: t, pal: mp, size: 14),
                   label: Text('${markTypeLabel(context, t)} · '

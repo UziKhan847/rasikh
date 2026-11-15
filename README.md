@@ -248,7 +248,6 @@ lib/
 tools/
   recording_studio/  a browser page for recording the letter/syllable audio
              and lesson videos, exporting a zip named for the app
-  icons/     make_launcher_icons.py (every platform's launcher icon)
 ```
 
 Content is deliberately separated from engines: the quiz engine, tracing

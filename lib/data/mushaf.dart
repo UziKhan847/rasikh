@@ -15,6 +15,17 @@ class MushafWord {
   bool get isMarker => wordIdx < 0;
 }
 
+/// The muṣḥaf drawn from the old Madani print itself (see OriginalAtlas). Its
+/// text and tokens are `uthmani`'s; its pages and lines are its own.
+const kOldMadani = 'oldmadani';
+
+/// The new Madani print (QPC V2, 1421H), drawn from its own page atlases as
+/// Old Madani is: `uthmani`'s text and tokens, its own pages and lines.
+const kNewMadaniPrint = 'newmadani';
+
+/// Whether [script]'s pages are drawn from a print's own page atlases.
+bool isOriginalScript(String script) => script == kOldMadani || script == kNewMadaniPrint;
+
 /// One physical line on a mushaf page.
 class MushafLine {
   final int kind; // 0 = surah header, 1 = basmala, 2 = text
@@ -92,7 +103,8 @@ class MushafRepo {
   static List<int>? _surahCum; // cumulative ayah counts; _surahCum[s] before surah s+1
   static List<int> _juzStartAyah = const []; // 30 global ayah indices
 
-  static String _norm(String s) => s == 'indopak' ? 'indopak' : 'uthmani';
+  static String _norm(String s) =>
+      s == 'indopak' || isOriginalScript(s) ? s : 'uthmani';
   static String fontFamily(String script) =>
       _norm(script) == 'indopak' ? 'DigitalKhattIndoPak' : 'DigitalKhattV2';
 
@@ -149,14 +161,22 @@ class MushafRepo {
   /// Load & build a script's mushaf (idempotent). Call before any *Sync method.
   static Future<void> ensure(String script) => _ensure(script);
 
+  /// Whether [script]'s text is in memory ([ensure] has finished).
+  static bool isLoaded(String script) => _data.containsKey(_norm(script));
+
   static Future<_ScriptData> _ensure(String script) async {
     await _ensureMeta();
     final s = _norm(script);
     final cached = _data[s];
     if (cached != null) return cached;
     final txtFile = s == 'indopak' ? 'mushaf_i_text.json' : 'mushaf_u_text.json';
-    final layFile =
-        s == 'indopak' ? 'mushaf_i_layout.json' : 'mushaf_u_layout.json';
+    // Old Madani: the same text and tokens, on the old print's pages and lines.
+    final layFile = switch (s) {
+      'indopak' => 'mushaf_i_layout.json',
+      kOldMadani => 'mushaf_o_layout.json',
+      kNewMadaniPrint => 'mushaf_n_layout.json',
+      _ => 'mushaf_u_layout.json',
+    };
     final txtRaw = await rootBundle.loadString('assets/quran/$txtFile');
     final layRaw = await rootBundle.loadString('assets/quran/$layFile');
     final built =
@@ -247,6 +267,20 @@ class MushafRepo {
     if (page < 1 || page > d.pages.length) return const [];
     return d.pages[page - 1];
   }
+
+  /// What Madani's page 2 draws for its basmala, as printed: al-Fātiḥah's own
+  /// words (its first line, without the āyah's number). Null elsewhere.
+  static MushafLine? openingBasmala(String script, int page) {
+    if (page != 2 || _norm(script) != 'uthmani') return null;
+    final lines = pageSync(script, 1);
+    if (lines == null) return null;
+    final first = lines.firstWhere((l) => l.isText);
+    return _openingBasmala ??= MushafLine.text(
+        first.words.takeWhile((w) => !w.isMarker).toList(growable: false),
+        firstTok: first.firstTok);
+  }
+
+  static MushafLine? _openingBasmala;
 
   static List<MushafLine>? pageSync(String script, int page) {
     final d = _data[_norm(script)];
@@ -629,13 +663,38 @@ Map<String, dynamic> _buildMushaf(Map<String, String> args) {
 /// every line reserving the font's full 2.3 em box.
 ///
 /// [refEm] is the median page's widest line (in em), measured over every
-/// line of both muṣḥafs with HarfBuzz and the bundled fonts. Every page in a
-/// view shares one box sized for it, so turning a page never changes the
-/// book's shape; each page then fits its own text into that box (±10% size
-/// between pages; median extra gap 0.2 em, against 0.9 em when the font
-/// was limited by height).
+/// line of both muṣḥafs with HarfBuzz and the bundled fonts. Every portrait
+/// page shares one box sized for it, so turning a page never changes the
+/// book's shape; each page then fits its own text into that box.
 abstract final class MushafGeometry {
-  static const refEm = {'uthmani': 17.3, 'indopak': 18.0};
+  /// (A print's isn't a line's: it gives the box the print's shape, its
+  /// block's width ÷ height × 27 em, 15 lines at [pitch].)
+  static const refEm = {
+    'uthmani': 17.3,
+    'indopak': 17.1,
+    kOldMadani: 16.875,
+    kNewMadaniPrint: 16.595,
+  };
+
+  /// The opening pages' own measure (em across a line of the page: the
+  /// widest row fills most of it) and line pitch. Madani's circle is 16.57 em
+  /// (see tool/mushaf_justify), its pitch as printed: .114 of the widest row.
+  /// Indo-Pak's rows are short, its widest under 11 em.
+  static const openingEm = {'uthmani': 17.3, 'indopak': 12.0};
+  static const openingPitch = {'uthmani': 1.9, 'indopak': 1.8};
+
+  /// How far a word space may shrink, in em. Indo-Pak's lines aren't set to a
+  /// measure, so a page's one long line would otherwise size all its text and
+  /// spread the rest: closing its spaces (0.2 em) to half gives the page a
+  /// larger font and smaller gaps. Madani's lines come justified.
+  static const tightSpace = {'uthmani': 0.0, 'indopak': 0.1};
+
+  static double openingEmOf(String script) =>
+      openingEm[script == 'indopak' ? 'indopak' : 'uthmani']!;
+  static double openingPitchOf(String script) =>
+      openingPitch[script == 'indopak' ? 'indopak' : 'uthmani']!;
+  static double tightSpaceOf(String script) =>
+      tightSpace[script == 'indopak' ? 'indopak' : 'uthmani']!;
 
   /// Line pitch the box is sized for, and the tightest a page may squeeze it
   /// to make room for a larger font (in em).
@@ -644,7 +703,7 @@ abstract final class MushafGeometry {
   static const lines = 15;
 
   static double refEmOf(String script) =>
-      refEm[script == 'indopak' ? 'indopak' : 'uthmani']!;
+      refEm[script] ?? refEm['uthmani']!;
 
   // ── chrome of _MushafPageView (keep in step with it) ──
 
@@ -861,10 +920,11 @@ abstract final class MushafGeometry {
     return em;
   }
 
-  /// The page's widest text line in em. Text width scales with font size, so
-  /// the result holds for any viewport (and gives each line's width too —
-  /// see [lineEm]). Read from the precomputed table when it covers the page;
-  /// otherwise every line is shaped once.
+  /// The page's widest text line in em, its spaces closed by [tightSpace].
+  /// Text width scales with font size, so the result holds for any viewport
+  /// (and gives each line's natural width too — see [lineEm]). Read from the
+  /// precomputed table when it covers the page; otherwise every line is
+  /// shaped once.
   static double widestEm(String script, int page, List<MushafLine> lines) {
     final norm = MushafRepo._norm(script);
     final key = '$norm/$page';
@@ -872,6 +932,7 @@ abstract final class MushafGeometry {
     if (cached != null) return cached;
     final table = _emTable[norm]?[page];
     final useTable = table != null && table.length == lines.length;
+    final tight = tightSpaceOf(norm);
     var widest = 1.0 / 44;
     for (var i = 0; i < lines.length; i++) {
       final l = lines[i];
@@ -879,7 +940,8 @@ abstract final class MushafGeometry {
       final em = _lineEm[l] ??
           (useTable && table[i] > 0 ? table[i] : measureLineEm(norm, l));
       _lineEm[l] = em;
-      if (em > widest) widest = em;
+      final fit = em - (l.words.length - 1) * tight;
+      if (fit > widest) widest = fit;
     }
     return _widestEm[key] = widest;
   }

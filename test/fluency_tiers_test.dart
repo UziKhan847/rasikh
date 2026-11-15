@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:qiraah_arabiyyah/data/fluency_tiers.dart';
+import 'package:rasikh/data/fluency_tiers.dart';
 
 import 'test_support.dart';
 

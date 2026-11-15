@@ -1,13 +1,11 @@
-import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart' show DateFormat;
-import 'package:pdf/pdf.dart' show PdfColor, PdfPageFormat, PdfPoint;
+import 'package:pdf/pdf.dart' show PdfColor, PdfPageFormat;
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../../core/fluency/fluency_store.dart' show FluencyVisual;
 import '../../core/l10n.dart';
@@ -20,255 +18,38 @@ import '../../core/theme.dart';
 import '../../data/divisions.dart';
 import '../../data/mushaf.dart';
 import '../../data/mushaf_atlas.dart';
+import '../../data/original/original_atlas.dart';
 import '../../data/quran.dart';
-import '../../ui/adaptive_sheet.dart';
 import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
 import '../mushaf/mushaf_line.dart';
 import '../mushaf/mushaf_marks_layer.dart';
+import '../mushaf/original_page.dart';
 import '../mushaf_screen.dart' show mushafPageForPrint;
 import 'marking.dart' show markTypeLabel;
-import 'report_pdf.dart' show PdfImage, paintTextImage, saveAndOpenPdf;
+import 'export_sheet.dart';
+import 'export_delivery.dart' show ExportOut, deliverExport;
+import 'report_pdf.dart'
+    show PdfImage, ReportPdfInput, addReportPages, exportOwnerName, marksPdfName, numberBadge, paintTextImage;
 
 // The muṣḥaf's pages as a PDF, to hand to a student: each page as the app
 // draws it, its marks on it, and in the margin beside each mark its comment
 // (else its kind) on a dotted line led from the word to the nearer side.
 
-// ─────────────────────────── the options sheet ───────────────────────────
-
-/// Asks which pages (a range, a sūrah or a juzʼ) and which marks, then
-/// makes the PDF — to share or to print.
+/// The export sheet on Pages, at [currentPage].
 Future<void> showPagesExportSheet(
   BuildContext context, {
   required MarksStore store,
   required String bookId,
   required String script,
   required int currentPage,
-}) async {
-  await MushafRepo.ensure(script);
-  if (!context.mounted) return;
-  await showAdaptiveSheet<void>(
-    context,
-    isScrollControlled: true,
-    builder: (sheet) => _PagesSheet(
-      store: store,
-      bookId: bookId,
-      script: script,
-      currentPage: currentPage,
-      host: context,
-    ),
-  );
-}
-
-enum _Range { pages, surah, juz }
-
-class _PagesSheet extends StatefulWidget {
-  final MarksStore store;
-  final String bookId;
-  final String script;
-  final int currentPage;
-  final BuildContext host;
-  const _PagesSheet({
-    required this.store,
-    required this.bookId,
-    required this.script,
-    required this.currentPage,
-    required this.host,
-  });
-
-  @override
-  State<_PagesSheet> createState() => _PagesSheetState();
-}
-
-class _PagesSheetState extends State<_PagesSheet> {
-  _Range _range = _Range.pages;
-  // What's typed in each field, left as typed: neither moves the other
-  // (typing 45 on the way to 450 would). The range is the two numbers
-  // either way round.
-  late final _fromText = TextEditingController(text: '${widget.currentPage}');
-  late final _toText = TextEditingController(text: '${widget.currentPage}');
-  late int _surah = MushafRepo.firstVerseOfPage(widget.script, widget.currentPage).$1;
-  late int _juz = MushafRepo.juzOfPage(widget.script, widget.currentPage);
-  Set<MarkType> _types = const {};
-  ReviewStatus _status = ReviewStatus.open;
-  bool _onlyMarked = false;
-  Map<int, String> _tnames = const {};
-
-  @override
-  void dispose() {
-    _fromText.dispose();
-    _toText.dispose();
-    super.dispose();
-  }
-
-  /// [c]'s page, if it's one of the muṣḥaf's.
-  int? _pageIn(TextEditingController c) {
-    final n = int.tryParse(c.text.trim());
-    return n != null && n >= 1 && n <= MushafRepo.pageCountSync(widget.script)
-        ? n
-        : null;
-  }
-
-  List<int> get _typedPages {
-    final a = _pageIn(_fromText), b = _pageIn(_toText);
-    if (a == null || b == null) return const [];
-    return [for (var p = a < b ? a : b; p <= (a < b ? b : a); p++) p];
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    QuranRepo.meta().then((m) {
-      if (mounted) setState(() => _tnames = {for (final x in m) x.n: x.tname});
-    });
-  }
-
-  PagesExport get _export => PagesExport(
-        store: widget.store,
-        bookId: widget.bookId,
-        script: widget.script,
-        pages: switch (_range) {
-          _Range.pages => _typedPages,
-          _Range.surah => pagesOfSurah(widget.script, _surah),
-          _Range.juz => pagesOfJuz(widget.script, _juz),
-        },
-        types: _types,
-        status: _status,
-        onlyMarked: _onlyMarked,
-      );
-
-  Future<void> _make({required bool print}) async {
-    final e = _export;
-    final host = widget.host;
-    Navigator.pop(context);
-    await makePagesPdf(host, e, print: print);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l = context.l10n;
-    final p = pal(context);
-    final mp = markPaletteFor(p, mono: SettingsScope.of(context).appTheme == 'mono');
-    final total = MushafRepo.pageCountSync(widget.script);
-    final pages = _export.chosenPages();
-    Widget pageField(TextEditingController c, String label) => Expanded(
-          child: TextField(
-            controller: c,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: label,
-              isDense: true,
-              // Only once something's typed that isn't a page.
-              errorText: c.text.isEmpty || _pageIn(c) != null ? null : '1–$total',
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-        );
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(l.ppTitle, style: displayStyle(context, size: 24)),
-            QSectionLabel(l.ppWhich),
-            QSegmented<_Range>(
-              options: [
-                (_Range.pages, l.ppPages, null),
-                (_Range.surah, l.idxSurah, null),
-                (_Range.juz, l.idxJuz, null),
-              ],
-              value: _range,
-              onChanged: (v) => setState(() => _range = v),
-            ),
-            const SizedBox(height: 10),
-            switch (_range) {
-              _Range.pages => Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    pageField(_fromText, l.ppFrom),
-                    const SizedBox(width: 12),
-                    pageField(_toText, l.ppTo),
-                  ],
-                ),
-              _Range.surah => DropdownButton<int>(
-                  isExpanded: true,
-                  value: _surah,
-                  items: [
-                    for (var n = 1; n <= 114; n++)
-                      DropdownMenuItem(value: n, child: Text('$n. ${_tnames[n] ?? ''}')),
-                  ],
-                  onChanged: (n) => setState(() => _surah = n ?? _surah),
-                ),
-              _Range.juz => DropdownButton<int>(
-                  isExpanded: true,
-                  value: _juz,
-                  items: [
-                    for (var j = 1; j <= 30; j++)
-                      DropdownMenuItem(value: j, child: Text(l.juzN(j))),
-                  ],
-                  onChanged: (j) => setState(() => _juz = j ?? _juz),
-                ),
-            },
-            QSectionLabel(l.rvTypes),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              FilterChip(
-                label: Text(l.rvAll),
-                selected: _types.isEmpty,
-                onSelected: (_) => setState(() => _types = const {}),
-              ),
-              for (final t in MarkType.values)
-                FilterChip(
-                  avatar: MarkSwatch(type: t, pal: mp, size: 14),
-                  label: Text(markTypeLabel(context, t)),
-                  selected: _types.contains(t),
-                  onSelected: (on) => setState(() {
-                    final ts = {..._types};
-                    on ? ts.add(t) : ts.remove(t);
-                    _types = ts;
-                  }),
-                ),
-            ]),
-            QSectionLabel(l.rvStatus),
-            QSegmented<ReviewStatus>(
-              options: [
-                (ReviewStatus.any, l.rvAny, null),
-                (ReviewStatus.open, l.rvOpen, null),
-                (ReviewStatus.fixed, l.rvFixed, null),
-              ],
-              value: _status,
-              onChanged: (v) => setState(() => _status = v),
-            ),
-            const SizedBox(height: 6),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(l.ppOnlyMarked, style: uiStyle(context, size: 14.5)),
-              value: _onlyMarked,
-              onChanged: (v) => setState(() => _onlyMarked = v),
-            ),
-            const SizedBox(height: 8),
-            Text(pages.isEmpty ? l.ppNone : l.ppPagesN(pages.length),
-                textAlign: TextAlign.center,
-                style: uiStyle(context, size: 13.5, color: p.ink2)),
-            const SizedBox(height: 10),
-            Row(children: [
-              Expanded(
-                child: QOutlineButton(l.rpPrint,
-                    onTap: pages.isEmpty ? null : () => _make(print: true)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: QPrimaryButton(l.rpShare,
-                    onTap: pages.isEmpty ? null : () => _make(print: false)),
-              ),
-            ]),
-          ],
-        ),
-      ),
-    );
-  }
-}
+}) =>
+    showExportSheet(context,
+        store: store,
+        bookId: bookId,
+        script: script,
+        currentPage: currentPage,
+        kind: ExportKind.pages);
 
 /// The pages [surah] is printed on.
 List<int> pagesOfSurah(String script, int surah) =>
@@ -310,6 +91,13 @@ class PagesExport {
   final Set<MarkType> types;
   final ReviewStatus status;
   final bool onlyMarked;
+
+  /// Only these marks (by id; null: all the filters let through) — a
+  /// report's, when the pages go before it.
+  final Set<String>? ids;
+
+  /// Only marks in these verses (global āyahs, inclusive; null: anywhere).
+  final (int, int)? ayahs;
   PagesExport({
     required this.store,
     required this.bookId,
@@ -318,6 +106,8 @@ class PagesExport {
     this.types = const {},
     this.status = ReviewStatus.any,
     this.onlyMarked = false,
+    this.ids,
+    this.ayahs,
   });
 
   /// The marks to show, by the page they're on.
@@ -325,6 +115,11 @@ class PagesExport {
     final out = <int, List<Mark>>{};
     for (final m in store.marksOf(bookId)) {
       if (types.isNotEmpty && !types.contains(m.type)) continue;
+      if (ids != null && !ids!.contains(m.id)) continue;
+      if (ayahs case (final lo, final hi)
+          when m.ref.globalAyah < lo || m.ref.globalAyah > hi) {
+        continue;
+      }
       final fixed = store.isFixed(m);
       if (status == ReviewStatus.open && fixed) continue;
       if (status == ReviewStatus.fixed && !fixed) continue;
@@ -348,7 +143,11 @@ class PagesExport {
         (byWord[m.ref.key] ??= []).add(m);
       }
     }
+    final breath = store.visuals(bookId, showFixed: false, showMarks: false);
     return {
+      // Breath marks show on the pages whatever the filters.
+      for (final e in breath.entries)
+        if (!byWord.containsKey(e.key)) e.key: e.value,
       for (final e in byWord.entries)
         e.key: () {
           MarkType? open;
@@ -365,7 +164,9 @@ class PagesExport {
               open: open,
               fixed: fixed,
               hasComment: e.value.any((m) => m.comment.isNotEmpty),
-              count: e.value.length);
+              count: e.value.length,
+              stop: breath[e.key]?.stop ?? false,
+              start: breath[e.key]?.start ?? false);
         }(),
     };
   }();
@@ -395,32 +196,41 @@ class _Never implements Listenable {
 /// A4, points.
 const _paperW = 595.0, _paperH = 842.0;
 
-/// The outer margin, each side's note column, and the gap between a column
-/// and the page.
-const _outer = 26.0, _noteW = 96.0, _gap = 12.0;
-const _pageX = _outer + _noteW + _gap;
-const _pageW = _paperW - 2 * _pageX;
+/// The outer margin, the notes' panel beside the page, and the gap between
+/// them.
+const _outer = 26.0, _noteW = 150.0, _gap = 12.0;
 const _pageY = 52.0;
 
 /// Pixels per point the muṣḥaf page is painted at (about 216 dpi).
 const _scale = 3.0;
 
-/// One sheet: the page painted, its running head and foot, and the notes
-/// with their dotted leaders.
+/// Pages + report: the page nearly the paper's width, each mark numbered
+/// on it rather than noted in a margin.
+const _compactX = 18.0, _compactY = 40.0;
+
+/// One sheet: the page painted, its running head and foot, each mark's
+/// numbered badge on its word, and (unless the report carries them) the
+/// notes beside the page, numbered to match.
 class PrintSheet {
   final PdfImage page;
   final double pageX, pageY;
   final List<(PdfImage, double x, double y)> texts;
 
-  /// Each a polyline (x0, y0, x1, y1 …, from the top left) in its colour.
-  final List<(List<double>, int)> leaders;
-  const PrintSheet(this.page, this.pageX, this.pageY, this.texts, this.leaders);
+  /// Each mark's number, centred at (x, y), in its colour.
+  final List<(double x, double y, int n, int colour)> badges;
+
+  /// The notes' panel: where it is, and each note — its number, colour and
+  /// text.
+  final Rect? panel;
+  final List<(int n, int colour, PdfImage text)> notes;
+  const PrintSheet(this.page, this.pageX, this.pageY, this.texts,
+      [this.badges = const [], this.panel, this.notes = const []]);
 }
 
 /// Paints every page of [e], with a progress dialog, lays the PDF out off
 /// the UI thread, then shares it ([print]: print preview).
 Future<void> makePagesPdf(BuildContext context, PagesExport e,
-    {required bool print}) async {
+    {required ExportOut out, String? verses}) async {
   final pages = e.chosenPages();
   final progress = ValueNotifier<(int, int)>((0, pages.length));
   showDialog<void>(
@@ -456,25 +266,23 @@ Future<void> makePagesPdf(BuildContext context, PagesExport e,
     return;
   }
   final book = e.store.books.where((b) => b.id == e.bookId).firstOrNull?.name ?? '';
-  final name = 'mushaf-${book.replaceAll(RegExp(r'[^\w-]+'), '_')}-'
-      'p${pages.first}-${pages.last}.pdf';
-  if (print) {
-    await Printing.layoutPdf(name: name, onLayout: (_) async => bytes!);
-  } else if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
-    final path = await saveAndOpenPdf(bytes, name);
-    if (context.mounted) {
-      showQToast(context,
-          path == null ? context.l10n.rpShare : context.l10n.rpSavedTo(path));
-    }
-  } else {
-    await Printing.sharePdf(bytes: bytes, filename: name);
-  }
+  final name = marksPdfName(
+      exportOwnerName(context, book), pages.first, pages.last, DateTime.now(), verses: verses);
+  await deliverExport(context, bytes, name, out, pages: pages);
 }
 
-/// Each of [pages] painted and annotated, for [buildPagesPdf].
+/// Each of [pages] painted and annotated, for [buildPagesPdf]. With
+/// [numbers] (each mark's, by id), compact: the page nearly the paper's
+/// width and each mark a numbered badge, for the report that follows.
 Future<List<PrintSheet>> preparePages(
     BuildContext context, PagesExport e, List<int> pages,
-    {void Function(int done)? onProgress}) async {
+    {void Function(int done)? onProgress, Map<String, int>? numbers}) async {
+  final compact = numbers != null;
+  // With notes: the page at the left, as large as leaves the notes' panel
+  // its width at the right.
+  final pageX = compact ? _compactX : _outer;
+  final pageW = compact ? _paperW - 2 * pageX : _paperW - 2 * _outer - _gap - _noteW;
+  final pageY = compact ? _compactY : _pageY;
   // Everything taken from the context before the first await.
   final l = context.l10n;
   final settings = SettingsScope.of(context);
@@ -493,6 +301,10 @@ Future<List<PrintSheet>> preparePages(
   final atlas = MushafAtlas.of(e.script) ??
       await MushafAtlas.load(e.script, MushafRepo.tokensSync(e.script));
   final marks = _FixedMarks(e.visuals);
+  // The original print: its best set, a page at a time.
+  final original =
+      isOriginalScript(e.script) ? await OriginalAtlas.open(e.script, OriginalTier.high) : null;
+  final holder = Object();
 
   final arabicUi = lang == 'ar' || lang == 'ur';
   final uiFamily = lang == 'ur'
@@ -513,13 +325,21 @@ Future<List<PrintSheet>> preparePages(
   var done = 0;
   for (final page in pages) {
     final box = MushafGeometry.pageBox(
-        const Size(_pageW, _paperH - _pageY - 40), e.script,
+        Size(pageW, _paperH - pageY - 40), e.script,
         look: look, header: false, page: page);
-    final size = Size(_pageW, box.height);
+    // Bound by the height: as wide as that leaves it, centred.
+    final size = Size(box.width, box.height);
+    final x = pageX + (pageW - size.width) / 2;
+    // What height's left over, above and below it alike (not all at the foot).
+    final y = compact ? pageY : pageY + ((_paperH - pageY - 40) - size.height) / 2;
     if (atlas != null) {
-      final fs = _pageW / MushafGeometry.refEmOf(e.script);
+      final fs = size.width / MushafGeometry.refEmOf(e.script);
       final tier = atlas.tiers[atlas.tierFor(fs * _scale)];
       if (tier.images == null) await tier.load();
+    }
+    if (original != null) {
+      original.hold(holder, page, page, reach: 0);
+      await original.whenReady(page);
     }
     final (image, words) = await _paintOffscreen(
       wrap.wrap(mushafPageForPrint(
@@ -529,74 +349,76 @@ Future<List<PrintSheet>> preparePages(
         paper: paper,
         look: look,
         marks: marks,
+        original: original,
+        classicCircle: settings.oldMadaniCircle == 'classic',
       ), settings),
       size,
     );
     final texts = <(PdfImage, double, double)>[];
-    final leaders = <(List<double>, int)>[];
 
     // ── the running head: sūrah · page · juzʼ, across the page ──
     final (s, _) = MushafRepo.firstVerseOfPage(e.script, page);
     final juz = MushafRepo.juzOfPage(e.script, page);
-    final left = await text(metas[s - 1].tname, size: 9.5, color: head, bold: true, width: _pageW / 2);
+    final left = await text(metas[s - 1].tname, size: 9.5, color: head, bold: true, width: size.width / 2);
     final mid = await text('$page', size: 9.5, color: head, bold: true, width: 60);
-    final right = await text(l.juzN(juz), size: 9.5, color: head, bold: true, width: _pageW / 2);
-    const headY = _pageY - 24;
+    final right = await text(l.juzN(juz), size: 9.5, color: head, bold: true, width: size.width / 2);
+    final headY = y - 24;
     texts
-      ..add((left, _pageX, headY))
-      ..add((mid, _pageX + (_pageW - mid.width) / 2, headY))
-      ..add((right, _pageX + _pageW - right.width, headY));
+      ..add((left, x, headY))
+      ..add((mid, x + (size.width - mid.width) / 2, headY))
+      ..add((right, x + size.width - right.width, headY));
     // ── the foot: whose marks, and when ──
-    final foot = await text('$book · $today', size: 7.5, color: sub, width: _pageW);
-    texts.add((foot, _pageX, _paperH - 26));
+    final foot = await text('$book · $today', size: 7.5, color: sub, width: size.width);
+    texts.add((foot, x, _paperH - 26));
 
-    // ── the notes, each in the nearer margin ──
-    final notes = <_Note>[];
-    for (final m in e.marksByPage[page] ?? const <Mark>[]) {
-      final r = m.ref;
-      final at = words[(r.globalAyah, r.isWholeAyah ? -1 : r.word0)];
-      if (at == null) continue;
-      final fixed = e.store.isFixed(m);
-      final colour = fixed ? 0xFF6E8F7A : mp.colorOf(m.type).toARGB32();
-      final label = m.comment.trim().isEmpty ? typeLabel[m.type]! : m.comment.trim();
-      final img = await text(label, size: 8, width: _noteW);
-      notes.add(_Note(at, img, colour, at.center.dx < size.width / 2));
-    }
-    for (final leftSide in [true, false]) {
-      final side = notes.where((n) => n.left == leftSide).toList()
-        ..sort((a, b) => a.at.top.compareTo(b.at.top));
-      var below = _pageY - 6; // the last note's line, page coordinates
-      for (final n in side) {
-        final top = _pageY + n.at.top;
-        // Its text sits on its line, clear of the one above.
-        final lineY = top > below + n.img.height + 3 ? top : below + n.img.height + 3;
-        below = lineY;
-        final textY = lineY - n.img.height - 1;
-        if (leftSide) {
-          final edge = _pageX - 2;
-          leaders.add(([
-            _pageX + n.at.left, top,
-            edge, top,
-            edge - _gap + 4, lineY,
-            _outer, lineY,
-          ], n.colour));
-          texts.add((n.img, _outer, textY));
-        } else {
-          final edge = _pageX + _pageW + 2;
-          leaders.add(([
-            _pageX + n.at.right, top,
-            edge, top,
-            edge + _gap - 4, lineY,
-            _paperW - _outer, lineY,
-          ], n.colour));
-          texts.add((n.img, _paperW - _outer - n.img.width, textY));
-        }
+    // ── compact: a numbered badge at each mark's word ──
+    if (compact) {
+      final badges = <(double, double, int, int)>[];
+      for (final m in e.marksByPage[page] ?? const <Mark>[]) {
+        final n = numbers[m.id];
+        final r = m.ref;
+        final at = words[(r.globalAyah, r.isWholeAyah ? -1 : r.word0)];
+        if (n == null || at == null) continue;
+        final colour = e.store.isFixed(m) ? 0xFF6E8F7A : mp.colorOf(m.type).toARGB32();
+        badges.add((x + at.right, pageY + at.top, n, colour));
       }
+      sheets.add(PrintSheet(image, x, pageY, texts, badges));
+      onProgress?.call(++done);
+      await Future<void>.delayed(Duration.zero);
+      continue;
     }
-    sheets.add(PrintSheet(image, _pageX, _pageY, texts, leaders));
+
+    // ── the notes: each mark numbered on its word, in reading order, and
+    // listed beside the page under the same number, in its colour ──
+    final ms = [
+      for (final m in e.marksByPage[page] ?? const <Mark>[])
+        if (words[(m.ref.globalAyah, m.ref.isWholeAyah ? -1 : m.ref.word0)] != null) m,
+    ]..sort((a, b) {
+        final ta = MushafRepo.tokenOf(e.script, a.ref.globalAyah, a.ref.isWholeAyah ? -1 : a.ref.word0);
+        final tb = MushafRepo.tokenOf(e.script, b.ref.globalAyah, b.ref.isWholeAyah ? -1 : b.ref.word0);
+        return ta != tb ? ta.compareTo(tb) : a.createdAt.compareTo(b.createdAt);
+      });
+    final badges = <(double, double, int, int)>[];
+    final notes = <(int, int, PdfImage)>[];
+    final onWord = <(int, int), int>{};
+    for (final (k, m) in ms.indexed) {
+      final r = m.ref;
+      final key = (r.globalAyah, r.isWholeAyah ? -1 : r.word0);
+      final at = words[key]!;
+      final colour = e.store.isFixed(m) ? 0xFF6E8F7A : mp.colorOf(m.type).toARGB32();
+      // A second mark on a word: its badge beside the first.
+      final nth = onWord[key] = (onWord[key] ?? -1) + 1;
+      badges.add((x + at.right - nth * 11, y + at.top, k + 1, colour));
+      final comment = m.comment.trim();
+      final label = comment.isEmpty ? typeLabel[m.type]! : '${typeLabel[m.type]!} · $comment';
+      notes.add((k + 1, colour, await text(label, size: 8, width: _noteW - 34)));
+    }
+    final panel = Rect.fromLTWH(_paperW - _outer - _noteW, y, _noteW, size.height);
+    sheets.add(PrintSheet(image, x, y, texts, badges, panel, notes));
     onProgress?.call(++done);
     await Future<void>.delayed(Duration.zero);
   }
+  original?.release(holder);
   return sheets;
 }
 
@@ -605,14 +427,6 @@ bool _hasArabic(String s) => s.runes.any((c) =>
     (c >= 0x0750 && c <= 0x077F) ||
     (c >= 0x08A0 && c <= 0x08FF) ||
     (c >= 0xFB50 && c <= 0xFEFF));
-
-class _Note {
-  final Rect at; // the word, page coordinates
-  final PdfImage img;
-  final int colour;
-  final bool left;
-  _Note(this.at, this.img, this.colour, this.left);
-}
 
 /// What the page needs from the app around it, carried to the off-screen
 /// tree: theme, localizations, settings.
@@ -679,6 +493,10 @@ Future<(PdfImage, Map<(int, int), Rect>)> _paintOffscreen(
         if (r != null) words[(ws[i].ayah, ws[i].wordIdx)] = r.shift(at);
       }
     }
+    if (o is RenderOriginalPage) {
+      final at = o.localToGlobal(Offset.zero, ancestor: boundary);
+      o.wordRects.forEach((k, r) => words[k] = r.shift(at));
+    }
     o.visitChildren(visit);
   }
 
@@ -695,7 +513,22 @@ Future<(PdfImage, Map<(int, int), Rect>)> _paintOffscreen(
 
 /// Lays the sheets out as an A4 PDF. Pure: runs in another isolate.
 Future<Uint8List> buildPagesPdf(List<PrintSheet> sheets) async {
-  final doc = pw.Document(creator: 'Qiraah Arabiyyah');
+  final doc = pw.Document(creator: 'Rāsikh');
+  addPageSheets(doc, sheets);
+  return doc.save();
+}
+
+/// The marked pages, then the report numbered to match, in one PDF. Pure:
+/// runs in another isolate.
+Future<Uint8List> buildPagesReportPdf((List<PrintSheet>, ReportPdfInput) m) async {
+  final doc = pw.Document(creator: 'Rāsikh');
+  addPageSheets(doc, m.$1);
+  addReportPages(doc, m.$2);
+  return doc.save();
+}
+
+/// The sheets, added to [doc].
+void addPageSheets(pw.Document doc, List<PrintSheet> sheets) {
   pw.Widget image(PdfImage i) =>
       pw.Image(pw.MemoryImage(i.png), width: i.width, height: i.height);
   for (final s in sheets) {
@@ -706,27 +539,42 @@ Future<Uint8List> buildPagesPdf(List<PrintSheet> sheets) async {
         pw.Positioned(left: s.pageX, top: s.pageY, child: image(s.page)),
         for (final (i, x, y) in s.texts)
           pw.Positioned(left: x, top: y, child: image(i)),
-        // The leaders, over everything: dotted, from the word out.
-        pw.Positioned.fill(
-          child: pw.CustomPaint(
-            size: const PdfPoint(_paperW, _paperH),
-            painter: (canvas, size) {
-              for (final (pts, colour) in s.leaders) {
-                canvas
-                  ..setStrokeColor(PdfColor.fromInt(colour))
-                  ..setLineWidth(.7)
-                  ..setLineDashPattern([1.2, 1.6])
-                  ..moveTo(pts[0], size.y - pts[1]);
-                for (var i = 2; i < pts.length; i += 2) {
-                  canvas.lineTo(pts[i], size.y - pts[i + 1]);
-                }
-                canvas.strokePath();
-              }
-            },
+        // The notes' panel: white, beside the page, numbered as the page.
+        if (s.panel case final p?)
+          pw.Positioned(
+            left: p.left,
+            top: p.top,
+            child: pw.Container(
+              width: p.width,
+              constraints: pw.BoxConstraints(minHeight: p.height),
+              padding: const pw.EdgeInsets.fromLTRB(8, 10, 8, 10),
+              decoration: pw.BoxDecoration(
+                color: PdfColor.fromInt(0xFFFFFFFF),
+                border: pw.Border.all(color: PdfColor.fromInt(0xFFD9DCD8), width: .7),
+                borderRadius: pw.BorderRadius.circular(6),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  for (final (n, colour, t) in s.notes)
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.only(bottom: 6),
+                      child: pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          numberBadge(n, colour, size: 12),
+                          pw.SizedBox(width: 6),
+                          image(t),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
-        ),
+        for (final (x, y, n, colour) in s.badges)
+          pw.Positioned(left: x - 6, top: y - 6, child: numberBadge(n, colour, size: 11)),
       ]),
     ));
   }
-  return doc.save();
 }

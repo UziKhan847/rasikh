@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_line.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/quran.dart';
+import 'package:rasikh/screens/mushaf/mushaf_line.dart';
+import 'package:rasikh/screens/mushaf_screen.dart';
 
 import 'shots/shots_test.dart' show loadFonts;
 import 'test_support.dart';

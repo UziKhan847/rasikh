@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_index.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_model.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
-import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/data/divisions.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_index_sheet.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/core/marks/marks_index.dart';
+import 'package:rasikh/core/marks/marks_model.dart';
+import 'package:rasikh/core/marks/marks_persistence.dart';
+import 'package:rasikh/core/marks/marks_store.dart';
+import 'package:rasikh/core/marks/word_ref.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/data/divisions.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/quran.dart';
+import 'package:rasikh/screens/mushaf/mushaf_index_sheet.dart';
 
 import 'test_support.dart';
 
@@ -135,6 +135,40 @@ void main() {
     expect(page, MushafRepo.pageForGlobalAyah(
         'uthmani', MushafRepo.globalAyahOf(2, 253)));
     await tester.pump(const Duration(seconds: 2)); // the tooltip's timers
+  });
+
+  testWidgets('holding the Pages tab: a list with each page\'s marks, kept', (tester) async {
+    final (s, m, _) = await _boot();
+    int? page;
+    await pumpIndex(tester, s, m, 'uthmani', onPage: (p) => page = p);
+    await tester.longPress(find.byKey(const ValueKey('pages-tab')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('List, with marks'));
+    await tester.pumpAndSettle();
+    expect(s.indexPagesList, isTrue, reason: 'kept');
+
+    final kursi = _page('uthmani', _kursi);
+    final row = find.text('Page $kursi');
+    await tester.scrollUntilVisible(row, 300,
+        scrollable: find.byType(Scrollable).last);
+    await tester.pumpAndSettle();
+    final r = find.ancestor(of: row, matching: find.byType(Row)).first;
+    // Two mistakes and a doubt on the page.
+    expect(find.descendant(of: r, matching: find.text('2')), findsOneWidget);
+    expect(find.descendant(of: r, matching: find.text('1')), findsOneWidget);
+    expect(find.descendant(of: r, matching: find.textContaining('2:')), findsOneWidget,
+        reason: 'where the page starts');
+    await tester.tap(row);
+    expect(page, kursi);
+
+    // And back to the grid.
+    await tester.longPress(find.byKey(const ValueKey('pages-tab')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Grid'));
+    await tester.pumpAndSettle();
+    expect(s.indexPagesList, isFalse);
+    expect(find.text('Page $kursi'), findsNothing);
+    await tester.pump(const Duration(seconds: 2));
   });
 
   testWidgets('Indo-Pak adds the rukūʿ tab, pages in its own numbering',

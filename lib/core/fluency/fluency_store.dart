@@ -350,6 +350,19 @@ class FluencyStore extends ChangeNotifier {
   Iterable<FluencyMark> marksOf(FluencyKind k) => _marks.values.where((m) => m.kind == k);
 
   FluencyMark? markAt(FluencyKind k, WordRef ref) => _marks[FluencyMark.idOf(k, ref)];
+
+  /// [ref]'s marks as they are (for undo): each kind's, or null.
+  Map<String, FluencyMark?> snapshotAt(WordRef ref) => {
+        for (final k in FluencyKind.values) FluencyMark.idOf(k, ref): _marks[FluencyMark.idOf(k, ref)],
+      };
+
+  /// Puts back [snap]; returns how they were (for redo).
+  Map<String, FluencyMark?> restoreSnapshot(Map<String, FluencyMark?> snap) {
+    final back = {for (final id in snap.keys) id: _marks[id]};
+    snap.forEach((id, m) => m == null ? _marks.remove(id) : _marks[id] = m);
+    _changed(marks: true);
+    return back;
+  }
   bool isSlow(WordRef ref) => markAt(FluencyKind.word, ref) != null;
 
   /// Marks [ref] not fluent, or unmarks it.

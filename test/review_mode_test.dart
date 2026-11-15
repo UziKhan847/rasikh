@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_model.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
-import 'package:qiraah_arabiyyah/core/marks/review.dart';
-import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
-import 'package:qiraah_arabiyyah/screens/marks/review_bar.dart';
-import 'package:qiraah_arabiyyah/screens/marks/review_cards_screen.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_line.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf/verse_view.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/core/marks/marks_model.dart';
+import 'package:rasikh/core/marks/marks_persistence.dart';
+import 'package:rasikh/core/marks/marks_store.dart';
+import 'package:rasikh/core/marks/review.dart';
+import 'package:rasikh/core/marks/word_ref.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/quran.dart';
+import 'package:rasikh/screens/marks/review_bar.dart';
+import 'package:rasikh/screens/marks/review_cards_screen.dart';
+import 'package:rasikh/screens/mushaf/mushaf_line.dart';
+import 'package:rasikh/screens/mushaf/verse_view.dart';
+import 'package:rasikh/screens/mushaf_screen.dart';
 
 import 'shots/shots_test.dart' show loadFonts;
 import 'test_support.dart';
@@ -157,12 +158,10 @@ void main() {
     expect(_focused(tester, _b), isNotNull);
     expect(_focused(tester, _a), isNull);
 
-    // End: the summary, and the session closes.
+    // End: no summary to dismiss — the session closes, kept in History.
     await tester.tap(find.text('End'));
     await tester.pumpAndSettle();
-    expect(find.text('Review done'), findsOneWidget);
-    await tester.tap(find.text('Done'));
-    await tester.pumpAndSettle();
+    expect(find.textContaining('Saved to History'), findsOneWidget);
     expect(find.byType(ReviewBar), findsNothing);
     expect(m.session(b, c.sessionId!)!.endedAt, isNotNull);
     await tester.pumpWidget(const SizedBox());
@@ -293,5 +292,87 @@ void main() {
     c.end();
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 30));
+  });
+
+  testWidgets('desktop cards: the word always below, Space and Backspace step, '
+      'the audio bar', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (s, p, m, b) = await _boot(desktop: true);
+    s.reviewCardWord = false;
+    final c = ReviewController.start(m, b, const ReviewQuery());
+    await tester.pumpWidget(
+      _app(s, p, m, ReviewCardsScreen(controller: c, script: 'uthmani')),
+    );
+    await _settle(tester);
+
+    // The marked word, large, though "show the word" is off.
+    expect(
+      find.text(MushafRepo.wordText('uthmani', _a.globalAyah, _a.word0)),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('review-audio')), findsOneWidget);
+    final stop = tester.widget<IconButton>(
+      find.byKey(const ValueKey('audio-stop')),
+    );
+    expect(stop.onPressed, isNull, reason: 'nothing playing yet');
+    final pause = tester.widget<IconButton>(
+      find.byKey(const ValueKey('audio-pause')),
+    );
+    expect(pause.onPressed, isNull);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await _settle(tester);
+    await tester.pumpAndSettle();
+    expect(c.current!.ref, _b);
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await _settle(tester);
+    await tester.pumpAndSettle();
+    expect(c.current!.ref, _a);
+
+    // A word played: stop can stop it.
+    await tester.tap(find.byKey(const ValueKey('audio-word')));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const ValueKey('audio-stop')))
+          .onPressed,
+      isNotNull,
+    );
+    await tester.tap(find.byKey(const ValueKey('audio-stop')));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const ValueKey('audio-stop')))
+          .onPressed,
+      isNull,
+    );
+    c.end();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
+  });
+
+  testWidgets('phone cards: no audio bar, the word only when asked', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (s, p, m, b) = await _boot();
+    s.reviewCardWord = false;
+    final c = ReviewController.start(m, b, const ReviewQuery());
+    await tester.pumpWidget(
+      _app(s, p, m, ReviewCardsScreen(controller: c, script: 'uthmani')),
+    );
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('review-audio')), findsNothing);
+    expect(
+      find.text(MushafRepo.wordText('uthmani', _a.globalAyah, _a.word0)),
+      findsNothing,
+    );
+    c.end();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 5));
   });
 }

@@ -77,5 +77,5 @@ The app's icons all go through `lib/ui/app_icons.dart`. Most already use the red
 
 ## Not icons (already done)
 
-- The **launcher icon** is the design's icon 1a (cream `#F2EEE4` glyph on emerald `#0F3B32`), generated for every platform by `tools/icons/make_launcher_icons.py` from `assets/brand/icon-glyph.png`.
+- The **launcher icon** is the Rāsikh calligraphy, cream on green (`assets/brand/rasikh_icon.svg`), made for every platform by `dart run flutter_launcher_icons`.
 - Module tiles (Qāʿidah, Tajwīd, Tashkīl…) show **Arabic glyphs** on hue-tinted tiles, not icons, as in the prototype.

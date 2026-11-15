@@ -5,4 +5,23 @@ flutter_launcher_icons:
   adaptive_icon_background: 'assets/apk_icons/adaptive_icon_background.png'
   adaptive_icon_foreground: 'assets/apk_icons/adaptive_icon_foreground.png'
   adaptive_icon_monochrome: 'assets/apk_icons/adaptive_icon_monochrome.png'
+  # The calligraphy reaches 0.445 of its image from the middle: at 20% it stays
+  # well inside Android's safe circle (66 of 108 dp) on any launcher's shape.
+  adaptive_icon_foreground_inset: 20
 
+  # iOS doesn't allow transparency: its corners take the icon's green.
+  ios: true
+  remove_alpha_ios: true
+  background_color_ios: '#0F4E3E'
+  web:
+    generate: true
+    image_path: 'assets/apk_icons/app_launcher_icon.png'
+    background_color: '#0F4E3E'
+    theme_color: '#0F3B32'
+  windows:
+    generate: true
+    image_path: 'assets/apk_icons/app_launcher_icon.png'
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: 'assets/apk_icons/app_launcher_icon.png'

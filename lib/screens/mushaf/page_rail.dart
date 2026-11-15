@@ -15,7 +15,12 @@ class PageRail extends StatelessWidget {
   final double width;
   final MushafPaper paper;
   final void Function(Division d, BuildContext anchor) onTap;
+
+  /// Small toggles at the rail's top and foot.
+  final Widget? above, below;
   const PageRail({
+    this.above,
+    this.below,
     super.key,
     required this.script,
     required this.page,
@@ -62,6 +67,8 @@ class PageRail extends StatelessWidget {
         child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          if (above case final a?)
+            Padding(padding: const EdgeInsets.only(bottom: 6), child: a),
           tap(Division.juz, down('J$juz')),
           tap(
             Division.page,
@@ -80,6 +87,8 @@ class PageRail extends StatelessWidget {
             ),
           ),
           tap(Division.surah, down('S$surah')),
+          if (below case final b?)
+            Padding(padding: const EdgeInsets.only(top: 6), child: b),
         ],
         ),
       ),

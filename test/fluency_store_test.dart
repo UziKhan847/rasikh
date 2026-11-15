@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/fluency/fluency_store.dart';
-import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
+import 'package:rasikh/core/fluency/fluency_store.dart';
+import 'package:rasikh/core/marks/word_ref.dart';
+import 'package:rasikh/core/settings.dart';
 
 /// The Reader's fluency work: marks per profile, cards retired after three
 /// separate instant sessions, kept across a restart.

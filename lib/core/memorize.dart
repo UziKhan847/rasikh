@@ -124,6 +124,24 @@ class MemorizeController extends ChangeNotifier {
     _set(e);
   }
 
+  /// Reveals everything through token [t] (and the ۝ after it, if it ends
+  /// an āyah): what's been heard recited. Never hides.
+  void revealThrough(int t) {
+    var e = t + 1;
+    if (_marker(e)) e++;
+    if (e <= _end) return;
+    _set(e);
+  }
+
+  /// The first hidden word (not a ۝): where reciting from memory goes on.
+  int get nextHiddenWord {
+    var t = _end;
+    while (_marker(t)) {
+      t++;
+    }
+    return t;
+  }
+
   /// Hides the last revealed word again (with its ۝, if it ended an āyah)
   /// — or, the screen blank, turns back a page.
   void prevWord() {
@@ -233,6 +251,36 @@ class MemorizeController extends ChangeNotifier {
     if (atStart) return null;
     final (g, w) = MushafRepo.tokenAt(script, _end - 1);
     return (g, w);
+  }
+
+  /// What of āyah [g] shows, to recite: (g, its last revealed word), or
+  /// (g, -1) when all of it shows; null if none of it does. Never a hidden
+  /// word.
+  (int, int)? clipOf(int g) {
+    final first = MushafRepo.tokenOf(script, g, 0);
+    if (first < 0 || first >= _end) return null;
+    if (_end > MushafRepo.tokenOf(script, g, -1)) return (g, -1);
+    return (g, MushafRepo.tokenAt(script, _end - 1).$2);
+  }
+
+  /// The āyāt on screen with something of them showing, in order — what
+  /// can be chosen to recite. Cards: the āyah in view and the one before.
+  List<int> shownAyahs() {
+    if (cards) {
+      final g = viewAyah;
+      return [
+        if (g > 0 && clipOf(g - 1) != null) g - 1,
+        if (clipOf(g) != null) g,
+      ];
+    }
+    final (p0, p1) = screenOf?.call(viewPage) ?? (viewPage, viewPage);
+    final (first, _) = MushafRepo.pageTokens(script, p0);
+    final (_, end) = MushafRepo.pageTokens(script, p1);
+    final last = (_end < end ? _end : end) - 1;
+    if (last < first) return const [];
+    final g0 = MushafRepo.tokenAt(script, first).$1;
+    final g1 = MushafRepo.tokenAt(script, last).$1;
+    return [for (var g = g0; g <= g1; g++) g];
   }
 
   /// The āyāt revealed on the page in view, in order, each with its last

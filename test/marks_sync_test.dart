@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_model.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
-import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
-import 'package:qiraah_arabiyyah/core/sync/memory_backend.dart';
-import 'package:qiraah_arabiyyah/core/sync/sync_backend.dart';
-import 'package:qiraah_arabiyyah/core/sync/sync_engine.dart';
+import 'package:rasikh/core/marks/marks_model.dart';
+import 'package:rasikh/core/marks/marks_persistence.dart';
+import 'package:rasikh/core/marks/marks_store.dart';
+import 'package:rasikh/core/marks/word_ref.dart';
+import 'package:rasikh/core/sync/memory_backend.dart';
+import 'package:rasikh/core/sync/sync_backend.dart';
+import 'package:rasikh/core/sync/sync_engine.dart';
 
 /// One device: its own store and engine, talking to a shared server.
 class _Device {

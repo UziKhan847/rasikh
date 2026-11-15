@@ -14,7 +14,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.uzikhan.qiraah_arabiyyah"
+    namespace = "com.uzikhan.rasikh"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -26,7 +26,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.uzikhan.qiraah_arabiyyah"
+        applicationId = "com.uzikhan.rasikh"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -70,6 +70,16 @@ android {
                         "a release build/bundle — see CREDITS.md."
                 )
             }
+        }
+        // Every build signed alike, when the key's here: Android only updates
+        // an app with the key it was installed with, so a debug-signed
+        // `flutter run` would otherwise block the next release APK (and the
+        // uninstall that gets past it wipes the app's data). Without the key,
+        // debug and profile keep the debug key.
+        if (keystorePropertiesFile.exists()) {
+            val key = signingConfigs.getByName("release")
+            getByName("debug") { signingConfig = key }
+            findByName("profile")?.signingConfig = key
         }
     }
 }

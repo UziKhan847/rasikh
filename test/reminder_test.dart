@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:qiraah_arabiyyah/core/reminder.dart';
+import 'package:rasikh/core/reminder.dart';
 
 /// The daily reminder schedules one local notification at the chosen time,
 /// repeating daily, and cancels it again — with the notification plugin

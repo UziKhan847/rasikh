@@ -72,7 +72,7 @@ class _BookData {
   Map<int, List<Mark>>? _byWord;
   Map<String, MarkFix>? _fixByMark;
   Map<String, List<MarkLink>>? _linksByMark;
-  final Map<bool, Map<int, MarkVisual>> _visuals = {};
+  final Map<(bool, bool, bool), Map<int, MarkVisual>> _visuals = {};
 
   void invalidate() {
     _byWord = null;
@@ -96,19 +96,39 @@ class _BookData {
     return _linksByMark = out;
   }
 
+  /// Each word's marks — a mark over several words under each of them.
   Map<int, List<Mark>> get byWord {
     final cached = _byWord;
     if (cached != null) return cached;
     final out = <int, List<Mark>>{};
+    var whole = true;
     for (final m in marks.values) {
       if (m.deleted) continue;
-      (out[m.ref.key] ??= []).add(m);
+      if (!m.isSpan) {
+        (out[m.ref.key] ??= []).add(m);
+        continue;
+      }
+      final words = m.spanWords(MarksStore.ayahWords);
+      if (words == null) {
+        // The text isn't loaded yet: its ends for now (see [respan]).
+        whole = false;
+        (out[m.ref.key] ??= []).add(m);
+        (out[m.to!.key] ??= []).add(m);
+      } else {
+        for (final w in words) {
+          (out[w.key] ??= []).add(m);
+        }
+      }
     }
     for (final l in out.values) {
       l.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     }
+    spansWhole = whole;
     return _byWord = out;
   }
+
+  /// Whether every mark over several words was laid on all of them.
+  bool spansWhole = true;
 
   Map<String, MarkFix> get fixByMark {
     final cached = _fixByMark;
@@ -338,6 +358,25 @@ class MarksStore extends ChangeNotifier {
         if (_activeBookId != null) 'active': _activeBookId,
         'books': [for (final d in _books.values) d.book.toJson()],
       };
+
+  /// How many words āyah g has (the muṣḥaf's text; -1 until it's loaded):
+  /// what a mark over several words is laid on.
+  static int Function(int globalAyah) ayahWords = (_) => -1;
+
+  /// The text has loaded: marks over several words, laid on all of them.
+  void respan() {
+    var any = false;
+    for (final d in _books.values) {
+      if (!d.spansWhole || d._byWord == null) {
+        d.invalidate();
+        any = true;
+      }
+    }
+    if (any) {
+      _version++;
+      notifyListeners();
+    }
+  }
 
   void _changed(String? bookId, {bool index = false, bool local = true}) {
     _version++;
@@ -631,8 +670,10 @@ class MarksStore extends ChangeNotifier {
 
   // ── reading marks ──────────────────────────────────────────────────────
 
+  /// (Breath marks aren't marks: see [breathAt].)
   Iterable<Mark> marksOf(String bookId) =>
-      (_books[bookId]?.marks.values ?? const <Mark>[]).where((m) => !m.deleted);
+      (_books[bookId]?.marks.values ?? const <Mark>[])
+          .where((m) => !m.deleted && !m.type.isBreath);
   Iterable<MarkFix> fixesOf(String bookId) =>
       (_books[bookId]?.fixes.values ?? const <MarkFix>[]).where((f) => !f.deleted);
   Iterable<MarkComment> commentsOf(String bookId) =>
@@ -640,8 +681,29 @@ class MarksStore extends ChangeNotifier {
           .where((c) => !c.deleted);
 
   /// Marks on one word (oldest first).
-  List<Mark> marksAt(String bookId, WordRef ref) =>
-      _books[bookId]?.byWord[ref.key] ?? const [];
+  List<Mark> marksAt(String bookId, WordRef ref) {
+    final all = _books[bookId]?.byWord[ref.key] ?? const <Mark>[];
+    return all.any((m) => m.type.isBreath)
+        ? [for (final m in all) if (!m.type.isBreath) m]
+        : all;
+  }
+
+  /// The breath marks on one word (oldest first).
+  List<Mark> breathAt(String bookId, WordRef ref) => [
+        for (final m in _books[bookId]?.byWord[ref.key] ?? const <Mark>[])
+          if (m.type.isBreath) m
+      ];
+
+  /// A tap of the breath tool on [ref]: takes off a sign that's there, or puts
+  /// [next] there. Returns the edit and what came off (null: [next] went on).
+  (MarkOp, MarkType?) breathTap(String bookId, WordRef ref, MarkType next) {
+    final there = breathAt(bookId, ref);
+    if (there.isNotEmpty) {
+      final last = there.last;
+      return (deleteMark(last), last.type);
+    }
+    return (addMark(bookId, ref, next), null);
+  }
 
   MarkFix? fixOf(Mark m) => _books[m.bookId]?.fixByMark[m.id];
   bool isFixed(Mark m) => fixOf(m) != null;
@@ -664,17 +726,29 @@ class MarksStore extends ChangeNotifier {
       ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
   /// How each marked word in [bookId] should be drawn, by [WordRef.key].
-  Map<int, MarkVisual> visuals(String bookId, {bool showFixed = true}) {
+  Map<int, MarkVisual> visuals(String bookId,
+      {bool showFixed = true, bool showMarks = true, bool showBreath = true}) {
     final d = _books[bookId];
     if (d == null) return const {};
-    final cached = d._visuals[showFixed];
+    final cacheKey = (showFixed, showMarks, showBreath);
+    final cached = d._visuals[cacheKey];
     if (cached != null) return cached;
     final fixed = d.fixByMark;
     final out = <int, MarkVisual>{};
     d.byWord.forEach((key, list) {
       MarkType? open;
-      var anyFixed = false, comment = false;
+      var anyFixed = false, comment = false, stop = false, start = false;
+      var count = 0;
       for (final m in list) {
+        if (m.type.isBreath) {
+          if (showBreath) {
+            stop = stop || m.type == MarkType.breathStop;
+            start = start || m.type == MarkType.breathStart;
+          }
+          continue;
+        }
+        if (!showMarks) continue;
+        count++;
         if (m.comment.isNotEmpty || m.type == MarkType.note) comment = true;
         if (fixed.containsKey(m.id)) {
           anyFixed = true;
@@ -684,24 +758,28 @@ class MarksStore extends ChangeNotifier {
           open = m.type;
         }
       }
-      if (open == null && !(anyFixed && showFixed)) return;
+      if (open == null && !(anyFixed && showFixed) && !stop && !start) return;
       out[key] = MarkVisual(
           open: open,
           fixed: anyFixed && showFixed,
           hasComment: comment,
-          count: list.length);
+          count: count,
+          stop: stop,
+          start: start);
     });
     // The passages an open mutashābih is confused with show as mutashābih
     // too, so the likeness is seen from either side.
-    d.linksByMark.forEach((markId, links) {
-      final m = d.marks[markId];
-      if (m == null || m.deleted || fixed.containsKey(markId)) return;
-      for (final l in links) {
-        out.putIfAbsent(
-            l.ref.key, () => const MarkVisual(open: MarkType.mutashabih));
-      }
-    });
-    d._visuals[showFixed] = out;
+    if (showMarks) {
+      d.linksByMark.forEach((markId, links) {
+        final m = d.marks[markId];
+        if (m == null || m.deleted || fixed.containsKey(markId)) return;
+        for (final l in links) {
+          out.putIfAbsent(
+              l.ref.key, () => const MarkVisual(open: MarkType.mutashabih));
+        }
+      });
+    }
+    d._visuals[cacheKey] = out;
     return out;
   }
 
@@ -781,8 +859,48 @@ class MarksStore extends ChangeNotifier {
     return (setType(mine, next), next);
   }
 
-  MarkOp addMark(String bookId, WordRef ref, MarkType type,
+  /// A pen's tap: [pen] on a word without this session's mark; taken off if
+  /// it's already this pen's; another pen's mark changes to it. Returns the
+  /// edit and the type the word now carries (null: cleared).
+  (MarkOp, MarkType?) applyPen(String bookId, WordRef ref, MarkType pen,
       {String? sessionId, String comment = ''}) {
+    final d = _data(bookId);
+    final mine = ownMarkAt(bookId, ref, sessionId: sessionId);
+    if (mine == null) {
+      return (addMark(bookId, ref, pen, sessionId: sessionId, comment: comment), pen);
+    }
+    if (mine.type == pen) {
+      final op = MarkOp(bookId, [_snap(d, MarkKinds.mark, mine.id)]);
+      _drop(d, MarkKinds.mark, mine);
+      _changed(bookId);
+      return (op, null);
+    }
+    return (
+      _editMark(mine, (m) {
+        m.type = pen;
+        if (comment.trim().isNotEmpty) m.comment = comment.trim();
+      }),
+      pen,
+    );
+  }
+
+  /// This session's own open mark on [ref] that a pen can change, if any.
+  Mark? ownMarkAt(String bookId, WordRef ref, {String? sessionId}) {
+    final d = _data(bookId);
+    Mark? mine;
+    for (final m in d.byWord[ref.key] ?? const <Mark>[]) {
+      if (m.sessionId == sessionId &&
+          m.authorId == authorId &&
+          (MarkType.pens.contains(m.type) || m.type == MarkType.note) &&
+          !d.fixByMark.containsKey(m.id)) {
+        mine = m; // the newest wins (oldest first)
+      }
+    }
+    return mine;
+  }
+
+  MarkOp addMark(String bookId, WordRef ref, MarkType type,
+      {String? sessionId, String comment = '', WordRef? to}) {
     final d = _data(bookId);
     final t = now();
     final m = Mark(
@@ -790,6 +908,7 @@ class MarksStore extends ChangeNotifier {
       bookId: bookId,
       sessionId: sessionId,
       ref: ref,
+      to: to == null || to.key == ref.key ? null : to,
       type: type,
       comment: comment.trim(),
       authorId: authorId,
@@ -957,13 +1076,15 @@ class MarksStore extends ChangeNotifier {
   }
 
   /// Reverts [op]: each touched record goes back to how it was (records the
-  /// op created are removed again).
-  void undo(MarkOp op) {
-    if (op.isEmpty) return;
+  /// op created are removed again). Returns the edit that puts it back (redo).
+  MarkOp undo(MarkOp op) {
+    if (op.isEmpty) return op;
     final d = _books[op.bookId];
-    if (d == null) return;
+    if (d == null) return MarkOp(op.bookId, const []);
+    final back = <(String, String, Map<String, dynamic>?)>[];
     for (final (kind, id, before) in op.changes.reversed) {
       final cur = d.find(kind, id);
+      back.add((kind, id, cur?.toJson()));
       if (before == null) {
         if (cur != null) _drop(d, kind, cur);
       } else {
@@ -973,6 +1094,7 @@ class MarksStore extends ChangeNotifier {
       }
     }
     _changed(op.bookId);
+    return MarkOp(op.bookId, back);
   }
 
   // ── merge / sync support ───────────────────────────────────────────────
@@ -1249,4 +1371,9 @@ class MarksScope extends InheritedNotifier<MarksStore> {
       context.dependOnInheritedWidgetOfExactType<MarksScope>()?.notifier;
 
   static MarksStore of(BuildContext context) => maybeOf(context)!;
+
+  /// The store, without rebuilding on its every change (a screen that
+  /// listens to it itself, and updates only what changed).
+  static MarksStore? read(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<MarksScope>()?.notifier;
 }

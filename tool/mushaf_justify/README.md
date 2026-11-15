@@ -23,7 +23,7 @@ Every alternate is an ordinary glyph in the font, so the result can be drawn fro
 
 **The site's mark-order fix is applied:** U+034F around hamza and madda on alif, wāw and yāʾ.
 
-**The measure is per page, as the site sets it.** Each page is sized to its widest line, and the other lines are stretched to it. This matches how the app already sizes a page. The site's narrower lines (pages 1–2, and a few near the end) keep their ratios.
+**The measure is per page, as the site sets it, with a floor.** Each page is sized to its widest line, but at least 17 em (`--min-measure`), and the other lines are stretched to it. This matches how the app already sizes a page, and keeps a page of short lines from taking a far larger font than its neighbours. The site's narrower lines (near the end) keep their ratios; the opening pages take the print's shares (`PRINT_SHARE`).
 
 ## Results (all 604 pages)
 

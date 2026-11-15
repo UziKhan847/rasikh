@@ -1,10 +1,10 @@
 import 'package:flutter/painting.dart' show Offset, Size;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:qiraah_arabiyyah/core/memorize.dart';
-import 'package:qiraah_arabiyyah/core/recite_back.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
+import 'package:rasikh/core/memorize.dart';
+import 'package:rasikh/core/recite_back.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/quran.dart';
 
 import 'test_support.dart';
 

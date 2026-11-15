@@ -11,6 +11,8 @@ import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
 import 'marking.dart';
+import '../../ui/bidi.dart';
+import '../mushaf_screen.dart' show HomeLink;
 
 /// Everything marked on one word in the active mark book, with the actions to
 /// add, comment, fix, re-type or delete. Embedded in the word sheets of the
@@ -43,6 +45,23 @@ class WordMarksPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (context.getInheritedWidgetOfExactType<ProgressScope>()?.notifier case final prog?)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: ValueListenableBuilder<int>(
+              valueListenable: prog.readingSignal,
+              builder: (context, _, _) {
+                final on = prog.isBookmarked(ref.surah, ref.ayah);
+                return TextButton.icon(
+                  onPressed: () => prog.toggleBookmark(ref.surah, ref.ayah),
+                  icon: Icon(on ? AppIcons.bookmarkFilled : AppIcons.bookmark,
+                      size: 16, color: on ? p.gold : p.ink2),
+                  label: Text(on ? context.l10n.removeBookmark : context.l10n.bmAyah,
+                      style: uiStyle(context, size: 13, weight: FontWeight.w600, color: p.ink2)),
+                );
+              },
+            ),
+          ),
         QSectionLabel(
           ref.isWholeAyah ? context.l10n.mkWholeAyah : context.l10n.mkMarksOnWord,
           trailing: book == null
@@ -63,7 +82,7 @@ class WordMarksPanel extends StatelessWidget {
                 store: store,
                 mp: mp,
                 sessionId: sessionId,
-                onLink: onLink),
+                onLink: _link(context)),
         if (canMark) ...[
           const SizedBox(height: 6),
           Text(context.l10n.mkAddMark,
@@ -71,10 +90,10 @@ class WordMarksPanel extends StatelessWidget {
                   size: 12.5, weight: FontWeight.w700, color: p.ink3)),
           const SizedBox(height: 6),
           Wrap(spacing: 8, runSpacing: 8, children: [
-            // A mutashābih needs its likenesses tapped: only where the
-            // muṣḥaf can link them.
-            for (final t in MarkType.values)
-              if (t != MarkType.mutashabih || onLink != null)
+            // A mutashābih needs its likenesses tapped: on the muṣḥaf (from
+            // elsewhere, it goes there to link them).
+            for (final t in MarkType.marking)
+              if (t != MarkType.mutashabih || _link(context) != null)
               ActionChip(
                 avatar: MarkSwatch(type: t, pal: mp, size: 14),
                 label: Text(markTypeLabel(context, t)),
@@ -87,10 +106,16 @@ class WordMarksPanel extends StatelessWidget {
     );
   }
 
+  /// Where a mutashābih's likenesses get linked: here ([onLink]), else on
+  /// the home muṣḥaf.
+  ValueChanged<Mark>? _link(BuildContext context) =>
+      onLink ?? (HomeLink.ready ? (m) => HomeLink.link(context, m) : null);
+
   Future<void> _add(BuildContext context, MarksStore store, MarkType t) async {
     final book = store.ensureActiveBook(context.l10n.mkYou);
     if (t == MarkType.note) {
-      final text = await askText(context, title: context.l10n.mkNote);
+      final text = await askText(context,
+          title: context.l10n.mkNote, comment: true, word: ref, markType: t);
       if (text == null || text.trim().isEmpty) return;
       store.addMark(book.id, ref, t, sessionId: sessionId, comment: text);
     } else if (t == MarkType.mutashabih) {
@@ -98,7 +123,7 @@ class WordMarksPanel extends StatelessWidget {
       final op = store.addMark(book.id, ref, t, sessionId: sessionId);
       final id = op.changes.single.$2;
       final m = store.marksAt(book.id, ref).where((m) => m.id == id).single;
-      onLink?.call(m);
+      _link(context)?.call(m);
     } else {
       store.addMark(book.id, ref, t, sessionId: sessionId);
     }
@@ -168,7 +193,7 @@ class _MarkTile extends StatelessWidget {
                 tooltip: '',
                 onSelected: (v) => _action(context, v),
                 itemBuilder: (_) => [
-                  for (final t in MarkType.values)
+                  for (final t in MarkType.marking)
                     if (t != mark.type)
                       PopupMenuItem(
                           value: 'type:${t.code}',
@@ -202,7 +227,7 @@ class _MarkTile extends StatelessWidget {
               Text(context.l10n.mtTechnique,
                   style: uiStyle(context,
                       size: 12, weight: FontWeight.w700, color: p.ink3)),
-            Text(mark.comment, style: uiStyle(context, size: 14)),
+            CommentText(mark.comment, style: uiStyle(context, size: 14)),
           ],
           for (final r in replies)
             Padding(
@@ -213,7 +238,7 @@ class _MarkTile extends StatelessWidget {
                         '${authorLabel(context, store, r.authorId, r.authorName)}: ',
                     style: uiStyle(context,
                         size: 13, weight: FontWeight.w700, color: p.ink2)),
-                TextSpan(text: r.text, style: uiStyle(context, size: 13)),
+                TextSpan(text: isolateArabic(r.text), style: uiStyle(context, size: 13)),
               ])),
             ),
           const SizedBox(height: 4),
@@ -269,10 +294,14 @@ class _MarkTile extends StatelessWidget {
           title: technique ? context.l10n.mtTechnique : context.l10n.mkComment,
           hint: technique ? context.l10n.mtTechniqueHint : null,
           initial: mark.comment,
-          long: technique);
+          long: technique,
+          comment: true,
+          word: mark.ref,
+          markType: mark.type);
       if (t != null) store.setComment(mark, t);
     } else if (v == 'reply') {
-      final t = await askText(context, title: context.l10n.mkReply);
+      final t = await askText(context,
+          title: context.l10n.mkReply, comment: true, word: mark.ref, markType: mark.type);
       if (t != null && t.trim().isNotEmpty) store.addComment(mark, t);
     } else if (v.startsWith('type:')) {
       store.setType(mark, MarkType.fromCode(v.substring(5)));

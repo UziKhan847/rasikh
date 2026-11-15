@@ -129,6 +129,10 @@ abstract final class Wire {
         'surah': m.ref.surah,
         'ayah': m.ref.ayah,
         'word': m.ref.word,
+        // Its last word, for a mark over several (0 0 0: one word).
+        'to_surah': m.to?.surah ?? 0,
+        'to_ayah': m.to?.ayah ?? 0,
+        'to_word': m.to?.word ?? 0,
         'type': m.type.code,
         'comment': m.comment,
         'author': m.authorId,
@@ -141,6 +145,9 @@ abstract final class Wire {
         bookId: w['book'] as String,
         sessionId: _id(w['session']),
         ref: WordRef(_int(w['surah']), _int(w['ayah']), _int(w['word'])),
+        to: _int(w['to_surah']) <= 0
+            ? null
+            : WordRef(_int(w['to_surah']), _int(w['to_ayah']), _int(w['to_word'])),
         type: MarkType.fromCode(w['type'] as String?),
         comment: w['comment'] as String? ?? '',
         authorId: w['author'] as String? ?? '',

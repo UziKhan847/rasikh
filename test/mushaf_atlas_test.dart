@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/mushaf_atlas.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_line.dart';
-import 'package:qiraah_arabiyyah/ui/tajwid_colors.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/mushaf_atlas.dart';
+import 'package:rasikh/data/quran.dart';
+import 'package:rasikh/screens/mushaf/mushaf_line.dart';
+import 'package:rasikh/ui/tajwid_colors.dart';
 
 import 'shots/shots_test.dart' show loadFonts;
 import 'test_support.dart';
@@ -26,13 +26,14 @@ MushafLineSpec _spec(
   List<Color>? tajwid,
   int playAyah = -1,
   int playWord = -1,
+  MushafLine? line,
 }) {
   final lines = MushafRepo.pageSync(script, page)!;
   return MushafLineSpec(
     script: script,
     page: page,
     index: index,
-    line: lines[index],
+    line: line ?? lines[index],
     fontSize: fs,
     slotH: fs * 1.8,
     targetW: targetW,
@@ -102,21 +103,67 @@ void main() {
     }
   });
 
-  test('the opening pages are set as the print sets them: each line its '
-      'share of one circle, the same circle on both pages', () {
+  test('the opening pages are set as the print sets them: row 4 widest, in '
+      'one circle on both pages', () {
     final atlas = MushafAtlas.of('uthmani')!;
     double width(int page, int row) => buildAtlasLine(
             _spec('uthmani', page, row, targetW: 1e6), atlas, 0)
         .width;
-    // Al-Fātiḥah's widest is its 5th line; al-Baqarah's 2nd–6th are wide,
-    // its last short — and al-Fātiḥah's 2nd and 6th shorter than their
-    // neighbours, as printed.
-    expect(width(1, 5), greaterThan(width(1, 4)));
-    expect(width(1, 2), lessThan(width(1, 3)));
-    expect(width(1, 6), lessThan(width(1, 5) * .65));
-    expect(width(2, 7), lessThan(width(2, 6) * .55));
-    // One circle: al-Fātiḥah's 5th (.93 of it) and al-Baqarah's 5th (.91).
-    expect(width(1, 5) / width(2, 5), closeTo(.93 / .91, .02));
+    // Each row's share of the widest, measured off the print.
+    const fatihah = [.508, .699, .899, 1.0, .898, .695, .398];
+    const baqarah = [.697, .899, .996, .902, .695, .398];
+    final widest = width(1, 4);
+    for (var i = 0; i < 7; i++) {
+      expect(width(1, i + 1) / widest, closeTo(fatihah[i], .012), reason: 'Fātiḥah ${i + 1}');
+    }
+    for (var i = 0; i < 6; i++) {
+      expect(width(2, i + 2) / widest, closeTo(baqarah[i], .012), reason: 'Baqarah ${i + 2}');
+    }
+  });
+
+  test('al-Baqarah\'s basmala is al-Fātiḥah\'s words, without the number; '
+      'nowhere else', () {
+    final atlas = MushafAtlas.of('uthmani')!;
+    final b = MushafRepo.openingBasmala('uthmani', 2)!;
+    final first = MushafRepo.pageSync('uthmani', 1)![1];
+    expect(b.isText, isTrue);
+    expect(b.words.any((w) => w.isMarker), isFalse);
+    expect(b.words.length, first.words.length - 1);
+    expect(b.firstTok, first.firstTok);
+    // As the print: .459 of the widest row.
+    final w = buildAtlasLine(
+            _spec('uthmani', 2, 1, targetW: 1e6, line: b), atlas, 0)
+        .width;
+    final widest = buildAtlasLine(_spec('uthmani', 1, 4, targetW: 1e6), atlas, 0).width;
+    expect(w / widest, closeTo(.459, .02));
+    expect(MushafRepo.openingBasmala('uthmani', 3), isNull);
+    expect(MushafRepo.openingBasmala('indopak', 2), isNull);
+  });
+
+  test('Indo-Pak closes its spaces to fit the page\'s longest line, never past '
+      'half; Madani\'s are never closed', () {
+    final atlas = MushafAtlas.of('indopak')!;
+    const w = 370.0;
+    var closed = 0;
+    for (final page in [3, 30, 31, 100, 300]) {
+      final lines = MushafRepo.pageSync('indopak', page)!;
+      final fs = w / MushafGeometry.widestEm('indopak', page, lines);
+      for (var i = 0; i < lines.length; i++) {
+        if (!lines[i].isText) continue;
+        final l = buildAtlasLine(_spec('indopak', page, i, fs: fs, targetW: w), atlas, 0);
+        expect(l.width, lessThanOrEqualTo(w + 1), reason: 'p.$page line $i');
+        expect(l.gapExtra, greaterThanOrEqualTo(-.1 * fs - 1e-6), reason: 'p.$page line $i');
+        if (l.gapExtra < 0) closed++;
+      }
+    }
+    expect(closed, greaterThan(0));
+    final madani = MushafAtlas.of('uthmani')!;
+    final lines = MushafRepo.pageSync('uthmani', 50)!;
+    for (var i = 0; i < lines.length; i++) {
+      if (!lines[i].isText) continue;
+      final l = buildAtlasLine(_spec('uthmani', 50, i, targetW: 200), madani, 0);
+      expect(l.gapExtra, greaterThanOrEqualTo(0));
+    }
   });
 
   test('a line is laid out once: another size, a mark or a tick reuses its '

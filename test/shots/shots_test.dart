@@ -13,25 +13,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/core/theme.dart';
-import 'package:qiraah_arabiyyah/main.dart';
-import 'package:qiraah_arabiyyah/data/letters.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/tajweed.dart';
-import 'package:qiraah_arabiyyah/screens/tajweed_screen.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
-import 'package:qiraah_arabiyyah/screens/learn_screen.dart';
-import 'package:qiraah_arabiyyah/screens/qaidah_screen.dart';
-import 'package:qiraah_arabiyyah/screens/dyslexia_screen.dart';
-import 'package:qiraah_arabiyyah/screens/tashkeel_screen.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
-import 'package:qiraah_arabiyyah/screens/quran_screen.dart';
-import 'package:qiraah_arabiyyah/screens/onboarding_screen.dart';
-import 'package:qiraah_arabiyyah/screens/settings_screen.dart';
-import 'package:qiraah_arabiyyah/screens/shell/modules.dart';
-import 'package:qiraah_arabiyyah/screens/downloads_screen.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/core/theme.dart';
+import 'package:rasikh/main.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/quran.dart';
+import 'package:rasikh/screens/mushaf_screen.dart';
+import 'package:rasikh/screens/quran_screen.dart';
+import 'package:rasikh/screens/onboarding_screen.dart';
+import 'package:rasikh/screens/settings_screen.dart';
+import 'package:rasikh/screens/downloads_screen.dart';
 
 import '../test_support.dart';
 
@@ -61,16 +53,11 @@ final tweaks = <String, void Function(AppSettings)>{
 };
 
 final shotList = <Shot>[
-  ('today_phone_light', () => const RootScreen(), 390, 844, 'light'),
-  ('today_phone_night', () => const RootScreen(), 390, 844, 'night'),
-  ('today_desk_light', () => const RootScreen(), 1440, 900, 'light'),
-  ('today_desk_oled', () => const RootScreen(), 1440, 900, 'oled'),
-  ('learn_phone_light', () => const LearnScreen(), 390, 844, 'light'),
+  ('home_phone_light', () => const RootScreen(), 390, 844, 'light'),
+  ('home_desk_light', () => const RootScreen(), 1440, 900, 'light'),
   ('settings_phone_light', () => const SettingsScreen(), 390, 1800, 'light'),
   ('settings_desk_mono', () => const SettingsScreen(), 1440, 1400, 'mono'),
   ('onboarding_phone', () => const OnboardingScreen(), 390, 844, 'light'),
-  ('quran_phone_light', () => const SurahListScreen(), 390, 844, 'light'),
-  ('quran_desk_light', () => const SurahListScreen(), 1440, 900, 'light'),
   ('reader_phone_light', () => SurahReaderScreen(meta: _meta[0]), 390, 844, 'light'),
   ('reader_phone_grid', () => SurahReaderScreen(meta: _meta[0]), 390, 844, 'light'),
   ('reader_phone_float', () => SurahReaderScreen(meta: _meta[111]), 390, 844, 'oled'),
@@ -82,25 +69,7 @@ final shotList = <Shot>[
   ('mushaf_desk_spread_light', () => const MushafPageScreen(startPage: 1), 1440, 900, 'light'),
   ('mushaf_desk_single_oled', () => const MushafPageScreen(startPage: 50), 1440, 900, 'oled'),
   ('mushaf_desk_fill_night', () => const MushafPageScreen(startPage: 50), 1440, 900, 'night'),
-  for (final m in LearnModule.values) ...[
-    ('mod_${m.name}_phone', () => Builder(builder: m.screen), 390, 844, 'light'),
-    ('mod_${m.name}_desk', () => Builder(builder: m.screen), 1440, 900, 'light'),
-  ],
-  ('qaidah_unit_phone', () => Builder(builder: (c) => QaidahUnitHub(unit: qaidahUnits(c)[2])), 390, 844, 'light'),
-  ('letter_phone', () => LetterDetail(letter: letters[2]), 390, 1300, 'light'),
-  ('letter_desk', () => LetterDetail(letter: letters[2]), 1440, 1000, 'light'),
-  ('quiz_phone', () => Builder(builder: (c) => letterQuizScreen(c)), 390, 844, 'light'),
-  ('quiz_desk', () => Builder(builder: (c) => letterQuizScreen(c)), 1440, 900, 'night'),
-  ('tajwid_rule_phone', () => TajwidRuleScreen(rule: tajwidRules.firstWhere((r) => r.id == 'madd4')), 390, 1200, 'light'),
-  ('tajwid_rule_night', () => TajwidRuleScreen(rule: tajwidRules.firstWhere((r) => r.id == 'ikhfa')), 390, 1000, 'night'),
-  ('trace_desk_night', () => Builder(builder: LearnModule.tracing.screen), 1440, 900, 'night'),
-  ('spot_phone', () => const SpotTheLetterDrill(), 390, 844, 'light'),
-  ('spot_desk', () => const SpotTheLetterDrill(), 1440, 900, 'light'),
-  ('sprint_phone', () => const FluencySprint(), 390, 844, 'light'),
-  ('sprint_desk', () => const FluencySprint(), 1440, 900, 'light'),
   ('downloads_desk', () => const DownloadsScreen(), 1440, 900, 'light'),
-  ('counts_phone', () => const CountsStudio(initialCounts: 4), 390, 844, 'light'),
-  ('counts_desk', () => const CountsStudio(initialCounts: 4), 1440, 900, 'night'),
   ('downloads_phone', () => const DownloadsScreen(), 390, 844, 'light'),
 ];
 
@@ -123,8 +92,10 @@ Future<void> loadFonts() async {
   for (final e in fonts.entries) {
     final loader = FontLoader(e.key);
     for (final f in e.value) {
-      final file = File('assets/fonts/$f.ttf').existsSync()
-          ? File('assets/fonts/$f.ttf')
+      // The icon font is the shared look's (package:qiraah_ui).
+      final dir = f == 'QiraahIcons' ? '../qiraah_ui/lib/fonts' : 'assets/fonts';
+      final file = File('$dir/$f.ttf').existsSync()
+          ? File('$dir/$f.ttf')
           : File('assets/fonts/$f.otf');
       loader.addFont(Future.value(ByteData.view(
           Uint8List.fromList(file.readAsBytesSync()).buffer)));

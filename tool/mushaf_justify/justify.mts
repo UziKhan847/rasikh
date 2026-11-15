@@ -4,12 +4,14 @@
 // font's cvNN alternates — instead of wide spaces.
 //
 //   cd tool/mushaf_justify && npm install
-//   node --experimental-transform-types justify.mts [--pages 1-604] [--measure <font units>] [--stats]
+//   node --experimental-transform-types justify.mts [--pages 1-604] [--measure <font units>] [--min-measure <em>] [--stats]
 //
 // Writes out/lines.json: per text line (page, line index in the page's
 // layout), the line as shaped (our tokens, with the site's mark-order fix),
 // each character's features, the space widths and any horizontal squeeze.
-// Each page is set at the size that fits its widest line, as on the site;
+// Each page is set at the size that fits its widest line, as on the site,
+// but no larger a size than --min-measure allows (17 em by default, so a page
+// of short lines takes more kashīdas rather than a far larger font);
 // --stats prints the natural line widths instead.
 //
 // The vendored files are used as they are; only their imports are patched
@@ -101,14 +103,13 @@ const narrow = new Map<number, number>([
 ]);
 
 // The opening pages are set in a circle, as the printed Madani muṣḥaf sets
-// them: each line's width a share of the circle's, as measured off the
-// print (rows 1–7; al-Baqarah's row 1 is its basmala) — not the circle's
-// chord at that height: the print sets some lines (al-Fātiḥah's 2nd and
-// 6th) well inside it. One circle for both pages, just wide enough that no
-// line has to be squeezed into its share (or --opening-d, in em).
+// them: each line's width a share of the widest row (row 4), measured to the
+// pixel off the print (rows 1–7; al-Baqarah's row 1 is its basmala, al-Fātiḥah's
+// words drawn again: nothing to set). One circle for both pages, just wide
+// enough that no line has to be squeezed into its share (or --opening-d, in em).
 const PRINT_SHARE: Record<number, number[]> = {
-  1: [.65, .67, .84, .85, .93, .55, .41],
-  2: [0, .77, .90, .90, .91, .82, .40],
+  1: [.508, .699, .899, 1, .898, .695, .398],
+  2: [0, .697, .899, .996, .902, .695, .398],
 };
 const openingLines = lines.filter(l => l.page <= 2);
 const openingWidth = new Map(openingLines.map(l => [l, H.getWidth(lineText(l), font, FONTSIZE, null) as number]));
@@ -156,6 +157,8 @@ const pageMeasure = new Map<number, number>();
 for (const l of selected) {
   pageMeasure.set(l.page, Math.max(pageMeasure.get(l.page) ?? 0, natural.get(l)! / ratioOf(l)));
 }
+const minMeasure = Number(arg('--min-measure') ?? 17) * FONTSIZE;
+for (const [page, m] of pageMeasure) if (m < minMeasure) pageMeasure.set(page, minMeasure);
 for (const page of [1, 2]) if (pageMeasure.has(page)) pageMeasure.set(page, openingD);
 
 // ── justify ──

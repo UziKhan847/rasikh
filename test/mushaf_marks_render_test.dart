@@ -2,20 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_model.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
-import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/core/theme.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_line.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
-import 'package:qiraah_arabiyyah/screens/reader/ayah_text.dart';
-import 'package:qiraah_arabiyyah/screens/quran_screen.dart';
-import 'package:qiraah_arabiyyah/ui/mark_style.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/core/marks/marks_model.dart';
+import 'package:rasikh/core/marks/marks_persistence.dart';
+import 'package:rasikh/core/marks/marks_store.dart';
+import 'package:rasikh/core/marks/word_ref.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/core/theme.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/quran.dart';
+import 'package:rasikh/screens/mushaf/mushaf_line.dart';
+import 'package:rasikh/screens/mushaf_screen.dart';
+import 'package:rasikh/screens/reader/ayah_text.dart';
+import 'package:rasikh/screens/quran_screen.dart';
+import 'package:rasikh/ui/mark_style.dart';
 
 import 'shots/shots_test.dart' show loadFonts;
 import 'test_support.dart';
@@ -162,13 +162,10 @@ void main() {
     final (s, p, m) = await _boot();
     await _pump(tester, s, p, m, 'uthmani');
 
+    // Marking starts at once: the profile's marks, no book to name.
     await tester.tap(find.byTooltip('Mark recitation'));
     await tester.pumpAndSettle();
-    // First time: no book yet → "New mark book" is preselected.
-    await tester.enterText(find.byType(TextField).first, 'Zayd');
-    await tester.tap(find.text('Start'));
-    await tester.pumpAndSettle();
-    expect(m.activeBook!.name, 'Zayd');
+    expect(m.activeBook, isNotNull);
     expect(find.byTooltip('Undo'), findsOneWidget);
 
     final word = MushafRepo.wordText('uthmani', _ref.globalAyah, _ref.word0);
@@ -187,11 +184,13 @@ void main() {
     await tester.pump();
     expect(m.marksAt(m.activeBookId!, _ref), isEmpty);
 
-    // End → summary → Save closes the session with the page's range.
+    // End: the session closes by itself with the page's range, kept in
+    // History (one with nothing marked isn't kept, so mark again first).
+    await tester.tapAt(pos);
+    await tester.pump();
     await tester.tap(find.text('End'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+    expect(find.textContaining('Saved to History'), findsOneWidget);
     final session = m.sessionsOf(m.activeBookId!).single;
     expect(session.isOpen, isFalse);
     expect(session.fromGlobalAyah, lessThanOrEqualTo(_ref.globalAyah));
@@ -216,9 +215,6 @@ void main() {
     final (s, p, m) = await _boot();
     await _pump(tester, s, p, m, 'uthmani');
     await tester.tap(find.byTooltip('Mark recitation'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).first, 'Zayd');
-    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
 
     final at = wordCentre(tester, _ref);

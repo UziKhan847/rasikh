@@ -1,22 +1,22 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf/hifz_dock.dart';
+import 'package:rasikh/screens/mushaf/tool_circles.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_model.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
-import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf/hifz_layout.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_line.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/core/marks/marks_model.dart';
+import 'package:rasikh/core/marks/marks_persistence.dart';
+import 'package:rasikh/core/marks/marks_store.dart';
+import 'package:rasikh/core/marks/word_ref.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/quran.dart';
+import 'package:rasikh/screens/mushaf/hifz_layout.dart';
+import 'package:rasikh/screens/mushaf/mushaf_line.dart';
+import 'package:rasikh/screens/mushaf_screen.dart';
 
 import 'test_support.dart';
 
@@ -46,7 +46,6 @@ void main() {
     await p.load();
     s
       ..onboarded = true
-      ..appMode = 'hifz'
       ..desktopMode = size.width > 1000 ? 'on' : 'off';
     final m = MarksStore(persistence: MemoryMarksPersistence(), saveDelay: Duration.zero);
     await m.load();
@@ -91,11 +90,19 @@ void main() {
       debugOnRebuildDirtyWidget = (e, _) {
         if (e.widget.runtimeType.toString() == '_MushafPageView') builds++;
       };
-      for (final tool in ['Comment', 'Eraser', 'Recitation']) {
-        await tester.tap(find.byTooltip(tool));
+      // (Desktop's tooltips carry the key; its row may leave no ⋯.)
+      Finder tip(String t) => find.byWidgetPredicate(
+          (w) => w is Tooltip && (w.message == t || (w.message ?? '').startsWith('$t (')));
+      for (final (tool, done) in [('Mark', 'End'), ('Recitation', 'Done'), ('More', null)]) {
+        if (tip(tool).evaluate().isEmpty) continue;
+        await tester.tap(tip(tool));
         await settle(tester);
         expect(lineRects(tester), before, reason: '$tool on: the pages moved');
-        await tester.tap(find.text('Done'));
+        if (done != null) {
+          await tester.tap(find.text(done));
+        } else {
+          await tester.tap(tip(tool), warnIfMissed: false);
+        }
         await settle(tester);
       }
       expect(builds, 0, reason: 'a tool rebuilt the pages');
@@ -132,7 +139,7 @@ void main() {
     tester.binding.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (_) async => rotation);
     await pump(tester, const Size(914, 412));
-    double dockX() => tester.getTopLeft(find.byType(HifzDock)).dx;
+    double dockX() => tester.getTopLeft(find.byType(ToolCircles)).dx;
     expect(dockX(), greaterThan(400), reason: 'on the right');
     // Android reports the turn; nothing else changes.
     rotation = 3;
@@ -153,13 +160,300 @@ void main() {
       .spec
       .page;
 
+  group('the mouse wheel', () {
+    const mid = Offset(196, 400);
+    Future<void> wheel(WidgetTester tester, double dy, {Offset at = mid}) async {
+      final mouse = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(mouse.hover(at));
+      await tester.sendEventToBinding(mouse.scroll(Offset(0, dy)));
+      await settle(tester);
+      await tester.pump(const Duration(milliseconds: 100));
+      await settle(tester);
+      // Past the cooldown between notches (it runs on the real clock).
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+    }
+
+    double scale(WidgetTester tester) => tester
+        .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+        .transformationController!
+        .value
+        .getMaxScaleOnAxis();
+
+    Future<void> ctrlWheel(WidgetTester tester, double dy) async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await wheel(tester, dy);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await settle(tester);
+    }
+
+    testWidgets('down is the next page, up the one before', (tester) async {
+      await pump(tester, const Size(393, 852));
+      final start = pageAt(tester, mid);
+      await wheel(tester, 100);
+      expect(pageAt(tester, mid), start + 1);
+      await wheel(tester, 100);
+      expect(pageAt(tester, mid), start + 2);
+      await wheel(tester, -100);
+      expect(pageAt(tester, mid), start + 1);
+    });
+
+    testWidgets('zoom needs no mode: Ctrl and the wheel from anywhere; the wheel '
+        'then moves about the page and stops at its edge; the keys keep the zoom',
+        (tester) async {
+      await pump(tester, const Size(393, 852));
+      final start = pageAt(tester, mid);
+      await ctrlWheel(tester, -100);
+      expect(pageAt(tester, mid), start, reason: 'Ctrl and the wheel turn nothing');
+      expect(scale(tester), greaterThan(1));
+      expect(find.byTooltip('Exit zoom'), findsOneWidget);
+      final viewer = tester
+          .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+          .transformationController!;
+
+      // Down the page, then far past its foot: never a turn.
+      final y0 = viewer.value.getTranslation().y;
+      await wheel(tester, 100);
+      expect(viewer.value.getTranslation().y, lessThan(y0), reason: 'moved down the page');
+      for (var i = 0; i < 12; i++) {
+        await wheel(tester, 100);
+      }
+      expect(pageAt(tester, mid), start, reason: 'stops at the edge');
+
+      // The arrows turn, at the same zoom.
+      final zoom = scale(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await settle(tester);
+      expect(scale(tester), zoom);
+      final turned = tester.state(find.byType(MushafPageScreen));
+      expect(turned.mounted, isTrue);
+
+      // Out to where it began: as if never zoomed, and the wheel turns again.
+      for (var i = 0; i < 12 && find.byType(InteractiveViewer).evaluate().isNotEmpty; i++) {
+        await ctrlWheel(tester, 100);
+      }
+      expect(find.byType(InteractiveViewer), findsNothing);
+      expect(find.byTooltip('Exit zoom'), findsNothing);
+      final here = pageAt(tester, mid);
+      await wheel(tester, 100);
+      expect(pageAt(tester, mid), here + 1);
+    });
+
+    testWidgets('quick notches add up, each a page on from the last', (tester) async {
+      await pump(tester, const Size(393, 852));
+      final start = pageAt(tester, mid);
+      final mouse = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(mouse.hover(mid));
+      for (var i = 0; i < 3; i++) {
+        await tester.sendEventToBinding(mouse.scroll(const Offset(0, 100)));
+        // Mid-turn, past the cooldown.
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+      }
+      await settle(tester);
+      await tester.pump(const Duration(milliseconds: 500));
+      await settle(tester);
+      expect(pageAt(tester, mid), start + 3);
+    });
+
+    testWidgets('down then straight back up mid-turn ends where it began', (tester) async {
+      await pump(tester, const Size(393, 852));
+      final start = pageAt(tester, mid);
+      final mouse = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(mouse.hover(mid));
+      await tester.sendEventToBinding(mouse.scroll(const Offset(0, 100)));
+      // Barely begun: it still rounds to the page it left.
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+      await tester.sendEventToBinding(mouse.scroll(const Offset(0, -100)));
+      await tester.pump(const Duration(milliseconds: 500));
+      await settle(tester);
+      await tester.pump(const Duration(milliseconds: 500));
+      await settle(tester);
+      expect(pageAt(tester, mid), start);
+    });
+
+    testWidgets('sideways scrolling turns once a swipe, and never shakes the page',
+        (tester) async {
+      await pump(tester, const Size(393, 852));
+      final start = pageAt(tester, mid);
+      final view = tester.widget<PageView>(find.byType(PageView).first);
+      final begin = view.controller!.page;
+      final mouse = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(mouse.hover(mid));
+      await tester.sendEventToBinding(mouse.scroll(const Offset(10, 0)));
+      await tester.pump();
+      expect(view.controller!.page, begin, reason: 'not nudged');
+      for (var i = 0; i < 12; i++) {
+        await tester.sendEventToBinding(mouse.scroll(const Offset(-10, 0)));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pump(const Duration(milliseconds: 500));
+      await settle(tester);
+      expect(pageAt(tester, mid), start + 1, reason: 'one turn, for one swipe');
+    });
+
+    group('a trackpad', () {
+      Future<void> pan(WidgetTester tester, Offset by, {int steps = 6}) async {
+        final pad = TestPointer(2, PointerDeviceKind.trackpad);
+        await tester.sendEventToBinding(pad.panZoomStart(mid));
+        for (var i = 1; i <= steps; i++) {
+          await tester.sendEventToBinding(pad.panZoomUpdate(mid, pan: by * (i / steps)));
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        await tester.sendEventToBinding(pad.panZoomEnd());
+        await tester.pump();
+      }
+
+      testWidgets('Ctrl and two fingers zoom, up in and down out, and don\'t move the page',
+          (tester) async {
+        await pump(tester, const Size(393, 852));
+        final start = pageAt(tester, mid);
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await pan(tester, const Offset(0, 120));
+        await settle(tester);
+        expect(find.byType(InteractiveViewer), findsOneWidget);
+        final viewer = tester
+            .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+            .transformationController!;
+        final zoomed = viewer.value.getMaxScaleOnAxis();
+        expect(zoomed, greaterThan(1.5));
+        await pan(tester, const Offset(0, -40));
+        await settle(tester);
+        expect(viewer.value.getMaxScaleOnAxis(), lessThan(zoomed));
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await settle(tester);
+        expect(pageAt(tester, mid), start);
+      });
+
+      testWidgets('a pinch zooms, with no mode', (tester) async {
+        await pump(tester, const Size(393, 852));
+        final pad = TestPointer(2, PointerDeviceKind.trackpad);
+        await tester.sendEventToBinding(pad.panZoomStart(mid));
+        await tester.sendEventToBinding(pad.panZoomUpdate(mid, scale: 1.5));
+        await tester.pump();
+        await tester.sendEventToBinding(pad.panZoomEnd());
+        await settle(tester);
+        expect(find.byType(InteractiveViewer), findsOneWidget);
+      });
+
+      testWidgets('two fingers up and down turn the page, once a swipe', (tester) async {
+        await pump(tester, const Size(393, 852));
+        final start = pageAt(tester, mid);
+        await pan(tester, const Offset(0, -200));
+        await tester.pump(const Duration(milliseconds: 500));
+        await settle(tester);
+        expect(pageAt(tester, mid), start + 1);
+      });
+    });
+
+        testWidgets('a mouse drags a zoomed page about', (tester) async {
+      await pump(tester, const Size(393, 852));
+      await ctrlWheel(tester, -100);
+      await ctrlWheel(tester, -100);
+      final viewer = tester
+          .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+          .transformationController!;
+      final y0 = viewer.value.getTranslation().y;
+      final x0 = viewer.value.getTranslation().x;
+      await tester.dragFrom(mid, const Offset(-30, -40), kind: PointerDeviceKind.mouse);
+      await settle(tester);
+      final moved = viewer.value.getTranslation();
+      expect(moved.y != y0 || moved.x != x0, isTrue);
+    });
+
+    testWidgets('a page that scrolls has the wheel first: the turn comes at its end',
+        (tester) async {
+      final (s, _) = await pump(tester, const Size(914, 412));
+      s.update(() => s.hifzLandscapePages = 'wide');
+      await settle(tester);
+      const at = Offset(400, 200);
+      final start = tester
+          .renderObjectList<RenderMushafLine>(find.byType(MushafLineView))
+          .first
+          .spec
+          .page;
+      await wheel(tester, 100, at: at);
+      expect(
+          tester.renderObjectList<RenderMushafLine>(find.byType(MushafLineView)).first.spec.page,
+          start,
+          reason: 'scrolled the page, not turned it');
+      var turned = false;
+      for (var i = 0; i < 30 && !turned; i++) {
+        await wheel(tester, 100, at: at);
+        turned = tester
+            .renderObjectList<RenderMushafLine>(find.byType(MushafLineView))
+            .any((r) => r.attached && r.spec.page == start + 1 &&
+                (r.localToGlobal(Offset.zero) & r.size).contains(at));
+      }
+      expect(turned, isTrue, reason: 'at its foot, the next page');
+    });
+
+    testWidgets('with a finger the Zoom button is there; a mouse has no need of it',
+        (tester) async {
+      await pump(tester, const Size(393, 852));
+      await tester.tap(find.byTooltip('More'));
+      await settle(tester);
+      expect(find.byTooltip('Zoom'), findsOneWidget);
+      await tester.tapAt(const Offset(5, 5));
+      await settle(tester);
+      final mouse = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(mouse.addPointer(location: mid));
+      await tester.sendEventToBinding(mouse.hover(mid));
+      addTearDown(() async => tester.sendEventToBinding(mouse.removePointer()));
+      await tester.pump();
+      await tester.tap(find.byTooltip('More'));
+      await settle(tester);
+      expect(find.byTooltip('Zoom'), findsNothing);
+    });
+  });
+
+  for (final (name, size) in [('portrait', const Size(393, 852)), ('landscape', const Size(914, 412))]) {
+    testWidgets('$name: zoomed, one tap on the page\'s button comes out and it swipes again',
+        (tester) async {
+      await pump(tester, size);
+      final mid = Offset(size.width / 2, size.height / 2);
+      final before = pageAt(tester, mid);
+      expect(find.byTooltip('Exit zoom'), findsNothing);
+      await tester.tap(find.byTooltip('More'));
+      await settle(tester);
+      await tester.tap(find.byTooltip('Zoom'));
+      await settle(tester);
+      expect(find.byType(InteractiveViewer), findsOneWidget);
+      expect(find.byTooltip('More'), findsOneWidget);
+      expect(find.byTooltip('Zoom'), findsNothing, reason: 'the fan is shut');
+      final exit = tester.getRect(find.byTooltip('Exit zoom'));
+      expect(exit.top, lessThan(size.height * .2), reason: 'at the top');
+      if (size.width < size.height) {
+        // In the line: the sūrah, this, the page number. It stays put zoomed.
+        final page = tester.widget<MushafPageScreen>(find.byType(MushafPageScreen)).startPage;
+        final number = tester.getRect(find.text('$page').first);
+        expect(exit.right, lessThanOrEqualTo(number.left + 8), reason: 'before the page number');
+        expect(exit.center.dy, closeTo(number.center.dy, 8), reason: 'on its line');
+        final meta = (await tester.runAsync(QuranRepo.meta))!;
+        final surah = MushafRepo.firstVerseOfPage('uthmani', page).$1;
+        final name = meta.firstWhere((m) => m.n == surah).tname;
+        expect(tester.getRect(find.text(name).first).right, lessThanOrEqualTo(exit.left),
+            reason: 'after the sūrah');
+      }
+
+      await tester.tap(find.byTooltip('Exit zoom'));
+      await settle(tester);
+      expect(find.byType(InteractiveViewer), findsNothing);
+      expect(find.byTooltip('Exit zoom'), findsNothing);
+      await tester.flingFrom(mid.translate(-110, 0), const Offset(300, 0), 2000);
+      await settle(tester);
+      expect(pageAt(tester, mid), isNot(before));
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('zoom stops the swipe for the pinch; off again, it swipes',
       (tester) async {
     await pump(tester, const Size(393, 852));
     const mid = Offset(196, 400);
     final before = pageAt(tester, mid);
-    // Along the dock's scroll.
-    await tester.ensureVisible(find.byTooltip('Zoom'));
+    // In the ⋯ fan.
+    await tester.tap(find.byTooltip('More'));
     await settle(tester);
     await tester.tap(find.byTooltip('Zoom'));
     await settle(tester);
@@ -167,6 +461,8 @@ void main() {
     await tester.flingFrom(const Offset(80, 400), const Offset(300, 0), 2000);
     await settle(tester);
     expect(pageAt(tester, mid), before, reason: 'zoomed, a swipe turned the page');
+    await tester.tap(find.byTooltip('More'));
+    await settle(tester);
     await tester.tap(find.byTooltip('Zoom'));
     await settle(tester);
     expect(find.byType(InteractiveViewer), findsNothing);

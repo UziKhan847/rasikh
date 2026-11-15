@@ -11,27 +11,67 @@ import '../../data/mushaf.dart';
 import '../../ui/adaptive_sheet.dart';
 import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
-import 'passage_screen.dart' show PassageScreen, passageFrom;
-import 'verse_review_screen.dart';
+import '../marks/marking.dart' show FluencyStep, MarkingController;
 
-/// The Reader's fluency marking: a tap on a word marks it not fluent,
-/// pairs it with the next word, or opens its split into stem and
-/// attachments — whichever tool the bar has on.
-enum FluencyTool { slow, pair, chunk }
+/// Fluency marking (Mark's fluency kind, in both views): a tap steps a word
+/// on, as recitation marks' taps do.
+enum FluencyTool { fluency }
 
-/// What a tap on [ref] does with [tool] on.
-void applyFluency(BuildContext context, FluencyTool tool, String script, WordRef ref) {
+/// What a tap on [ref] does in fluency marking: see [cycleFluency]. [undo]
+/// keeps the step for undo and redo.
+void applyFluency(BuildContext context, FluencyTool tool, String script, WordRef ref,
+    {MarkingController? undo}) {
   final store = FluencyScope.read(context);
   if (store == null) return;
-  switch (tool) {
-    case FluencyTool.slow:
-      store.toggleSlow(ref, formOf(script, ref));
-    case FluencyTool.pair:
-      togglePairAt(store, script, ref);
-    case FluencyTool.chunk:
-      showChunkEditor(context, script, ref);
-  }
+  final step = cycleFluency(store, script, ref);
+  if (step != null) undo?.recordStep(step);
 }
+
+/// A word's fluency mark one step on: none → not fluent → paired with the
+/// next word → a chunk (split as suggested) → none. A step it can't take (no
+/// next word, a word too short to split) is passed over. The step, for undo.
+FluencyStep? cycleFluency(FluencyStore store, String script, WordRef ref) {
+  final before = store.snapshotAt(ref);
+  final form = formOf(script, ref);
+  final next = nextWordOf(script, ref);
+  bool chunk() {
+    var (p, x) = suggestSplit(form);
+    if (p == 0 && x == 0) {
+      // Nothing obvious to split off: the first letter, to be moved.
+      if (clustersOf(form).length < 2) return false;
+      p = 1;
+    }
+    store.setChunk(ref, form, p, x);
+    return true;
+  }
+
+  if (store.markAt(FluencyKind.chunk, ref) != null) {
+    store.setChunk(ref, form, 0, 0);
+  } else if (store.markAt(FluencyKind.pair, ref) != null) {
+    togglePairAt(store, script, ref);
+    chunk();
+  } else if (store.isSlow(ref)) {
+    store.toggleSlow(ref, form);
+    if (next != null) {
+      togglePairAt(store, script, ref);
+    } else {
+      chunk();
+    }
+  } else {
+    store.toggleSlow(ref, form);
+  }
+  return FluencyStep(store, before);
+}
+
+/// What fluency mark [ref] has, the step furthest on.
+FluencyKind? fluencyKindAt(FluencyStore store, WordRef ref) =>
+    store.markAt(FluencyKind.chunk, ref) != null
+        ? FluencyKind.chunk
+        : store.markAt(FluencyKind.pair, ref) != null
+            ? FluencyKind.pair
+            : store.isSlow(ref)
+                ? FluencyKind.word
+                : null;
 
 /// Pairs [ref] with the word after it (or unpairs it).
 void togglePairAt(FluencyStore store, String script, WordRef ref) {
@@ -50,46 +90,63 @@ String joinLabel(BuildContext context, String join) => switch (join) {
       _ => context.l10n.flJoinPlain,
     };
 
-/// The bar while marking fluency: the three tools, a word of what a tap
-/// does, and Done.
+/// The bar while marking fluency: what a tap does, the steps in order, undo
+/// and redo, and Done.
 class FluencyBar extends StatelessWidget {
-  final FluencyTool tool;
-  final ValueChanged<FluencyTool> onTool;
   final VoidCallback onDone;
-  const FluencyBar({super.key, required this.tool, required this.onTool, required this.onDone});
+  final MarkingController? marking;
+
+  /// The line of what a tap does (none where room is short).
+  final bool hint;
+  const FluencyBar({super.key, required this.onDone, this.marking, this.hint = true});
 
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
     final p = pal(context);
+    Widget step(String t) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+              color: p.acc.withValues(alpha: .1), borderRadius: BorderRadius.circular(10)),
+          child: Text(t, style: uiStyle(context, size: 12.5, weight: FontWeight.w600)),
+        );
+    final arrow = Icon(AppIcons.chevronLeft, size: 14, color: p.ink3);
+    final m = marking;
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Row(children: [
         Expanded(
-          child: QSegmented<FluencyTool>(
-            options: [
-              (FluencyTool.slow, l.flSlow, null),
-              (FluencyTool.pair, l.flPair, null),
-              (FluencyTool.chunk, l.flChunk, null),
-            ],
-            value: tool,
-            onChanged: onTool,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(textDirection: TextDirection.ltr, children: [
+              step(l.flChunk),
+              arrow,
+              step(l.flPair),
+              arrow,
+              step(l.flSlow),
+            ]),
           ),
         ),
-        const SizedBox(width: 8),
+        if (m != null)
+          ListenableBuilder(
+            listenable: m,
+            builder: (context, _) => Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(
+                tooltip: l.mkUndo,
+                visualDensity: VisualDensity.compact,
+                onPressed: m.canUndo ? () => m.undo(context) : null,
+                icon: const Icon(AppIcons.undo),
+              ),
+            ]),
+          ),
         QIconButton(icon: AppIcons.check, tooltip: l.rvDone, onTap: onDone),
       ]),
-      Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(
-          switch (tool) {
-            FluencyTool.slow => l.flHintSlow,
-            FluencyTool.pair => l.flHintPair,
-            FluencyTool.chunk => l.flHintChunk,
-          },
-          textAlign: TextAlign.center,
-          style: uiStyle(context, size: 12.5, color: p.ink3),
+      if (hint)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(l.mkFluencySub,
+              textAlign: TextAlign.center,
+              style: uiStyle(context, size: 12.5, color: p.ink3)),
         ),
-      ),
     ]);
   }
 }
@@ -109,53 +166,32 @@ class FluencyWordPanel extends StatelessWidget {
     final pair = store.markAt(FluencyKind.pair, ref);
     final chunk = store.markAt(FluencyKind.chunk, ref);
     final form = formOf(script, ref);
+    // Compact, as the marks above it: a chip each, on or off at a tap.
+    final p = pal(context);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       QSectionLabel(l.flTool),
-      QGroup(children: [
-        QRow(
-          title: l.flSlow,
-          subtitle: l.flSlowSub,
-          control: QSwitch(
-              value: store.isSlow(ref), onChanged: (_) => store.toggleSlow(ref, form)),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        FilterChip(
+          key: const ValueKey('fl-slow'),
+          label: Text(l.flSlow),
+          tooltip: l.flSlowSub,
+          selected: store.isSlow(ref),
+          onSelected: (_) => store.toggleSlow(ref, form),
         ),
         if (next != null)
-          QRow(
-            title: l.flPairWithNext,
-            subtitle:
-                '${joinLabel(context, joinOf(form, formOf(script, next)))} · ${formOf(script, next)}',
-            control: QSwitch(
-                value: pair != null, onChanged: (_) => togglePairAt(store, script, ref)),
+          FilterChip(
+            key: const ValueKey('fl-pair'),
+            label: Text(l.flPairWithNext),
+            tooltip: '${joinLabel(context, joinOf(form, formOf(script, next)))} · ${formOf(script, next)}',
+            selected: pair != null,
+            onSelected: (_) => togglePairAt(store, script, ref),
           ),
-        QRow(
-          title: l.flSplit,
-          subtitle: chunk == null ? l.flSplitSub : _splitShown(form, chunk.prefix, chunk.suffix),
-          chevron: true,
-          onTap: () => showChunkEditor(context, script, ref),
-        ),
-        QRow(
-          title: l.vrFromHere,
-          subtitle: l.vrSub,
-          chevron: true,
-          onTap: () {
-            final nav = Navigator.of(context);
-            final title = l.vrTitle;
-            nav.pop();
-            nav.push(MaterialPageRoute<void>(
-                builder: (_) => VerseReviewScreen(ayahs: ayahsToSurahEnd(ref.globalAyah), title: title)));
-          },
-        ),
-        QRow(
-          title: l.psPractisePassage,
-          subtitle: l.psPractisePassageSub,
-          chevron: true,
-          onTap: () {
-            final (a, b) = passageFrom(script, ref.globalAyah);
-            // Out of the word's sheet, then the passage (the sheet's own
-            // context goes with it).
-            final nav = Navigator.of(context);
-            nav.pop();
-            nav.push(MaterialPageRoute<void>(builder: (_) => PassageScreen(from: a, to: b)));
-          },
+        ActionChip(
+          key: const ValueKey('fl-split'),
+          avatar: chunk == null ? null : Icon(Icons.check, size: 16, color: p.acc),
+          label: Text(chunk == null ? l.flSplit : _splitShown(form, chunk.prefix, chunk.suffix)),
+          tooltip: l.flSplitSub,
+          onPressed: () => showChunkEditor(context, script, ref),
         ),
       ]),
     ]);
@@ -175,62 +211,89 @@ Future<void> showChunkEditor(BuildContext context, String script, WordRef ref) {
   final form = formOf(script, ref);
   final have = store.markAt(FluencyKind.chunk, ref);
   var (prefix, suffix) = have != null ? (have.prefix, have.suffix) : suggestSplit(form);
-  final letters = clustersOf(form).length;
+  final letters = clustersOf(form);
+  final n = letters.length;
+  // Which edge a tap between letters moves.
+  var editing = 'prefix';
   return showAdaptiveSheet<void>(
     context,
     builder: (sheet) => StatefulBuilder(builder: (sheet, set) {
       final l = sheet.l10n;
       final p = pal(sheet);
-      final (a, b, c) = splitText(form, prefix, suffix);
-      final big = TextStyle(fontFamily: MushafRepo.fontFamily(script), fontSize: 48, height: 1.9);
-      Widget stepper(String label, int value, int max, ValueChanged<int> on) => Expanded(
-            child: Column(children: [
-              Text(label, style: uiStyle(sheet, size: 13, weight: FontWeight.w700, color: p.ink2)),
-              const SizedBox(height: 6),
-              QStepper(
-                height: 40,
-                label: '$value',
-                minusTooltip: '−',
-                plusTooltip: '+',
-                minusChild: const Text('−'),
-                plusChild: const Text('+'),
-                onMinus: value <= 0 ? null : () => set(() => on(value - 1)),
-                onPlus: value >= max ? null : () => set(() => on(value + 1)),
+      final family = MushafRepo.fontFamily(script);
+      // Gap g sits before letter g (0: before the first, n: after the last).
+      void tapGap(int g) => set(() {
+            if (editing == 'prefix') {
+              if (g < n - suffix) prefix = g;
+            } else {
+              if (n - g < n - prefix) suffix = n - g;
+            }
+          });
+      Color tone(int i) =>
+          i < prefix || i >= n - suffix ? p.acc : p.ink;
+      Widget gap(int g) {
+        final edge = (editing == 'prefix' && g == prefix) || (editing == 'suffix' && g == n - suffix);
+        return GestureDetector(
+          key: ValueKey('gap-$g'),
+          behavior: HitTestBehavior.opaque,
+          onTap: () => tapGap(g),
+          child: Container(
+            width: 26,
+            height: 76,
+            alignment: Alignment.center,
+            child: Container(
+              width: edge ? 4 : 2,
+              height: edge ? 64 : 40,
+              decoration: BoxDecoration(
+                color: edge ? p.acc : p.line2,
+                borderRadius: BorderRadius.circular(2),
               ),
-            ]),
-          );
+            ),
+          ),
+        );
+      }
+
+      final row = <Widget>[];
+      for (var i = 0; i < n; i++) {
+        if (i > 0) row.add(gap(i));
+        final c = letters[i];
+        row.add(Text('${c.base}${c.marks}',
+            style: TextStyle(fontFamily: family, fontSize: 46, height: 1.7, color: tone(i))));
+      }
+      final (a, b, c) = splitText(form, prefix, suffix);
       return SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Text(l.flSplit, style: displayStyle(sheet, size: 22)),
             const SizedBox(height: 6),
-            Text(l.flSplitSub, style: uiStyle(sheet, size: 13, color: p.ink3)),
+            Text(l.flSplitTap, style: uiStyle(sheet, size: 13, color: p.ink3)),
+            const SizedBox(height: 10),
+            QSegmented<String>(
+              options: [
+                ('prefix', l.flPrefixEdge, null),
+                ('suffix', l.flSuffixEdge, null),
+              ],
+              value: editing,
+              onChanged: (v) => set(() => editing = v),
+            ),
+            const SizedBox(height: 8),
+            // The word large, letter by letter, right to left: a tap between
+            // two puts the chosen edge there.
             Center(
-              child: Text.rich(
-                TextSpan(children: [
-                  TextSpan(text: a, style: big.copyWith(color: p.acc)),
-                  TextSpan(text: b, style: big.copyWith(color: p.ink)),
-                  TextSpan(text: c, style: big.copyWith(color: p.acc)),
-                ]),
-                textDirection: TextDirection.rtl,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(textDirection: TextDirection.rtl, children: row),
               ),
             ),
             if (prefix > 0 || suffix > 0)
               Center(
-                child: Text(
-                    [if (a.isNotEmpty) a, b, if (c.isNotEmpty) c].join('  +  '),
+                child: Text([if (a.isNotEmpty) a, b, if (c.isNotEmpty) c].join('  +  '),
                     textDirection: TextDirection.rtl,
-                    style: big.copyWith(fontSize: 22, height: 1.6, color: p.ink2)),
+                    style: TextStyle(
+                        fontFamily: family, fontSize: 22, height: 1.6, color: p.ink2)),
               ),
-            const SizedBox(height: 12),
-            // Right to left as the word reads: the prefix's letters first.
-            Row(textDirection: TextDirection.rtl, children: [
-              stepper(l.flPrefix, prefix, letters - suffix - 1, (v) => prefix = v),
-              const SizedBox(width: 16),
-              stepper(l.flSuffix, suffix, letters - prefix - 1, (v) => suffix = v),
-            ]),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
             Row(children: [
               if (have != null) ...[
                 Expanded(

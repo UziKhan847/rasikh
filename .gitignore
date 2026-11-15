@@ -19,3 +19,16 @@ tool/mushaf_atlas/out/
 # Mushaf justification prototype (tool/mushaf_justify)
 tool/mushaf_justify/node_modules/
 tool/mushaf_justify/out/
+
+# The Old Madani sources: far over GitHub's file size limit.
+docs/atlas_old_madani.zip
+docs/old_madani_svgs_with_fixed_ids.zip
+
+# Downloaded at run time, not part of the app: the New Madani print's atlases
+# and its sources, and Follow my recitation's model (tool/follow_replay.dart).
+assets/quran/new_madani/
+docs/new_madani/
+assets/follow/
+
+# The Old Madani pack: chosen as a folder or downloaded, not in the app.
+assets/quran/old_madani/

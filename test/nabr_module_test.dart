@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/data/nabr_content.dart';
-import 'package:qiraah_arabiyyah/screens/nabr/nabr_screen.dart';
-import 'package:qiraah_arabiyyah/screens/nabr/nabr_widgets.dart';
-import 'package:qiraah_arabiyyah/screens/shell/modules.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/data/nabr_content.dart';
+import 'package:rasikh/screens/nabr/nabr_screen.dart';
+import 'package:rasikh/screens/nabr/nabr_widgets.dart';
 
 /// The Nabr module (behind kNabrEnabled): its content parses whole, every
 /// drill and question is answerable, it stays hidden without the preview,
@@ -78,17 +77,6 @@ void main() {
     for (final q in c.quiz) {
       expect(q.correct, inInclusiveRange(0, q.options.length - 1), reason: q.id);
     }
-  });
-
-  testWidgets('shown, but "soon" until kNabrEnabled', (tester) async {
-    final s = await settings(preview: false);
-    late bool shown;
-    await tester.pumpWidget(app(s, Builder(builder: (context) {
-      shown = LearnModule.nabr.shown(context);
-      return const SizedBox();
-    })));
-    expect(shown, isTrue);
-    expect(LearnModule.nabr.soon, !kNabrEnabled);
   });
 
   testWidgets('every chapter draws all its blocks, in English and Arabic',

@@ -460,8 +460,8 @@ class _MushafStyleScreenState extends State<MushafStyleScreen> {
             )
         else
           for (final (id, label) in [
-            ('cream', l.paperCream),
             ('white', l.paperWhite),
+            ('cream', l.paperCream),
             ('madani', l.paperMadani),
             ('mono', l.paperMono),
             ('tile1', l.paperTile1),

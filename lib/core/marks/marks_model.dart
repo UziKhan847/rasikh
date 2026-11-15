@@ -14,7 +14,18 @@ enum MarkType {
   /// Mutashābih: a word or āyah confused with others like it — linked to
   /// them ([MarkLink]), its comment the memory technique for telling them
   /// apart.
-  mutashabih('mutashabih');
+  mutashabih('mutashabih'),
+
+  /// Breath marks: where a student stops, and where they start again. A lesson
+  /// plan, not a judgement: never counted, reviewed or reported as marks.
+  breathStop('breath_stop'),
+  breathStart('breath_start'),
+
+  /// Fluency marks as Review shows them (they live in the fluency store, not
+  /// here: never saved as marks).
+  fluencySlow('fl_slow'),
+  fluencyPair('fl_pair'),
+  fluencyChunk('fl_chunk');
 
   final String code;
   const MarkType(this.code);
@@ -24,7 +35,13 @@ enum MarkType {
   /// Pen order in the marking bar and in charts.
   static const pens = [mistake, tajwid, hesitation, doubt];
 
-  bool get fixable => this != note;
+  /// The kinds a mark can be (all but the breath marks).
+  static const marking = [mistake, tajwid, hesitation, doubt, note, mutashabih];
+
+  bool get isBreath => this == breathStop || this == breathStart;
+  bool get isFluency => this == fluencySlow || this == fluencyPair || this == fluencyChunk;
+
+  bool get fixable => this != note && !isBreath && !isFluency;
 }
 
 /// What kind of recitation a session was (hifz-class terms; optional).
@@ -244,17 +261,25 @@ class Mark extends SyncRecord {
   final String bookId;
   final String? sessionId;
   final WordRef ref;
+
+  /// Its last word, when it covers several (from [ref] on, in reading
+  /// order, across āyāt if need be): one mark over them all.
+  final WordRef? to;
   MarkType type;
   String comment;
   final String authorId;
   String authorName;
   final int createdAt;
 
+  /// The most words one mark may cover.
+  static const maxSpan = 300;
+
   Mark({
     required this.id,
     required this.bookId,
     this.sessionId,
     required this.ref,
+    this.to,
     required this.type,
     this.comment = '',
     required this.authorId,
@@ -266,6 +291,34 @@ class Mark extends SyncRecord {
     super.dirty,
   });
 
+  /// Whether it covers more than one word.
+  bool get isSpan => to != null && to!.key != ref.key;
+
+  /// Every word it covers, in order; null if the words of an āyah between
+  /// its ends can't be told yet ([ayahWords] gives -1).
+  List<WordRef>? spanWords(int Function(int globalAyah) ayahWords) {
+    final t = to;
+    if (t == null || ref.isWholeAyah || t.isWholeAyah) return [ref];
+    final g1 = ref.globalAyah, g2 = t.globalAyah;
+    if (g2 < g1 || (g2 == g1 && t.word0 < ref.word0)) return [ref];
+    final out = <WordRef>[];
+    for (var g = g1; g <= g2 && out.length < maxSpan; g++) {
+      final first = g == g1 ? ref.word0 : 0;
+      int last;
+      if (g == g2) {
+        last = t.word0;
+      } else {
+        final n = ayahWords(g);
+        if (n < 0) return null;
+        last = n - 1;
+      }
+      for (var w = first; w <= last && out.length < maxSpan; w++) {
+        out.add(WordRef.fromGlobal(g, w));
+      }
+    }
+    return out;
+  }
+
   @override
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -274,6 +327,7 @@ class Mark extends SyncRecord {
         's': ref.surah,
         'a': ref.ayah,
         'w': ref.word,
+        if (to case final t?) ...{'ts': t.surah, 'ta': t.ayah, 'tw': t.word},
         'type': type.code,
         if (comment.isNotEmpty) 'comment': comment,
         'author': authorId,
@@ -288,6 +342,10 @@ class Mark extends SyncRecord {
         sessionId: j['session'] as String?,
         ref: WordRef((j['s'] as num).toInt(), (j['a'] as num).toInt(),
             (j['w'] as num).toInt()),
+        to: j['ts'] == null
+            ? null
+            : WordRef((j['ts'] as num).toInt(), (j['ta'] as num).toInt(),
+                (j['tw'] as num).toInt()),
         type: MarkType.fromCode(j['type'] as String?),
         comment: j['comment'] as String? ?? '',
         authorId: j['author'] as String? ?? '',
@@ -487,8 +545,19 @@ class MarkVisual {
   final bool fixed;
   final bool hasComment;
   final int count;
+
+  /// Breath marks on the word: stop after it, start again from it.
+  final bool stop, start;
   const MarkVisual(
-      {this.open, this.fixed = false, this.hasComment = false, this.count = 0});
+      {this.open,
+      this.fixed = false,
+      this.hasComment = false,
+      this.count = 1,
+      this.stop = false,
+      this.start = false});
+
+  /// Whether there's a mark to draw under the word (not only breath marks).
+  bool get hasMark => open != null || fixed;
 
   /// Display priority among open marks: most serious first.
   static const priority = [
@@ -506,7 +575,9 @@ class MarkVisual {
       other.open == open &&
       other.fixed == fixed &&
       other.hasComment == hasComment &&
-      other.count == count;
+      other.count == count &&
+      other.stop == stop &&
+      other.start == start;
   @override
-  int get hashCode => Object.hash(open, fixed, hasComment, count);
+  int get hashCode => Object.hash(open, fixed, hasComment, count, stop, start);
 }

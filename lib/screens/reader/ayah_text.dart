@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
@@ -13,7 +14,10 @@ import '../../ui/mark_style.dart';
 /// lines), so a recitation tick or a new mark repaints it without shaping
 /// it again — where a widget per word reshaped its word on every change.
 /// Taps and holds find their word from where they land.
-class AyahText extends LeafRenderObjectWidget {
+///
+/// [child] (the flow layout's āyah marker) is set inline after the last
+/// word, and takes its own taps.
+class AyahText extends SingleChildRenderObjectWidget {
   /// One span per word, in order (their styles: tajwīd colours and the
   /// like); a space is set between them.
   final List<InlineSpan> words;
@@ -36,6 +40,10 @@ class AyahText extends LeafRenderObjectWidget {
 
   final void Function(int word) onTap;
   final void Function(int word) onLongPress;
+
+  /// A mouse button pressed on a word, and where on the screen: whether that
+  /// was something of its own, and so isn't a tap.
+  final bool Function(int word, int buttons, Offset at)? onMouse;
   const AyahText({
     super.key,
     required this.words,
@@ -48,6 +56,8 @@ class AyahText extends LeafRenderObjectWidget {
     this.fluencyColor = const Color(0xFFC27C12),
     required this.onTap,
     required this.onLongPress,
+    this.onMouse,
+    super.child,
   });
 
   @override
@@ -58,13 +68,25 @@ class AyahText extends LeafRenderObjectWidget {
       renderObject.update(this);
 }
 
-class RenderAyahText extends RenderBox {
+class RenderAyahText extends RenderBox
+    with RenderObjectWithChildMixin<RenderBox> {
   RenderAyahText(AyahText w) : _w = w {
     _setText(w);
   }
 
   AyahText _w;
   final TextPainter _tp = TextPainter(textDirection: TextDirection.rtl);
+
+  /// The ink the first word is laid out in (for tests).
+  @visibleForTesting
+  Color? get debugInk {
+    final spans = (_tp.text as TextSpan?)?.children;
+    final first = spans?.whereType<TextSpan>().where((t) => (t.text ?? '').trim().isNotEmpty).firstOrNull;
+    return first?.style?.color;
+  }
+
+  /// The child's place in the text, once laid out.
+  Offset _childAt = Offset.zero;
 
   /// Each word's [start, end) in the paragraph's characters.
   final List<(int, int)> _ranges = [];
@@ -90,13 +112,19 @@ class RenderAyahText extends RenderBox {
       _ranges.add((at, at + n));
       at += n;
     }
+    // The child's slot: the painter only needs a placeholder there.
+    if (w.child != null) {
+      spans.add(const TextSpan(text: ' '));
+      spans.add(const WidgetSpan(
+          child: SizedBox.shrink(), alignment: PlaceholderAlignment.middle));
+    }
     _tp.text = TextSpan(children: spans);
   }
 
   void update(AyahText w) {
     final old = _w;
     _w = w;
-    if (w.textKey != old.textKey) {
+    if (w.textKey != old.textKey || (w.child != null) != (old.child != null)) {
       _setText(w);
       markNeedsLayout();
       markNeedsSemanticsUpdate();
@@ -118,11 +146,28 @@ class RenderAyahText extends RenderBox {
     return true;
   }
 
+  /// Sizes the child and gives its slot that size.
+  void _layoutChild(double maxWidth, {required bool dry}) {
+    final c = child;
+    if (c == null) return;
+    final loose = BoxConstraints(maxWidth: maxWidth);
+    final size = dry ? c.getDryLayout(loose) : (c..layout(loose, parentUsesSize: true)).size;
+    _tp.setPlaceholderDimensions(
+        [PlaceholderDimensions(size: size, alignment: PlaceholderAlignment.middle)]);
+  }
+
   @override
   void performLayout() {
     if (kDebugMode) debugLayouts++;
+    _layoutChild(constraints.maxWidth, dry: false);
     _tp.layout(maxWidth: constraints.maxWidth);
     size = constraints.constrain(Size(constraints.maxWidth, _tp.height));
+    if (child != null) {
+      final slot = _tp.inlinePlaceholderBoxes;
+      _childAt = slot == null || slot.isEmpty
+          ? Offset.zero
+          : Offset(slot.first.left, slot.first.top);
+    }
     _boxes = [
       for (final (a, b) in _ranges)
         [
@@ -157,6 +202,7 @@ class RenderAyahText extends RenderBox {
       }
     }
     _tp.paint(canvas, o);
+    if (child case final c?) context.paintChild(c, o + _childAt);
     // A word's box is a line of text tall; its font size, about half.
     var endDrawn = false;
     for (var i = 0; i < _boxes.length && i < _w.fluency.length; i++) {
@@ -183,6 +229,11 @@ class RenderAyahText extends RenderBox {
       for (final r in _boxes[i]) {
         final box = r.shift(o);
         paintMarkLine(canvas, Offset(box.left + 2, box.bottom - 2), box.width - 4, v, mp);
+        paintBreathSigns(canvas, v, mp,
+            left: box.left,
+            right: box.right,
+            top: box.top + 1,
+            size: (box.height * .26).clamp(8.0, 18.0));
       }
     }
   }
@@ -215,11 +266,36 @@ class RenderAyahText extends RenderBox {
   @override
   bool hitTestSelf(Offset position) => true;
 
+  /// The child's box, in this box.
+  Rect? get _childRect =>
+      child == null ? null : (_origin + _childAt) & child!.size;
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    final c = child;
+    if (c == null) return false;
+    return result.addWithPaintOffset(
+      offset: _origin + _childAt,
+      position: position,
+      hitTest: (result, p) => c.hitTest(result, position: p),
+    );
+  }
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) =>
+      transform.translateByDouble(_origin.dx + _childAt.dx, _origin.dy + _childAt.dy, 0, 1);
+
   @override
   void handleEvent(PointerEvent event, covariant BoxHitTestEntry entry) {
     if (event is! PointerDownEvent) return;
+    // The child takes its own taps.
+    if (_childRect?.contains(event.localPosition) ?? false) return;
     _down = _wordAt(event.localPosition);
     if (_down == null) return;
+    if (event.kind == PointerDeviceKind.mouse &&
+        (_w.onMouse?.call(_down!, event.buttons, event.position) ?? false)) {
+      return;
+    }
     (_recognizer ??= TapAndLongPressGestureRecognizer(
       onTap: () {
         final w = _down;
@@ -248,6 +324,7 @@ class RenderAyahText extends RenderBox {
 
   @override
   double computeMinIntrinsicHeight(double width) {
+    _layoutChild(width, dry: true);
     _tp.layout(maxWidth: width);
     return _tp.height;
   }

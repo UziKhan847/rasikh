@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
+import 'package:rasikh/data/quran.dart';
 
 /// The bug: وَٱدْعُوا۟ (2:23) shows the correct mark on its silent trailing
 /// alif in the 15-line muṣḥaf but a stray-looking sukūn on it in the card

@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:qiraah_arabiyyah/screens/mushaf/trackpad_pager.dart';
+import 'package:rasikh/screens/mushaf/trackpad_pager.dart';
 
 void main() {
   Future<List<int>> pump(WidgetTester tester) async {

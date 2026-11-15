@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/theme.dart';
 import 'kit.dart';
 
-/// The app glyph (icon 1a) on its emerald tile: the PNG is used as an alpha
-/// mask, tinted [glyph].
+/// The app's calligraphy (the launcher icon's) on its green tile, tinted
+/// [glyph]. It's taller than wide: [inset] is its margin top and bottom.
 class AppLogoTile extends StatelessWidget {
   final double size;
   final double radius;
@@ -29,38 +30,7 @@ class AppLogoTile extends StatelessWidget {
           color: background ?? pal(context).hero,
           borderRadius: BorderRadius.circular(radius),
         ),
-        child: Image.asset('assets/brand/icon-glyph.png',
-            color: glyph, colorBlendMode: BlendMode.srcIn),
+        child: SvgPicture.asset('assets/brand/rasikh_icon.svg',
+            colorFilter: ColorFilter.mode(glyph, BlendMode.srcIn)),
       );
-}
-
-/// The wordmark: "Qiraah" in Source Serif 4 with "ARABIYYAH" beneath it.
-class AppWordmark extends StatelessWidget {
-  final double size;
-  const AppWordmark({super.key, this.size = 22});
-
-  @override
-  Widget build(BuildContext context) {
-    final p = pal(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text('Qiraah',
-            style: TextStyle(
-                fontFamily: 'SourceSerif4',
-                                fontSize: size,
-                height: 1,
-                color: p.ink)),
-        const SizedBox(height: 3),
-        Text('ARABIYYAH',
-            style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: size * .46,
-                fontWeight: FontWeight.w700,
-                letterSpacing: size * .055,
-                color: p.ink3)),
-      ],
-    );
-  }
 }

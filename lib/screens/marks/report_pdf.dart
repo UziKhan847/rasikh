@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -7,246 +6,91 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart' show DateFormat;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
-import 'package:printing/printing.dart';
 
+import 'export_delivery.dart' show ExportOut, deliverExport;
 import '../../core/l10n.dart';
 import '../../core/marks/marks_model.dart';
 import '../../core/marks/marks_store.dart';
 import '../../core/marks/report.dart';
 import '../../core/marks/review.dart';
 import '../../core/marks/word_ref.dart';
-import '../../core/settings.dart';
+import '../../core/profiles.dart' show ProfileScope;
 import '../../core/theme.dart';
 import '../../data/divisions.dart';
 import '../../data/mushaf.dart';
 import '../../data/mushaf_atlas.dart';
 import '../../data/quran.dart';
-import '../../ui/adaptive_sheet.dart';
 import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
 import '../mushaf/mushaf_line.dart';
 import '../mushaf/verse_view.dart';
+import 'export_sheet.dart';
 import 'marking.dart';
+import '../../ui/bidi.dart';
 
 // ─────────────────────────── the options sheet ───────────────────────────
 
-/// Asks what the report covers (kinds, open/fixed, where, period, grouping)
-/// and makes it — to share or to print.
+/// The export sheet on Report, its marks in [query]'s status.
 Future<void> showReportSheet(
   BuildContext context, {
   required MarksStore store,
   required String bookId,
   required String script,
   ReviewQuery? query,
-}) async {
-  await MushafRepo.ensure(script);
-  if (!context.mounted) return;
-  await showAdaptiveSheet<void>(
-    context,
-    builder: (sheet) => _ReportSheet(
-      store: store,
-      bookId: bookId,
-      script: script,
-      query: query ?? ReviewQuery(status: ReviewStatus.any, script: script),
-      host: context,
-    ),
-  );
-}
-
-class _ReportSheet extends StatefulWidget {
-  final MarksStore store;
-  final String bookId;
-  final String script;
-  final ReviewQuery query;
-
-  /// The screen below the sheet (the progress dialog and share sheet show
-  /// over it once the sheet has closed).
-  final BuildContext host;
-  const _ReportSheet({
-    required this.store,
-    required this.bookId,
-    required this.script,
-    required this.query,
-    required this.host,
-  });
-
-  @override
-  State<_ReportSheet> createState() => _ReportSheetState();
-}
-
-enum _Period { all, week, month, custom }
-
-class _ReportSheetState extends State<_ReportSheet> {
-  late ReviewQuery _q = widget.query;
-  _Period _period = _Period.all;
-  DateTimeRange? _range;
-  ReportGrouping _group = ReportGrouping.surah;
-
-  int _pageOf(WordRef r) => MushafRepo.pageOfWord(
-      widget.script, r.globalAyah, r.word <= 0 ? 0 : r.word - 1);
-
-  ReportOptions get _options {
-    final now = DateTime.now();
-    final (from, to) = switch (_period) {
-      _Period.all => (null, null),
-      _Period.week => (now.subtract(const Duration(days: 7)), null),
-      _Period.month => (now.subtract(const Duration(days: 30)), null),
-      _Period.custom => (
-          _range?.start,
-          _range?.end.add(const Duration(days: 1, milliseconds: -1))
-        ),
-    };
-    return ReportOptions(
-      query: _q,
-      fromMs: from?.millisecondsSinceEpoch,
-      toMs: to?.millisecondsSinceEpoch,
-      grouping: _group,
-    );
-  }
-
-  Report get _report => buildReport(widget.store, widget.bookId, _options,
-      pageOf: _pageOf, now: DateTime.now().millisecondsSinceEpoch);
-
-  Future<void> _make({required bool print}) async {
-    final report = _report;
-    final host = widget.host;
-    Navigator.pop(context);
-    await makeReport(host, report, widget.script, print: print);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final p = pal(context);
-    final mp = markPaletteFor(p,
-        mono: SettingsScope.of(context).appTheme == 'mono');
-    final r = _report;
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(context.l10n.rpExport, style: displayStyle(context, size: 24)),
-            QSectionLabel(context.l10n.rvTypes),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              FilterChip(
-                label: Text(context.l10n.rvAll),
-                selected: _q.types.isEmpty,
-                onSelected: (_) =>
-                    setState(() => _q = _q.copyWith(types: const {})),
-              ),
-              for (final t in MarkType.values)
-                FilterChip(
-                  avatar: MarkSwatch(type: t, pal: mp, size: 14),
-                  label: Text(markTypeLabel(context, t)),
-                  selected: _q.types.contains(t),
-                  onSelected: (on) => setState(() {
-                    final ts = {..._q.types};
-                    on ? ts.add(t) : ts.remove(t);
-                    _q = _q.copyWith(types: ts);
-                  }),
-                ),
-            ]),
-            QSectionLabel(context.l10n.rvStatus),
-            QSegmented<ReviewStatus>(
-              options: [
-                (ReviewStatus.any, context.l10n.rvAny, null),
-                (ReviewStatus.open, context.l10n.rvOpen, null),
-                (ReviewStatus.fixed, context.l10n.rvFixed, null),
-              ],
-              value: _q.status,
-              onChanged: (v) => setState(() => _q = _q.copyWith(status: v)),
-            ),
-            QSectionLabel(context.l10n.rvScope),
-            DropdownButton<int>(
-              isExpanded: true,
-              value: _q.division == Division.juz ? _q.number : 0,
-              items: [
-                DropdownMenuItem(value: 0, child: Text(context.l10n.rvWholeBook)),
-                for (var j = 1; j <= 30; j++)
-                  DropdownMenuItem(value: j, child: Text(context.l10n.juzN(j))),
-              ],
-              onChanged: (j) => setState(() => _q = j == null || j == 0
-                  ? _q.copyWith(everywhere: true)
-                  : _q.copyWith(division: Division.juz, number: j)),
-            ),
-            QSectionLabel(context.l10n.rpPeriod),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final (v, label) in [
-                (_Period.all, context.l10n.rpAllTime),
-                (_Period.week, context.l10n.rpLast7),
-                (_Period.month, context.l10n.rpLast30),
-                (
-                  _Period.custom,
-                  _range == null
-                      ? context.l10n.rpCustom
-                      : context.l10n.rpRange(
-                          shortDate(context, _range!.start.millisecondsSinceEpoch),
-                          shortDate(context, _range!.end.millisecondsSinceEpoch))
-                ),
-              ])
-                ChoiceChip(
-                  label: Text(label),
-                  selected: _period == v,
-                  onSelected: (_) async {
-                    if (v == _Period.custom) {
-                      final now = DateTime.now();
-                      final picked = await showDateRangePicker(
-                          context: context,
-                          firstDate: DateTime(2020),
-                          lastDate: now,
-                          initialDateRange: _range);
-                      if (picked == null) return;
-                      _range = picked;
-                    }
-                    setState(() => _period = v);
-                  },
-                ),
-            ]),
-            QSectionLabel(context.l10n.rpGroupBy),
-            QSegmented<ReportGrouping>(
-              options: [
-                (ReportGrouping.surah, context.l10n.rpBySurah, null),
-                (ReportGrouping.page, context.l10n.rpByPage, null),
-              ],
-              value: _group,
-              onChanged: (v) => setState(() => _group = v),
-            ),
-            const SizedBox(height: 18),
-            Text(
-                r.isEmpty
-                    ? context.l10n.rpNoMarks
-                    : '${context.l10n.rvCountN(r.total)} · '
-                        '${context.l10n.rpAyahsN(r.ayahCount)}',
-                textAlign: TextAlign.center,
-                style: uiStyle(context, size: 13.5, color: p.ink2)),
-            const SizedBox(height: 10),
-            Row(children: [
-              Expanded(
-                child: QOutlineButton(context.l10n.rpPrint,
-                    onTap: r.isEmpty ? null : () => _make(print: true)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: QPrimaryButton(context.l10n.rpShare,
-                    onTap: r.isEmpty ? null : () => _make(print: false)),
-              ),
-            ]),
-          ],
-        ),
-      ),
-    );
-  }
-}
+}) =>
+    showExportSheet(context,
+        store: store,
+        bookId: bookId,
+        script: script,
+        kind: ExportKind.report,
+        status: query?.status ?? ReviewStatus.any);
 
 // ─────────────────────────── making the report ───────────────────────────
 
+/// An export's file name: `[name]_marks_[first]-[last]_[date].pdf`, with
+/// [name] kept as it's written (Arabic too), less what a file name can't hold.
+/// Exported by verses, those are the range ([verses], `2.255-3.10`).
+String marksPdfName(String name, int first, int last, DateTime date, {String? verses}) {
+  final safe = name
+      .replaceAll(RegExp(r'[\\/:*?"<>|\s]+'), '_')
+      .replaceAll(RegExp(r'^_+|_+$'), '');
+  return '${safe.isEmpty ? 'Rasikh' : safe}_marks_${verses ?? '$first-$last'}_'
+      '${DateFormat('yyyy-MM-dd').format(date)}.pdf';
+}
+
+/// Whose an export is: the profile's name, else the mark book's (the default
+/// profile has none of its own).
+String exportOwnerName(BuildContext context, String bookName) {
+  final profile = ProfileScope.maybeOf(context)?.active.name.trim() ?? '';
+  return profile.isEmpty ? bookName : profile;
+}
+
+/// Each mark of [report], numbered in the report's order (by mark id).
+Map<String, int> reportNumbers(Report report) {
+  var n = 0;
+  return {
+    for (final g in report.groups)
+      for (final a in g.ayahs)
+        for (final m in a.marks) m.mark.id: ++n,
+  };
+}
+
+/// A fixed mark's colour, in the report and on the pages.
+const kFixedMarkColour = 0xFF6E8F7A;
+
+/// The pages [report]'s marks are on, in order.
+List<int> reportPages(Report report) => <int>{
+      for (final g in report.groups)
+        for (final a in g.ayahs) a.page,
+    }.toList()
+      ..sort();
+
 /// Paints [report]'s verses (a few per frame, with a progress dialog), lays
-/// the PDF out off the UI thread, then shares it ([print]: print preview).
+/// the PDF out off the UI thread, then hands it on as [out] asks.
+///
+/// [pageRange]: what it was asked for, for its name; else where its marks are.
 Future<void> makeReport(BuildContext context, Report report, String script,
-    {required bool print}) async {
+    {required ExportOut out, (int, int)? pageRange, String? verses}) async {
   final progress = ValueNotifier<(int, int)>((0, report.ayahCount));
   showDialog<void>(
     context: context,
@@ -280,44 +124,11 @@ Future<void> makeReport(BuildContext context, Report report, String script,
     showQToast(context, '$error');
     return;
   }
-  final name = 'marks-${report.bookName.replaceAll(RegExp(r'[^\w-]+'), '_')}-'
-      '${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf';
-  if (print) {
-    await Printing.layoutPdf(name: name, onLayout: (_) async => bytes!);
-  } else if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
-    // On desktop there's no share sheet to hand it to (and the printing
-    // plugin's Linux "share" waits on xdg-open on the UI thread, freezing
-    // the window until the viewer closes): save it and open it, unblocked.
-    final path = await saveAndOpenPdf(bytes, name);
-    if (context.mounted) {
-      showQToast(context,
-          path == null ? context.l10n.rpShare : context.l10n.rpSavedTo(path));
-    }
-  } else {
-    await Printing.sharePdf(bytes: bytes, filename: name);
-  }
-}
-
-/// Writes [bytes] to the Downloads folder (else Documents) as [name] and
-/// opens it in the desktop's PDF viewer without waiting for it. Returns the
-/// path, or null if it couldn't be written.
-Future<String?> saveAndOpenPdf(Uint8List bytes, String name) async {
-  try {
-    final dir = await getDownloadsDirectory() ??
-        await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}${Platform.pathSeparator}$name');
-    await file.writeAsBytes(bytes, flush: true);
-    final (cmd, args) = Platform.isMacOS
-        ? ('open', [file.path])
-        : Platform.isWindows
-            ? ('cmd', ['/c', 'start', '', file.path])
-            : ('xdg-open', [file.path]);
-    await Process.start(cmd, args, mode: ProcessStartMode.detached);
-    return file.path;
-  } catch (e) {
-    debugPrint('[report] save failed: $e');
-    return null;
-  }
+  final marked = reportPages(report);
+  final (first, last) = pageRange ?? (marked.first, marked.last);
+  final name = marksPdfName(
+      exportOwnerName(context, report.bookName), first, last, DateTime.now(), verses: verses);
+  await deliverExport(context, bytes, name, out);
 }
 
 /// Everything the PDF needs, as plain data: the verse images already
@@ -375,8 +186,11 @@ class PdfMark {
   final PdfText line;
   final PdfText? comment;
   final List<PdfText> replies;
+
+  /// Its number on the pages before the report (Pages + report).
+  final int? number;
   const PdfMark(this.label, this.color, this.fixed, this.line, this.comment,
-      this.replies);
+      this.replies, {this.number});
 }
 
 /// The PDF page's text width, points (A4 less 40 pt margins).
@@ -394,12 +208,15 @@ bool _hasArabic(String s) => s.runes.any((c) =>
 /// Paints every verse of [report] and gathers the strings, for
 /// [buildReportPdf]. The verses are drawn exactly as the muṣḥaf draws them:
 /// atlas lines (with each mark's tint and pattern) on a picture recorder.
+/// [numbers]: each mark's number, by id (the report's own order if not given:
+/// the pages it follows give theirs). It's on the mark's word and by its entry.
 Future<ReportPdfInput> prepareReport(
     BuildContext context, Report report, String script,
-    {void Function(int done)? onProgress}) async {
+    {void Function(int done)? onProgress, Map<String, int>? numbers}) async {
   // Everything taken from the context before the first await.
   final l = context.l10n;
   final store = MarksScope.maybeOf(context);
+  final markNumbers = numbers ?? reportNumbers(report);
   final lang = Localizations.localeOf(context).languageCode;
   final date = DateFormat.yMMMd(Localizations.localeOf(context).toString());
   final typeLabel = {for (final t in MarkType.values) t: markTypeLabel(context, t)};
@@ -438,8 +255,15 @@ Future<ReportPdfInput> prepareReport(
     final ayahs = <PdfAyah>[];
     for (final a in g.ayahs) {
       final (s, n) = surahAyahFromGlobal(a.globalAyah);
+      final badges = <int, List<(int, int)>>{};
+      for (final m in a.marks) {
+        final n = markNumbers[m.mark.id];
+        if (n == null) continue;
+        (badges[m.mark.ref.key] ??= []).add(
+            (n, m.fix != null ? kFixedMarkColour : mp.colorOf(m.mark.type).toARGB32()));
+      }
       final verse = await paintVerseImage(atlas, script, a.globalAyah,
-          visuals: visuals, mp: mp, paper: paper);
+          visuals: visuals, mp: mp, paper: paper, badges: badges);
       final marks = <PdfMark>[];
       for (final m in a.marks) {
         final line = [
@@ -463,6 +287,7 @@ Future<ReportPdfInput> prepareReport(
               await t('${who(c.authorId, c.authorName)}: ${c.text}',
                   size: 9, color: sub, width: _textWidth - 30),
           ],
+          number: markNumbers[m.mark.id],
         ));
       }
       ayahs.add(PdfAyah(
@@ -531,7 +356,8 @@ Future<ReportPdfInput> prepareReport(
 }
 
 /// [globalAyah] painted from the glyph atlas, wrapped to the PDF's text
-/// width, every mark in it tinted and underlined as in the muṣḥaf.
+/// width, every mark in it tinted and underlined as in the muṣḥaf. [badges]:
+/// numbers to set over words, by [WordRef.key] (number, colour).
 Future<PdfImage> paintVerseImage(
   MushafAtlas atlas,
   String script,
@@ -541,15 +367,20 @@ Future<PdfImage> paintVerseImage(
   required MushafPaper paper,
   double fontSize = 21,
   double width = _textWidth,
+  Map<int, List<(int, int)>> badges = const {},
 }) async {
   final tier = atlas.tierFor(fontSize * _scale);
   if (atlas.tiers[tier].images == null) await atlas.tiers[tier].load();
   final (first, words) = MushafRepo.ayahTokens(script, globalAyah);
   final rows = VerseView.wrap(atlas, first, words, width, fontSize);
   final slotH = VerseView.rowHeight(fontSize);
-  final height = slotH * rows.length;
+  // Room over the first row for a badge standing above its word.
+  final top = badges.isEmpty ? 0.0 : _verseBadge * .6;
+  final height = top + slotH * rows.length;
   final rec = ui.PictureRecorder();
-  final canvas = Canvas(rec)..scale(_scale);
+  final canvas = Canvas(rec)
+    ..scale(_scale)
+    ..translate(0, top);
   for (var r = 0; r < rows.length; r++) {
     final last = r == rows.length - 1;
     final natural =
@@ -572,8 +403,20 @@ Future<PdfImage> paintVerseImage(
     );
     final line = buildAtlasLine(spec, atlas, tier);
     // Right-aligned like the text (a short last row starts at the right).
-    paintAtlasLine(
-        canvas, Offset(width - line.width, r * slotH), line, atlas, spec);
+    final at = Offset(width - line.width, r * slotH);
+    paintAtlasLine(canvas, at, line, atlas, spec);
+    // Over the word's top right, where the pages put them; a word's several
+    // run on to its left.
+    for (final (i, wd) in rows[r].$2.indexed) {
+      final marks = badges[WordRef.fromGlobal(wd.ayah, wd.isMarker ? -1 : wd.wordIdx).key];
+      if (marks == null || i >= line.boxes.length) continue;
+      var x = at.dx + line.boxes[i].$2;
+      for (final (n, colour) in marks) {
+        _paintBadge(canvas, Offset(verseBadgeX(x, width), at.dy + _verseBadge * .1), n,
+            Color(colour));
+        x -= _verseBadge + 1;
+      }
+    }
   }
   final img = await rec
       .endRecording()
@@ -583,6 +426,30 @@ Future<PdfImage> paintVerseImage(
       .asUint8List();
   img.dispose();
   return PdfImage(png, width, height);
+}
+
+/// A number's badge on a verse's image, points across.
+const _verseBadge = 12.0;
+
+/// A badge's middle, kept whole inside an image [width] across (a line's first
+/// word runs right up to its edge).
+double verseBadgeX(double x, double width) =>
+    x.clamp(_verseBadge / 2 + .5, width - _verseBadge / 2 - .5);
+
+void _paintBadge(Canvas canvas, Offset centre, int n, Color colour) {
+  canvas.drawCircle(centre, _verseBadge / 2, Paint()..color = colour);
+  final tp = TextPainter(
+    text: TextSpan(
+        text: '$n',
+        style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: _verseBadge * (n > 99 ? .42 : .55),
+            fontWeight: FontWeight.w700,
+            color: Colors.white)),
+    textDirection: TextDirection.ltr,
+  )..layout();
+  tp.paint(canvas, centre - Offset(tp.width / 2, tp.height / 2));
+  tp.dispose();
 }
 
 /// [text] painted as an image, wrapped to [maxWidth] points — for what the
@@ -599,7 +466,8 @@ Future<PdfImage> paintTextImage(
   final rtl = _firstStrongIsArabic(text);
   final tp = TextPainter(
     text: TextSpan(
-        text: text,
+        // Arabic inline in another language's sentence stays in its place.
+        text: isolateArabic(text),
         style: TextStyle(
             fontFamily: family,
             fontFamilyFallback: const ['Inter'],
@@ -635,11 +503,17 @@ bool _firstStrongIsArabic(String s) {
 
 /// Lays the report out as an A4 PDF. Pure: runs in another isolate.
 Future<Uint8List> buildReportPdf(ReportPdfInput d) async {
+  final doc = pw.Document(creator: 'Rāsikh');
+  addReportPages(doc, d);
+  return doc.save();
+}
+
+/// The report's pages, added to [doc].
+void addReportPages(pw.Document doc, ReportPdfInput d) {
   final theme = pw.ThemeData.withFont(
     base: pw.Font.ttf(ByteData.sublistView(d.regular)),
     bold: pw.Font.ttf(ByteData.sublistView(d.bold)),
   );
-  final doc = pw.Document(creator: 'Qiraah Arabiyyah');
   const ink = PdfColor.fromInt(0xFF1F2522);
   const sub = PdfColor.fromInt(0xFF6B716D);
   const rule = PdfColor.fromInt(0xFFDDDDD6);
@@ -678,7 +552,7 @@ Future<Uint8List> buildReportPdf(ReportPdfInput d) async {
           child: text(t,
               size: head ? 9 : 10, color: head ? sub : ink, bold: head)));
 
-  /// An āyah's heading and verse, kept on one page together.
+  /// An āyah's heading and verse.
   pw.Widget verse(PdfAyah a) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -699,6 +573,10 @@ Future<Uint8List> buildReportPdf(ReportPdfInput d) async {
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             pw.Row(children: [
+              if (m.number case final n?) ...[
+                numberBadge(n, m.fixed ? 0xFF6E8F7A : m.color),
+                pw.SizedBox(width: 6),
+              ],
               swatch(m.fixed ? 0xFF6E8F7A : m.color),
               pw.SizedBox(width: 6),
               text(m.label, bold: true),
@@ -767,9 +645,10 @@ Future<Uint8List> buildReportPdf(ReportPdfInput d) async {
       pw.SizedBox(height: 6),
       text(d.totalLine, size: 10, color: sub),
       // ── the verses ──
-      for (final g in d.groups) ...[
-        // The group's heading stays with its first verse.
-        pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+      for (final g in d.groups) ...reportGroupBlocks(
+        ctx,
+        [
+          // The group's heading stays with its first verse.
           pw.SizedBox(height: 18),
           pw.Container(
             padding: const pw.EdgeInsets.only(bottom: 4),
@@ -781,14 +660,100 @@ Future<Uint8List> buildReportPdf(ReportPdfInput d) async {
               if (g.name case final n?) image(n),
             ]),
           ),
-          if (g.ayahs.isNotEmpty) verse(g.ayahs.first),
-        ]),
-        for (var i = 0; i < g.ayahs.length; i++) ...[
-          if (i > 0) verse(g.ayahs[i]),
-          for (final m in g.ayahs[i].marks) mark(m),
         ],
-      ],
+        [
+          for (final a in g.ayahs)
+            (() => verse(a), [for (final m in a.marks) () => mark(m)]),
+        ],
+      ),
     ],
   ));
-  return doc.save();
 }
+
+/// The report's height to fill: an A4 page less its margins and footer.
+const kReportPageHeight = 841.89 - 80 - 30;
+
+/// A group's verses, each with its marks, comments and replies as blocks that
+/// stay on one page: one that doesn't fit moves to the next page whole. One
+/// taller than a page goes over several, its verse (with [lead], the group's
+/// heading, on the first) at the top of each, so a comment is never apart from
+/// its verse. Builders, not widgets: the verse is laid out in more than one.
+List<pw.Widget> reportGroupBlocks(
+  pw.Context ctx,
+  List<pw.Widget> lead,
+  List<(pw.Widget Function(), List<pw.Widget Function()>)> ayahs,
+) {
+  double heightOf(pw.Widget w) {
+    w.layout(ctx, const pw.BoxConstraints(maxWidth: _textWidth));
+    return w.box!.height;
+  }
+
+  final leadH = lead.isEmpty
+      ? 0.0
+      : heightOf(pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start, children: lead));
+
+  pw.Widget block(List<pw.Widget> children, double height) {
+    final column = pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start, children: children);
+    // Even alone it's over a page (a very long comment): made to fit.
+    return pw.Inseparable(
+      child: height <= kReportPageHeight
+          ? column
+          : pw.SizedBox(
+              width: _textWidth,
+              height: kReportPageHeight,
+              child: pw.FittedBox(
+                fit: pw.BoxFit.scaleDown,
+                alignment: pw.Alignment.topLeft,
+                child: pw.SizedBox(width: _textWidth, child: column),
+              ),
+            ),
+    );
+  }
+
+  final out = <pw.Widget>[];
+  var withLead = true;
+  if (ayahs.isEmpty) {
+    if (lead.isNotEmpty) out.add(block(lead, leadH));
+    return out;
+  }
+  for (final (verse, marks) in ayahs) {
+    final verseH = heightOf(verse());
+    var parts = <pw.Widget>[if (withLead) ...lead, verse()];
+    var height = verseH + (withLead ? leadH : 0);
+    withLead = false;
+    var any = false;
+    for (final mark in marks) {
+      final h = heightOf(mark());
+      if (any && height + h > kReportPageHeight) {
+        out.add(block(parts, height));
+        parts = [verse()];
+        height = verseH;
+      }
+      parts.add(mark());
+      height += h;
+      any = true;
+    }
+    out.add(block(parts, height));
+  }
+  return out;
+}
+
+/// A mark's number in a round badge of its colour (on the pages, and by
+/// its entry in the report).
+pw.Widget numberBadge(int n, int argb, {double size = 13}) => pw.Container(
+      width: size,
+      height: size,
+      alignment: pw.Alignment.center,
+      // Filled in its colour, a white ring keeping it off the letters.
+      decoration: pw.BoxDecoration(
+          color: PdfColor.fromInt(argb),
+          shape: pw.BoxShape.circle,
+          border: pw.Border.all(color: PdfColors.white, width: .9)),
+      child: pw.Text('$n',
+          style: pw.TextStyle(
+              fontSize: size * (n > 99 ? .42 : .55),
+              color: PdfColors.white,
+              fontWeight: pw.FontWeight.bold)),
+    );

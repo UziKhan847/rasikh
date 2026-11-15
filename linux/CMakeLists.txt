@@ -4,10 +4,10 @@ project(runner LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "qiraah_arabiyyah")
+set(BINARY_NAME "rasikh")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "com.uzikhan.qiraah_arabiyyah")
+set(APPLICATION_ID "com.uzikhan.rasikh")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
@@ -95,6 +95,11 @@ install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
+  COMPONENT Runtime)
+
+# The window's icon (the launcher icon, from assets/apk_icons).
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../assets/apk_icons/app_launcher_icon.png"
+  DESTINATION "${INSTALL_BUNDLE_DATA_DIR}" RENAME "rasikh.png"
   COMPONENT Runtime)
 
 install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"

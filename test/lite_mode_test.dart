@@ -2,14 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/data/mushaf_atlas.dart';
-import 'package:qiraah_arabiyyah/data/strokes.dart';
-import 'package:qiraah_arabiyyah/main.dart';
-import 'package:qiraah_arabiyyah/screens/tracing_screen.dart' show TracingBoard;
-import 'package:qiraah_arabiyyah/ui/kit.dart';
-import 'package:qiraah_arabiyyah/widgets/common.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/data/mushaf_atlas.dart';
+import 'package:rasikh/main.dart';
+import 'package:rasikh/ui/kit.dart';
 
 import 'test_support.dart';
 
@@ -25,22 +21,6 @@ Future<AppSettings> _settings({bool lite = true}) async {
   s.lite = lite;
   return s;
 }
-
-Widget _harness(AppSettings s, Widget child) => SettingsScope(
-      settings: s,
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        locale: const Locale('en'),
-        // What the app's root does in Lite mode (see _LiteMotion).
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context)
-              .copyWith(disableAnimations: s.lite),
-          child: child!,
-        ),
-        home: Scaffold(body: child),
-      ),
-    );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -81,45 +61,6 @@ void main() {
     final ctx2 = tester.element(find.byType(Scaffold).first);
     expect(MediaQuery.disableAnimationsOf(ctx2), isFalse);
     await tester.pump(const Duration(seconds: 1)); // the settings save
-  });
-
-  testWidgets('entrances show their child at once', (tester) async {
-    final s = await _settings();
-    await tester.pumpWidget(_harness(
-        s, const FadeSlideIn(delayMs: 300, child: Text('ready'))));
-    expect(find.text('ready'), findsOneWidget);
-    expect(
-        find.descendant(
-            of: find.byType(FadeSlideIn),
-            matching: find.byType(FadeTransition)),
-        findsNothing);
-    // No delay timer and no controller: nothing left to draw once the
-    // first frames are out.
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(tester.binding.hasScheduledFrame, isFalse);
-  });
-
-  testWidgets('without Lite mode the entrance still plays', (tester) async {
-    final s = await _settings(lite: false);
-    await tester.pumpWidget(_harness(
-        s, const FadeSlideIn(delayMs: 0, child: Text('ready'))));
-    expect(
-        find.descendant(
-            of: find.byType(FadeSlideIn),
-            matching: find.byType(FadeTransition)),
-        findsOneWidget);
-    await tester.pump(const Duration(seconds: 1));
-  });
-
-  testWidgets('a guided tracing board holds still: no frames while idle',
-      (tester) async {
-    final s = await _settings();
-    await tester.pumpWidget(_harness(
-        s, TracingBoard(glyph: glyphFor('ب', 'iso'), mode: 'guided')));
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(tester.binding.hasScheduledFrame, isFalse,
-        reason: 'the guide pulse keeps repainting in Lite mode');
   });
 
   test('the muṣḥaf draws from the standard sheets only', () {

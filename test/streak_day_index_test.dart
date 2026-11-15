@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
+import 'package:rasikh/core/settings.dart';
 
 /// [ProgressStore.dayIndexFor] anchors "today" to the device's LOCAL
 /// calendar date, not UTC midnight — a streak/review-due day must flip at

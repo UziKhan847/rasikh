@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/audio.dart';
+import '../../core/fluency/fluency_store.dart';
+import '../../core/keymap.dart';
 import '../../core/l10n.dart';
 import '../../core/marks/marks_model.dart';
 import '../../core/marks/marks_store.dart';
@@ -19,6 +22,7 @@ import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
 import '../mushaf/mushaf_line.dart';
 import '../mushaf/verse_view.dart';
+import '../reader/reader_host.dart' show ReaderViewSwitch;
 import '../mushaf_screen.dart';
 import 'marking.dart';
 import 'report_pdf.dart';
@@ -26,71 +30,133 @@ import 'review_bar.dart';
 import '../../core/recite_back.dart';
 import 'review_setup_sheet.dart';
 import 'word_marks_sheet.dart';
+import '../../ui/bidi.dart';
 
 /// Asks what to review (around [page] of [script]) and starts it — on the
-/// muṣḥaf page or as verse cards. [onMushaf] takes the controller when the
+/// muṣḥaf page or as verse cards ([as], unasked). [onMushaf] takes the controller when the
 /// caller is the muṣḥaf itself; otherwise the muṣḥaf opens.
 Future<void> startReview(
   BuildContext context, {
   required String script,
   required int page,
   void Function(ReviewController c)? onMushaf,
+  bool ask = false,
+  ReviewView as = ReviewView.mushaf,
+  String scope = 'marks',
 }) async {
   final store = MarksScope.maybeOf(context);
   final book = store?.activeBook;
-  if (store == null || book == null) return;
+  if (store == null || book == null) {
+    if (context.mounted) showQToast(context, context.l10n.rvNothing);
+    return;
+  }
   await MushafRepo.ensure(script);
   if (!context.mounted) return;
-  final picked = await showReviewSetup(context,
-      store: store, bookId: book.id, script: script, page: page);
-  if (picked == null || !context.mounted) return;
-  final (q, view) = picked;
-  int pageOf(WordRef r) => MushafRepo.pageOfWord(
-      script, r.globalAyah, r.word <= 0 ? 0 : r.word - 1);
-  final c = ReviewController.start(store, book.id, q, pageOf: pageOf);
-  if (c.isEmpty) return;
+  // At once: every open mark, on the muṣḥaf, from this page on. Held: what,
+  // where and how, asked.
+  var (q, view) = (
+    ReviewQuery(script: script, scope: reviewScopeOf(scope)),
+    as,
+  );
+  if (ask) {
+    final picked = await showReviewSetup(
+      context,
+      store: store,
+      bookId: book.id,
+      script: script,
+      page: page,
+    );
+    if (picked == null || !context.mounted) return;
+    (q, view) = picked;
+  }
+  int pageOf(WordRef r) =>
+      MushafRepo.pageOfWord(script, r.globalAyah, r.word <= 0 ? 0 : r.word - 1);
+  final c = ReviewController.start(
+    store,
+    book.id,
+    q,
+    pageOf: pageOf,
+    fluency: FluencyScope.read(context),
+  );
+  if (c.isEmpty) {
+    showQToast(context, context.l10n.rvNothing);
+    return;
+  }
+  if (!ask) {
+    final i = c.items.indexWhere((m) => pageOf(m.ref) >= page);
+    if (i > 0) c.goTo(i);
+  }
   if (view == ReviewView.cards) {
-    await Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => ReviewCardsScreen(controller: c, script: script)));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ReviewCardsScreen(controller: c, script: script),
+      ),
+    );
   } else if (onMushaf != null) {
     onMushaf(c);
   } else {
-    await Navigator.of(context).push(MaterialPageRoute(
+    await Navigator.of(context).push(
+      MaterialPageRoute(
         builder: (_) => MushafPageScreen(
-            startPage: pageOf(c.current!.ref), script: script, review: c)));
+          startPage: pageOf(c.current!.ref),
+          script: script,
+          review: c,
+        ),
+      ),
+    );
   }
 }
 
-/// The end of a review: how many were looked at, fixed, and are still open
-/// — with "review again" and a PDF of what was reviewed. Ends [c]'s session.
-/// Returns true if "review again" was picked.
+/// The end of a review: its session closed and kept quietly (History has
+/// it), or dropped if nothing was looked at.
+void endReview(BuildContext context, ReviewController c) {
+  final seen = c.seenCount;
+  final sid = c.sessionId;
+  c.end();
+  if (sid == null) return;
+  if (seen == 0) {
+    c.store.deleteSession(c.bookId, sid);
+  } else {
+    showSessionSaved(context);
+  }
+}
+
+/// The end of a review with its numbers and "review again" — kept for
+/// History's sessions. Returns true if "review again" was picked.
 Future<bool> showReviewSummary(BuildContext context, ReviewController c) async {
   c.end();
   final choice = await showDialog<String>(
     context: context,
     builder: (d) => AlertDialog(
       title: Text(d.l10n.rvDoneTitle),
-      content: Text(d.l10n.rvDoneSummary(c.seenCount, c.fixedCount, c.openCount)),
+      content: Text(
+        d.l10n.rvDoneSummary(c.seenCount, c.fixedCount, c.openCount),
+      ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(d, 'pdf'),
-            child: Text(d.l10n.rpExport)),
+          onPressed: () => Navigator.pop(d, 'pdf'),
+          child: Text(d.l10n.rpExport),
+        ),
         TextButton(
-            onPressed: () => Navigator.pop(d, 'again'),
-            child: Text(d.l10n.rvAgain)),
+          onPressed: () => Navigator.pop(d, 'again'),
+          child: Text(d.l10n.rvAgain),
+        ),
         TextButton(
-            onPressed: () => Navigator.pop(d, 'done'),
-            child: Text(d.l10n.rvDone)),
+          onPressed: () => Navigator.pop(d, 'done'),
+          child: Text(d.l10n.rvDone),
+        ),
       ],
     ),
   );
   if (choice == 'pdf' && context.mounted) {
     // The same marks, every status (what was fixed shows as fixed).
-    await showReportSheet(context,
-        store: c.store,
-        bookId: c.bookId,
-        script: c.query.script,
-        query: c.query.copyWith(status: ReviewStatus.any));
+    await showReportSheet(
+      context,
+      store: c.store,
+      bookId: c.bookId,
+      script: c.query.script,
+      query: c.query.copyWith(status: ReviewStatus.any),
+    );
   }
   return choice == 'again';
 }
@@ -118,6 +184,9 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
   int _playAyah = -1, _playWord = -1;
   bool _reciting = false;
   bool _ending = false;
+
+  /// The āyah's recitation, paused from the audio bar.
+  bool _paused = false;
 
   ReviewController get _c => widget.controller;
 
@@ -178,6 +247,7 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
     AyahAudio.instance.stop();
     final (surah, ayah) = MushafRepo.surahAyahOf(wd.ayah);
     setState(() {
+      _paused = false;
       _reciting = false;
       _playAyah = wd.ayah;
       _playWord = wd.wordIdx;
@@ -199,19 +269,139 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
     final s = SettingsScope.of(context);
     final (surah, ayah) = MushafRepo.surahAyahOf(g);
     setState(() {
+      _paused = false;
       _reciting = true;
       _playAyah = g;
       _playWord = -1;
     });
     AyahAudio.instance.setRate(s.playbackSpeed);
     // Review recites in Ḥuṣarī's voice (his timings light the words).
-    final err = await AyahAudio.instance
-        .play(surah, ayah, reciter: ReciteBack.reciter);
+    final err = await AyahAudio.instance.play(
+      surah,
+      ayah,
+      reciter: ReciteBack.reciter,
+    );
     if (!mounted) return;
     if (err != null) {
       setState(() => _reciting = false);
       showQToast(context, err);
     }
+  }
+
+  void _repeatWord() {
+    final m = _c.current;
+    if (m != null) _playWordAudio(_wordOf(m.ref));
+  }
+
+  void _repeatVerse() {
+    final m = _c.current;
+    if (m != null) _playVerse(m.ref.globalAyah);
+  }
+
+  /// The āyah's recitation: paused, or on again from where it stopped.
+  void _pauseResume() {
+    if (_paused) {
+      AyahAudio.instance.resume();
+    } else {
+      AyahAudio.instance.pause();
+    }
+    setState(() => _paused = !_paused);
+  }
+
+  void _stopAudio() {
+    WbwAudio.instance.stop();
+    AyahAudio.instance.stop();
+    setState(() {
+      _paused = false;
+      _reciting = false;
+      _playAyah = -1;
+      _playWord = -1;
+    });
+  }
+
+  /// The muṣḥaf review's keys: Space and Backspace (or the arrows) step,
+  /// the rest repeat, fix, rate and undo.
+  KeyEventResult _onKey(FocusNode node, KeyEvent e) {
+    if (e is! KeyDownEvent && e is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final km = SettingsScope.of(context).keymap;
+    bool hit(KeyAction a) => km.matches(a, e);
+    KeyEventResult did(VoidCallback f) {
+      f();
+      return KeyEventResult.handled;
+    }
+
+    if (hit(KeyAction.reviewNext)) return did(_c.next);
+    if (hit(KeyAction.reviewPrev)) return did(_c.prev);
+    if (e is! KeyDownEvent) return KeyEventResult.ignored;
+    if (_c.onFluency) {
+      if (hit(KeyAction.fluencyInstant)) {
+        return did(() => _c.rate(Recall.instant));
+      }
+      if (hit(KeyAction.fluencySlow)) return did(() => _c.rate(Recall.slow));
+      if (hit(KeyAction.fluencyWrong)) return did(() => _c.rate(Recall.wrong));
+    }
+    if (hit(KeyAction.reviewRepeat)) return did(_repeatWord);
+    if (hit(KeyAction.reviewRepeatVerse)) return did(_repeatVerse);
+    if (hit(KeyAction.reviewFix)) return did(_c.markFixed);
+    if (hit(KeyAction.undo)) return did(_c.undo);
+    if (hit(KeyAction.leave)) return did(_end);
+    return KeyEventResult.ignored;
+  }
+
+  /// Desktop: the word, the āyah, pause or resume, stop.
+  Widget _audioBar(MushafPaper paper) {
+    final l = context.l10n;
+    final accent = paper.id == 'mono' ? paper.ink : paper.acc;
+    return ValueListenableBuilder<bool>(
+      valueListenable: AyahAudio.instance.playing,
+      builder: (context, playing, _) {
+        final verse = _reciting && (playing || _paused);
+        final any = verse || _playAyah >= 0;
+        Widget btn(String key, IconData icon, String tip, VoidCallback? on) =>
+            IconButton(
+              key: ValueKey(key),
+              tooltip: tip,
+              visualDensity: VisualDensity.compact,
+              color: paper.ink,
+              disabledColor: paper.sub.withValues(alpha: .4),
+              onPressed: on,
+              icon: Icon(icon, size: 20),
+            );
+        return Container(
+          key: const ValueKey('review-audio'),
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            color: paper.chrome,
+            border: Border(top: BorderSide(color: paper.line)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              btn('audio-word', AppIcons.wordByWord, l.playWord, _repeatWord),
+              btn(
+                'audio-verse',
+                AppIcons.recite,
+                l.rvReciteVerse,
+                _repeatVerse,
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                key: const ValueKey('audio-pause'),
+                tooltip: _paused ? l.resume : l.pause,
+                visualDensity: VisualDensity.compact,
+                color: accent,
+                disabledColor: paper.sub.withValues(alpha: .4),
+                onPressed: verse ? _pauseResume : null,
+                icon: Icon(_paused ? AppIcons.play : AppIcons.pause, size: 20),
+              ),
+              btn('audio-stop', AppIcons.stop, l.stop, any ? _stopAudio : null),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   MushafWord _wordOf(WordRef r) => r.isWholeAyah
@@ -243,30 +433,31 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
 
   Future<void> _end() async {
     _ending = true;
-    final again = await showReviewSummary(context, _c);
-    if (!mounted) return;
-    final m = _c.current;
-    final page = m == null
-        ? 1
-        : MushafRepo.pageOfWord(widget.script, m.ref.globalAyah,
-            m.ref.word <= 0 ? 0 : m.ref.word0);
-    // The screen below this one starts the next review.
     final nav = Navigator.of(context);
+    endReview(context, _c);
     nav.pop();
-    if (again && nav.context.mounted) {
-      startReview(nav.context, script: widget.script, page: page);
-    }
   }
 
   void _openInMushaf() {
     final m = _c.current;
     if (m == null) return;
     _ending = true; // the muṣḥaf carries the review on
-    final page = MushafRepo.pageOfWord(widget.script, m.ref.globalAyah,
-        m.ref.word <= 0 ? 0 : m.ref.word0);
-    Navigator.of(context).pushReplacement(MaterialPageRoute(
+    // The home page, where the review runs as the muṣḥaf's own.
+    if (HomeLink.ready) return HomeLink.review(context, _c);
+    final page = MushafRepo.pageOfWord(
+      widget.script,
+      m.ref.globalAyah,
+      m.ref.word <= 0 ? 0 : m.ref.word0,
+    );
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
         builder: (_) => MushafPageScreen(
-            startPage: page, script: widget.script, review: _c)));
+          startPage: page,
+          script: widget.script,
+          review: _c,
+        ),
+      ),
+    );
   }
 
   @override
@@ -276,110 +467,136 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
     final paper = mushafPaperOf(s);
     final mp = markPaletteForPaper(paper);
     final store = _c.store;
-    return PopScope(
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop && !_ending) _c.end();
-      },
-      child: Scaffold(
-        backgroundColor: p.bg,
-        appBar: AppBar(
-          title: Text(context.l10n.rvReview),
-          actions: [
-            IconButton(
+    final desk = useDesktop(context);
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _onKey,
+      child: PopScope(
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop && !_ending) _c.end();
+        },
+        child: Scaffold(
+          backgroundColor: p.bg,
+          appBar: AppBar(
+            title: Text(context.l10n.rvReview),
+            actions: [
+              IconButton(
                 tooltip: context.l10n.mzSmaller,
-                onPressed: () => s.update(() => s.reviewCardFont =
-                    (s.reviewCardFont - 4).clamp(20, 72)),
-                icon: const Icon(AppIcons.textSmaller)),
-            IconButton(
+                onPressed: () => s.update(
+                  () => s.reviewCardFont = (s.reviewCardFont - 4).clamp(20, 72),
+                ),
+                icon: const Icon(AppIcons.textSmaller),
+              ),
+              IconButton(
                 tooltip: context.l10n.mzBigger,
-                onPressed: () => s.update(() => s.reviewCardFont =
-                    (s.reviewCardFont + 4).clamp(20, 72)),
-                icon: const Icon(AppIcons.textBigger)),
-            TextButton(
-                onPressed: _openInMushaf,
-                child: Text(context.l10n.rvOpenMushaf)),
-            PopupMenuButton<String>(
-              icon: const Icon(AppIcons.more),
-              itemBuilder: (_) => [
-                CheckedPopupMenuItem(
-                  value: 'word',
-                  checked: s.reviewCardWord,
-                  child: Text(context.l10n.rvShowWord),
+                onPressed: () => s.update(
+                  () => s.reviewCardFont = (s.reviewCardFont + 4).clamp(20, 72),
                 ),
-              ],
-              onSelected: (_) =>
-                  s.update(() => s.reviewCardWord = !s.reviewCardWord),
-            ),
-          ],
-        ),
-        body: !_ready
-            ? Center(child: CircularProgressIndicator(color: p.acc))
-            : Column(children: [
-                Expanded(
-                  child: ListenableBuilder(
-                    listenable: store,
-                    builder: (context, _) {
-                      final marks = store.visuals(_c.bookId);
-                      return PageView.builder(
-                        controller: _pages,
-                        // The book reads right to left: the next card comes
-                        // in from the left.
-                        reverse: true,
-                        itemCount: _c.length,
-                        onPageChanged: (i) {
-                          if (i != _c.index) _c.goTo(i);
+                icon: const Icon(AppIcons.textBigger),
+              ),
+              // The same switch as the page's and the Reader's: the review
+              // carries on there.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: ReaderViewSwitch(
+                  page: false,
+                  dense: true,
+                  onChanged: (_) => _openInMushaf(),
+                  ink: p.ink3,
+                  accent: p.acc.withValues(alpha: .3),
+                  track: p.track,
+                  onAccent: p.ink,
+                ),
+              ),
+              if (!desk)
+                PopupMenuButton<String>(
+                  icon: const Icon(AppIcons.more),
+                  itemBuilder: (_) => [
+                    CheckedPopupMenuItem(
+                      value: 'word',
+                      checked: s.reviewCardWord,
+                      child: Text(context.l10n.rvShowWord),
+                    ),
+                  ],
+                  onSelected: (_) =>
+                      s.update(() => s.reviewCardWord = !s.reviewCardWord),
+                ),
+            ],
+          ),
+          body: !_ready
+              ? Center(child: CircularProgressIndicator(color: p.acc))
+              : Column(
+                  children: [
+                    Expanded(
+                      child: ListenableBuilder(
+                        listenable: store,
+                        builder: (context, _) {
+                          final marks = store.visuals(_c.bookId);
+                          return PageView.builder(
+                            controller: _pages,
+                            // The book reads right to left: the next card comes
+                            // in from the left.
+                            reverse: true,
+                            itemCount: _c.length,
+                            onPageChanged: (i) {
+                              if (i != _c.index) _c.goTo(i);
+                            },
+                            itemBuilder: (context, i) =>
+                                _card(context, _c.items[i], marks, mp, paper),
+                          );
                         },
-                        itemBuilder: (context, i) => _card(
-                            context, _c.items[i], marks, mp, paper),
-                      );
-                    },
-                  ),
-                ),
-                SafeArea(
-                  top: false,
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 8, 6),
-                    decoration: BoxDecoration(
-                      color: paper.chrome,
-                      border: Border(top: BorderSide(color: paper.line)),
+                      ),
                     ),
-                    child: ReviewBar(
-                      controller: _c,
-                      pal: mp,
-                      bg: paper.chrome,
-                      ink: paper.ink,
-                      sub: paper.sub,
-                      line: paper.line,
-                      accent: paper.id == 'mono' ? paper.ink : paper.acc,
-                      onRepeatWord: () {
-                        final m = _c.current;
-                        if (m != null) _playWordAudio(_wordOf(m.ref));
-                      },
-                      onRepeatVerse: () {
-                        final m = _c.current;
-                        if (m != null) _playVerse(m.ref.globalAyah);
-                      },
-                      onOpenWord: () {
-                        final m = _c.current;
-                        if (m != null) _showWord(_wordOf(m.ref));
-                      },
-                      onEnd: _end,
+                    if (desk) _audioBar(paper),
+                    SafeArea(
+                      top: false,
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 8, 6),
+                        decoration: BoxDecoration(
+                          color: paper.chrome,
+                          border: Border(top: BorderSide(color: paper.line)),
+                        ),
+                        child: ReviewBar(
+                          controller: _c,
+                          pal: mp,
+                          bg: paper.chrome,
+                          ink: paper.ink,
+                          sub: paper.sub,
+                          line: paper.line,
+                          accent: paper.id == 'mono' ? paper.ink : paper.acc,
+                          onRepeatWord: _repeatWord,
+                          onRepeatVerse: _repeatVerse,
+                          onOpenWord: () {
+                            final m = _c.current;
+                            if (m != null) _showWord(_wordOf(m.ref));
+                          },
+                          onEnd: _end,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ]),
+        ),
       ),
     );
   }
 
-  Widget _card(BuildContext context, Mark m, Map<int, MarkVisual> marks,
-      MarkPalette mp, MushafPaper paper) {
+  Widget _card(
+    BuildContext context,
+    Mark m,
+    Map<int, MarkVisual> marks,
+    MarkPalette mp,
+    MushafPaper paper,
+  ) {
     final p = pal(context);
     final r = m.ref;
     final store = _c.store;
     final fix = store.fixOf(m);
     final page = MushafRepo.pageOfWord(
-        widget.script, r.globalAyah, r.word <= 0 ? 0 : r.word0);
+      widget.script,
+      r.globalAyah,
+      r.word <= 0 ? 0 : r.word0,
+    );
     final where = [
       '${_tnames[r.surah] ?? ''} ${r.surah}:${r.ayah}',
       context.l10n.pageN(page),
@@ -387,19 +604,29 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
       context.l10n.idxHizbN(hizbOf(r.surah, r.ayah)),
     ].join(' · ');
     final replies = store.commentsOn(m);
+    // Desktop: one word at a time, always — the āyah above, its word below.
+    final showWord =
+        useDesktop(context) || SettingsScope.of(context).reviewCardWord;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       children: [
         Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-                maxWidth: contentMaxWidth(context, ContentKind.reading)),
+              maxWidth: contentMaxWidth(context, ContentKind.reading),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(where,
-                    style: uiStyle(context,
-                        size: 13, weight: FontWeight.w600, color: p.ink3)),
+                Text(
+                  where,
+                  style: uiStyle(
+                    context,
+                    size: 13,
+                    weight: FontWeight.w600,
+                    color: p.ink3,
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
@@ -426,12 +653,15 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                if (SettingsScope.of(context).reviewCardWord)
+                if (showWord)
                   _WordPanel(
                     word: r.isWholeAyah
                         ? null
                         : MushafRepo.wordText(
-                            widget.script, r.globalAyah, r.word0),
+                            widget.script,
+                            r.globalAyah,
+                            r.word0,
+                          ),
                     fontFamily: MushafRepo.fontFamily(widget.script),
                     fontSize: SettingsScope.of(context).reviewCardFont * 1.8,
                     tint: fix == null ? mp.tintOf(m.type) : null,
@@ -439,25 +669,32 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
                     paper: paper,
                     onTap: () => _playWordAudio(_wordOf(r)),
                   ),
-                if (SettingsScope.of(context).reviewCardWord)
-                  const SizedBox(height: 12),
-                Row(children: [
-                  MarkSwatch(type: fix == null ? m.type : null, pal: mp),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      [
-                        fix == null
-                            ? markTypeLabel(context, m.type)
-                            : '${markTypeLabel(context, m.type)} · ${context.l10n.mkFixed}',
-                        context.l10n.mkMarkedBy(
-                            authorLabel(context, store, m.authorId, m.authorName),
-                            shortDate(context, m.createdAt)),
-                      ].join(' · '),
-                      style: uiStyle(context, size: 13, color: p.ink2),
+                if (showWord) const SizedBox(height: 12),
+                Row(
+                  children: [
+                    MarkSwatch(type: fix == null ? m.type : null, pal: mp),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        [
+                          fix == null
+                              ? markTypeLabel(context, m.type)
+                              : '${markTypeLabel(context, m.type)} · ${context.l10n.mkFixed}',
+                          context.l10n.mkMarkedBy(
+                            authorLabel(
+                              context,
+                              store,
+                              m.authorId,
+                              m.authorName,
+                            ),
+                            shortDate(context, m.createdAt),
+                          ),
+                        ].join(' · '),
+                        style: uiStyle(context, size: 13, color: p.ink2),
+                      ),
                     ),
-                  ),
-                ]),
+                  ],
+                ),
                 // A mutashābih: what it's confused with, and the technique.
                 if (m.type == MarkType.mutashabih) ...[
                   const SizedBox(height: 8),
@@ -466,22 +703,43 @@ class _ReviewCardsScreenState extends State<ReviewCardsScreen> {
                 if (m.comment.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   if (m.type == MarkType.mutashabih)
-                    Text(context.l10n.mtTechnique,
-                        style: uiStyle(context,
-                            size: 12, weight: FontWeight.w700, color: p.ink3)),
-                  Text(m.comment, style: uiStyle(context, size: 16)),
+                    Text(
+                      context.l10n.mtTechnique,
+                      style: uiStyle(
+                        context,
+                        size: 12,
+                        weight: FontWeight.w700,
+                        color: p.ink3,
+                      ),
+                    ),
+                  CommentText(m.comment, style: uiStyle(context, size: 16)),
                 ],
                 for (final c in replies)
                   Padding(
-                    padding: const EdgeInsetsDirectional.only(top: 6, start: 10),
-                    child: Text.rich(TextSpan(children: [
+                    padding: const EdgeInsetsDirectional.only(
+                      top: 6,
+                      start: 10,
+                    ),
+                    child: Text.rich(
                       TextSpan(
-                          text:
-                              '${authorLabel(context, store, c.authorId, c.authorName)}: ',
-                          style: uiStyle(context,
-                              size: 13, weight: FontWeight.w700, color: p.ink2)),
-                      TextSpan(text: c.text, style: uiStyle(context, size: 13)),
-                    ])),
+                        children: [
+                          TextSpan(
+                            text:
+                                '${authorLabel(context, store, c.authorId, c.authorName)}: ',
+                            style: uiStyle(
+                              context,
+                              size: 13,
+                              weight: FontWeight.w700,
+                              color: p.ink2,
+                            ),
+                          ),
+                          TextSpan(
+                            text: c.text,
+                            style: uiStyle(context, size: 13),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
               ],
             ),

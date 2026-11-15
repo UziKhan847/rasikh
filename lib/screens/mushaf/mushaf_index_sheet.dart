@@ -1,5 +1,7 @@
+import '../../core/bookmarks.dart';
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
@@ -20,6 +22,7 @@ import '../../ui/kit.dart';
 import '../../ui/mark_style.dart';
 import '../marks/marking.dart';
 import 'words_line.dart';
+import '../../ui/bidi.dart';
 
 /// The muṣḥaf's index: go to a page, or pick a page, sūrah, juzʼ, ḥizb, rubʿ
 /// or manzil (and rukūʿ in Indo-Pak) from swipeable tabs. With an active
@@ -36,16 +39,22 @@ Future<void> showMushafIndex(
   ValueChanged<WordRef>? onWord,
   ValueChanged<int>? onStart,
   Division initial = Division.surah,
+  ValueListenable<bool>? fromLeft,
+  bool focusField = false,
+  bool bookmarks = false,
 }) async {
   final pick = await showAdaptiveSheet<_Pick>(
     context,
     waitForExit: true,
+    fromLeft: fromLeft,
     builder: (sheet) => FractionallySizedBox(
       heightFactor: AdaptiveSheet.isSide(sheet) ? 1 : .9,
       child: MushafIndex(
         script: script,
         currentPage: currentPage,
         initial: initial,
+        focusField: focusField,
+        openBookmarks: bookmarks,
         onPage: (p) => Navigator.pop(sheet, (page: p, word: null, start: null)),
         onWord: onWord == null
             ? null
@@ -70,10 +79,12 @@ Future<int?> chooseMemorizeStart(
   BuildContext context, {
   required String script,
   required int currentPage,
+  ValueListenable<bool>? fromLeft,
 }) async {
   int? token;
   await showMushafIndex(
     context,
+    fromLeft: fromLeft,
     script: script,
     currentPage: currentPage,
     onPage: (_) {},
@@ -97,6 +108,12 @@ class MushafIndex extends StatefulWidget {
   final String script;
   final int currentPage;
   final Division initial;
+
+  /// Opened on the bookmarks (its last tab).
+  final bool openBookmarks;
+
+  /// Ready to type a page or a search (a keyboard's way in).
+  final bool focusField;
   final ValueChanged<int> onPage;
   final ValueChanged<WordRef>? onWord;
 
@@ -110,6 +127,8 @@ class MushafIndex extends StatefulWidget {
     this.onWord,
     this.onStart,
     this.initial = Division.surah,
+    this.openBookmarks = false,
+    this.focusField = false,
   });
 
   @override
@@ -127,12 +146,18 @@ class _MushafIndexState extends State<MushafIndex>
     Division.manzil,
     if (widget.script == 'indopak') Division.ruku,
   ];
+  /// The āyāt bookmarked while reading, as the last tab (not when picking
+  /// where memorizing starts).
+  bool get _withBookmarks => widget.onStart == null;
+
   late final TabController _tab = TabController(
-      length: _tabs.length,
+      length: _tabs.length + (_withBookmarks ? 1 : 0),
       vsync: this,
-      initialIndex: _tabs.contains(widget.initial)
-          ? _tabs.indexOf(widget.initial)
-          : 1);
+      initialIndex: widget.openBookmarks && _withBookmarks
+          ? _tabs.length
+          : _tabs.contains(widget.initial)
+              ? _tabs.indexOf(widget.initial)
+              : 1);
   final _field = TextEditingController();
   List<SurahMeta> _meta = const [];
 
@@ -349,7 +374,7 @@ class _MushafIndexState extends State<MushafIndex>
               verseBg: p.accSoft,
             ),
             if (m.comment.isNotEmpty)
-              Text(m.comment,
+              CommentText(m.comment,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: uiStyle(context, size: 12.5, color: p.ink2)),
@@ -470,6 +495,7 @@ class _MushafIndexState extends State<MushafIndex>
                 // the sūrah names).
                 child: TextField(
                   controller: _field,
+                  autofocus: widget.focusField,
                   textInputAction: TextInputAction.go,
                   onChanged: _typed,
                   onSubmitted: (_) => _go(),
@@ -490,16 +516,33 @@ class _MushafIndexState extends State<MushafIndex>
             controller: _tab,
             isScrollable: true,
             tabAlignment: TabAlignment.start,
-            tabs: [for (final d in _tabs) Tab(text: _tabLabel(d))],
+            tabs: [
+              for (final d in _tabs)
+                d == Division.page
+                    // Held (or right-clicked): a grid or a list.
+                    ? Tab(
+                        child: Builder(
+                          builder: (tab) => GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onLongPress: () => _pagesView(tab),
+                            onSecondaryTap: () => _pagesView(tab),
+                            child: Text(_tabLabel(d), key: const ValueKey('pages-tab')),
+                          ),
+                        ),
+                      )
+                    : Tab(text: _tabLabel(d)),
+              if (_withBookmarks) Tab(text: context.l10n.bookmarksTab),
+            ],
           ),
           Expanded(
             child: TabBarView(
               controller: _tab,
               children: [
                 for (final d in _tabs)
-                  d == Division.page
+                  d == Division.page && !SettingsScope.of(context).indexPagesList
                       ? _pageGrid(context, counts, mp)
                       : _list(context, d, counts, mp, store, book?.id),
+                if (_withBookmarks) Builder(builder: _bookmarks),
               ],
             ),
           ),
@@ -507,6 +550,70 @@ class _MushafIndexState extends State<MushafIndex>
         ]);
       },
     );
+  }
+
+  /// What's bookmarked, newest first: a tap goes there.
+  Widget _bookmarks(BuildContext context) {
+    final p = pal(context);
+    final prog = ProgressScope.read(context);
+    return ValueListenableBuilder<int>(
+      valueListenable: prog.readingSignal,
+      builder: (context, _, _) {
+        final marks = prog.bookmarkItems;
+        if (marks.isEmpty) {
+          return Center(
+            child: QEmptyState(
+              icon: AppIcons.bookmark,
+              title: context.l10n.noBookmarks,
+              hint: context.l10n.noBookmarksHint,
+            ),
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemExtent: 60,
+          itemCount: marks.length,
+          itemBuilder: (context, i) {
+            final b = marks[i];
+            final page = pageOfBookmark(widget.script, b);
+            final name = _meta.length >= b.surah ? _meta[b.surah - 1].tname : '';
+            final l = context.l10n;
+            final (title, sub) = switch (b.kind) {
+              BookmarkKind.verse => ('$name ${b.surah}:${b.ayah}', l.pageN(page)),
+              BookmarkKind.page => (l.pageN(page), '$name ${b.surah}:${b.ayah}'),
+              BookmarkKind.surah => (name, '${l.idxSurah} ${b.surah}'),
+            };
+            return ListTile(
+              leading: Icon(AppIcons.bookmarkFilled, color: p.acc),
+              title: Text(title, style: uiStyle(context, size: 15, weight: FontWeight.w700)),
+              subtitle: Text(sub, style: uiStyle(context, size: 12.5, color: p.ink3)),
+              onTap: () => widget.onPage(page),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// The Pages tab's view: a grid of numbers, or a list with each page's
+  /// marks by kind (as the other tabs).
+  Future<void> _pagesView(BuildContext tab) async {
+    final s = SettingsScope.of(context);
+    final box = tab.findRenderObject()! as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final at = box.localToGlobal(box.size.bottomLeft(Offset.zero), ancestor: overlay);
+    final l = context.l10n;
+    final pick = await showMenu<bool>(
+      context: context,
+      position: RelativeRect.fromLTRB(at.dx, at.dy, overlay.size.width - at.dx, 0),
+      items: [
+        CheckedPopupMenuItem(value: false, checked: !s.indexPagesList, child: Text(l.idxPagesGrid)),
+        CheckedPopupMenuItem(value: true, checked: s.indexPagesList, child: Text(l.idxPagesList)),
+      ],
+    );
+    if (pick == null || !mounted) return;
+    s.update(() => s.indexPagesList = pick);
+    _tab.animateTo(_tabs.indexOf(Division.page));
   }
 
   Widget _pageGrid(BuildContext context, MarkCounts? counts, MarkPalette mp) {
@@ -580,7 +687,11 @@ class _MushafIndexState extends State<MushafIndex>
       itemBuilder: (context, i) {
         final n = i + 1;
         final page = _firstPage(d, n);
-        final (s, a) = d == Division.surah ? (n, 1) : firstAyahOf(d, n);
+        final (s, a) = switch (d) {
+          Division.surah => (n, 1),
+          Division.page => MushafRepo.firstVerseOfPage(widget.script, n),
+          _ => firstAyahOf(d, n),
+        };
         final meta = s - 1 < _meta.length ? _meta[s - 1] : null;
         final c = counts?.of(d, n) ?? TypeCounts.empty;
         final title = switch (d) {
@@ -590,7 +701,7 @@ class _MushafIndexState extends State<MushafIndex>
           Division.rub => _rubTitle(context, n),
           Division.manzil => context.l10n.idxManzilN(n),
           Division.ruku => context.l10n.idxRukuN(n),
-          Division.page => '',
+          Division.page => context.l10n.pageN(n),
         };
         final ref = '${meta?.tname ?? ''} $s:$a';
         final here = page == widget.currentPage;
@@ -626,6 +737,8 @@ class _MushafIndexState extends State<MushafIndex>
                     Text(
                         d == Division.surah
                             ? context.l10n.pageN(page)
+                            : d == Division.page
+                            ? ref
                             : context.l10n.idxStartsAt(ref, page),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -646,6 +759,7 @@ class _MushafIndexState extends State<MushafIndex>
                   ],
                 ),
               ),
+              if (d == Division.surah && _withBookmarks) _SurahBookmark(n),
               if (d == Division.surah) _surahGlyph(n, p.ink),
             ]),
           ),
@@ -661,6 +775,7 @@ class _MushafIndexState extends State<MushafIndex>
 
   /// The current page's division [d] number.
   int _currentOf(Division d) {
+    if (d == Division.page) return widget.currentPage;
     final (s, a) = MushafRepo.firstVerseOfPage(widget.script, widget.currentPage);
     return d == Division.surah ? s : divisionOf(d, s, a);
   }
@@ -711,5 +826,31 @@ class _MushafIndexState extends State<MushafIndex>
         pill(Icon(AppIcons.check, size: 11, color: mp.fixed), '${c.fixed}',
             mp.fixed, context.l10n.idxFixedN(c.fixed), () => onTap(null)),
     ]);
+  }
+}
+
+/// A sūrah's bookmark, on its row in the index.
+class _SurahBookmark extends StatelessWidget {
+  final int surah;
+  const _SurahBookmark(this.surah);
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pal(context);
+    final prog = ProgressScope.read(context);
+    return ValueListenableBuilder<int>(
+      valueListenable: prog.readingSignal,
+      builder: (context, _, _) {
+        final on = prog.isSurahBookmarked(surah);
+        return IconButton(
+          key: ValueKey('surah-bookmark-$surah'),
+          tooltip: on ? context.l10n.removeBookmark : context.l10n.bmSurah,
+          visualDensity: VisualDensity.compact,
+          onPressed: () => prog.toggleSurahBookmark(surah),
+          icon: Icon(on ? AppIcons.bookmarkFilled : AppIcons.bookmark,
+              size: 17, color: on ? p.gold : p.ink3),
+        );
+      },
+    );
   }
 }

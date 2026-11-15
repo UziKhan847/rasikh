@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/core/theme.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/core/theme.dart';
 
 /// The redesign's settings migrations, the reading state that now persists
 /// (last read, muṣḥaf page, bookmarks, today's minutes), and the contrast of

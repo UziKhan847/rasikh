@@ -66,6 +66,23 @@ Future<void> showProfilesSheet(BuildContext context) {
   );
 }
 
+/// To [p]: everything of theirs, and back to their home (its mode, its page).
+Future<void> switchProfile(BuildContext host, ProfileStore profiles, Profile p) async {
+  final settings = SettingsScope.of(host);
+  final progress = ProgressScope.read(host);
+  final marks = MarksScope.maybeOf(host);
+  final nav = Navigator.of(host, rootNavigator: true);
+  await profiles.switchTo(p.id,
+      settings: settings,
+      progress: progress,
+      marks: marks,
+      fluency: FluencyScope.read(host));
+  nav.popUntil((r) => r.isFirst);
+  if (host.mounted) {
+    showQToast(host, host.l10n.prfNow(profileName(host, p)));
+  }
+}
+
 class _ProfilesSheet extends StatelessWidget {
   final ProfileStore profiles;
 
@@ -74,21 +91,8 @@ class _ProfilesSheet extends StatelessWidget {
   const _ProfilesSheet({required this.profiles, required this.host});
 
   Future<void> _switch(BuildContext sheet, Profile p) async {
-    final settings = SettingsScope.of(host);
-    final progress = ProgressScope.read(host);
-    final marks = MarksScope.maybeOf(host);
-    final nav = Navigator.of(host, rootNavigator: true);
     Navigator.pop(sheet);
-    await profiles.switchTo(p.id,
-        settings: settings,
-        progress: progress,
-        marks: marks,
-        fluency: FluencyScope.read(host));
-    // Back to the profile's home (its mode, its page).
-    nav.popUntil((r) => r.isFirst);
-    if (host.mounted) {
-      showQToast(host, host.l10n.prfNow(profileName(host, p)));
-    }
+    await switchProfile(host, profiles, p);
   }
 
   Future<String?> _askName(BuildContext context, {String initial = ''}) {

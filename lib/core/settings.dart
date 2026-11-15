@@ -3,10 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'keymap.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:qiraah_ui/design_prefs.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/mushaf.dart' show MushafLook;
+import '../data/original/mushaf_packs.dart';
 import '../ui/ornaments/tuning.dart';
 import 'mushaf_style.dart';
 import 'fluency/fluency_store.dart' show FluencyStore;
@@ -36,13 +39,6 @@ const bool kNabrEnabled = false;
 /// look (see [AppSettings.mushafLook]) — the styles and their code are kept.
 const bool kMushafCustomization = false;
 
-/// How the app is used on this device — chosen at first launch, changed in
-/// Settings — and so what it opens to (see screens/shell/app_shell.dart):
-/// - [hifz]: the muṣḥaf, minimal, for memorising and revising;
-/// - [reader]: the reader, to read fluently (the 15-line muṣḥaf a tap away);
-/// - [learn]: the learning modules (Qāʿidah, Tajwīd…);
-/// - [write]: the tracing studio.
-enum AppMode { hifz, reader, learn, write }
 
 /// The marks server a build ships with (see AppSettings.syncServer).
 const String kDefaultSyncServer = String.fromEnvironment('QIRAAH_SYNC_URL');
@@ -55,17 +51,28 @@ const String kDefaultSyncServer = String.fromEnvironment('QIRAAH_SYNC_URL');
 ///  * paperMode         — warm low-contrast background (visual stress relief)
 ///  * dotEmphasis       — drills tint/badge the i'jam dots so ب/ت/ث differ
 ///  * focusWindow       — fluency drills show one word at a time
-class AppSettings extends ChangeNotifier {
+/// The app's settings — and the shared look's prefs ([DesignPrefs]): the
+/// family's widgets find them through the [SettingsScope].
+class AppSettings extends ChangeNotifier implements DesignPrefs {
+  AppSettings() {
+    DesignScope.lookup ??= SettingsScope.maybeOf;
+  }
+
   bool dyslexiaMode = false;
+  @override
   double arabicScale = 1.0; // 0.8 – 1.8
+  @override
   double letterTracking = 0.0; // 0 – 10 logical px between glyphs
+  @override
   double wordSpacing = 0.0; // 0 – 24
+  @override
   bool paperMode = false;
   bool dotEmphasis = true;
   bool focusWindow = true;
   bool haptics = true;
   /// The app-wide theme: 'light' | 'mono' | 'night' | 'oled'.
   String appTheme = 'light';
+  @override
   AppTheme get theme => appThemeFrom(appTheme);
 
   /// Each script's muṣḥaf look (ornaments, border, margin, running head,
@@ -116,10 +123,43 @@ class AppSettings extends ChangeNotifier {
   /// the tracing pulse), no blurred shadows, no gradients or ornaments, and
   /// the muṣḥaf drawn from its smaller glyph sheets. What the reader needs —
   /// recitation highlights, tajwīd colours, marks — is unchanged.
+  @override
   bool lite = false;
 
   /// Memorize as verse cards: the āyah's font size (they're for large text).
   double memorizeCardFont = 36;
+
+  /// Memorizing as cards: 'scroll' (reader-style, each card appearing below
+  /// the last) or 'single' (one card at a time).
+  String memorizeCardsView = 'scroll';
+
+  /// Old Madani's āyah circle: 'classic', or 'modern' (the print's).
+  String oldMadaniCircle = 'classic';
+
+  /// Follow my recitation: its warning (it keeps your place, but judges
+  /// neither mistakes nor tajwīd) has been read; the model tier chosen
+  /// ('high' | 'low', null: the device's); a folder holding the model
+  /// (desktop); and whether what's heard is shown (for tuning).
+  bool followWarned = false;
+
+  /// A phone on its side: the tools at the camera's end (else the other,
+  /// away from it — where the hand that holds it may cover the port).
+  bool dockByCamera = false;
+  String? followTier;
+  String? followDir;
+  bool followShowHeard = false;
+
+  /// Following's microphone (an input's id; null: the system's), and
+  /// whether what it hears is kept on this device to tune following by.
+  String? followMic;
+  bool followKeep = false;
+
+  /// The printed muṣḥafs' folders on this device, by script (the same map
+  /// as [MushafPacks.dirs]).
+  Map<String, String> get packDirs => MushafPacks.dirs;
+
+  /// The size of the āyah in fluency's verse review.
+  double fluencyCardFont = 40;
 
   /// Review as verse cards: the āyah's font size.
   double reviewCardFont = 30;
@@ -143,6 +183,9 @@ class AppSettings extends ChangeNotifier {
   /// zones' outlines and arrows) shows; hidden, the zones still work.
   String memorizePadSide = 'right';
   bool memorizePadGuide = true;
+
+  /// The index's Pages tab as a list (each page's marks by kind), not a grid.
+  bool indexPagesList = false;
 
   /// Focus mode: the muṣḥaf and memorize, bare — just the page (no bars,
   /// running head or frame; the system bars hidden too), and memorize with
@@ -208,6 +251,7 @@ class AppSettings extends ChangeNotifier {
 
   /// What to draw, Lite mode applied: read these, not [gradients],
   /// [orHeader], [orMarker].
+  @override
   bool get useGradients => gradients && !lite;
   String get headerStyle => lite ? 'plain' : orHeader;
   String get markerStyle => lite ? 'font' : orMarker;
@@ -218,15 +262,7 @@ class AppSettings extends ChangeNotifier {
   /// The first-launch welcome has been finished or skipped.
   bool onboarded = false;
 
-  /// [AppMode]'s name; '' until one is chosen (an install from before the
-  /// modes chooses once, at its next launch).
-  String appMode = '';
-  AppMode? get mode {
-    for (final m in AppMode.values) {
-      if (m.name == appMode) return m;
-    }
-    return null;
-  }
+  @override
   String language = 'en'; // en | ar | ur | fr | es
   /// 'arabic' (Fatḥah/Ḍammah/Kasrah/Sukūn…) | 'indopak' (Zabar/Paish/Zair/Jazm…)
   /// — the tashkīl mark names shown app-wide (tashkilName() in
@@ -238,6 +274,19 @@ class AppSettings extends ChangeNotifier {
   /// Word marks (mistake / tajwīd / …) are drawn on the muṣḥaf and reader,
   /// and whether marks that have since been fixed still show (in green).
   bool showMarks = true;
+
+  /// Keyboard shortcuts changed from their defaults: an action's name → its
+  /// encoded key (see [Keymap]).
+  Map<String, String> keyBindings = {};
+  Keymap get keymap => Keymap(keyBindings);
+
+  /// Breath marks (where to stop and start again) on the page.
+  bool showBreath = true;
+
+  /// Desktop mode: how a tap marks. 'tap' steps through the kinds; 'pen' uses
+  /// the pen chosen ([markPen], a [MarkType] code).
+  String markMethod = 'tap';
+  String markPen = 'mistake';
   bool showFixedMarks = true;
   /// Listener name last used for a marking session (pre-fills the next one).
   String lastListener = '';
@@ -254,6 +303,20 @@ class AppSettings extends ChangeNotifier {
   /// The Hifẓ home on its side: 'two' facing pages, 'one' as wide as they
   /// are, or 'wide' across the whole width (see HifzLayout.pages).
   String hifzLandscapePages = 'two';
+
+  /// What a tap on Mark starts: 'recitation', or a fluency tool ('slow',
+  /// 'pair', 'chunk') — the last one held Mark to choose.
+  String markKind = 'recitation';
+
+  /// What a tap on Review starts: 'mushaf' or 'cards' (the recitation
+  /// marks), or 'fluency' (verse by verse) — the last one chosen.
+  String reviewAs = 'mushaf';
+
+  /// What Review goes over: 'marks' (memorization), 'fluency', or 'all'.
+  String reviewScope = 'marks';
+
+  /// The circles' first-run hint has been seen (a circle used).
+  bool toolHintSeen = false;
   bool mushafTajwid = false; // tajwīd colours on the muṣḥaf page
   bool immersive = false; // hide system bars app-wide (edge-to-edge reading)
   double quranFontScale = 30 / 26; // reader Arabic size ÷ 26 (default 30px)
@@ -264,6 +327,7 @@ class AppSettings extends ChangeNotifier {
   String wbwAlign = 'right'; // 'right' | 'center' — verse alignment
   bool stripTashkil = false; // hide ḥarakāt for clearer letter shapes
   bool tajwidColors = false; // tajwīd color-coding in the reader
+  @override
   String desktopMode = 'auto'; // 'auto'|'on'|'off'
   /// Reader layout: the word grid (true) or flowing āyah cards (false).
   bool wordByWord = false;
@@ -292,9 +356,43 @@ class AppSettings extends ChangeNotifier {
   int reminderMinutes = 20 * 60;
 
   /// Desktop: the sidebar is collapsed to nothing.
+  @override
   bool sidebarCollapsed = false;
 
   static const _key = 'noor.settings.v1';
+
+  /// Which dark the dark-mode button comes back to.
+  String darkTheme = 'night';
+
+  bool get isDarkTheme => appTheme == 'night' || appTheme == 'oled';
+
+  /// Light to dark or back, the muṣḥaf on its plain page (call inside [update]).
+  void toggleDark() {
+    final mono = isMonochrome;
+    if (isDarkTheme) {
+      darkTheme = appTheme;
+      appTheme = mono ? 'mono' : 'light';
+    } else {
+      appTheme = darkTheme;
+    }
+    mushafPaperDark = mono ? 'mono' : 'default';
+  }
+
+  /// Black, white and greys: the light mono theme, or a dark one's mono page.
+  bool get isMonochrome => isDarkTheme ? mushafPaperDark == 'mono' : appTheme == 'mono';
+
+  /// (Call inside [update].)
+  void setMonochrome(bool on) {
+    if (isDarkTheme) {
+      mushafPaperDark = on ? 'mono' : 'default';
+    } else {
+      appTheme = on ? 'mono' : 'light';
+    }
+  }
+
+  /// Where the pages stand in a wide window: 'left' | 'center' | 'right', or
+  /// 'auto' (away from the dock).
+  String pagesAlign = 'auto';
 
   void setTheme(String id) {
     appTheme = id;
@@ -353,12 +451,12 @@ class AppSettings extends ChangeNotifier {
           : MushafStyle.defaultsFor(script);
     }
     // The Madani default was its printed look (all "auto" on the Madani
-    // paper); it's now cream, and "auto" the new default.
+    // paper); it's now white, and "auto" the new default.
     final u = mushafStyles['uthmani']!;
     if (u.paper == 'madani' &&
         [u.header, u.marker, u.border, u.margin, u.head]
             .every((v) => v == 'auto')) {
-      u.paper = 'cream';
+      u.paper = 'white';
     }
   }
 
@@ -379,11 +477,26 @@ class AppSettings extends ChangeNotifier {
     // two colour families.
     appTheme = m['theme'] as String? ??
         switch (m['mode']) { 'dark' => 'night', 'oled' => 'oled', _ => 'light' };
+    darkTheme = m['darkTheme'] == 'oled' ? 'oled' : 'night';
     mushafPaperDark = m['mushafPaperDark'] as String? ?? 'default';
     _loadOrnaments(m);
     gradients = m['gradients'] ?? true;
     lite = m['lite'] ?? false;
     memorizeCardFont = (m['memorizeCardFont'] as num?)?.toDouble() ?? 36;
+    memorizeCardsView = m['memorizeCardsView'] as String? ?? 'scroll';
+    oldMadaniCircle = m['madaniCircle'] as String? ?? 'classic';
+    followWarned = m['followWarned'] == true;
+    dockByCamera = m['dockByCamera'] == true;
+    followTier = m['followTier'] as String?;
+    followDir = m['followDir'] as String?;
+    followShowHeard = m['followShowHeard'] == true;
+    followMic = m['followMic'] as String?;
+    followKeep = m['followKeep'] == true;
+    MushafPacks.dirs = {
+      for (final e in ((m['packDirs'] as Map?) ?? const {}).entries)
+        if (e.key is String && e.value is String) e.key as String: e.value as String,
+    };
+    fluencyCardFont = (m['fluencyCardFont'] as num?)?.toDouble() ?? 40;
     reviewCardFont = (m['reviewCardFont'] as num?)?.toDouble() ?? 30;
     reviewCardWord = m['reviewCardWord'] ?? true;
     // Before the verse option: tap-to-reveal on or off.
@@ -391,12 +504,12 @@ class AppSettings extends ChangeNotifier {
         (m['memorizeTapReveals'] == true ? 'word' : 'play');
     memorizePadSide = m['memorizePadSide'] as String? ?? 'right';
     memorizePadGuide = m['memorizePadGuide'] as bool? ?? true;
+    indexPagesList = m['indexPagesList'] as bool? ?? false;
     focusMode = m['focusMode'] ?? false;
     nabrPreview = m['nabrPreview'] ?? false;
     liteSuggested = m['liteSuggested'] ?? false;
     // An install from before the welcome existed has already found its way.
     onboarded = m['onboarded'] ?? true;
-    appMode = m['appMode'] as String? ?? '';
     language = m['lang'] ?? 'en';
     // Urdu Qaidah teaching conventionally uses Zabar/Zair/Paish/Jazm, not
     // the Arabic mark names — default accordingly, but stay overridable.
@@ -428,6 +541,16 @@ class AppSettings extends ChangeNotifier {
     if (!kIndopakMushafAvailable && mushafScript == 'indopak') mushafScript = 'uthmani';
     mushafHeader = m['mushafHeader'] ?? true;
     showMarks = m['showMarks'] ?? true;
+    showBreath = m['showBreath'] ?? true;
+    pagesAlign = switch (m['pagesAlign']) {
+      'left' => 'left',
+      'center' => 'center',
+      'right' => 'right',
+      _ => 'auto',
+    };
+    keyBindings = (m['keyBindings'] as Map?)?.cast<String, String>() ?? {};
+    markMethod = m['markMethod'] == 'pen' ? 'pen' : 'tap';
+    markPen = m['markPen'] as String? ?? 'mistake';
     showFixedMarks = m['showFixedMarks'] ?? true;
     lastListener = m['lastListener'] ?? '';
     syncServer = m['syncServer'] ?? kDefaultSyncServer;
@@ -436,6 +559,15 @@ class AppSettings extends ChangeNotifier {
     immersive = m['immersive'] ?? false;
     mushafPhoneSpread = m['mushafPhoneSpread'] ?? false;
     hifzLandscapePages = m['hifzLandscapePages'] as String? ?? 'two';
+    // (The fluency tools were three kinds; now one, a tap stepping through.)
+    markKind = m['markKind'] == 'recitation' || m['markKind'] == null ? 'recitation' : 'fluency';
+    reviewAs = m['reviewAs'] == 'cards' ? 'cards' : 'mushaf';
+    reviewScope = switch (m['reviewScope'] ?? (m['reviewAs'] == 'fluency' ? 'fluency' : null)) {
+      'fluency' => 'fluency',
+      'all' => 'all',
+      _ => 'marks',
+    };
+    toolHintSeen = m['toolHintSeen'] ?? false;
     mushafTajwid = m['mushafTajwid'] ?? false;
     reciter = m['reciter'] ?? 'tunaiji';
     readerLayout = m['readerLayout'] ?? 'cards';
@@ -468,6 +600,7 @@ class AppSettings extends ChangeNotifier {
         'focus': focusWindow,
         'haptics': haptics,
         'theme': appTheme,
+        'darkTheme': darkTheme,
         'mushafPaperDark': mushafPaperDark,
         'mushafStyles': {
           for (final e in mushafStyles.entries) e.key: e.value.toJson(),
@@ -475,16 +608,27 @@ class AppSettings extends ChangeNotifier {
         'gradients': gradients,
         'lite': lite,
         'memorizeCardFont': memorizeCardFont,
+        'memorizeCardsView': memorizeCardsView,
+        'madaniCircle': oldMadaniCircle,
+        'followWarned': followWarned,
+        'dockByCamera': dockByCamera,
+        'followTier': followTier,
+        'followDir': followDir,
+        'followShowHeard': followShowHeard,
+        'followMic': followMic,
+        'followKeep': followKeep,
+        'packDirs': packDirs,
+        'fluencyCardFont': fluencyCardFont,
         'reviewCardFont': reviewCardFont,
         'reviewCardWord': reviewCardWord,
         'memorizeTap': memorizeTap,
         'memorizePadSide': memorizePadSide,
         'memorizePadGuide': memorizePadGuide,
+        'indexPagesList': indexPagesList,
         'focusMode': focusMode,
         'nabrPreview': nabrPreview,
         'liteSuggested': liteSuggested,
         'onboarded': onboarded,
-        'appMode': appMode,
         'lang': language,
         'tashkilTerms': tashkilTerms,
         'wbwGap': wbwGap,
@@ -501,6 +645,11 @@ class AppSettings extends ChangeNotifier {
         'mushafScript': mushafScript,
         'mushafHeader': mushafHeader,
         'showMarks': showMarks,
+        'showBreath': showBreath,
+        'pagesAlign': pagesAlign,
+        'keyBindings': keyBindings,
+        'markMethod': markMethod,
+        'markPen': markPen,
         'showFixedMarks': showFixedMarks,
         'lastListener': lastListener,
         'syncServer': syncServer,
@@ -508,6 +657,10 @@ class AppSettings extends ChangeNotifier {
         'immersive': immersive,
         'mushafPhoneSpread': mushafPhoneSpread,
         'hifzLandscapePages': hifzLandscapePages,
+        'markKind': markKind,
+        'reviewAs': reviewAs,
+        'reviewScope': reviewScope,
+        'toolHintSeen': toolHintSeen,
         'mushafTajwid': mushafTajwid,
         'qfont': quranFontScale,
         'traceTol': traceTolerance,
@@ -535,6 +688,21 @@ class SettingsScope extends InheritedNotifier<AppSettings> {
       context.dependOnInheritedWidgetOfExactType<SettingsScope>()!.notifier!;
   static AppSettings? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<SettingsScope>()?.notifier;
+}
+
+enum BookmarkKind { verse, page, surah }
+
+/// A place kept: an āyah; a page, by its first verse; a sūrah, by its first.
+class Bookmark {
+  final BookmarkKind kind;
+  final int surah, ayah;
+  const Bookmark(this.kind, this.surah, this.ayah);
+
+  @override
+  bool operator ==(Object other) =>
+      other is Bookmark && other.kind == kind && other.surah == surah && other.ayah == ayah;
+  @override
+  int get hashCode => Object.hash(kind, surah, ayah);
 }
 
 /// Stars-per-activity progress, persisted as JSON.
@@ -719,7 +887,8 @@ class ProgressStore extends ChangeNotifier {
     lastRead = null;
     lastMushafPage = null;
     lastMushafScript = null;
-    bookmarks.clear();
+    inVerses = false;
+    bookmarkItems.clear();
     secondsToday = 0;
     _secondsDay = -1;
     _lessons.clear();
@@ -738,8 +907,18 @@ class ProgressStore extends ChangeNotifier {
   int? lastMushafPage;
   String? lastMushafScript;
 
-  /// Bookmarked āyāt, newest first.
-  final List<(int, int)> bookmarks = [];
+  /// The Reader's verses were open when the app was last left: it opens there
+  /// again, at [lastRead].
+  bool inVerses = false;
+
+  /// What's bookmarked (āyāt, pages, sūrahs), newest first.
+  final List<Bookmark> bookmarkItems = [];
+
+  /// The bookmarked āyāt, newest first.
+  List<(int, int)> get bookmarks => [
+        for (final b in bookmarkItems)
+          if (b.kind == BookmarkKind.verse) (b.surah, b.ayah)
+      ];
 
   /// Fires when the last āyah read or the bookmarks change — and only
   /// then: what shows them listens to this, not to every star and second.
@@ -769,10 +948,29 @@ class ProgressStore extends ChangeNotifier {
     _saveReading();
   }
 
-  bool isBookmarked(int surah, int ayah) => bookmarks.contains((surah, ayah));
+  void setInVerses(bool v) {
+    if (inVerses == v) return;
+    inVerses = v;
+    _saveReading();
+  }
 
-  void toggleBookmark(int surah, int ayah) {
-    if (!bookmarks.remove((surah, ayah))) bookmarks.insert(0, (surah, ayah));
+  bool isBookmarked(int surah, int ayah) =>
+      bookmarkItems.contains(Bookmark(BookmarkKind.verse, surah, ayah));
+
+  void toggleBookmark(int surah, int ayah) =>
+      toggleBookmarkItem(Bookmark(BookmarkKind.verse, surah, ayah));
+
+  void toggleBookmarkItem(Bookmark b) {
+    if (!bookmarkItems.remove(b)) bookmarkItems.insert(0, b);
+    _bookmarksChanged();
+  }
+
+  void removeBookmarks(Iterable<Bookmark> items) {
+    bookmarkItems.removeWhere(items.contains);
+    _bookmarksChanged();
+  }
+
+  void _bookmarksChanged() {
     readingSignal.value++;
     notifyListeners();
     _saveReading();
@@ -800,8 +998,9 @@ class ProgressStore extends ChangeNotifier {
           'last': lastRead == null ? null : [lastRead!.$1, lastRead!.$2],
           'page': lastMushafPage,
           'pageScript': lastMushafScript,
-          'marks': [
-            for (final b in bookmarks) [b.$1, b.$2]
+          'inVerses': inVerses,
+          'bookmarks': [
+            for (final b in bookmarkItems) [b.kind.index, b.surah, b.ayah]
           ],
           'sec': secondsToday,
           'secDay': _secondsDay,
@@ -816,11 +1015,16 @@ class ProgressStore extends ChangeNotifier {
     lastRead = last == null ? null : ((last[0] as num).toInt(), (last[1] as num).toInt());
     lastMushafPage = (m['page'] as num?)?.toInt();
     lastMushafScript = m['pageScript'] as String?;
-    bookmarks
+    inVerses = m['inVerses'] as bool? ?? false;
+    bookmarkItems
       ..clear()
       ..addAll([
+        for (final b in (m['bookmarks'] as List? ?? const []))
+          Bookmark(BookmarkKind.values[(b[0] as num).toInt()], (b[1] as num).toInt(),
+              (b[2] as num).toInt()),
+        // Saved before pages and sūrahs could be: āyāt, as pairs.
         for (final b in (m['marks'] as List? ?? const []))
-          ((b[0] as num).toInt(), (b[1] as num).toInt())
+          Bookmark(BookmarkKind.verse, (b[0] as num).toInt(), (b[1] as num).toInt()),
       ]);
     secondsToday = (m['sec'] as num?)?.toInt() ?? 0;
     _secondsDay = (m['secDay'] as num?)?.toInt() ?? -1;

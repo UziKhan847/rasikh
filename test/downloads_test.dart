@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qiraah_arabiyyah/core/downloads.dart';
+import 'package:rasikh/core/downloads.dart';
 
 /// Pure-logic checks for the Downloads screen's data layer — no filesystem
 /// or asset access, mirroring how `test/fetch_origin_test.dart` pins

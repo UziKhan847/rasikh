@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:qiraah_arabiyyah/core/fluency/chunks.dart';
-import 'package:qiraah_arabiyyah/core/fluency/joins.dart';
-import 'package:qiraah_arabiyyah/core/fluency/madd.dart';
+import 'package:rasikh/core/fluency/chunks.dart';
+import 'package:rasikh/core/fluency/joins.dart';
+import 'package:rasikh/core/fluency/madd.dart';
 
 /// The fluency marks' text work: how two words join, and where a word's
 /// prefix and suffix come off.

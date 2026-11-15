@@ -45,14 +45,40 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "Qiraah Arabiyyah");
+    gtk_header_bar_set_title(header_bar, "Rāsikh");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "Qiraah Arabiyyah");
+    gtk_window_set_title(window, "Rāsikh");
   }
 
   gtk_window_set_default_size(window, 1280, 720);
+
+  // The app's icon (taskbar, Alt-Tab, the panel): data/rasikh.png beside the
+  // binary, in the sizes panels ask for — one 512 px icon alone is too big
+  // for the window's _NET_WM_ICON, and the panel then shows none.
+  {
+    g_autofree gchar* exe = g_file_read_link("/proc/self/exe", nullptr);
+    if (exe != nullptr) {
+      g_autofree gchar* dir = g_path_get_dirname(exe);
+      g_autofree gchar* icon = g_build_filename(dir, "data", "rasikh.png", nullptr);
+      g_autoptr(GError) error = nullptr;
+      g_autoptr(GdkPixbuf) full = gdk_pixbuf_new_from_file(icon, &error);
+      if (full == nullptr) {
+        g_warning("No window icon from %s: %s", icon, error->message);
+      } else {
+        GList* sizes = nullptr;
+        const int px_sizes[] = {16, 24, 32, 48, 64, 128, 256};
+        for (int px : px_sizes) {
+          sizes = g_list_append(
+              sizes, gdk_pixbuf_scale_simple(full, px, px, GDK_INTERP_HYPER));
+        }
+        gtk_window_set_icon_list(window, sizes);
+        gtk_window_set_default_icon_list(sizes);
+        g_list_free_full(sizes, g_object_unref);
+      }
+    }
+  }
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

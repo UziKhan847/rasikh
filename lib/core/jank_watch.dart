@@ -92,6 +92,7 @@ class JankWatch {
     messenger.showSnackBar(SnackBar(
       content: Text(context.l10n.liteSuggest),
       duration: const Duration(seconds: 10),
+      persist: false,
       action: SnackBarAction(
         label: context.l10n.liteTurnOn,
         onPressed: () => settings.update(() => settings.lite = true),

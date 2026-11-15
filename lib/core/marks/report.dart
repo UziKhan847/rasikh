@@ -14,11 +14,19 @@ class ReportOptions {
   /// Marks made from [fromMs] to [toMs] (inclusive; null: no limit).
   final int? fromMs, toMs;
   final ReportGrouping grouping;
+
+  /// Only marks on these pages (null: anywhere the query allows).
+  final Set<int>? pages;
+
+  /// Only marks in these verses (global āyahs, inclusive; null: any).
+  final (int, int)? ayahs;
   const ReportOptions({
     this.query = const ReviewQuery(status: ReviewStatus.any),
     this.fromMs,
     this.toMs,
     this.grouping = ReportGrouping.surah,
+    this.pages,
+    this.ayahs,
   });
 }
 
@@ -79,6 +87,11 @@ Report buildReport(
   for (final m in buildReviewQueue(store, bookId, o.query, pageOf: pageOf)) {
     if (o.fromMs != null && m.createdAt < o.fromMs!) continue;
     if (o.toMs != null && m.createdAt > o.toMs!) continue;
+    if (o.pages != null && !o.pages!.contains(pageOf(m.ref))) continue;
+    if (o.ayahs case (final lo, final hi)
+        when m.ref.globalAyah < lo || m.ref.globalAyah > hi) {
+      continue;
+    }
     final f = store.fixOf(m);
     (f == null ? open : fixed)[m.type] = (f == null ? open : fixed)[m.type]! + 1;
     byAyah

@@ -5,8 +5,10 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart' show MouseCursor, MouseTrackerAnnotation, PointerEnterEventListener, PointerExitEventListener, SystemMouseCursors;
 import 'package:flutter/widgets.dart';
 
 import '../../core/fluency/fluency_store.dart' show FluencyVisual;
@@ -56,15 +58,14 @@ bool mushafOpeningPage(int page, List<MushafLine> lines) =>
   final cached = _geomCache[key];
   if (cached != null) return cached;
   if (mushafOpeningPage(page, lines)) {
-    // The text size of a regular page in this viewport (its full measure
-    // and fifteen lines), the lines at the usual pitch; the page centres
-    // the block.
-    final byWidth = vw / MushafGeometry.refEmOf(script);
-    final byHeight =
-        (fitWidth ? vw * 1.5 : vh) / 15 / MushafGeometry.minPitch;
+    // The widest row across the page, the lines at the print's pitch; the
+    // page centres the block.
+    final pitch = MushafGeometry.openingPitchOf(script);
+    final byWidth = vw / MushafGeometry.openingEmOf(script);
+    final byHeight = (fitWidth ? vw * 1.5 : vh) / lines.length / pitch;
     final raw = (byWidth < byHeight ? byWidth : byHeight).clamp(8.0, 200.0);
     final fs = (raw * 2).floorToDouble() / 2;
-    final slotH = fs * MushafGeometry.pitch;
+    final slotH = fs * pitch;
     final r = (fs, slotH, fitWidth ? slotH * 15 : vh);
     return _geomCache[key] = r;
   }
@@ -354,6 +355,14 @@ class MushafLineSpec {
   bool isFocus(MushafWord wd) => focus >= 0 && _wordKey(wd) == focus;
 
   /// 0 plain, 1 the word being recited/played, 2 inside the recited āyah.
+  static int tokenState(
+    MushafWord wd,
+    int playAyah,
+    int playWord,
+    bool reciting,
+  ) =>
+      _tokenState(wd, playAyah, playWord, reciting);
+
   static int _tokenState(
     MushafWord wd,
     int playAyah,
@@ -483,7 +492,8 @@ AtlasGeometry _geometryOf(MushafLineSpec s, MushafAtlas atlas, int tier) {
   final hit = _geometry.remove(key);
   if (hit != null) return _geometry[key] = hit;
 
-  final gapExtra = justified ? ((measure - natural) / spaces).clamp(0.0, 1e9) : 0.0;
+  final tight = -MushafGeometry.tightSpaceOf(s.script) * atlas.upem;
+  final gapExtra = justified ? ((measure - natural) / spaces).clamp(tight, 1e9) : 0.0;
   final width = natural + gapExtra * (spaces < 0 ? 0 : spaces);
   final t = atlas.tiers[tier];
   final wordStart = atlas.wordGlyphStart;
@@ -808,9 +818,10 @@ LaidLine _shape(MushafLineSpec s) {
   final spaces = l.words.length - 1;
   final justified = s.justify && natural >= s.targetW * 0.45 && spaces > 0;
   var gapExtra = justified
-      ? ((s.targetW - natural) / spaces).clamp(0.0, 1e6)
+      ? ((s.targetW - natural) / spaces)
+          .clamp(-MushafGeometry.tightSpaceOf(s.script) * fs, 1e6)
       : 0.0;
-  final rootStyle = gapExtra > 0 ? base.copyWith(wordSpacing: gapExtra) : base;
+  final rootStyle = gapExtra != 0 ? base.copyWith(wordSpacing: gapExtra) : base;
 
   final spans = <InlineSpan>[];
   final ranges = <(int, int)>[];
@@ -873,13 +884,14 @@ LaidLine _shape(MushafLineSpec s) {
   if (justified && (tp.width - s.targetW).abs() > 1.0) {
     final drawn = tp.width - gapExtra * spaces;
     gapExtra = drawn >= s.targetW * 0.45
-        ? ((s.targetW - drawn) / spaces).clamp(0.0, 1e6)
+        ? ((s.targetW - drawn) / spaces)
+            .clamp(-MushafGeometry.tightSpaceOf(s.script) * fs, 1e6)
         : 0.0;
     tp.dispose();
     tp = TextPainter(
       text: TextSpan(
         children: spans,
-        style: gapExtra > 0 ? base.copyWith(wordSpacing: gapExtra) : base,
+        style: gapExtra != 0 ? base.copyWith(wordSpacing: gapExtra) : base,
       ),
       textDirection: TextDirection.rtl,
       maxLines: 1,
@@ -1177,6 +1189,11 @@ class MushafTapHandlers {
   /// Holding an āyah's ۝ (the whole āyah: its marks sheet); unset, a hold
   /// is a tap.
   void Function(MushafWord marker)? onLongPressVerse;
+
+  /// A mouse button pressed on a word or ۝, and where on the screen: whether
+  /// that was something of its own (a right-click's menu, Shift and a click),
+  /// and so isn't a tap.
+  bool Function(MushafWord word, int buttons, Offset at)? onMouseWord;
 }
 
 /// A muṣḥaf text line, painted from its cached shape.
@@ -1210,8 +1227,34 @@ class MushafLineView extends LeafRenderObjectWidget {
 /// wait for the next frames.
 const _frameShapeBudgetUs = 4000;
 
-class RenderMushafLine extends RenderBox {
+class RenderMushafLine extends RenderBox implements MouseTrackerAnnotation {
   RenderMushafLine(this._spec, this.handlers);
+
+  // ── the mouse: the word under it is lit, and shows it can be clicked ──
+
+  int? _hover;
+
+  void _setHover(int? i) {
+    if (i == _hover) return;
+    _hover = i;
+    markNeedsPaint();
+  }
+
+  @override
+  MouseCursor get cursor => SystemMouseCursors.click;
+  @override
+  PointerEnterEventListener? get onEnter => null;
+  @override
+  PointerExitEventListener? get onExit => (_) => _setHover(null);
+  @override
+  bool get validForMouseTracker => attached;
+
+  void _paintHover(Canvas canvas, Offset offset) {
+    final r = _hover == null ? null : wordRect(_hover!);
+    if (r == null) return;
+    canvas.drawRRect(RRect.fromRectAndRadius(r.shift(offset), const Radius.circular(4)),
+        Paint()..color = _spec.ink.withValues(alpha: .07));
+  }
 
   MushafLineSpec _spec;
   MushafTapHandlers handlers;
@@ -1410,6 +1453,7 @@ class RenderMushafLine extends RenderBox {
     if (kDebugMode) debugPaints++;
     final atlas = _atlas;
     if (atlas != null) {
+      _paintHover(context.canvas, offset);
       _paintAtlas(context.canvas, offset, atlas);
       _paintFluency(context.canvas, offset);
       return;
@@ -1429,6 +1473,7 @@ class RenderMushafLine extends RenderBox {
     }
     final l = _line = MushafLineCache.get(_spec);
     final o = offset + textOffset;
+    _paintHover(context.canvas, offset);
     l.painter.paint(context.canvas, o);
     paintLineMarks(context.canvas, o, l, _spec);
     paintLineFocus(context.canvas, o, l, _spec);
@@ -1443,6 +1488,13 @@ class RenderMushafLine extends RenderBox {
   /// The token under [p], if any: an āyah marker's target reaches into the
   /// gaps around it (it's a small glyph in wide justified gaps); a word's
   /// covers its own box.
+  /// The word at [local] (a point in this line), if any.
+  MushafWord? wordAtLocal(Offset local) {
+    final i = _tokenAt(local);
+    final ws = _spec.line.words;
+    return i == null || i >= ws.length ? null : ws[i];
+  }
+
   int? _tokenAt(Offset p) {
     final l = laidLine;
     if (l == null) return null;
@@ -1467,9 +1519,16 @@ class RenderMushafLine extends RenderBox {
 
   @override
   void handleEvent(PointerEvent event, covariant BoxHitTestEntry entry) {
+    if (event is PointerHoverEvent) return _setHover(_tokenAt(event.localPosition));
     if (event is! PointerDownEvent) return;
     _down = _tokenAt(event.localPosition);
     if (_down == null) return;
+    final words = _spec.line.words;
+    if (event.kind == PointerDeviceKind.mouse &&
+        _down! < words.length &&
+        (handlers.onMouseWord?.call(words[_down!], event.buttons, event.position) ?? false)) {
+      return;
+    }
     // Fires straight from the pointer-up instead of waiting to win the
     // gesture arena (a plain TapGestureRecognizer's wait swallowed mouse
     // clicks on the āyah circles).
@@ -1593,5 +1652,10 @@ void paintLineMarks(
       pal,
       thickness: t,
     );
+    paintBreathSigns(canvas, v, pal,
+        left: o.dx + left,
+        right: o.dx + right,
+        top: o.dy + l.baseline - fs * 1.15,
+        size: (fs * .42).clamp(8.0, 26.0));
   }
 }

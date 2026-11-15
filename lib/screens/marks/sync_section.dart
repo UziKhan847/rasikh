@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import '../../core/l10n.dart';
 import '../../core/marks/marks_model.dart';
 import '../../core/marks/marks_store.dart';
-import '../../core/responsive.dart';
 import '../../core/settings.dart';
 import '../../core/sync/pocketbase_backend.dart';
 import '../../core/sync/sync_backend.dart';
@@ -13,6 +12,7 @@ import '../../core/theme.dart';
 import '../../ui/app_icons.dart';
 import '../../ui/kit.dart';
 import 'marking.dart';
+import '../../ui/overlay_screen.dart';
 
 String syncErrorText(BuildContext context, Object e) {
   if (e is! SyncException) return context.l10n.mkSyncError;
@@ -39,83 +39,116 @@ class SyncSection extends StatelessWidget {
     final p = pal(context);
     final acct = sync.account;
     if (acct == null) {
-      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        QSectionLabel(context.l10n.mkAccountSync),
-        QCard(
-          child: Column(
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          QSectionLabel(context.l10n.mkAccountSync),
+          QCard(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(context.l10n.mkAccountSyncSub,
-                    style: uiStyle(context, size: 13.5, color: p.ink2)),
+                Text(
+                  context.l10n.mkAccountSyncSub,
+                  style: uiStyle(context, size: 13.5, color: p.ink2),
+                ),
                 const SizedBox(height: 12),
-                Wrap(spacing: 10, runSpacing: 10, children: [
-                  QPrimaryButton(context.l10n.mkSignIn,
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    QPrimaryButton(
+                      context.l10n.mkSignIn,
                       icon: AppIcons.cloud,
-                      onTap: () => showAccountSheet(context, signUp: false)),
-                  QOutlineButton(context.l10n.mkCreateAccount,
+                      onTap: () => showAccountSheet(context, signUp: false),
+                    ),
+                    QOutlineButton(
+                      context.l10n.mkCreateAccount,
                       icon: AppIcons.person,
-                      onTap: () => showAccountSheet(context, signUp: true)),
-                ]),
-              ]),
-        ),
-      ]);
-    }
-    final book = store.activeBook;
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      QSectionLabel(context.l10n.mkAccountSync,
-          trailing: Text(_statusText(context, sync),
-              style: uiStyle(context, size: 12.5, color: p.ink3))),
-      QGroup(children: [
-        if (book != null && !book.synced && book.myRole == BookRole.owner)
-          QRow(
-            title: context.l10n.mkShareBook,
-            subtitle: context.l10n.mkShareBookSub,
-            leading: Icon(AppIcons.cloud, color: p.ink3),
-            control: QOutlineButton(context.l10n.mkSyncThisBook,
-                onTap: () => _guard(context, () => sync.enableSync(book.id))),
-          ),
-        if (book != null && book.synced && book.myRole == BookRole.owner) ...[
-          QRow(
-            title: context.l10n.mkInviteListener,
-            leading: Icon(AppIcons.link, color: p.ink3),
-            chevron: true,
-            onTap: () => _invite(context, sync, book.id, BookRole.listener),
-          ),
-          QRow(
-            title: context.l10n.mkInviteChecker,
-            leading: Icon(AppIcons.link, color: p.ink3),
-            chevron: true,
-            onTap: () => _invite(context, sync, book.id, BookRole.checker),
+                      onTap: () => showAccountSheet(context, signUp: true),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
-        if (book != null && book.synced)
-          QRow(
-            title: context.l10n.mkMembers,
-            leading: Icon(AppIcons.group, color: p.ink3),
-            chevron: true,
-            onTap: () => pushAdaptive(context, _MembersScreen(bookId: book.id)),
+      );
+    }
+    final book = store.activeBook;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        QSectionLabel(
+          context.l10n.mkAccountSync,
+          trailing: Text(
+            _statusText(context, sync),
+            style: uiStyle(context, size: 12.5, color: p.ink3),
           ),
-        QRow(
-          title: context.l10n.mkJoinBook,
-          leading: Icon(AppIcons.add, color: p.ink3),
-          chevron: true,
-          onTap: () async {
-            final code = await askText(context,
-                title: context.l10n.mkJoinBook,
-                hint: context.l10n.mkJoinCodeHint);
-            if (code == null || code.trim().isEmpty || !context.mounted) return;
-            await _guard(context, () => sync.join(code.trim()),
-                codeError: true);
-          },
         ),
-        QRow(
-          title: context.l10n.mkSignedInAs(acct.username),
-          leading: Icon(AppIcons.person, color: p.ink3),
-          chevron: true,
-          onTap: () => pushAdaptive(context, const AccountScreen()),
+        QGroup(
+          children: [
+            if (book != null && !book.synced && book.myRole == BookRole.owner)
+              QRow(
+                title: context.l10n.mkShareBook,
+                subtitle: context.l10n.mkShareBookSub,
+                leading: Icon(AppIcons.cloud, color: p.ink3),
+                control: QOutlineButton(
+                  context.l10n.mkSyncThisBook,
+                  onTap: () => _guard(context, () => sync.enableSync(book.id)),
+                ),
+              ),
+            if (book != null &&
+                book.synced &&
+                book.myRole == BookRole.owner) ...[
+              QRow(
+                title: context.l10n.mkInviteListener,
+                leading: Icon(AppIcons.link, color: p.ink3),
+                chevron: true,
+                onTap: () => _invite(context, sync, book.id, BookRole.listener),
+              ),
+              QRow(
+                title: context.l10n.mkInviteChecker,
+                leading: Icon(AppIcons.link, color: p.ink3),
+                chevron: true,
+                onTap: () => _invite(context, sync, book.id, BookRole.checker),
+              ),
+            ],
+            if (book != null && book.synced)
+              QRow(
+                title: context.l10n.mkMembers,
+                leading: Icon(AppIcons.group, color: p.ink3),
+                chevron: true,
+                onTap: () =>
+                    showOverlayScreen(context, _MembersScreen(bookId: book.id)),
+              ),
+            QRow(
+              title: context.l10n.mkJoinBook,
+              leading: Icon(AppIcons.add, color: p.ink3),
+              chevron: true,
+              onTap: () async {
+                final code = await askText(
+                  context,
+                  title: context.l10n.mkJoinBook,
+                  hint: context.l10n.mkJoinCodeHint,
+                );
+                if (code == null || code.trim().isEmpty || !context.mounted) return;
+                await _guard(
+                  context,
+                  () => sync.join(code.trim()),
+                  codeError: true,
+                );
+              },
+            ),
+            QRow(
+              title: context.l10n.mkSignedInAs(acct.username),
+              leading: Icon(AppIcons.person, color: p.ink3),
+              chevron: true,
+              onTap: () => showOverlayScreen(context, const AccountScreen()),
+            ),
+          ],
         ),
-      ]),
-    ]);
+      ],
+    );
   }
 
   static String _statusText(BuildContext context, SyncEngine s) =>

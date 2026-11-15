@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qiraah_arabiyyah/core/audio.dart';
+import 'package:rasikh/core/audio.dart';
 
 /// Real payloads from
 /// `api.quran.com/api/v4/recitations/{7|6}/by_chapter/2?fields=segments`.

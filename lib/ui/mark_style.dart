@@ -16,18 +16,29 @@ class MarkPalette {
   /// Alpha of the highlighter tint behind a marked word.
   final double tintAlpha;
   final bool mono;
+
+  /// The breath marks' colour.
+  final Color breath;
   const MarkPalette(
       {required this.solid,
       required this.fixed,
       required this.tintAlpha,
+      required this.breath,
       this.mono = false});
 
-  Color colorOf(MarkType t) => solid[t]!;
+  Color colorOf(MarkType t) => t.isBreath
+      ? breath
+      : t.isFluency
+          ? fluency
+          : solid[t]!;
+
+  /// Fluency marks' colour (in Review).
+  Color get fluency => mono ? fixed : const Color(0xFFC27C12);
 
   /// Solid colour for a word's visual state (open mark first, else fixed).
   Color colorFor(MarkVisual v) => v.open != null ? colorOf(v.open!) : fixed;
 
-  Color? tintOf(MarkType t) => t == MarkType.note
+  Color? tintOf(MarkType t) => t == MarkType.note || t.isBreath || t.isFluency
       ? null
       : colorOf(t).withValues(alpha: tintAlpha);
 
@@ -38,6 +49,9 @@ class MarkPalette {
         MarkType.doubt => TextDecorationStyle.wavy,
         MarkType.note => TextDecorationStyle.dotted,
         MarkType.mutashabih => TextDecorationStyle.dashed,
+        MarkType.breathStop || MarkType.breathStart => TextDecorationStyle.solid,
+        MarkType.fluencySlow || MarkType.fluencyPair || MarkType.fluencyChunk =>
+          TextDecorationStyle.dotted,
         null => TextDecorationStyle.double, // fixed
       };
 }
@@ -52,6 +66,7 @@ const _light = MarkPalette(
     MarkType.mutashabih: Color(0xFF0B8A8F),
   },
   fixed: Color(0xFF16875A),
+  breath: Color(0xFF0F7F93),
   tintAlpha: .16,
 );
 
@@ -65,6 +80,7 @@ const _dark = MarkPalette(
     MarkType.mutashabih: Color(0xFF3FB6BA),
   },
   fixed: Color(0xFF2FA77A),
+  breath: Color(0xFF45BFD4),
   tintAlpha: .24,
 );
 
@@ -78,6 +94,7 @@ const _mono = MarkPalette(
     MarkType.mutashabih: Color(0xFF4A4A4A),
   },
   fixed: Color(0xFF777777),
+  breath: Color(0xFF111111),
   tintAlpha: .10,
   mono: true,
 );
@@ -125,8 +142,37 @@ TextStyle markSpanStyle(TextStyle base, MarkVisual? v, MarkPalette pal,
 /// double rule) from [start] rightwards over [width] — under a word's box.
 void paintMarkLine(Canvas canvas, Offset start, double width, MarkVisual v,
     MarkPalette pal, {double thickness = 1.8}) {
+  if (!v.hasMark) return;
   _paintPattern(canvas, start, width, pal.colorFor(v),
       MarkPalette.patternOf(v.open), thickness);
+}
+
+/// A word's breath marks, over its top edges (the text runs right to left): at
+/// its left two bars, stop after it; at its right a triangle pointing along the
+/// text, start again from it. [size]: how tall.
+void paintBreathSigns(Canvas canvas, MarkVisual v, MarkPalette pal,
+    {required double left, required double right, required double top, required double size}) {
+  if (!v.stop && !v.start) return;
+  final paint = Paint()..color = pal.breath;
+  if (v.stop) {
+    final bar = size * .24, gap = size * .2;
+    for (final x in [left - gap / 2 - bar, left + gap / 2]) {
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              Rect.fromLTWH(x, top, bar, size), Radius.circular(bar / 3)),
+          paint);
+    }
+  }
+  if (v.start) {
+    final w = size * .8;
+    canvas.drawPath(
+        Path()
+          ..moveTo(right + w / 2, top)
+          ..lineTo(right + w / 2, top + size)
+          ..lineTo(right - w / 2, top + size / 2)
+          ..close(),
+        paint);
+  }
 }
 
 void _paintPattern(Canvas canvas, Offset start, double width, Color c,

@@ -2,23 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/reader_size.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/core/theme.dart';
-import 'package:qiraah_arabiyyah/data/letters.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
-import 'package:qiraah_arabiyyah/data/tajweed.dart';
-import 'package:qiraah_arabiyyah/main.dart';
-import 'package:qiraah_arabiyyah/screens/learn_screen.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
-import 'package:qiraah_arabiyyah/screens/onboarding_screen.dart';
-import 'package:qiraah_arabiyyah/screens/qaidah_screen.dart';
-import 'package:qiraah_arabiyyah/screens/quran_screen.dart';
-import 'package:qiraah_arabiyyah/screens/settings_screen.dart';
-import 'package:qiraah_arabiyyah/screens/shell/modules.dart';
-import 'package:qiraah_arabiyyah/screens/tajweed_screen.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/core/reader_size.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/core/theme.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/quran.dart';
+import 'package:rasikh/main.dart';
+import 'package:rasikh/screens/mushaf_screen.dart';
+import 'package:rasikh/screens/onboarding_screen.dart';
+import 'package:rasikh/screens/quran_screen.dart';
+import 'package:rasikh/screens/settings_screen.dart';
 
 import 'test_support.dart';
 
@@ -28,18 +22,11 @@ import 'test_support.dart';
 late List<SurahMeta> _meta;
 
 final _screens = <String, Widget Function()>{
-  'today': () => const RootScreen(),
-  'quran list': () => const SurahListScreen(),
+  'home': () => const RootScreen(),
   'reader': () => SurahReaderScreen(meta: _meta[1]),
   'mushaf': () => const MushafPageScreen(startPage: 2),
-  'learn': () => const LearnScreen(),
   'settings': () => const SettingsScreen(),
   'onboarding': () => const OnboardingScreen(),
-  for (final m in LearnModule.values)
-    'module ${m.name}': () => Builder(builder: m.screen),
-  'letter detail': () => LetterDetail(letter: letters[13]),
-  'tajwid rule': () => TajwidRuleScreen(rule: tajwidRules[11]),
-  'letter quiz': () => Builder(builder: (c) => letterQuizScreen(c)),
 };
 
 const _sizes = <(String, Size)>[

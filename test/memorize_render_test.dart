@@ -4,24 +4,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:qiraah_arabiyyah/core/l10n.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_model.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_persistence.dart';
-import 'package:qiraah_arabiyyah/core/marks/marks_store.dart';
-import 'package:qiraah_arabiyyah/core/marks/word_ref.dart';
-import 'package:qiraah_arabiyyah/core/memorize.dart';
-import 'package:qiraah_arabiyyah/ui/mark_style.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf/memorize_cards_screen.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf/verse_view.dart';
-import 'package:qiraah_arabiyyah/core/recite_back.dart';
-import 'package:qiraah_arabiyyah/core/settings.dart';
-import 'package:qiraah_arabiyyah/core/theme.dart';
-import 'package:qiraah_arabiyyah/data/mushaf.dart';
-import 'package:qiraah_arabiyyah/data/mushaf_atlas.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf/memorize_bar.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf/mushaf_line.dart';
-import 'package:qiraah_arabiyyah/screens/mushaf_screen.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/core/marks/marks_model.dart';
+import 'package:rasikh/core/marks/marks_persistence.dart';
+import 'package:rasikh/core/marks/marks_store.dart';
+import 'package:rasikh/core/marks/word_ref.dart';
+import 'package:rasikh/core/memorize.dart';
+import 'package:rasikh/ui/mark_style.dart';
+import 'package:rasikh/screens/mushaf/memorize_cards_screen.dart';
+import 'package:rasikh/screens/mushaf/verse_view.dart';
+import 'package:rasikh/core/recite_back.dart';
+import 'package:rasikh/core/settings.dart';
+import 'package:rasikh/core/theme.dart';
+import 'package:rasikh/data/mushaf.dart';
+import 'package:rasikh/data/mushaf_atlas.dart';
+import 'package:rasikh/data/quran.dart';
+import 'package:rasikh/screens/mushaf/memorize_bar.dart';
+import 'package:rasikh/screens/mushaf/mushaf_line.dart';
+import 'package:rasikh/screens/mushaf_screen.dart';
 
 import 'shots/shots_test.dart' show loadFonts;
 import 'test_support.dart';
@@ -437,6 +437,7 @@ void main() {
     await m.load();
     final b = m.ensureActiveBook('Me').id;
     m.addMark(b, const WordRef(2, 2, 2), MarkType.doubt); // لَا of 2:2
+    s.memorizeCardsView = 'single';
     final c = MemorizeController.startAt('uthmani', 2);
     await tester.pumpWidget(MarksScope(
       store: m,

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qiraah_arabiyyah/data/quran.dart';
+import 'package:rasikh/data/quran.dart';
 
 /// Mirrors `QuranRepo._transcodeIndopak` (lib/data/quran.dart) — private, so
 /// reimplemented here against the same map, same as [tajweed_data_test.dart]

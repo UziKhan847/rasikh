@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
+import 'button_guide.dart';
+import 'keyboard_sheet.dart';
 import 'package:flutter/material.dart';
 
 import '../core/fluency/fluency_store.dart' show FluencyScope;
@@ -13,14 +16,17 @@ import '../ui/app_icons.dart';
 import '../ui/kit.dart';
 import 'about_screen.dart';
 import 'downloads_screen.dart';
-import 'marks/mark_books_screen.dart';
 import 'marks/sync_section.dart';
+import '../core/mushaf_edition.dart' show mushafEditionName;
+import '../data/mushaf.dart' show isOriginalScript;
+import '../ui/adaptive_sheet.dart';
+import 'mushaf/edition_picker.dart';
 import 'mushaf/mushaf_style_screen.dart';
 import 'mushaf_screen.dart' show mushafPaperName;
 import 'onboarding_screen.dart';
-import 'shell/app_mode.dart';
 import 'profiles_sheet.dart';
 import '../core/profiles.dart';
+import '../ui/overlay_screen.dart';
 
 /// Settings: theme and style, reading, recitation, learning, the app itself,
 /// your data, and About. Two columns on a wide window.
@@ -28,98 +34,103 @@ class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
+  Widget build(BuildContext context) => Scaffold(
+    body: DecoratedBox(
+      decoration: screenDecoration(context),
+      child: const SafeArea(bottom: false, child: SettingsBody()),
+    ),
+  );
+}
+
+/// Settings over the muṣḥaf, as the index comes: you never leave the page. It
+/// takes the theme as it changes, since it's where the theme is changed.
+Future<void> showSettingsSheet(
+  BuildContext context, {
+  ValueListenable<bool>? fromLeft,
+}) => showAdaptiveSheet<void>(
+  context,
+  fromLeft: fromLeft,
+  useRootNavigator: true,
+  liveTheme: true,
+  builder: (sheet) => FractionallySizedBox(
+    heightFactor: AdaptiveSheet.isSide(sheet) ? 1 : .9,
+    child: const SettingsBody(inSheet: true),
+  ),
+);
+
+/// Settings' sections, on a page or in a sheet.
+class SettingsBody extends StatelessWidget {
+  final bool inSheet;
+  const SettingsBody({super.key, this.inSheet = false});
+
+  @override
   Widget build(BuildContext context) {
-    final canPop = canGoBack(context);
-    return Scaffold(
-      body: DecoratedBox(
-        decoration: screenDecoration(context),
-        child: SafeArea(
-          bottom: false,
-          child: LayoutBuilder(builder: (context, c) {
-            final wide = c.maxWidth >= 1080;
-            final left = [
-              _Theme(),
-              _Style(),
-              _App(),
-              _Data(),
-            ];
-            final right = [
-              _Reading(),
-              _Recitation(),
-              _Learning(),
-              _About(),
-            ];
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
-              children: [
-                QColumn(
-                  kind: ContentKind.form,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      QPageHeader(
-                        title: context.l10n.settings,
-                        leading: canPop
-                            ? QIconButton(
-                                icon: AppIcons.back,
-                                tooltip: MaterialLocalizations.of(context)
-                                    .backButtonTooltip,
-                                onTap: () => Navigator.of(context).maybePop())
-                            : null,
-                      ),
-                      // The mode first: what the app opens to, and the
-                      // way to everything else.
-                      _Mode(wide: wide),
-                      if (wide)
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: Column(children: left)),
-                            const SizedBox(width: 32),
-                            Expanded(child: Column(children: right)),
-                          ],
-                        )
-                      // Then the current mode's own settings.
-                      else if (const [AppMode.learn, AppMode.write]
-                          .contains(SettingsScope.of(context).mode)) ...[
-                        left[0],
-                        right[2],
-                        right[0],
-                        right[1],
-                        left[1],
-                        left[2],
-                        left[3],
-                        right[3],
-                      ] else ...[
-                        left[0],
-                        right[0],
-                        right[1],
-                        left[1],
-                        right[2],
-                        left[2],
-                        left[3],
-                        right[3],
-                      ],
-                      const SizedBox(height: 20),
-                      Center(
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.of(context, rootNavigator: true).push(
-                                MaterialPageRoute(
-                                    builder: (_) =>
-                                        const OnboardingScreen(pushed: true)));
-                          },
-                          child: Text(context.l10n.showWelcomeAgain),
-                        ),
-                      ),
-                    ],
+    return LayoutBuilder(
+      builder: (context, c) {
+        final wide = c.maxWidth >= 1080;
+        final left = [_Theme(), _Style(), _App(), _Data()];
+        final right = [_Reading(), _Recitation(), _Learning(), _About()];
+        return ListView(
+          padding: EdgeInsets.fromLTRB(20, inSheet ? 0 : 16, 20, 40),
+          children: [
+            QColumn(
+              kind: ContentKind.form,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  QPageHeader(
+                    title: context.l10n.settings,
+                    leading: !inSheet && canGoBack(context)
+                        ? QIconButton(
+                            icon: AppIcons.back,
+                            tooltip: MaterialLocalizations.of(
+                              context,
+                            ).backButtonTooltip,
+                            onTap: () => Navigator.of(context).maybePop(),
+                          )
+                        : null,
                   ),
-                ),
-              ],
-            );
-          }),
-        ),
-      ),
+                  // Whose app it is first: the profiles.
+                  const _Profiles(),
+                  if (wide)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: Column(children: left)),
+                        const SizedBox(width: 32),
+                        Expanded(child: Column(children: right)),
+                      ],
+                    )
+                  else ...[
+                    left[0],
+                    right[0],
+                    right[1],
+                    left[1],
+                    right[2],
+                    left[2],
+                    left[3],
+                    right[3],
+                  ],
+                  const SizedBox(height: 20),
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const OnboardingScreen(pushed: true),
+                          ),
+                        );
+                      },
+                      child: Text(context.l10n.showWelcomeAgain),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -290,26 +301,15 @@ class _Style extends StatelessWidget {
   }
 }
 
-// ───────────────────────────────────────────────────────── mode
+// ───────────────────────────────────────────────────────── profiles
 
-class _Mode extends StatelessWidget {
-  final bool wide;
-  const _Mode({required this.wide});
+class _Profiles extends StatelessWidget {
+  const _Profiles();
 
   @override
-  Widget build(BuildContext context) {
-    final modes = _Section(context.l10n.modeLabel, [const ModeList()]);
-    final also = _Section(context.l10n.alsoInApp, [const AlsoInApp()]);
-    final profiles = ProfileScope.maybeOf(context) == null
-        ? const SizedBox.shrink()
-        : _Section(context.l10n.prfTitle, [const ProfilesRow()]);
-    if (!wide) return Column(children: [profiles, modes, also]);
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Expanded(child: Column(children: [profiles, modes])),
-      const SizedBox(width: 32),
-      Expanded(child: also),
-    ]);
-  }
+  Widget build(BuildContext context) => ProfileScope.maybeOf(context) == null
+      ? const SizedBox.shrink()
+      : _Section(context.l10n.prfTitle, [const ProfilesRow()]);
 }
 
 // ───────────────────────────────────────────────────────── reading
@@ -327,168 +327,237 @@ class _Reading extends StatelessWidget {
         : kReaderMaxMobile;
     final px = readerPx(s).clamp(kReaderMinPx, maxPx);
     return _Section(context.l10n.reading, [
-      QGroup(children: [
-        // The light theme's papers (seven, with the tiled frames' colours)
-        // are chosen on the style screen, beside a live page.
-        if (kMushafCustomization && s.theme == AppTheme.light)
+      QGroup(
+        children: [
+          if (!isDesktopPlatform())
+            QRow(
+              title: context.l10n.immersiveHideSystemBars,
+              control: QSwitch(
+                value: s.immersive,
+                onChanged: (v) => s.update(() => s.immersive = v),
+              ),
+            ),
+          // The light theme's papers (seven, with the tiled frames' colours)
+          // are chosen on the style screen, beside a live page.
+          if (kMushafCustomization && s.theme == AppTheme.light)
+            QRow(
+              title: context.l10n.mushafPaper,
+              subtitle: mushafPaperName(context, mushafPaperOf(s).id),
+              chevron: true,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const MushafStyleScreen(),
+                ),
+              ),
+            ),
+          if (s.theme == AppTheme.night || s.theme == AppTheme.oled)
+            QRow(
+              title: context.l10n.mushafPaper,
+              subtitle: context.l10n.paperDarkSub,
+              control: QSegmented<String>(
+                expand: false,
+                options: [
+                  ('default', context.l10n.paperDefault, null),
+                  ('mono', context.l10n.paperMono, null),
+                ],
+                value: s.mushafPaperDark,
+                onChanged: (v) => s.update(() => s.mushafPaperDark = v),
+              ),
+            ),
           QRow(
-            title: context.l10n.mushafPaper,
-            subtitle: mushafPaperName(context, mushafPaperOf(s).id),
+            title: context.l10n.arabicScript,
+            control: QSegmented<String>(
+              expand: false,
+              options: [
+                ('uthmani', context.l10n.madani, null),
+                ('indopak', context.l10n.indoPak, null),
+              ],
+              value: s.quranScript,
+              onChanged: (v) => s.update(() {
+                s.quranScript = v;
+                // The original print stays until it's changed below.
+                if (!isOriginalScript(s.mushafScript)) s.mushafScript = v;
+              }),
+            ),
+          ),
+          QRow(
+            title: context.l10n.navMushaf,
+            subtitle: mushafEditionName(context.l10n, s.mushafScript),
             chevron: true,
-            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => const MushafStyleScreen())),
+            onTap: () => showAdaptiveSheet<void>(
+              context,
+              builder: (sheet) => SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                  child: MushafEditionPicker(
+                    value: s.mushafScript,
+                    onChanged: (v) {
+                      Navigator.pop(sheet);
+                      s.update(() => s.mushafScript = v);
+                    },
+                  ),
+                ),
+              ),
+            ),
           ),
-        if (s.theme == AppTheme.night || s.theme == AppTheme.oled)
           QRow(
-            title: context.l10n.mushafPaper,
-            subtitle: context.l10n.paperDarkSub,
+            title: context.l10n.readerLayout,
             control: QSegmented<String>(
               expand: false,
               options: [
-                ('default', context.l10n.paperDefault, null),
-                ('mono', context.l10n.paperMono, null),
+                ('cards', context.l10n.layoutAyahCards, null),
+                ('grid', context.l10n.layoutWordGrid, null),
+                ('flow', context.l10n.mushafFlow, null),
               ],
-              value: s.mushafPaperDark,
-              onChanged: (v) => s.update(() => s.mushafPaperDark = v),
+              value: layout,
+              onChanged: (v) => s.update(() {
+                s.readerLayout = v == 'flow' ? 'mushaf' : 'cards';
+                s.wordByWord = v == 'grid';
+              }),
             ),
           ),
-        QRow(
-          title: context.l10n.arabicScript,
-          control: QSegmented<String>(
-            expand: false,
-            options: [
-              ('uthmani', context.l10n.madani, null),
-              ('indopak', context.l10n.indoPak, null),
-            ],
-            value: s.quranScript,
-            onChanged: (v) => s.update(() {
-              s.quranScript = v;
-              s.mushafScript = v;
-            }),
-          ),
-        ),
-        QRow(
-          title: context.l10n.readerLayout,
-          control: QSegmented<String>(
-            expand: false,
-            options: [
-              ('cards', context.l10n.layoutAyahCards, null),
-              ('grid', context.l10n.layoutWordGrid, null),
-              ('flow', context.l10n.mushafFlow, null),
-            ],
-            value: layout,
-            onChanged: (v) => s.update(() {
-              s.readerLayout = v == 'flow' ? 'mushaf' : 'cards';
-              s.wordByWord = v == 'grid';
-            }),
-          ),
-        ),
-        if (layout == 'grid') ...[
-          QRow(
-            title: context.l10n.wordsPerCard,
-            control: QSegmented<int>(
-              expand: false,
-              options: [for (var i = 1; i <= 6; i++) (i, '$i', null)],
-              value: s.wbwGroup,
-              onChanged: (v) => s.update(() => s.wbwGroup = v),
+          if (layout == 'grid') ...[
+            QRow(
+              title: context.l10n.wordsPerCard,
+              control: QSegmented<int>(
+                expand: false,
+                options: [for (var i = 1; i <= 6; i++) (i, '$i', null)],
+                value: s.wbwGroup,
+                onChanged: (v) => s.update(() => s.wbwGroup = v),
+              ),
             ),
-          ),
-          QRow(
-            title: context.l10n.verseAlign,
-            control: QSegmented<String>(
-              expand: false,
-              options: [
-                ('right', context.l10n.alignRight, null),
-                ('center', context.l10n.alignCenter, null),
-              ],
-              value: s.wbwAlign,
-              onChanged: (v) => s.update(() => s.wbwAlign = v),
+            QRow(
+              title: context.l10n.verseAlign,
+              control: QSegmented<String>(
+                expand: false,
+                options: [
+                  ('right', context.l10n.alignRight, null),
+                  ('center', context.l10n.alignCenter, null),
+                ],
+                value: s.wbwAlign,
+                onChanged: (v) => s.update(() => s.wbwAlign = v),
+              ),
             ),
-          ),
-          QRow(
-            title: context.l10n.eachCardOwnLine,
-            control: QSwitch(
+            QRow(
+              title: context.l10n.eachCardOwnLine,
+              control: QSwitch(
                 value: s.wbwNewline,
-                onChanged: (v) => s.update(() => s.wbwNewline = v)),
-          ),
-          QRow(
-            title: context.l10n.gapBetweenCards,
-            control: QStepper(
-              label: '${s.wbwGap.round()}',
-              minusChild: Icon(AppIcons.gapDecrease, size: 18, color: p.ink),
-              plusChild: Icon(AppIcons.gapIncrease, size: 18, color: p.ink),
-              onMinus: s.wbwGap <= 0
-                  ? null
-                  : () => s.update(() => s.wbwGap = (s.wbwGap - 4).clamp(0, 64)),
-              onPlus: s.wbwGap >= 64
-                  ? null
-                  : () => s.update(() => s.wbwGap = (s.wbwGap + 4).clamp(0, 64)),
+                onChanged: (v) => s.update(() => s.wbwNewline = v),
+              ),
             ),
-          ),
-        ],
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Expanded(
-                child: Text(context.l10n.arabicTextSize,
-                    style: uiStyle(context, size: 15, weight: FontWeight.w700)),
-              ),
-              QStepper(
-                label: '${px.round()}',
-                minusChild: Text('A−',
-                    style: uiStyle(context, size: 13, weight: FontWeight.w700)),
-                plusChild: Text('A+',
-                    style: uiStyle(context, size: 15, weight: FontWeight.w700)),
-                onMinus: px <= kReaderMinPx
+            QRow(
+              title: context.l10n.gapBetweenCards,
+              control: QStepper(
+                label: '${s.wbwGap.round()}',
+                minusChild: Icon(AppIcons.gapDecrease, size: 18, color: p.ink),
+                plusChild: Icon(AppIcons.gapIncrease, size: 18, color: p.ink),
+                onMinus: s.wbwGap <= 0
                     ? null
-                    : () => setReaderPx(s, readerStepDown(px)),
-                onPlus: px >= maxPx
+                    : () => s.update(
+                        () => s.wbwGap = (s.wbwGap - 4).clamp(0, 64),
+                      ),
+                onPlus: s.wbwGap >= 64
                     ? null
-                    : () => setReaderPx(s, readerStepUp(px, maxPx)),
+                    : () => s.update(
+                        () => s.wbwGap = (s.wbwGap + 4).clamp(0, 64),
+                      ),
               ),
-            ]),
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: p.bg,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text('بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ',
-                  textDirection: TextDirection.rtl,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.fade,
-                  softWrap: false,
-                  style: TextStyle(
+            ),
+          ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        context.l10n.arabicTextSize,
+                        style: uiStyle(
+                          context,
+                          size: 15,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    QStepper(
+                      label: '${px.round()}',
+                      minusChild: Text(
+                        'A−',
+                        style: uiStyle(
+                          context,
+                          size: 13,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                      plusChild: Text(
+                        'A+',
+                        style: uiStyle(
+                          context,
+                          size: 15,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                      onMinus: px <= kReaderMinPx
+                          ? null
+                          : () => setReaderPx(s, readerStepDown(px)),
+                      onPlus: px >= maxPx
+                          ? null
+                          : () => setReaderPx(s, readerStepUp(px, maxPx)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: p.bg,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ',
+                    textDirection: TextDirection.rtl,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    softWrap: false,
+                    style: TextStyle(
                       fontFamily: 'UthmanicHafs',
                       fontSize: px > 72 ? 72 : px,
                       height: 1.8,
-                      color: p.ink)),
+                      color: p.ink,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ]),
-        ),
-        QRow(
-          title: context.l10n.tajwidColors,
-          control: QSwitch(
-              value: s.tajwidColors,
-              onChanged: (v) => s.update(() => s.tajwidColors = v)),
-        ),
-        QRow(
-          title: context.l10n.tashkilTermsLabel,
-          control: QSegmented<String>(
-            expand: false,
-            options: [
-              ('arabic', context.l10n.arabicTerms, null),
-              ('indopak', context.l10n.indopak, null),
-            ],
-            value: s.tashkilTerms,
-            onChanged: (v) => s.update(() => s.tashkilTerms = v),
           ),
-        ),
-      ]),
+          QRow(
+            title: context.l10n.tajwidColors,
+            control: QSwitch(
+              value: s.tajwidColors,
+              onChanged: (v) => s.update(() => s.tajwidColors = v),
+            ),
+          ),
+          QRow(
+            title: context.l10n.tashkilTermsLabel,
+            control: QSegmented<String>(
+              expand: false,
+              options: [
+                ('arabic', context.l10n.arabicTerms, null),
+                ('indopak', context.l10n.indopak, null),
+              ],
+              value: s.tashkilTerms,
+              onChanged: (v) => s.update(() => s.tashkilTerms = v),
+            ),
+          ),
+        ],
+      ),
     ]);
   }
 }
@@ -500,70 +569,79 @@ class _Recitation extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = SettingsScope.of(context);
     return _Section(context.l10n.recitation, [
-      QGroup(children: [
-        for (final (id, name) in [
-          ('tunaiji', context.l10n.alTunaiji),
-          ('alafasy', context.l10n.afasyName),
-          ('husary', context.l10n.husaryName),
-        ])
-          QRadioRow(
-            title: name,
-            subtitle: id == 'tunaiji' ? null : context.l10n.wordHighlighting,
-            selected: s.reciter == id,
-            onTap: () => s.update(() => s.reciter = id),
-          ),
-      ]),
+      QGroup(
+        children: [
+          for (final (id, name) in [
+            ('tunaiji', context.l10n.alTunaiji),
+            ('alafasy', context.l10n.afasyName),
+            ('husary', context.l10n.husaryName),
+          ])
+            QRadioRow(
+              title: name,
+              subtitle: id == 'tunaiji' ? null : context.l10n.wordHighlighting,
+              selected: s.reciter == id,
+              onTap: () => s.update(() => s.reciter = id),
+            ),
+        ],
+      ),
       const SizedBox(height: 10),
-      QGroup(children: [
-        QRow(
-          title: context.l10n.afterVerse,
-          control: QSegmented<String>(
-            expand: false,
-            options: [
-              ('single', context.l10n.flowStop, null),
-              ('auto', context.l10n.flowContinue, null),
-              ('repeat', context.l10n.flowRepeat, null),
-            ],
-            value: s.reciteFlow,
-            onChanged: (v) => s.update(() => s.reciteFlow = v),
+      QGroup(
+        children: [
+          QRow(
+            title: context.l10n.afterVerse,
+            control: QSegmented<String>(
+              expand: false,
+              options: [
+                ('single', context.l10n.flowStop, null),
+                ('auto', context.l10n.flowContinue, null),
+                ('repeat', context.l10n.flowRepeat, null),
+              ],
+              value: s.reciteFlow,
+              onChanged: (v) => s.update(() => s.reciteFlow = v),
+            ),
           ),
-        ),
-        QRow(
-          title: context.l10n.playbackSpeed,
-          control: QSegmented<double>(
-            expand: false,
-            options: const [(0.75, '0.75×', null), (1.0, '1×', null), (1.25, '1.25×', null)],
-            value: s.playbackSpeed,
-            onChanged: (v) => s.update(() => s.playbackSpeed = v),
+          QRow(
+            title: context.l10n.playbackSpeed,
+            control: QSegmented<double>(
+              expand: false,
+              options: const [
+                (0.75, '0.75×', null),
+                (1.0, '1×', null),
+                (1.25, '1.25×', null),
+              ],
+              value: s.playbackSpeed,
+              onChanged: (v) => s.update(() => s.playbackSpeed = v),
+            ),
           ),
-        ),
-        QRow(
-          title: context.l10n.followAlong,
-          subtitle: context.l10n.followAlongSub,
-          control: QSwitch(
+          QRow(
+            title: context.l10n.followAlong,
+            subtitle: context.l10n.followAlongSub,
+            control: QSwitch(
               value: s.followAlong,
-              onChanged: (v) => s.update(() => s.followAlong = v)),
-        ),
-        QRow(
-          title: context.l10n.audioPlayer,
-          control: QSegmented<String>(
-            expand: false,
-            options: [
-              ('pinned', context.l10n.playerPinned, null),
-              ('floating', context.l10n.playerFloating, null),
-              ('hidden', context.l10n.playerHidden, null),
-            ],
-            value: s.playerDock,
-            onChanged: (v) => s.update(() => s.playerDock = v),
+              onChanged: (v) => s.update(() => s.followAlong = v),
+            ),
           ),
-        ),
-        QRow(
-          title: context.l10n.manageDownloads,
-          subtitle: context.l10n.downloadsIntro,
-          chevron: true,
-          onTap: () => pushAdaptive(context, const DownloadsScreen()),
-        ),
-      ]),
+          QRow(
+            title: context.l10n.audioPlayer,
+            control: QSegmented<String>(
+              expand: false,
+              options: [
+                ('pinned', context.l10n.playerPinned, null),
+                ('floating', context.l10n.playerFloating, null),
+                ('hidden', context.l10n.playerHidden, null),
+              ],
+              value: s.playerDock,
+              onChanged: (v) => s.update(() => s.playerDock = v),
+            ),
+          ),
+          QRow(
+            title: context.l10n.manageDownloads,
+            subtitle: context.l10n.downloadsIntro,
+            chevron: true,
+            onTap: () => showOverlayScreen(context, const DownloadsScreen()),
+          ),
+        ],
+      ),
     ]);
   }
 }
@@ -649,54 +727,69 @@ class _App extends StatelessWidget {
     final layouts = [
       ('auto', context.l10n.layoutAuto, AppIcons.devices),
       ('off', context.l10n.layoutMobile, AppIcons.phone),
-      if (canUseDesktopShell(context))
-        ('on', context.l10n.layoutDesktop, AppIcons.desktop),
+      ('on', context.l10n.layoutDesktop, AppIcons.desktop),
     ];
     return _Section(context.l10n.appSection, [
-      QGroup(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(context.l10n.language,
-                style: uiStyle(context, size: 15, weight: FontWeight.w700)),
-            const SizedBox(height: 10),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final (code, label) in langs)
-                ChoiceChip(
-                  label: Text(label),
-                  selected: s.language == code,
-                  showCheckmark: false,
-                  onSelected: (_) => s.update(() => s.language = code),
+      QGroup(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.l10n.language,
+                  style: uiStyle(context, size: 15, weight: FontWeight.w700),
                 ),
-            ]),
-          ]),
-        ),
-        if (canUseDesktopShell(context))
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final (code, label) in langs)
+                      ChoiceChip(
+                        label: Text(label),
+                        selected: s.language == code,
+                        showCheckmark: false,
+                        onSelected: (_) => s.update(() => s.language = code),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
           QRow(
             title: context.l10n.layout,
             subtitle: context.l10n.desktopModeShowsSidebarDashboard,
             control: QSegmented<String>(
               expand: false,
               options: [for (final l in layouts) (l.$1, l.$2, l.$3)],
-              value: s.desktopMode == 'on' && !canUseDesktopShell(context)
-                  ? 'auto'
-                  : s.desktopMode,
+              value: s.desktopMode,
               onChanged: (v) => s.update(() => s.desktopMode = v),
             ),
           ),
-        if (!isDesktopPlatform())
           QRow(
-            title: context.l10n.immersiveHideSystemBars,
-            control: QSwitch(
-                value: s.immersive,
-                onChanged: (v) => s.update(() => s.immersive = v)),
+            title: context.l10n.gdTitle,
+            subtitle: context.l10n.gdSubtitle,
+            chevron: true,
+            onTap: () => showButtonGuide(context),
           ),
-        QRow(
-          title: context.l10n.hapticFeedback,
-          control: QSwitch(
-              value: s.haptics, onChanged: (v) => s.update(() => s.haptics = v)),
-        ),
-      ]),
+          if (useDesktop(context))
+            QRow(
+              title: context.l10n.kaTitle,
+              subtitle: context.l10n.kaSubtitle,
+              chevron: true,
+              onTap: () => showKeyboardSheet(context),
+            ),
+          QRow(
+            title: context.l10n.hapticFeedback,
+            control: QSwitch(
+              value: s.haptics,
+              onChanged: (v) => s.update(() => s.haptics = v),
+            ),
+          ),
+        ],
+      ),
     ]);
   }
 }
@@ -707,54 +800,74 @@ class _Data extends StatelessWidget {
     final p = pal(context);
     return _Section(context.l10n.yourData, [
       QCard(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(context.l10n.everythingVeEarnedStarsStreak,
-              style: uiStyle(context, size: 13, color: p.ink2, height: 1.45)),
-          const SizedBox(height: 12),
-          Wrap(spacing: 10, runSpacing: 10, children: [
-            QOutlineButton(context.l10n.backUp,
-                icon: AppIcons.upload, onTap: () async {
-              final path = await BackupService.export(SettingsScope.of(context),
-                  marks: MarksScope.maybeOf(context),
-                  fluency: FluencyScope.read(context));
-              if (!context.mounted) return;
-              showQToast(
-                  context,
-                  path == null
-                      ? context.l10n.backupFailed
-                      : context.l10n.backedUpTo(path));
-            }),
-            QOutlineButton(context.l10n.restore,
-                icon: AppIcons.download, onTap: () async {
-              final ok = await BackupService.restore(
-                  SettingsScope.of(context), ProgressScope.read(context),
-                  marks: MarksScope.maybeOf(context),
-                  fluency: FluencyScope.read(context));
-              if (!context.mounted) return;
-              showQToast(context,
-                  ok ? context.l10n.backupRestored : context.l10n.noBackupFound);
-            }),
-          ]),
-        ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              context.l10n.everythingVeEarnedStarsStreak,
+              style: uiStyle(context, size: 13, color: p.ink2, height: 1.45),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                QOutlineButton(
+                  context.l10n.backUp,
+                  icon: AppIcons.upload,
+                  onTap: () async {
+                    final path = await BackupService.export(
+                      SettingsScope.of(context),
+                      marks: MarksScope.maybeOf(context),
+                      fluency: FluencyScope.read(context),
+                    );
+                    if (!context.mounted) return;
+                    showQToast(
+                      context,
+                      path == null
+                          ? context.l10n.backupFailed
+                          : context.l10n.backedUpTo(path),
+                    );
+                  },
+                ),
+                QOutlineButton(
+                  context.l10n.restore,
+                  icon: AppIcons.download,
+                  onTap: () async {
+                    final ok = await BackupService.restore(
+                      SettingsScope.of(context),
+                      ProgressScope.read(context),
+                      marks: MarksScope.maybeOf(context),
+                      fluency: FluencyScope.read(context),
+                    );
+                    if (!context.mounted) return;
+                    showQToast(
+                      context,
+                      ok
+                          ? context.l10n.backupRestored
+                          : context.l10n.noBackupFound,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
       if (MarksScope.maybeOf(context) != null) ...[
         const SizedBox(height: 10),
-        QGroup(children: [
-          QRow(
-            title: context.l10n.mkManageBooks,
-            leading: Icon(AppIcons.person, color: p.ink3),
-            chevron: true,
-            onTap: () => pushAdaptive(context, const MarkBooksScreen()),
-          ),
-          if (SyncScope.maybeOf(context) != null)
-            QRow(
-              title: context.l10n.mkAccountSync,
-              subtitle: SyncScope.maybeOf(context)!.account?.username,
-              leading: Icon(AppIcons.cloud, color: p.ink3),
-              chevron: true,
-              onTap: () => pushAdaptive(context, const AccountScreen()),
-            ),
-        ]),
+        QGroup(
+          children: [
+            if (SyncScope.maybeOf(context) != null)
+              QRow(
+                title: context.l10n.mkAccountSync,
+                subtitle: SyncScope.maybeOf(context)!.account?.username,
+                leading: Icon(AppIcons.cloud, color: p.ink3),
+                chevron: true,
+                onTap: () => showOverlayScreen(context, const AccountScreen()),
+              ),
+          ],
+        ),
       ],
     ]);
   }
@@ -763,19 +876,23 @@ class _Data extends StatelessWidget {
 class _About extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _Section(context.l10n.about, [
-        QGroup(children: [
-          QRow(
-            title: context.l10n.aboutQiraah,
-            subtitle: context.l10n.creditsGratitude,
-            chevron: true,
-            onTap: () => pushAdaptive(context, const AboutScreen()),
+    QGroup(
+      children: [
+        QRow(
+          title: context.l10n.aboutQiraah,
+          subtitle: context.l10n.creditsGratitude,
+          chevron: true,
+          onTap: () => showOverlayScreen(context, const AboutScreen()),
+        ),
+        QRow(
+          title: context.l10n.openSourceLicences,
+          chevron: true,
+          onTap: () => showLicensePage(
+            context: context,
+            applicationName: context.l10n.appName,
           ),
-          QRow(
-            title: context.l10n.openSourceLicences,
-            chevron: true,
-            onTap: () => showLicensePage(
-                context: context, applicationName: 'Qiraah Arabiyyah'),
-          ),
-        ]),
-      ]);
+        ),
+      ],
+    ),
+  ]);
 }
