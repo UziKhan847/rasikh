@@ -32,3 +32,6 @@ assets/follow/
 
 # The Old Madani pack: chosen as a folder or downloaded, not in the app.
 assets/quran/old_madani/
+
+# Working files: sources, fixes and notes (kept locally, not in the repo).
+docs/
