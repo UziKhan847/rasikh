@@ -14,7 +14,9 @@
 Old Madani needs assets/quran/old_madani/high/ and
 docs/old_madani_svgs_with_fixed_ids.zip (docs/<page>.svg, a corrected page
 over the zip's: 158, where 7:58 had lost its لَا; 404, where a waqf of 29:66
-was labelled 29:65). New Madani (QPC V2) needs assets/quran/new_madani/high/
+was labelled 29:65; 447 and 464, a waqf put in its place and given its āyah,
+37:31 and 39:51 — such a renamed sign's key is changed in the manifests with
+tool/fix_waqf_key.py first). New Madani (QPC V2) needs assets/quran/new_madani/high/
 and docs/new_madani/new_madani_vector.zip.
 Stops if a word is missing, lines run out of reading order, or the SVG and
 the manifest disagree.

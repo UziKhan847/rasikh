@@ -983,6 +983,21 @@ class MarksStore extends ChangeNotifier {
 
   MarkOp setType(Mark m, MarkType type) => _editMark(m, (m) => m.type = type);
 
+  /// [m] stretched to cover every word from its first to [end] (or from
+  /// [end] to its last, if [end] comes before it): one mark over them all.
+  /// [end] on its own word: back to one word.
+  MarkOp setSpanEnd(Mark m, WordRef end) => _editMark(m, (m) {
+        final first = m.ref, last = m.to ?? m.ref;
+        bool before(WordRef a, WordRef b) =>
+            a.globalAyah < b.globalAyah || (a.globalAyah == b.globalAyah && a.word0 < b.word0);
+        if (before(end, first)) {
+          m.ref = end;
+          m.to = last;
+        } else {
+          m.to = end.key == first.key ? null : end;
+        }
+      });
+
   MarkOp _editMark(Mark m, void Function(Mark) edit) {
     final d = _data(m.bookId);
     final op = MarkOp(m.bookId, [_snap(d, MarkKinds.mark, m.id)]);

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +7,7 @@ import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/services.dart';
 
 import '../core/audio.dart';
+import '../core/follow/follow_debug.dart';
 import '../core/follow/follow_session.dart';
 import '../core/l10n.dart';
 import '../core/marks/marks_model.dart';
@@ -45,6 +45,7 @@ import '../data/divisions.dart'
     show Division, divisionCount, manzilOf, rukuCountOf;
 import '../data/page_details.dart';
 import '../data/mushaf.dart';
+import '../data/original/mushaf_packs.dart';
 import '../data/quran.dart';
 import '../ui/app_icons.dart';
 import '../ui/kit.dart';
@@ -139,6 +140,10 @@ class MushafPageScreen extends StatefulWidget with DesktopAware {
 
   @override
   State<MushafPageScreen> createState() => _MushafPageScreenState();
+
+  /// Tests: how often the screen, and a page of it, have been built.
+  @visibleForTesting
+  static int debugBuilds = 0, debugPageBuilds = 0;
 }
 
 /// Arabic-Indic digits for page numbers on the page and in the chips.
@@ -192,10 +197,17 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// Following: the page it last turned to itself (one turned by hand is
   /// where they'll go on), and whether it was paused as the app went away.
   int? _followTurnTo;
-  bool _followPausedAway = false;
 
   /// Memorizing, revealing what's recited (Follow my recitation).
   bool _memoFollow = false;
+
+  /// Tests: āyah [g] reciting, at muṣḥaf word [word0].
+  @visibleForTesting
+  void debugRecite(int g, int word0) {
+    _playAyah = g;
+    _reciting = true;
+    onRecitedWordChanged(qcWordOf(g, word0));
+  }
 
   /// Tests: how far memorize has revealed.
   @visibleForTesting
@@ -392,11 +404,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     FollowSession.instance.status.addListener(_followStatusL);
     // Fed a recording in place of the microphone (desktop, for checking
     // the whole of it): following starts by itself.
-    if (widget.home && SherpaFollowEngine.feedFile != null) {
+    if (widget.home && FollowDebug.feedFile != null) {
       Future<void>.delayed(const Duration(seconds: 4), () {
         if (!mounted || _following) return;
-        // RASIKH_FOLLOW_MEMO: memorizing, revealing what's recited.
-        if (Platform.environment['RASIKH_FOLLOW_MEMO'] != null) {
+        if (FollowDebug.memorize) {
           _startMemorize();
           _memoListen();
         } else {
@@ -504,6 +515,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       a = await OriginalAtlas.open(_script, tier);
     } on Object catch (e) {
       debugPrint('muṣḥaf: $e');
+      // (Its folder may have gone since it was checked: look again next time.)
+      MushafPacks.forgetChecks();
       if (mounted && isOriginalScript(_script)) _packGone(_script);
       return false;
     }
@@ -643,6 +656,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       _curSurah = v.$1;
       _ready = true;
     });
+    // (The page it opens on, too: not only the pages turned to.)
+    _titleFor(_page);
 
     // Saved with its script: after a switch, or a page mapped over from
     // the other script, the number is in this script's pages.
@@ -766,6 +781,9 @@ class _MushafPageScreenState extends State<MushafPageScreen>
 
   /// Memorizing with [c], handed back from the cards.
   void _memorizeWith(MemorizeController c) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _adoptMemoFollow();
+    });
     if (!identical(_memo, c)) {
       _stopAudio();
       if (_marking.active) _marking.stop();
@@ -824,23 +842,55 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// Memorize as verse cards: from the page in view (or carrying on from
   /// where the page view is), in large writing. Ending there ends it here.
   Future<void> _memorizeAsCards() async {
-    // (The cards listen for themselves.)
-    if (_memoFollow) await _memoListen();
-    if (!mounted) return;
     if (_memo == null) _startMemorize();
     final m = _memo;
     if (m == null) return;
+    // Revealing what's recited goes on in the cards: theirs now.
+    if (_memoFollow) {
+      FollowSession.instance.owner = #memorize;
+      setState(() => _memoFollow = false);
+    }
     final r = await Navigator.of(context).push<String>(MaterialPageRoute(
         builder: (_) => MemorizeCardsScreen(controller: m, fromMushaf: true)));
-    if (r == 'end' && mounted) _endMemorize();
+    if (!mounted) return;
+    if (r == 'end') {
+      _endMemorize();
+    } else {
+      _adoptMemoFollow();
+    }
+  }
+
+  /// Back from the cards still revealing what's recited: ours again.
+  void _adoptMemoFollow() {
+    final fs = FollowSession.instance;
+    if (fs.active && identical(fs.owner, #memorize)) {
+      fs.owner = this;
+      _memoEndSeen = _memo?.revealedEnd ?? -1;
+      setState(() => _memoFollow = true);
+      _followSetView();
+    }
   }
 
   void _onMemo() {
     final m = _memo;
     if (m == null || !mounted) return;
+    // Revealed or hidden by hand while revealing what's recited: they'll
+    // recite on from the first hidden word.
+    if (_memoFollow && !_memoRevealing && m.revealedEnd != _memoEndSeen &&
+        identical(FollowSession.instance.owner, this)) {
+      final (g, w) = MushafRepo.tokenAt(_script, m.nextHiddenWord);
+      FollowSession.instance.setPosition(g, w < 0 ? 0 : w);
+    }
+    if (_memoFollow && m.revealedEnd != _memoEndSeen) _followSetView();
+    _memoEndSeen = m.revealedEnd;
     _showPage(m.viewPage);
     setState(() {});
   }
+
+  /// Where memorize had revealed to, last seen; and whether revealing is
+  /// Follow's doing (not by hand).
+  int _memoEndSeen = -1;
+  bool _memoRevealing = false;
 
   /// Reveal as I recite: following from the first hidden word, each word
   /// heard revealed. Again: off.
@@ -857,9 +907,13 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     // (Not waited for: listening needn't wait on the player.)
     ReciteBack.instance.stop();
     final (g, w) = MushafRepo.tokenAt(_script, m.nextHiddenWord);
+    // Plain following on: it's this now.
+    if (_following) _update(() => _hifzTool = _HifzTool.none);
     _update(() => _memoFollow = true);
+    _memoEndSeen = m.revealedEnd;
     final ok = await startFollow(context, this, g, w < 0 ? 0 : w);
     if (mounted && !ok) _update(() => _memoFollow = false);
+    if (ok) _followSetView();
   }
 
   /// A word heard while memorizing: shown (with what's before it). A jump
@@ -870,16 +924,25 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     final place = FollowSession.instance.place;
     if (m == null || place == null) return;
     final t = MushafRepo.tokenOf(_script, place.$1, place.$2);
-    if (SherpaFollowEngine.feedFile != null) {
-      debugPrint('memo: heard token $t, revealed to ${m.revealedEnd}');
-    }
-    if (t < m.revealedEnd) return;
-    if (t > m.revealedEnd + 30) {
-      final (g, w) = MushafRepo.tokenAt(_script, m.nextHiddenWord);
+    FollowDebug.log(() => 'memo: heard token $t, revealed to ${m.revealedEnd}');
+    final next = m.nextHiddenWord;
+    // Far on (a look-alike misheard), or back on a page before the one
+    // being memorized: it's told where they are instead.
+    final behind = t < m.revealedEnd &&
+        m.revealedEnd - t > 30 &&
+        MushafRepo.pageOfToken(_script, t) < MushafRepo.pageOfToken(_script, next);
+    if (t > m.revealedEnd + 30 || behind) {
+      final (g, w) = MushafRepo.tokenAt(_script, next);
       FollowSession.instance.setPosition(g, w < 0 ? 0 : w);
       return;
     }
-    m.revealThrough(t);
+    if (t < m.revealedEnd) return;
+    _memoRevealing = true;
+    try {
+      m.revealThrough(t);
+    } finally {
+      _memoRevealing = false;
+    }
   }
 
   void _endMemorize() {
@@ -1006,7 +1069,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         onPlay: _playRevealed,
         onPlayPage: () => _playRevealed(page: true),
         onPlayClips: _playClips,
-        onListen: _memoListen,
+        onListen: kFollowSupported ? _memoListen : null,
         listening: _memoFollow,
         // (Revealing what's recited: its status is over the pages.)
         onSwitchView: _memorizeAsCards,
@@ -1290,6 +1353,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   @override
   void dispose() {
     if (identical(HomeLink._home, this)) HomeLink._home = null;
+    _recitedTick.dispose();
     _zoomCtrl.dispose();
     _zoomHintTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -1352,14 +1416,16 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// lower page on the right.
   int _spreadStart(int p) => ((p - 1) >> 1) * 2 + 1;
 
+  /// The window's title (desktop): the sūrah and page in view.
+  void _titleFor(int page) {
+    if (!widget.home || !DesktopWindow.ready || _tnames.isEmpty) return;
+    final surah = MushafRepo.firstVerseOfPage(_script, page).$1;
+    DesktopWindow.setTitle('${_tnames[surah] ?? ''} · $page — ${context.l10n.appName}');
+  }
+
   void _settle(int page) {
     _turningTo = null;
-    if (widget.home && DesktopWindow.ready) {
-      final surah = MushafRepo.firstVerseOfPage(_script, page).$1;
-      DesktopWindow.setTitle(
-        '${_tnames[surah] ?? ''} · $page — ${context.l10n.appName}',
-      );
-    }
+    _titleFor(page);
     final sw = kMushafPerf ? (Stopwatch()..start()) : null;
     PerfLog.where = 'muṣḥaf p.$page';
     _page = page;
@@ -1632,20 +1698,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   /// are hidden, or by the immersive setting).
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Following: the mic off while the app is away, back on its return.
-    final follow = FollowSession.instance;
-    if (identical(follow.owner, this)) {
-      if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
-        if (follow.status.value == FollowStatus.listening ||
-            follow.status.value == FollowStatus.searching) {
-          _followPausedAway = true;
-          follow.pause();
-        }
-      } else if (state == AppLifecycleState.resumed && _followPausedAway) {
-        _followPausedAway = false;
-        follow.resume();
-      }
-    }
+    // (Following pauses itself while the app is away: see FollowSession.)
     if (state != AppLifecycleState.resumed || _desktop) return;
     if (_landscape || !_chrome) {
       SystemChrome.setEnabledSystemUIMode(
@@ -1835,6 +1888,8 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       sessionId: () => _marking.active ? _marking.sessionId : _review?.sessionId,
       // The home links a mutashābih's likenesses on its own pages.
       onLink: _startLinking,
+      onExtend: _startExtending,
+      canShow: _memorizing ? _memoShows : null,
     );
   }
 
@@ -1924,6 +1979,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
   @override
   Widget build(BuildContext context) {
     PerfLog.screenBuilt();
+    assert(() {
+      MushafPageScreen.debugBuilds++;
+      return true;
+    }());
     final s = SettingsScope.of(context);
     // Its tool let go (another mode, Esc…): following stops, if it's ours.
     if (!_following && !_memoFollow && FollowSession.instance.active &&
@@ -2059,8 +2118,61 @@ class _MushafPageScreenState extends State<MushafPageScreen>
     );
   }
 
+  /// Stretching mark [_extending]: the next word tapped is its other end.
+  Mark? _extending;
+
+  void _startExtending(Mark m) {
+    _stopAudio();
+    setState(() => _extending = m);
+  }
+
+  void _extendTo(WordRef end) {
+    final m = _extending;
+    final store = MarksScope.maybeOf(context);
+    _lastWordTap = DateTime.now();
+    if (m == null || store == null) return;
+    _marking.recordOp(store.setSpanEnd(m, end));
+    if (SettingsScope.of(context).haptics) HapticFeedback.selectionClick();
+    setState(() => _extending = null);
+  }
+
+  /// Extending's banner: what to do, and Cancel.
+  Widget _extendBar(MushafPaper paper) => Container(
+        key: const ValueKey('extend-bar'),
+        constraints: const BoxConstraints(maxWidth: 620),
+        padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+        decoration: BoxDecoration(
+          color: paper.chrome,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: paper.line),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.swap_horiz, color: paper.id == 'mono' ? paper.ink : paper.acc, size: 20),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(context.l10n.mkExtendHint,
+                style: uiStyle(context, size: 13.5, weight: FontWeight.w600, color: paper.ink)),
+          ),
+          TextButton(
+            onPressed: () => setState(() => _extending = null),
+            child: Text(context.l10n.cancel),
+          ),
+        ]),
+      );
+
   /// [body], with link mode's banner floating over its top.
   Widget _withLinkBar(MushafPaper paper, Widget body) {
+    if (_extending != null) {
+      return Stack(children: [
+        body,
+        Positioned(
+          top: MediaQuery.paddingOf(context).top + 10,
+          left: 12,
+          right: 12,
+          child: Center(child: _extendBar(paper)),
+        ),
+      ]);
+    }
     if (_linking == null) return body;
     return Stack(children: [
       body,
@@ -2144,7 +2256,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       // Holding a ۝: the whole āyah's sheet, to mark it (memorizing: once
       // it shows).
       ..onLongPressVerse = _memorizing ? _memoHold : _showWord;
-    final plain = _memorizing || _linking != null || _exportPick != null;
+    final plain = _memorizing || _linking != null || _exportPick != null || _extending != null;
     _handlers.onMouseWord = plain
         ? null
         : (wd, buttons, at) {
@@ -2219,6 +2331,15 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         ..onTapVerse = ((g) => pickToken(MushafRepo.tokenOf(_script, g, -1), g))
         ..onLongPressVerse = pickWord;
     }
+    // Extending a mark: the word tapped is its other end.
+    if (_extending != null) {
+      WordRef word(MushafWord wd) => WordRef.fromGlobal(wd.ayah, wd.wordIdx);
+      _handlers
+        ..onTapWord = ((wd) => _extendTo(word(wd)))
+        ..onLongPressWord = ((wd) => _extendTo(word(wd)))
+        ..onTapVerse = ((_) {})
+        ..onLongPressVerse = ((_) {});
+    }
     // Link mode: words and ۝ link (or unlink) whatever else is on.
     if (_linking != null) {
       WordRef word(MushafWord wd) => WordRef.fromGlobal(wd.ayah, wd.wordIdx);
@@ -2282,6 +2403,10 @@ class _MushafPageScreenState extends State<MushafPageScreen>
       _pageMemo[key] = memo; // most recently used
       return memo.$2;
     }
+    assert(() {
+      MushafPageScreen.debugPageBuilds++;
+      return true;
+    }());
     final w = _MushafPageView(
       page: page,
       script: _script,
@@ -2481,7 +2606,29 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         : null;
   }
 
+  /// The recited word moved on: only the pages listen (the playing page
+  /// rebuilds, the rest come from the page cache) — not the dock, the header
+  /// and the bars around them.
+  final _recitedTick = ValueNotifier<int>(0);
+
+  @override
+  void onRecitedWordChanged(int word) {
+    recitedWord = word;
+    _recitedTick.value++;
+  }
+
   Widget _swiper({
+    required PageController? controller,
+    required int count,
+    required ValueChanged<int> onPage,
+    required IndexedWidgetBuilder builder,
+  }) => ValueListenableBuilder<int>(
+    valueListenable: _recitedTick,
+    builder: (context, _, _) => _swiperNow(
+        controller: controller, count: count, onPage: onPage, builder: builder),
+  );
+
+  Widget _swiperNow({
     required PageController? controller,
     required int count,
     required ValueChanged<int> onPage,
@@ -3288,7 +3435,7 @@ class _MushafPageScreenState extends State<MushafPageScreen>
         if (hit(KeyAction.review)) return did(_hifzReview);
         if (hit(KeyAction.memorize)) return did(_hifzMemorize);
         if (hit(KeyAction.recitation)) return did(() => _hifzSetTool(_HifzTool.audio));
-        if (hit(KeyAction.follow)) return did(_hifzFollow);
+        if (kFollowSupported && hit(KeyAction.follow)) return did(_hifzFollow);
         if (hit(KeyAction.history)) {
           return did(
             () => openSection(context, AppSection.hifz, fromLeft: _dockLeftOn),

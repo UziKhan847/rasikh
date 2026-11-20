@@ -179,9 +179,46 @@ class _MushafZoomState extends State<MushafZoom> {
       panEnabled: !_held,
       // The wheel is [_onSignal]'s: left alone it would zoom out here too.
       scaleFactor: double.maxFinite,
-      child: pages,
+      // The wheel's button is the comment's (or, with Ctrl, [_panBy]'s):
+      // never the viewer's drag as well.
+      child: RawGestureDetector(
+        gestures: {
+          MiddleButtonClaim: GestureRecognizerFactoryWithHandlers<MiddleButtonClaim>(
+              MiddleButtonClaim.new, (_) {}),
+        },
+        child: pages,
+      ),
     );
   }
+}
+
+/// Wins every press of a mouse's middle button outright, so no drag or
+/// scale recogniser (the zoomed viewer's) takes it too. Does nothing with
+/// it: what's under the pointer still sees the press, and [Listener]s
+/// still see it move.
+class MiddleButtonClaim extends OneSequenceGestureRecognizer {
+  MiddleButtonClaim()
+      : super(allowedButtonsFilter: (b) => b & kMiddleMouseButton != 0);
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    if (event.kind != PointerDeviceKind.mouse) return;
+    startTrackingPointer(event.pointer, event.transform);
+    resolve(GestureDisposition.accepted);
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (event is PointerUpEvent || event is PointerCancelEvent) {
+      stopTrackingPointer(event.pointer);
+    }
+  }
+
+  @override
+  void didStopTrackingLastPointer(int pointer) {}
+
+  @override
+  String get debugDescription => 'middle button';
 }
 
 /// A scroll that stands aside while Ctrl (⌘) is held, so Ctrl and the

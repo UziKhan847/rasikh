@@ -95,6 +95,15 @@ class FollowAligner {
   /// Where discovery last pointed, waiting for a second transcript to agree.
   int? _candidate;
 
+  /// The pages in view, best first (word ranges, inclusive): a phrase that
+  /// comes in several places is taken where it is in the first of these —
+  /// the page in view, then the next, then the one before — and only then
+  /// the nearest elsewhere.
+  List<(int, int)> _view = const [];
+
+  /// How much less well a place may match and still win for being in view.
+  static const _tie = .04;
+
   FollowAligner(this.words, this.surahOf, {this.settings = const FollowAlignerSettings()}) {
     for (var i = 1; i < words.length; i++) {
       (_pairs['${words[i - 1]} ${words[i]}'] ??= []).add(i);
@@ -112,6 +121,43 @@ class FollowAligner {
     _placed = true;
     _surah = surahOf[w];
     _resetTracking();
+  }
+
+  /// The pages in view, best first (see [_view]).
+  void setView(List<(int, int)> ranges) => _view = ranges;
+
+  /// [j]'s place in the view: 0 the page in view, … ; past the end: elsewhere.
+  int _tier(int j) {
+    for (var i = 0; i < _view.length; i++) {
+      final (a, b) = _view[i];
+      if (j >= a && j <= b) return i;
+    }
+    return _view.length;
+  }
+
+  /// Of [scored] (end word, score), the place to believe: the best match —
+  /// or, among those within [_tie] of it, the one earliest in the view,
+  /// then one going on from where they were, then the nearest.
+  (int, double) _choose(List<(int, double)> scored) {
+    var top = scored.first;
+    for (final e in scored) {
+      if (e.$2 > top.$2) top = e;
+    }
+    final next = _heard + 1;
+    (int, int, int) rank(int j) => (_tier(j), j >= next - 1 ? 0 : 1, (j - next).abs());
+    var best = top;
+    var bestRank = rank(top.$1);
+    for (final e in scored) {
+      if (e.$2 < top.$2 - _tie) continue;
+      final r = rank(e.$1);
+      if (r.$1 < bestRank.$1 ||
+          (r.$1 == bestRank.$1 &&
+              (r.$2 < bestRank.$2 || (r.$2 == bestRank.$2 && r.$3 < bestRank.$3)))) {
+        best = e;
+        bestRank = r;
+      }
+    }
+    return best;
   }
 
   /// No idea where they are: the first transcripts are looked up anywhere.
@@ -207,15 +253,11 @@ class FollowAligner {
     final tail = hyp.sublist(hyp.length - t);
     final from = math.max(0, _heard - settings.nearBack);
     final to = math.min(words.length - 1, _heard + settings.nearAhead);
-    var best = -1;
-    var bestScore = -1.0;
-    for (var j = from; j <= to; j++) {
-      final s = _tailScore(tail, j);
-      if (s > bestScore) {
-        bestScore = s;
-        best = j;
-      }
-    }
+    // A look-alike a few lines back (a phrase that comes again) loses to
+    // the same words on the page in view, or on from where they were.
+    final (best, bestScore) = _choose([
+      for (var j = from; j <= to; j++) (j, _tailScore(tail, j)),
+    ]);
     if (bestScore < settings.matchThreshold + .08) return null;
     // Where they were, or on: going on. Further back: a jump (a repeat).
     final on = best >= _heard - 1;
@@ -242,23 +284,26 @@ class FollowAligner {
     }
     if (votes.isEmpty) return const [];
     final minVotes = usable >= 2 ? 2 : 1;
+    // The most votes first; as many, those in view first (a phrase found
+    // all over still has its place on the page in view looked at).
     final candidates = [
       for (final e in votes.entries)
         if (e.value >= minVotes) e,
-    ]..sort((a, b) => b.value.compareTo(a.value));
+    ]..sort((a, b) => b.value != a.value
+        ? b.value.compareTo(a.value)
+        : _tier(a.key).compareTo(_tier(b.key)));
+    if (candidates.isEmpty) return const [];
 
-    var bestEnd = -1;
-    var bestScore = -1.0;
-    for (final c in candidates.take(12)) {
-      var s = _tailScore(tail, c.key);
-      if (_surah != null && surahOf[c.key] == _surah) s += settings.surahBonus;
-      // A little for staying near where they were.
-      if (_placed && (c.key - _heard).abs() < 300) s += .03;
-      if (s > bestScore) {
-        bestScore = s;
-        bestEnd = c.key;
-      }
-    }
+    final (bestEnd, bestScore) = _choose([
+      for (final c in candidates.take(12))
+        (
+          c.key,
+          _tailScore(tail, c.key) +
+              (_surah != null && surahOf[c.key] == _surah ? settings.surahBonus : 0) +
+              // A little for staying near where they were.
+              (_placed && (c.key - _heard).abs() < 300 ? .03 : 0),
+        ),
+    ]);
     if (bestScore < settings.discoveryThreshold) return const [];
     // Found a little further on: that's just going on.
     final onward = _placed && bestEnd > _heard && bestEnd - _heard <= settings.nearAhead;

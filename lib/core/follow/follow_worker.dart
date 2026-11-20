@@ -63,6 +63,12 @@ class FollowSetPosition {
   const FollowSetPosition(this.word);
 }
 
+/// The pages in view, best first: pairs of first and last word.
+class FollowSetView {
+  final Int32List ranges;
+  const FollowSetView(this.ranges);
+}
+
 class FollowClearPosition {
   final int? surah;
   const FollowClearPosition(this.surah);
@@ -119,6 +125,10 @@ Future<void> followWorkerMain(List<Object> args) async {
         case FollowSetPosition(:final word):
           w.aligner.setPosition(word);
           w.resetAudio();
+        case FollowSetView(:final ranges):
+          w.aligner.setView([
+            for (var i = 0; i + 1 < ranges.length; i += 2) (ranges[i], ranges[i + 1]),
+          ]);
         case FollowClearPosition(:final surah):
           w.aligner.clearPosition(surah: surah);
           w.resetAudio();

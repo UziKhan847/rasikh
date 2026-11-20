@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
@@ -6,6 +7,9 @@ import 'package:qiraah_ui/responsive.dart' show isDesktopPlatform;
 
 import '../../core/l10n.dart';
 import '../../core/mushaf_edition.dart';
+import '../../core/packs/pack_catalog.dart';
+import '../../core/packs/pack_install.dart';
+import '../../core/verified_download.dart';
 import '../../core/settings.dart';
 import '../../core/theme.dart';
 import '../../data/original/mushaf_packs.dart';
@@ -89,12 +93,73 @@ class _PackSheetState extends State<_PackSheet> {
   /// This device's tier, once known (it asks how much memory there is).
   OriginalTier? _recommended;
 
+  /// What the (signed) catalog offers for this print, by tier; null while
+  /// it's fetched, or without downloads.
+  Map<OriginalTier, PackEntry>? _offered;
+  bool _catalogFailed = false;
+
+  /// The download going on: its tier and how far.
+  OriginalTier? _loading;
+  double _progress = 0;
+  Completer<void>? _cancel;
+
   @override
   void initState() {
     super.initState();
     originalTierOfDevice(lite: widget.settings.lite).then((t) {
       if (mounted) setState(() => _recommended = t);
     });
+    if (PackCatalog.configured) {
+      PackCatalog.packs().then((all) {
+        if (!mounted) return;
+        setState(() => _offered = {
+              for (final p in all)
+                if (p.edition == widget.script)
+                  for (final t in OriginalTier.values)
+                    if (t.name == p.tier) t: p,
+            });
+      }, onError: (Object e) {
+        debugPrint('packs: $e');
+        if (mounted) setState(() => _catalogFailed = true);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _cancel?.complete();
+    super.dispose();
+  }
+
+  Future<void> _download(PackEntry p, OriginalTier t) async {
+    final l = context.l10n;
+    final cancel = _cancel = Completer<void>();
+    setState(() {
+      _loading = t;
+      _progress = 0;
+      _problem = null;
+    });
+    try {
+      await PackInstall.install(p, cancel: cancel.future, onProgress: (done, total) {
+        if (mounted) setState(() => _progress = done / total);
+      });
+      OriginalAtlas.reset();
+      if (mounted) Navigator.pop(context, true);
+    } on DownloadCancelled {
+      // Left: what came so far stays, to go on from next time.
+    } on DownloadBadFile {
+      if (mounted) setState(() => _problem = l.followBadFile);
+    } on PackRefused {
+      if (mounted) setState(() => _problem = l.followBadFile);
+    } on FileSystemException {
+      if (mounted) setState(() => _problem = l.packNoSpace);
+    } catch (e) {
+      debugPrint('pack download: $e');
+      if (mounted) setState(() => _problem = l.followNetError);
+    } finally {
+      if (mounted) setState(() => _loading = null);
+      _cancel = null;
+    }
   }
 
   @override
@@ -105,10 +170,29 @@ class _PackSheetState extends State<_PackSheet> {
     final name = mushafEditionName(l, script);
     final sizes = MushafPacks.sizesMb[script] ?? const {};
     Widget tier(OriginalTier t, String label) {
-      final mb = sizes[t];
-      return ListTile(
+      final offer = _offered?[t];
+      final mb = offer != null ? (offer.bytes / 1e6).round() : sizes[t];
+      final loading = _loading == t;
+      // Ready to download: the signed catalog has it, and nothing else is coming.
+      final can = offer != null && _loading == null;
+      final note = loading
+          ? l.followDownloading((_progress * 100).floor())
+          : offer != null
+              ? l.packMb(mb ?? 0)
+              : [
+                  if (mb != null) l.packMb(mb),
+                  !PackCatalog.configured || _catalogFailed || _offered != null
+                      ? (_catalogFailed ? l.followNetError : l.packSoon)
+                      : l.followStarting,
+                ].join(' · ');
+      return Column(mainAxisSize: MainAxisSize.min, children: [
+      ListTile(
         key: ValueKey('pack-${t.name}'),
-        enabled: false,
+        enabled: can || loading,
+        onTap: can ? () => _download(offer, t) : null,
+        trailing: loading
+            ? TextButton(onPressed: () => _cancel?.complete(), child: Text(l.cancel))
+            : null,
         leading: const Icon(Icons.download_rounded),
         title: Row(children: [
           Flexible(child: Text(label)),
@@ -125,8 +209,10 @@ class _PackSheetState extends State<_PackSheet> {
             ),
           ],
         ]),
-        subtitle: Text([if (mb != null) l.packMb(mb), l.packSoon].join(' · ')),
-      );
+        subtitle: Text(note),
+      ),
+      if (loading) LinearProgressIndicator(value: _progress == 0 ? null : _progress),
+      ]);
     }
 
     return SafeArea(
@@ -143,6 +229,12 @@ class _PackSheetState extends State<_PackSheet> {
             const SizedBox(height: 10),
             tier(OriginalTier.high, l.packHigh),
             tier(OriginalTier.low, l.packLow),
+            if (!isDesktopPlatform() && _problem != null) ...[
+              const SizedBox(height: 8),
+              Text(_problem!,
+                  key: const ValueKey('pack-problem'),
+                  style: uiStyle(context, size: 13.5, color: Theme.of(context).colorScheme.error)),
+            ],
             if (isDesktopPlatform()) ...[
               const Divider(height: 24),
               Text(l.packFolderHint, style: uiStyle(context, size: 13.5, color: p.ink2)),

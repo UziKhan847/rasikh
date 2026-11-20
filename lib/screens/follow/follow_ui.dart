@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:qiraah_ui/responsive.dart' show isDesktopPlatform;
 import 'package:record/record.dart' show AudioRecorder, InputDevice;
 
+import '../../core/downloads.dart' show formatBytes;
 import '../../core/follow/follow_model.dart';
 import '../../core/follow/follow_session.dart';
 import '../../core/follow/linux_mic.dart';
@@ -376,6 +377,25 @@ void showFollowOptions(BuildContext context, BuildContext anchor, AxisDirection 
                   s.update(() => s.followKeep = v);
                   FollowSession.instance.keepRecordings = v;
                   setPop(() {});
+                },
+              ),
+              // What's kept, and deleting it.
+              FutureBuilder<int>(
+                future: FollowRecordings.size(),
+                builder: (pop, snap) {
+                  final n = snap.data ?? 0;
+                  if (n == 0) return const SizedBox.shrink();
+                  return ListTile(
+                    key: const ValueKey('follow-recordings'),
+                    dense: true,
+                    leading: const Icon(Icons.delete_outline, size: 20),
+                    title: Text(l.followDeleteRecordings),
+                    subtitle: Text(formatBytes(n)),
+                    onTap: () async {
+                      await FollowRecordings.deleteAll();
+                      setPop(() {});
+                    },
+                  );
                 },
               ),
               SwitchListTile(

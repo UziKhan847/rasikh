@@ -10,6 +10,7 @@ import 'package:rasikh/core/marks/word_ref.dart';
 import 'package:rasikh/core/settings.dart';
 import 'package:rasikh/data/quran.dart';
 import 'package:rasikh/screens/quran_screen.dart';
+import 'package:rasikh/screens/reader/ayah_text.dart';
 
 import 'test_support.dart';
 
@@ -102,6 +103,21 @@ void main() {
         SurahReaderScreen.debugSpanBuilds,
       );
       debugPrint('[$layout] per word $perWord; mark $mark');
+      // Only the text of the āyah reciting, and only the āyah marked.
+      expect(perWord.$1, 0, reason: 'the Reader isn\'t rebuilt for a word');
+      expect(perWord.$3, 0, reason: 'its word spans are kept');
+      if (layout == 'cards') expect(perWord.$2, 0, reason: 'the card around it is left');
+      expect(mark, (0, 1, 0), reason: 'a mark rebuilds its own āyah, nothing else');
+      // And they still show: the word lit, the mark drawn.
+      // (Built just past the screen's edge, in the list's look-ahead.)
+      expect(
+          find.byWidgetPredicate((w) => w is AyahText && w.playWord == 9, skipOffstage: false),
+          findsOneWidget);
+      expect(
+          find.byWidgetPredicate(
+              (w) => w is AyahText && w.marks.any((v) => v?.open == MarkType.mistake),
+              skipOffstage: false),
+          findsOneWidget);
 
       await m.flush();
       await tester.pumpWidget(const SizedBox());

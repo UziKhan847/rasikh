@@ -534,19 +534,17 @@ void main() {
     expect(find.text('Original'), findsOneWidget);
     final chips = tester.widgetList<ChoiceChip>(find.byType(ChoiceChip)).toList();
     expect(chips, hasLength(5));
-    expect([for (final c in chips) c.onSelected != null], [true, true, true, true, false],
-        reason: 'only the original Indo-Pak is greyed out');
+    // (A phone: the original New Madani, its files not here — Old Madani's
+    // folder isn't its — and no way yet to get them there, is greyed out
+    // too; the original Indo-Pak isn't ready.)
+    expect([for (final c in chips) c.onSelected != null], [true, true, true, false, false]);
     await tester.tap(find.text('Old Madani'));
     await tester.pump();
     expect(picked, [kOldMadani]);
-    // The original New Madani, its files not here (Old Madani's folder isn't
-    // its): asked for, not picked.
     await tester.tap(find.text('New Madani').last);
     await tester.pumpAndSettle();
     expect(picked, [kOldMadani]);
-    expect(find.text("New Madani isn't on this device"), findsOneWidget);
-    await tester.tapAt(const Offset(10, 10));
-    await tester.pumpAndSettle();
+    expect(find.text("New Madani isn't on this device"), findsNothing);
 
     // Old Madani, held: which circle.
     final s = SettingsScope.of(tester.element(find.byType(MushafEditionPicker)));

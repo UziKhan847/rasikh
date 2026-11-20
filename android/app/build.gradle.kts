@@ -15,7 +15,8 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.uzikhan.rasikh"
-    compileSdk = flutter.compileSdkVersion
+    // 37: flutter_local_notifications 23 needs it (Flutter's default is 36).
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

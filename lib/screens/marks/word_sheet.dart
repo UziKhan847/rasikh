@@ -20,6 +20,7 @@ import 'word_marks_sheet.dart';
 /// marks.
 ///
 /// [onPlayWord] and [onRecite] are the view's own (each plays as it does);
+/// [canShow], while memorizing: the arrows stop at a word still hidden.
 /// [onLink], where the view links a mutashābih's likenesses itself.
 void showWordSheet(
   BuildContext context, {
@@ -30,7 +31,9 @@ void showWordSheet(
   required void Function(MushafWord) onRecite,
   String? Function()? sessionId,
   ValueChanged<Mark>? onLink,
+  ValueChanged<Mark>? onExtend,
   ValueListenable<bool>? fromLeft,
+  bool Function(MushafWord)? canShow,
 }) {
   final hasMarks = MarksScope.maybeOf(context) != null;
   final hasFluency = FluencyScope.maybeOf(context) != null;
@@ -49,12 +52,14 @@ void showWordSheet(
         // As the text runs, right to left: the previous word is on the
         // right, the next on the left.
         Widget step(int by) {
-          final to = MushafRepo.wordAtToken(script, tok + by);
+          MushafWord? to = MushafRepo.wordAtToken(script, tok + by);
+          // Memorizing: never onto a word still hidden.
+          if (to != null && canShow != null && !canShow(to)) to = null;
           return IconButton(
             tooltip: by > 0 ? l.mzNextWord : l.mzPrevWord,
             iconSize: 28,
             color: p.ink2,
-            onPressed: to == null ? null : () => setSheet(() => wd = to),
+            onPressed: to == null ? null : () => setSheet(() => wd = to!),
             icon: Icon(by > 0 ? AppIcons.chevronLeft : AppIcons.chevronRight),
           );
         }
@@ -130,6 +135,12 @@ void showWordSheet(
                           : (m) {
                               Navigator.pop(sheet);
                               onLink(m);
+                            },
+                      onExtend: onExtend == null
+                          ? null
+                          : (m) {
+                              Navigator.pop(sheet);
+                              onExtend(m);
                             },
                     ),
                   if (hasFluency && !wd.isMarker)

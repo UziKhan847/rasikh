@@ -65,6 +65,10 @@ class ProfileStore extends ChangeNotifier {
   static String marksDirOf(String id) =>
       id == defaultId ? 'marks' : 'profiles/$id/marks';
 
+  /// Where the active profile's sign-in to the marks server is kept (see
+  /// PocketBaseSyncBackend.authKeyFor): each profile its own account.
+  String get syncAuthKey => 'noor.pb_auth${suffixOf(_active)}';
+
   /// The active profile's marks persistence.
   MarksPersistence get marksPersistence => persistenceFor(marksDirOf(_active));
 

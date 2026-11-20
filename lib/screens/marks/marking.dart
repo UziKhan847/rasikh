@@ -80,10 +80,10 @@ Future<String?> askText(BuildContext context,
     WordRef? word,
     MarkType? markType}) {
   // The word a comment's about, as the muṣḥaf prints it, and its quick buttons.
+  final script = SettingsScope.of(context).mushafScript;
   final words = word == null || word.isWholeAyah
       ? ''
-      : MushafRepo.wordText(
-          SettingsScope.of(context).mushafScript, word.globalAyah, word.word0);
+      : MushafRepo.wordText(script, word.globalAyah, word.word0);
   return showDialog<String>(
     context: context,
     builder: (d) => _AskText(
@@ -93,6 +93,9 @@ Future<String?> askText(BuildContext context,
         long: long,
         comment: comment,
         word: words,
+        // The muṣḥaf's own text, in the muṣḥaf's own face (its signs, like
+        // the rounded zero over a silent alif, are in no other).
+        wordFont: MushafRepo.fontFamily(script),
         markType: markType),
   );
 }
@@ -101,7 +104,7 @@ class _AskText extends StatefulWidget {
   final String title, initial;
   final String? hint;
   final bool long, comment;
-  final String word;
+  final String word, wordFont;
   final MarkType? markType;
   const _AskText(
       {required this.title,
@@ -110,6 +113,7 @@ class _AskText extends StatefulWidget {
       required this.long,
       required this.comment,
       required this.word,
+      required this.wordFont,
       required this.markType});
 
   @override
@@ -174,12 +178,17 @@ class _AskTextState extends State<_AskText> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           if (widget.comment)
             QuickInsertBar(
-                word: widget.word, markType: widget.markType, onInsert: _insert),
-          // Reads the way its first letter does (Arabic: right to left).
+                word: widget.word,
+                wordFont: widget.wordFont,
+                markType: widget.markType,
+                onInsert: _insert),
+          // Reads the way it will show: all Arabic right to left, mixed the
+          // app language's way.
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: _text,
             builder: (context, v, field) => Directionality(
-              textDirection: directionOf(v.text) ?? Directionality.of(context),
+              textDirection: directionOf(v.text, ui: Directionality.of(context)) ??
+                  Directionality.of(context),
               child: field!,
             ),
             child: TextField(

@@ -782,10 +782,11 @@ extension _HifzChrome on _MushafPageScreenState {
         onTap: (_) => _hifzSetTool(_HifzTool.audio),
         onOptions: (b) => _hifzAudioOptions(b, side, s),
       ),
+      if (kFollowSupported)
       DockItem(
         icon: AppIcons.mic,
         tooltip: _tip(l.followTitle, KeyAction.follow),
-        selected: _following,
+        selected: _following || _memoFollow,
         onTap: (_) => _hifzFollow(),
         onOptions: (b) => showFollowOptions(context, b, side),
       ),
@@ -1033,15 +1034,29 @@ extension _HifzChrome on _MushafPageScreenState {
   }
 
   void _hifzMemorize() {
+    // Following when memorizing starts: it goes on, revealing what's
+    // recited from the first hidden word.
+    final carry = !_memorizing &&
+        _following &&
+        FollowSession.instance.active &&
+        identical(FollowSession.instance.owner, this);
     _update(() {
       _hifzTool = _HifzTool.none;
       _fluencyTool = null;
+      if (carry) _memoFollow = true;
     });
     if (_marking.active) _toggleMarking();
     if (_memorizing) {
       _endMemorize();
     } else {
       _startMemorize();
+      final m = _memo;
+      if (carry && m != null) {
+        _memoEndSeen = m.revealedEnd;
+        final (g, w) = MushafRepo.tokenAt(_script, m.nextHiddenWord);
+        FollowSession.instance.setPosition(g, w < 0 ? 0 : w);
+        _followSetView();
+      }
     }
   }
 

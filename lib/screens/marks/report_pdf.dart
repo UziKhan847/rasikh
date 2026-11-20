@@ -199,11 +199,6 @@ const _textWidth = 595.0 - 80;
 /// Pixels per point the images are painted at.
 const _scale = 2.5;
 
-bool _hasArabic(String s) => s.runes.any((c) =>
-    (c >= 0x0600 && c <= 0x06FF) ||
-    (c >= 0x0750 && c <= 0x077F) ||
-    (c >= 0x08A0 && c <= 0x08FF) ||
-    (c >= 0xFB50 && c <= 0xFEFF));
 
 /// Paints every verse of [report] and gathers the strings, for
 /// [buildReportPdf]. The verses are drawn exactly as the muṣḥaf draws them:
@@ -230,14 +225,26 @@ Future<ReportPdfInput> prepareReport(
   Future<PdfText> t(String s,
       {double size = 10, bool bold = false, int color = 0xFF1F2522,
       double width = _textWidth}) async {
-    if (!_hasArabic(s)) return PdfText.plain(s);
+    if (!hasArabic(s)) return PdfText.plain(s);
     return PdfText.painted(await paintTextImage(s,
         size: size,
         family: family,
         bold: bold,
         color: Color(color),
-        maxWidth: width));
+        maxWidth: width,
+        rtlUi: rtl));
   }
+
+  /// A comment (or a reply): always in Noto Naskh Arabic, Arabic or not, so
+  /// every comment in the export looks alike.
+  Future<PdfText> comment(String s,
+          {double size = 10, int color = 0xFF1F2522, double width = _textWidth}) async =>
+      PdfText.painted(await paintTextImage(s,
+          size: size,
+          family: 'NotoNaskhArabic',
+          color: Color(color),
+          maxWidth: width,
+          rtlUi: rtl));
 
   const sub = 0xFF6B716D;
   final atlas = MushafAtlas.of(script) ??
@@ -281,10 +288,10 @@ Future<ReportPdfInput> prepareReport(
           await t(line, size: 9, color: sub, width: _textWidth - 120),
           m.mark.comment.isEmpty
               ? null
-              : await t(m.mark.comment, width: _textWidth - 20),
+              : await comment(m.mark.comment, width: _textWidth - 20),
           [
             for (final c in m.replies)
-              await t('${who(c.authorId, c.authorName)}: ${c.text}',
+              await comment('${who(c.authorId, c.authorName)}: ${c.text}',
                   size: 9, color: sub, width: _textWidth - 30),
           ],
           number: markNumbers[m.mark.id],
@@ -462,8 +469,11 @@ Future<PdfImage> paintTextImage(
   bool bold = false,
   Color color = Colors.black,
   double maxWidth = _textWidth,
+  bool rtlUi = false,
 }) async {
-  final rtl = _firstStrongIsArabic(text);
+  // Arabic and another language together: the report's language's way.
+  final rtl = directionOf(text, ui: rtlUi ? TextDirection.rtl : TextDirection.ltr) ==
+      TextDirection.rtl;
   final tp = TextPainter(
     text: TextSpan(
         // Arabic inline in another language's sentence stays in its place.
@@ -491,15 +501,6 @@ Future<PdfImage> paintTextImage(
   return PdfImage(png, w, h);
 }
 
-bool _firstStrongIsArabic(String s) {
-  for (final c in s.runes) {
-    if (_hasArabic(String.fromCharCode(c))) return true;
-    if ((c >= 0x41 && c <= 0x5A) || (c >= 0x61 && c <= 0x7A) || c >= 0xC0 && c < 0x0600) {
-      return false;
-    }
-  }
-  return false;
-}
 
 /// Lays the report out as an A4 PDF. Pure: runs in another isolate.
 Future<Uint8List> buildReportPdf(ReportPdfInput d) async {

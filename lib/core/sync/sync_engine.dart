@@ -59,8 +59,23 @@ class SyncEngine extends ChangeNotifier {
   /// Switch servers (e.g. the server address changed). Signs out locally.
   Future<void> replaceBackend(SyncBackend b) async {
     _stopWatch();
+    _paused = false;
     _backend = b;
     await start();
+  }
+
+  /// While the store changes hands (another profile's marks): no syncing.
+  bool _paused = false;
+
+  /// Stops everything — the timers, the live updates — and waits out a sync
+  /// under way, so nothing of one profile's account lands in another's
+  /// marks. [replaceBackend] (the next profile's account) starts it again.
+  Future<void> pause() async {
+    _paused = true;
+    _debounce?.cancel();
+    _retry?.cancel();
+    _stopWatch();
+    await _running;
   }
 
   /// Restore a saved session (no network if there is none) and sync.
@@ -158,13 +173,14 @@ class SyncEngine extends ChangeNotifier {
   // ── syncing ────────────────────────────────────────────────────────────
 
   void _onLocalEdit(String bookId) {
-    if (!signedIn || store.book(bookId)?.synced != true) return;
+    if (_paused || !signedIn || store.book(bookId)?.synced != true) return;
     _debounce?.cancel();
     _debounce = Timer(pushDelay, () => unawaited(syncNow()));
   }
 
   void _onStore() {
     // Follow the active book for live updates.
+    if (_paused) return;
     final b = store.activeBook;
     final want = signedIn && b != null && b.synced ? b.id : null;
     if (want != _watching) _startWatch(want);
@@ -193,7 +209,7 @@ class SyncEngine extends ChangeNotifier {
   /// the background poll — doesn't flip the status to "syncing" and back,
   /// so it rebuilds nothing unless data actually changed.
   Future<void> syncNow({bool quiet = false}) async {
-    if (!signedIn || !store.ready) return;
+    if (_paused || !signedIn || !store.ready) return;
     if (_running != null) {
       _again = true;
       return _running;

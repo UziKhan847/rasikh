@@ -119,8 +119,8 @@ void main() {
     await m.flush();
   });
 
-  testWidgets('each mark on the pages is numbered on its word and listed '
-      'beside the page; filters and "only marked" hold', (tester) async {
+  testWidgets('each mark on the pages is numbered on its word and noted in '
+      'the nearer margin under its number; filters and "only marked" hold', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final s = AppSettings();
     await s.load();
@@ -158,20 +158,45 @@ void main() {
       final sheets = await preparePages(ctx, e, [6]);
       final sheet = sheets.single;
       // Each mark numbered on its word, in reading order (2:31, 2:33, 2:34),
-      // and listed beside the page under its number; no lines between.
-      expect([for (final b in sheet.badges) b.$3], [1, 2, 3]);
-      expect([for (final n in sheet.notes) n.$1], [1, 2, 3]);
-      final ys = [for (final b in sheet.badges) b.$2];
+      // and noted in a margin under the same number.
+      final onWords = sheet.badges.take(3).toList();
+      expect([for (final b in onWords) b.$3], [1, 2, 3]);
+      expect([for (final n in sheet.notes) n.$1]..sort(), [1, 2, 3]);
+      expect([for (final b in sheet.badges.skip(3)) b.$3]..sort(), [1, 2, 3],
+          reason: 'each note under its number');
+      final ys = [for (final b in onWords) b.$2];
       expect(ys[0], lessThanOrEqualTo(ys[1]), reason: 'down the page in order');
-      for (final (bx, by, _, _) in sheet.badges) {
+      for (final (bx, by, _, _) in onWords) {
         expect(bx, inInclusiveRange(sheet.pageX, sheet.pageX + sheet.page.width + 6));
         expect(by, inInclusiveRange(sheet.pageY, sheet.pageY + sheet.page.height));
       }
-      final panel = sheet.panel!;
-      expect(panel.left, greaterThanOrEqualTo(sheet.pageX + sheet.page.width),
-          reason: 'beside the page, not over it');
-      expect(panel.right, lessThanOrEqualTo(595));
-      expect(sheet.page.height, greaterThan(560));
+      for (final (_, left, box) in sheet.notes) {
+        // In its margin, not over the page.
+        if (left) {
+          expect(box.left, greaterThanOrEqualTo(0));
+          expect(box.right, lessThanOrEqualTo(sheet.pageX));
+        } else {
+          expect(box.left, greaterThanOrEqualTo(sheet.pageX + sheet.page.width));
+          expect(box.right, lessThanOrEqualTo(595));
+        }
+      }
+      expect(sheet.leaders, isEmpty, reason: 'lines only when asked for');
+      // With lines: one from each word to its note, from on the page out to
+      // the margin.
+      final lined = (await preparePages(
+              ctx,
+              PagesExport(store: m, bookId: b, script: 'uthmani', pages: [6], lines: true),
+              [6]))
+          .single;
+      expect(lined.leaders, hasLength(3));
+      for (final (pts, _) in lined.leaders) {
+        expect(pts[0], inInclusiveRange(lined.pageX, lined.pageX + lined.page.width),
+            reason: 'from the word');
+        final end = pts[pts.length - 2];
+        expect(end < lined.pageX || end > lined.pageX + lined.page.width, isTrue,
+            reason: 'to the margin');
+      }
+      expect(sheet.page.height, greaterThan(480));
       final bytes = await buildPagesPdf(sheets);
       expect(String.fromCharCodes(bytes.take(4)), '%PDF');
       const keep = String.fromEnvironment('PAGES_PDF');

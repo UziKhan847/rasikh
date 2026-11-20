@@ -2,6 +2,7 @@ import '../../core/bookmarks.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
@@ -388,31 +389,31 @@ class _MushafIndexState extends State<MushafIndex>
   Widget _markFilters(BuildContext context, MarkPalette mp) {
     final p = pal(context);
     Widget chip(String label, bool on, VoidCallback onTap, {Widget? lead}) =>
-        Padding(
-          padding: const EdgeInsetsDirectional.only(end: 6),
-          child: FilterChip(
-            selected: on,
-            showCheckmark: false,
-            avatar: lead,
-            label: Text(label, style: uiStyle(context, size: 12.5)),
-            onSelected: (_) => onTap(),
-            selectedColor: p.accSoft,
-            side: BorderSide(color: on ? p.acc : p.line2),
-            visualDensity: VisualDensity.compact,
-          ),
+        FilterChip(
+          selected: on,
+          showCheckmark: false,
+          avatar: lead,
+          label: Text(label, style: uiStyle(context, size: 12.5)),
+          onSelected: (_) => onTap(),
+          selectedColor: p.accSoft,
+          side: BorderSide(color: on ? p.acc : p.line2),
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         );
-    return SizedBox(
-      height: 40,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+    // All of them in sight: what doesn't fit goes on a second line.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           for (final t in MarkType.values)
             chip(markTypeLabel(context, t), _kinds.contains(t),
                 () => setState(() => _kinds.contains(t) ? _kinds.remove(t) : _kinds.add(t)),
                 lead: MarkSwatch(type: t, pal: mp, size: 12)),
           if (_kinds.isNotEmpty) ...[
-            const SizedBox(width: 8),
+            const SizedBox(width: 2),
             for (final (st, label) in [
               (MarkState.open, context.l10n.mkOpen),
               (MarkState.fixed, context.l10n.mkFixed),
@@ -512,10 +513,30 @@ class _MushafIndexState extends State<MushafIndex>
           if (_searching)
             Expanded(child: _results(context, store, book?.id, mp))
           else ...[
-          TabBar(
+          // Wider than the sheet on a phone: it fades at the end it scrolls
+          // to, and a mouse can drag it too.
+          ShaderMask(
+            blendMode: BlendMode.dstIn,
+            shaderCallback: (r) => LinearGradient(
+              begin: AlignmentDirectional.centerStart.resolve(Directionality.of(context)),
+              end: AlignmentDirectional.centerEnd.resolve(Directionality.of(context)),
+              colors: const [Colors.black, Colors.black, Colors.transparent],
+              stops: [0, 1 - 28 / r.width.clamp(28, double.infinity), 1],
+            ).createShader(r),
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(dragDevices: {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.trackpad,
+                PointerDeviceKind.stylus,
+              }),
+              child: TabBar(
             controller: _tab,
             isScrollable: true,
             tabAlignment: TabAlignment.start,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+            // Room past the last tab, under the fade.
+            padding: const EdgeInsetsDirectional.only(end: 24),
             tabs: [
               for (final d in _tabs)
                 d == Division.page
@@ -533,6 +554,8 @@ class _MushafIndexState extends State<MushafIndex>
                     : Tab(text: _tabLabel(d)),
               if (_withBookmarks) Tab(text: context.l10n.bookmarksTab),
             ],
+          ),
+            ),
           ),
           Expanded(
             child: TabBarView(

@@ -1,10 +1,11 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart' show DateFormat;
-import 'package:pdf/pdf.dart' show PdfColor, PdfPageFormat;
+import 'package:pdf/pdf.dart' show PdfColor, PdfPageFormat, PdfPoint;
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../core/fluency/fluency_store.dart' show FluencyVisual;
@@ -28,6 +29,7 @@ import '../mushaf/original_page.dart';
 import '../mushaf_screen.dart' show mushafPageForPrint;
 import 'marking.dart' show markTypeLabel;
 import 'export_sheet.dart';
+import '../../ui/bidi.dart';
 import 'export_delivery.dart' show ExportOut, deliverExport;
 import 'report_pdf.dart'
     show PdfImage, ReportPdfInput, addReportPages, exportOwnerName, marksPdfName, numberBadge, paintTextImage;
@@ -92,6 +94,9 @@ class PagesExport {
   final ReviewStatus status;
   final bool onlyMarked;
 
+  /// A faint line from each marked word out to its note in the margin.
+  final bool lines;
+
   /// Only these marks (by id; null: all the filters let through) — a
   /// report's, when the pages go before it.
   final Set<String>? ids;
@@ -106,6 +111,7 @@ class PagesExport {
     this.types = const {},
     this.status = ReviewStatus.any,
     this.onlyMarked = false,
+    this.lines = false,
     this.ids,
     this.ayahs,
   });
@@ -140,7 +146,10 @@ class PagesExport {
     final byWord = <int, List<Mark>>{};
     for (final ms in marksByPage.values) {
       for (final m in ms) {
-        (byWord[m.ref.key] ??= []).add(m);
+        // A mark over several words: on each of them, as on screen.
+        for (final w in m.spanWords(MarksStore.ayahWords) ?? [m.ref]) {
+          (byWord[w.key] ??= []).add(m);
+        }
       }
     }
     final breath = store.visuals(bookId, showFixed: false, showMarks: false);
@@ -196,10 +205,13 @@ class _Never implements Listenable {
 /// A4, points.
 const _paperW = 595.0, _paperH = 842.0;
 
-/// The outer margin, the notes' panel beside the page, and the gap between
-/// them.
-const _outer = 26.0, _noteW = 150.0, _gap = 12.0;
+/// The outer margin, a margin's notes, and the gap between them and the
+/// page — notes on both sides of it, each in the one nearer its word.
+const _outer = 26.0, _noteW = 96.0, _gap = 12.0;
 const _pageY = 52.0;
+
+/// A note's number, above its text.
+const _badge = 12.0;
 
 /// Pixels per point the muṣḥaf page is painted at (about 216 dpi).
 const _scale = 3.0;
@@ -210,21 +222,25 @@ const _compactX = 18.0, _compactY = 40.0;
 
 /// One sheet: the page painted, its running head and foot, each mark's
 /// numbered badge on its word, and (unless the report carries them) the
-/// notes beside the page, numbered to match.
+/// notes in the margins, each under the same number.
 class PrintSheet {
   final PdfImage page;
   final double pageX, pageY;
+
+  /// The running head and foot, and the notes' text.
   final List<(PdfImage, double x, double y)> texts;
 
-  /// Each mark's number, centred at (x, y), in its colour.
+  /// Each number, centred at (x, y), in its mark's colour: on the words,
+  /// and above the notes.
   final List<(double x, double y, int n, int colour)> badges;
 
-  /// The notes' panel: where it is, and each note — its number, colour and
-  /// text.
-  final Rect? panel;
-  final List<(int n, int colour, PdfImage text)> notes;
+  /// Each note: its number, its margin, and where it is (number and text).
+  final List<(int n, bool left, Rect box)> notes;
+
+  /// Lines from a word to its note (points x, y, …), in a faint colour.
+  final List<(List<double>, int colour)> leaders;
   const PrintSheet(this.page, this.pageX, this.pageY, this.texts,
-      [this.badges = const [], this.panel, this.notes = const []]);
+      [this.badges = const [], this.notes = const [], this.leaders = const []]);
 }
 
 /// Paints every page of [e], with a progress dialog, lays the PDF out off
@@ -278,10 +294,9 @@ Future<List<PrintSheet>> preparePages(
     BuildContext context, PagesExport e, List<int> pages,
     {void Function(int done)? onProgress, Map<String, int>? numbers}) async {
   final compact = numbers != null;
-  // With notes: the page at the left, as large as leaves the notes' panel
-  // its width at the right.
-  final pageX = compact ? _compactX : _outer;
-  final pageW = compact ? _paperW - 2 * pageX : _paperW - 2 * _outer - _gap - _noteW;
+  // With notes: the page between the two margins.
+  final pageX = compact ? _compactX : _outer + _noteW + _gap;
+  final pageW = _paperW - 2 * pageX;
   final pageY = compact ? _compactY : _pageY;
   // Everything taken from the context before the first await.
   final l = context.l10n;
@@ -311,13 +326,19 @@ Future<List<PrintSheet>> preparePages(
       ? 'NotoNastaliqUrdu'
       : (arabicUi ? 'NotoNaskhArabic' : 'Inter');
   Future<PdfImage> text(String s,
-          {double size = 8, int color = 0xFF1F2522, bool bold = false, double width = _noteW}) =>
+          {double size = 8,
+          int color = 0xFF1F2522,
+          bool bold = false,
+          double width = _noteW,
+          String? family}) =>
       paintTextImage(s,
           size: size,
-          family: _hasArabic(s) ? (lang == 'ur' ? 'NotoNastaliqUrdu' : 'NotoNaskhArabic') : uiFamily,
+          family: family ??
+              (hasArabic(s) ? (lang == 'ur' ? 'NotoNastaliqUrdu' : 'NotoNaskhArabic') : uiFamily),
           bold: bold,
           color: Color(color),
-          maxWidth: width);
+          maxWidth: width,
+          rtlUi: arabicUi);
 
   final head = paper.acc.toARGB32();
   const sub = 0xFF6B716D;
@@ -330,8 +351,8 @@ Future<List<PrintSheet>> preparePages(
     // Bound by the height: as wide as that leaves it, centred.
     final size = Size(box.width, box.height);
     final x = pageX + (pageW - size.width) / 2;
-    // What height's left over, above and below it alike (not all at the foot).
-    final y = compact ? pageY : pageY + ((_paperH - pageY - 40) - size.height) / 2;
+    // At the top of the sheet, under its running head.
+    final y = pageY;
     if (atlas != null) {
       final fs = size.width / MushafGeometry.refEmOf(e.script);
       final tier = atlas.tiers[atlas.tierFor(fs * _scale)];
@@ -389,7 +410,7 @@ Future<List<PrintSheet>> preparePages(
     }
 
     // ── the notes: each mark numbered on its word, in reading order, and
-    // listed beside the page under the same number, in its colour ──
+    // noted in the margin nearer it under the same number ──
     final ms = [
       for (final m in e.marksByPage[page] ?? const <Mark>[])
         if (words[(m.ref.globalAyah, m.ref.isWholeAyah ? -1 : m.ref.word0)] != null) m,
@@ -399,22 +420,82 @@ Future<List<PrintSheet>> preparePages(
         return ta != tb ? ta.compareTo(tb) : a.createdAt.compareTo(b.createdAt);
       });
     final badges = <(double, double, int, int)>[];
-    final notes = <(int, int, PdfImage)>[];
+    final pending = <_Note>[];
     final onWord = <(int, int), int>{};
     for (final (k, m) in ms.indexed) {
       final r = m.ref;
       final key = (r.globalAyah, r.isWholeAyah ? -1 : r.word0);
-      final at = words[key]!;
+      final at = words[key]!.shift(Offset(x, y));
       final colour = e.store.isFixed(m) ? 0xFF6E8F7A : mp.colorOf(m.type).toARGB32();
       // A second mark on a word: its badge beside the first.
       final nth = onWord[key] = (onWord[key] ?? -1) + 1;
-      badges.add((x + at.right - nth * 11, y + at.top, k + 1, colour));
+      badges.add((at.right - nth * 11, at.top, k + 1, colour));
       final comment = m.comment.trim();
-      final label = comment.isEmpty ? typeLabel[m.type]! : '${typeLabel[m.type]!} · $comment';
-      notes.add((k + 1, colour, await text(label, size: 8, width: _noteW - 34)));
+      pending.add(_Note(k + 1, at, colour, comment.isEmpty ? typeLabel[m.type]! : comment,
+          left: at.center.dx < x + size.width / 2));
     }
-    final panel = Rect.fromLTWH(_paperW - _outer - _noteW, y, _noteW, size.height);
-    sheets.add(PrintSheet(image, x, y, texts, badges, panel, notes));
+    final notes = <(int, bool, Rect)>[];
+    final leaders = <(List<double>, int)>[];
+    final bottom = _paperH - 40;
+    for (final leftSide in [true, false]) {
+      final side = pending.where((n) => n.left == leftSide).toList()
+        ..sort((a, b) => a.at.top != b.at.top ? a.at.top.compareTo(b.at.top) : a.n.compareTo(b.n));
+      if (side.isEmpty) continue;
+      // Each as level with its word as the ones above leave it; as many as
+      // there are fit the margin: smaller if need be (to 5.5 pt), then the
+      // longest shortened.
+      var fontSize = 8.0;
+      var cut = 0; // characters a note keeps; 0: all of it
+      final laid = <(_Note, PdfImage, double)>[];
+      while (true) {
+        laid.clear();
+        var below = y - 8;
+        for (final n in side) {
+          final shown = cut > 0 && n.label.length > cut ? '${n.label.substring(0, cut)}…' : n.label;
+          // The notes in Noto Naskh Arabic, Arabic or not: all alike.
+          final img = await text(shown, size: fontSize, width: _noteW, family: 'NotoNaskhArabic');
+          final top = math.max(n.at.top - _badge / 2, below);
+          laid.add((n, img, top));
+          below = top + _badge + 2 + img.height + 6;
+        }
+        if (below - 6 <= bottom || (fontSize <= 5.5 && cut > 0 && cut <= 24)) break;
+        if (fontSize > 5.5) {
+          fontSize = math.max(5.5, fontSize * .88);
+        } else {
+          cut = cut == 0 ? 120 : (cut * .7).round();
+        }
+      }
+      // Still past the foot: the last ones moved up, as little as will do.
+      var limit = bottom;
+      for (var i = laid.length - 1; i >= 0; i--) {
+        final (n, img, top) = laid[i];
+        final h = _badge + 2 + img.height;
+        if (top + h > limit) laid[i] = (n, img, limit - h);
+        limit = laid[i].$3 - 6;
+      }
+      for (final (n, img, top) in laid) {
+        final colX = leftSide ? _outer : _paperW - _outer - _noteW;
+        // The number at the outer edge; the text under it, from that edge.
+        final badgeX = leftSide ? _outer + _badge / 2 : _paperW - _outer - _badge / 2;
+        final badgeY = top + _badge / 2;
+        badges.add((badgeX, badgeY, n.n, n.colour));
+        texts.add((img, leftSide ? _outer : _paperW - _outer - img.width, top + _badge + 2));
+        notes.add((n.n, leftSide, Rect.fromLTWH(colX, top, _noteW, _badge + 2 + img.height)));
+        if (e.lines) {
+          // Along the top of the word's line, out past the page's edge,
+          // then across the gap to the note's number.
+          final faint = _faint(n.colour);
+          leaders.add((
+            leftSide
+                ? [n.at.left, n.at.top, x - 3, n.at.top, _outer + _noteW, badgeY, badgeX + _badge / 2 + 2, badgeY]
+                : [n.at.right, n.at.top, x + size.width + 3, n.at.top, _paperW - _outer - _noteW, badgeY,
+                    badgeX - _badge / 2 - 2, badgeY],
+            faint,
+          ));
+        }
+      }
+    }
+    sheets.add(PrintSheet(image, x, y, texts, badges, notes, leaders));
     onProgress?.call(++done);
     await Future<void>.delayed(Duration.zero);
   }
@@ -422,11 +503,26 @@ Future<List<PrintSheet>> preparePages(
   return sheets;
 }
 
-bool _hasArabic(String s) => s.runes.any((c) =>
-    (c >= 0x0600 && c <= 0x06FF) ||
-    (c >= 0x0750 && c <= 0x077F) ||
-    (c >= 0x08A0 && c <= 0x08FF) ||
-    (c >= 0xFB50 && c <= 0xFEFF));
+
+/// A mark's note, before it's placed in its margin.
+class _Note {
+  final int n;
+  final Rect at; // the word, on the paper
+  final int colour;
+  final String label;
+  final bool left;
+  _Note(this.n, this.at, this.colour, this.label, {required this.left});
+}
+
+/// [argb] most of the way to white: a line that's there without crossing
+/// out the words it passes.
+int _faint(int argb) {
+  int mix(int c) => (c + (255 - c) * .55).round();
+  return 0xFF000000 |
+      mix((argb >> 16) & 0xFF) << 16 |
+      mix((argb >> 8) & 0xFF) << 8 |
+      mix(argb & 0xFF);
+}
 
 /// What the page needs from the app around it, carried to the off-screen
 /// tree: theme, localizations, settings.
@@ -539,37 +635,24 @@ void addPageSheets(pw.Document doc, List<PrintSheet> sheets) {
         pw.Positioned(left: s.pageX, top: s.pageY, child: image(s.page)),
         for (final (i, x, y) in s.texts)
           pw.Positioned(left: x, top: y, child: image(i)),
-        // The notes' panel: white, beside the page, numbered as the page.
-        if (s.panel case final p?)
-          pw.Positioned(
-            left: p.left,
-            top: p.top,
-            child: pw.Container(
-              width: p.width,
-              constraints: pw.BoxConstraints(minHeight: p.height),
-              padding: const pw.EdgeInsets.fromLTRB(8, 10, 8, 10),
-              decoration: pw.BoxDecoration(
-                color: PdfColor.fromInt(0xFFFFFFFF),
-                border: pw.Border.all(color: PdfColor.fromInt(0xFFD9DCD8), width: .7),
-                borderRadius: pw.BorderRadius.circular(6),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  for (final (n, colour, t) in s.notes)
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.only(bottom: 6),
-                      child: pw.Row(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          numberBadge(n, colour, size: 12),
-                          pw.SizedBox(width: 6),
-                          image(t),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
+        // The lines, under the numbers: fine, dotted, faint.
+        if (s.leaders.isNotEmpty)
+          pw.Positioned.fill(
+            child: pw.CustomPaint(
+              size: const PdfPoint(_paperW, _paperH),
+              painter: (canvas, size) {
+                for (final (pts, colour) in s.leaders) {
+                  canvas
+                    ..setStrokeColor(PdfColor.fromInt(colour))
+                    ..setLineWidth(.45)
+                    ..setLineDashPattern([1, 1.4])
+                    ..moveTo(pts[0], size.y - pts[1]);
+                  for (var i = 2; i < pts.length; i += 2) {
+                    canvas.lineTo(pts[i], size.y - pts[i + 1]);
+                  }
+                  canvas.strokePath();
+                }
+              },
             ),
           ),
         for (final (x, y, n, colour) in s.badges)

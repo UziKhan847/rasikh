@@ -5,6 +5,8 @@ import '../core/l10n.dart';
 import '../core/marks/marks_store.dart';
 import '../core/profiles.dart';
 import '../core/settings.dart';
+import '../core/sync/pocketbase_backend.dart';
+import '../core/sync/sync_engine.dart';
 import '../core/theme.dart';
 import '../ui/adaptive_sheet.dart';
 import '../ui/app_icons.dart';
@@ -71,12 +73,19 @@ Future<void> switchProfile(BuildContext host, ProfileStore profiles, Profile p) 
   final settings = SettingsScope.of(host);
   final progress = ProgressScope.read(host);
   final marks = MarksScope.maybeOf(host);
+  final sync = SyncScope.maybeOf(host);
+  final fluency = FluencyScope.read(host);
   final nav = Navigator.of(host, rootNavigator: true);
+  // Each profile its own account: the sync stops while the marks change
+  // hands, then goes on as the other profile (signed in, or not).
+  await sync?.pause();
   await profiles.switchTo(p.id,
       settings: settings,
       progress: progress,
       marks: marks,
-      fluency: FluencyScope.read(host));
+      fluency: fluency);
+  await sync?.replaceBackend(
+      await syncBackendFor(settings.syncServer, authKey: profiles.syncAuthKey));
   nav.popUntil((r) => r.isFirst);
   if (host.mounted) {
     showQToast(host, host.l10n.prfNow(profileName(host, p)));

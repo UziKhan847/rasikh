@@ -95,7 +95,7 @@ class ReviewBar extends StatelessWidget {
             ),
           ),
           if (c.length > 0)
-            Text(context.l10n.rvPos(c.index + 1, c.length),
+            Text(context.l10n.rvPos(c.shownPosition, c.shownCount),
                 style: uiStyle(context,
                     size: 12.5, weight: FontWeight.w700, color: sub)),
         ]);
@@ -229,7 +229,7 @@ class ReviewBar extends StatelessWidget {
                     if (m != null)
                       MarkSwatch(type: fixed ? null : m.type, pal: pal, size: 14),
                     const SizedBox(width: 6),
-                    Text(c.length > 0 ? context.l10n.rvPos(c.index + 1, c.length) : '',
+                    Text(c.length > 0 ? context.l10n.rvPos(c.shownPosition, c.shownCount) : '',
                         style: uiStyle(context,
                             size: 12.5, weight: FontWeight.w700, color: sub)),
                   ]),
@@ -312,11 +312,20 @@ class ReviewBar extends StatelessWidget {
 
 /// Where the arrows step: everywhere in the review, or one sūrah, juzʼ,
 /// manzil, ḥizb or page of those it has marks in (each with its count).
-class _WhereChip extends StatelessWidget {
+class _WhereChip extends StatefulWidget {
   final ReviewController controller;
   final Color ink, line, accent;
   const _WhereChip(
       {required this.controller, required this.ink, required this.line, required this.accent});
+
+  @override
+  State<_WhereChip> createState() => _WhereChipState();
+}
+
+class _WhereChipState extends State<_WhereChip> {
+  /// The places are counted only while the menu is open (not on every step
+  /// through the review).
+  bool _open = false;
 
   static const _divisions = [
     Division.surah,
@@ -352,7 +361,7 @@ class _WhereChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = controller;
+    final c = widget.controller;
     final where = c.where;
     final on = where != null;
     final label = where == null
@@ -361,6 +370,8 @@ class _WhereChip extends StatelessWidget {
     return Padding(
       padding: const EdgeInsetsDirectional.only(end: 6),
       child: MenuAnchor(
+        onOpen: () => setState(() => _open = true),
+        onClose: () => setState(() => _open = false),
         menuChildren: [
           MenuItemButton(
             key: const ValueKey('where-all'),
@@ -372,6 +383,7 @@ class _WhereChip extends StatelessWidget {
             SubmenuButton(
               key: ValueKey('where-${d.name}'),
               menuChildren: [
+                if (_open)
                 for (final (n, count) in c.placesOf(d))
                   MenuItemButton(
                     key: ValueKey('where-${d.name}-$n'),
@@ -390,17 +402,17 @@ class _WhereChip extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: on ? accent.withValues(alpha: .16) : Colors.transparent,
+              color: on ? widget.accent.withValues(alpha: .16) : Colors.transparent,
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: on ? accent : line, width: on ? 1.6 : 1),
+              border: Border.all(color: on ? widget.accent : widget.line, width: on ? 1.6 : 1),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.place_outlined, size: 14, color: ink),
+              Icon(Icons.place_outlined, size: 14, color: widget.ink),
               const SizedBox(width: 4),
               Text(label,
                   style: uiStyle(context,
-                      size: 12.5, weight: on ? FontWeight.w700 : FontWeight.w500, color: ink)),
-              Icon(Icons.arrow_drop_down, size: 16, color: ink),
+                      size: 12.5, weight: on ? FontWeight.w700 : FontWeight.w500, color: widget.ink)),
+              Icon(Icons.arrow_drop_down, size: 16, color: widget.ink),
             ]),
           ),
         ),

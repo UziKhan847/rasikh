@@ -242,6 +242,19 @@ class ReviewController extends ChangeNotifier {
     return -1;
   }
 
+  /// The marks the arrows step through now (the kind and place chosen),
+  /// and where the current one is among them (1-based; 0: it isn't).
+  int get shownCount => _items.where(_matches).length;
+  int get shownPosition {
+    final cur = current;
+    if (cur == null || !_matches(cur)) return 0;
+    var n = 0;
+    for (var i = 0; i <= _index; i++) {
+      if (_matches(_items[i])) n++;
+    }
+    return n;
+  }
+
   bool get hasNext => _find(_index + 1, 1) >= 0;
   bool get hasPrev => _find(_index - 1, -1) >= 0;
 

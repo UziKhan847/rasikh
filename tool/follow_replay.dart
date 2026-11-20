@@ -3,7 +3,10 @@
 // it follows. For tuning on a desktop:
 //
 //   ffmpeg -i in.mp3 -ar 16000 -ac 1 -f s16le in.pcm   (or a 16 kHz mono WAV)
-//   dart run tool/follow_replay.dart in.pcm assets/follow/high [2:1|any]
+//   dart run tool/follow_replay.dart in.pcm assets/follow/high [2:1|any] [2:70-2:76]
+//
+// The last, the page in view (its first and last āyah): where a phrase
+// that comes in several places is looked for first.
 //
 // The model folder holds model.int8.onnx, tokens.txt and silero_vad.onnx.
 import 'dart:async';
@@ -16,7 +19,7 @@ import 'package:rasikh/core/follow/follow_worker.dart';
 
 Future<void> main(List<String> args) async {
   if (args.length < 2) {
-    stderr.writeln('usage: follow_replay <audio.pcm|.wav> <model dir> [surah:ayah|any]');
+    stderr.writeln('usage: follow_replay <audio.pcm|.wav> <model dir> [surah:ayah|any] [s:a-s:a]');
     exit(2);
   }
   var pcm = File(args[0]).readAsBytesSync();
@@ -81,6 +84,12 @@ Future<void> main(List<String> args) async {
 
   final from = args.length > 2 ? args[2] : 'any';
   to.send(from == 'any' ? const FollowClearPosition(null) : FollowSetPosition(firstWordOf[from]!));
+  if (args.length > 3) {
+    final [a, b] = args[3].split('-');
+    final (s, v) = (int.parse(b.split(':')[0]), int.parse(b.split(':')[1]));
+    final end = firstWordOf['$s:${v + 1}'] ?? firstWordOf['${s + 1}:1'] ?? words.length;
+    to.send(FollowSetView(Int32List.fromList([firstWordOf[a]!, end - 1])));
+  }
   const chunk = 3200; // 100 ms
   for (var i = 0; i < pcm.length; i += chunk) {
     final end = i + chunk < pcm.length ? i + chunk : pcm.length;

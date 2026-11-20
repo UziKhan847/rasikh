@@ -164,13 +164,14 @@ void main() {
     expect(kursi.verse.height, greaterThan(150));
     expect(kursi.verse.png.sublist(1, 4), 'PNG'.codeUnits);
     expect(kursi.marks.first.line.text, startsWith('Word 3 · You'));
-    expect(kursi.marks.first.comment!.text, 'Lengthen the madd');
+    // The comment, painted in Noto Naskh Arabic as every comment is.
+    expect(kursi.marks.first.comment!.image, isNotNull);
     expect(input.groups[0].ayahs.single.marks.single.fixed, isTrue);
     expect(input.groups[0].name, isNotNull, reason: 'the Arabic name');
     // A comment in Arabic goes in painted (the pdf package can't join it).
     final hes = input.groups[2].ayahs.single.marks.single;
     expect(hes.comment!.image, isNotNull);
-    expect(hes.replies.single.text, 'You: Again tomorrow');
+    expect(hes.replies.single.image, isNotNull, reason: 'replies too, in the same face');
 
     final bytes = (await tester.runAsync(() => compute(buildReportPdf, input)
         .timeout(const Duration(seconds: 60))))!;
@@ -295,7 +296,7 @@ void main() {
     expect(sheets, hasLength(3), reason: 'one page per marked page');
     expect([for (final s in sheets) for (final x in s.badges) x.$3]..sort(), [1, 2, 3, 4]);
     for (final s in sheets) {
-      expect(s.panel, isNull, reason: 'no notes beside it: the report has them');
+      expect(s.notes, isEmpty, reason: 'no notes beside it: the report has them');
       // As tall as the paper allows: half as wide again as with notes.
       expect(s.page.width, greaterThan(450), reason: 'small margins');
     }

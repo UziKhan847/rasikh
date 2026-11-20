@@ -11,6 +11,11 @@ const _arabic = '؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿';
 final _phrase = RegExp('[$_arabic]+(?:[  ]+[$_arabic]+)*');
 final _strong = RegExp('[$_arabic]|[A-Za-zÀ-ɏ]');
 
+final _anyArabic = RegExp('[$_arabic]');
+
+/// Whether [s] has any Arabic-script letter.
+bool hasArabic(String s) => _anyArabic.hasMatch(s);
+
 /// [s] with each Arabic phrase isolated (right to left, as one piece). A
 /// text all Arabic, or none, is left as it is.
 String isolateArabic(String s) {
@@ -20,15 +25,23 @@ String isolateArabic(String s) {
   return s.replaceAllMapped(_phrase, (m) => '\u2067${m[0]}\u2069');
 }
 
-/// The direction [s] reads in: its first letter's (Arabic → right to left,
-/// Latin → left to right); null when it has neither.
-TextDirection? directionOf(String s) {
+final _latin = RegExp('[A-Za-zÀ-ɏ]');
+
+/// The direction [s] reads in. All Arabic: right to left; no Arabic: left
+/// to right; null when it has no letters. Both: the app's language's, [ui]
+/// ("ب is 2 counts" in English starts at the left, with ب) — or, without
+/// [ui], its first letter's.
+TextDirection? directionOf(String s, {TextDirection? ui}) {
   final m = _strong.firstMatch(s);
   if (m == null) return null;
-  return RegExp('[$_arabic]').hasMatch(m[0]!) ? TextDirection.rtl : TextDirection.ltr;
+  final arabicFirst = _anyArabic.hasMatch(m[0]!);
+  final mixed = arabicFirst ? _latin.hasMatch(s) : _anyArabic.hasMatch(s);
+  if (mixed && ui != null) return ui;
+  return arabicFirst ? TextDirection.rtl : TextDirection.ltr;
 }
 
-/// A comment as text: its own direction, its Arabic phrases inline.
+/// A comment as text: its own direction (mixed: the app's), its Arabic
+/// phrases inline.
 class CommentText extends StatelessWidget {
   final String text;
   final TextStyle? style;
@@ -42,6 +55,6 @@ class CommentText extends StatelessWidget {
         style: style,
         maxLines: maxLines,
         overflow: overflow,
-        textDirection: directionOf(text),
+        textDirection: directionOf(text, ui: Directionality.of(context)),
       );
 }

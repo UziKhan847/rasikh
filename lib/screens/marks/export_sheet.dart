@@ -218,6 +218,9 @@ class _ExportSheetState extends State<_ExportSheet> {
   late Set<MarkType> _types = widget.draft?.types ?? const {};
   late ReviewStatus _status = widget.draft?.status ?? widget.status;
   late bool _onlyMarked = widget.draft?.onlyMarked ?? false;
+
+  /// Lines from the marks to their notes: as last chosen (this run).
+  static bool _lines = false;
   late _Period _period = widget.draft?.period ?? _Period.all;
   late DateTimeRange? _range = widget.draft?.range;
   late ReportGrouping _group = widget.draft?.group ?? ReportGrouping.surah;
@@ -329,6 +332,7 @@ class _ExportSheetState extends State<_ExportSheet> {
         status: _status,
         // Everything: only the pages with marks (not 604 bare ones).
         onlyMarked: _onlyMarked || _scope == _Scope.all || ids != null,
+        lines: _lines,
         ids: ids,
         ayahs: _verses,
       );
@@ -581,6 +585,16 @@ class _ExportSheetState extends State<_ExportSheet> {
                 onChanged: (v) => setState(() => _onlyMarked = v),
               ),
             ],
+            // Notes in the margins (not with the report): lines to them.
+            if (_kind == ExportKind.pages)
+              SwitchListTile(
+                key: const ValueKey('pp-lines'),
+                contentPadding: EdgeInsets.zero,
+                title: Text(l.ppLines, style: uiStyle(context, size: 14.5)),
+                subtitle: Text(l.ppLinesSub, style: uiStyle(context, size: 12.5)),
+                value: _lines,
+                onChanged: (v) => setState(() => _lines = v),
+              ),
             if (_kind != ExportKind.pages) ...[
               QSectionLabel(l.rpPeriod),
               Wrap(spacing: 8, runSpacing: 8, children: [

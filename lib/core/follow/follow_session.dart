@@ -4,10 +4,12 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import '../../data/mushaf.dart';
+import 'follow_debug.dart';
 import 'follow_model.dart';
 import 'follow_worker.dart';
 
@@ -63,6 +65,10 @@ class FollowWords {
   }
 }
 
+/// Whether following can run here: it needs the app's folders and the
+/// native speech engine, which a browser hasn't.
+const bool kFollowSupported = !kIsWeb;
+
 enum FollowStatus { off, starting, listening, searching, paused, failed }
 
 /// What does the work: the mic and the model ([SherpaFollowEngine]), or a
@@ -79,6 +85,9 @@ abstract class FollowEngine {
   /// Starts listening from [fromWord]; false if the mic was refused.
   Future<bool> start(int fromWord);
   void setPosition(int word);
+
+  /// The pages in view, best first (word ranges): see FollowAligner.setView.
+  void setView(List<(int, int)> ranges);
   Future<void> stop();
   Future<void> dispose();
 }
@@ -189,6 +198,37 @@ class FollowSession {
 
   bool get active => status.value != FollowStatus.off;
 
+  // ── the app away: the mic off, back on its return (wherever it was started) ──
+
+  late final _lifecycle = _FollowLifecycle(this);
+  bool _pausedAway = false;
+
+  void _watchLifecycle(bool on) {
+    if (on) {
+      WidgetsBinding.instance.removeObserver(_lifecycle);
+      WidgetsBinding.instance.addObserver(_lifecycle);
+    } else {
+      WidgetsBinding.instance.removeObserver(_lifecycle);
+      _pausedAway = false;
+    }
+  }
+
+  void _onLifecycle(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      if (status.value == FollowStatus.listening || status.value == FollowStatus.searching) {
+        _pausedAway = true;
+        pause();
+      }
+    } else if (state == AppLifecycleState.resumed && _pausedAway) {
+      _pausedAway = false;
+      resume();
+    }
+  }
+
+  /// Tests: as if the app went away (or came back).
+  @visibleForTesting
+  void debugLifecycle(AppLifecycleState state) => _onLifecycle(state);
+
   /// The word's (global āyah, muṣḥaf word0), or null.
   (int, int)? get place {
     final w = words, i = word.value;
@@ -214,6 +254,7 @@ class FollowSession {
       _heardSub = e.heard.listen((h) => heard.value = h);
       _levelSub = e.levels.listen(_onLevel);
       word.value = from - 1;
+      if (_view.isNotEmpty) e.setView(_view);
       if (!await e.start(from)) {
         failure = 'mic';
         await _teardown(FollowStatus.failed);
@@ -221,6 +262,7 @@ class FollowSession {
       }
       status.value = FollowStatus.listening;
       _watchMic();
+      _watchLifecycle(true);
     } catch (e) {
       failure = '$e';
       debugPrint('follow: $e');
@@ -231,13 +273,12 @@ class FollowSession {
   void _onEvent((String, int) e) {
     final (kind, w) = e;
     // Fed a recording (desktop, for checking): what it follows, logged.
-    if (SherpaFollowEngine.feedFile != null) {
+    FollowDebug.log(() {
       final ws = words;
-      final at = ws == null || w < 0
-          ? ''
-          : '${MushafRepo.surahAyahOf(ws.ayahOf[w]).$1}:${MushafRepo.surahAyahOf(ws.ayahOf[w]).$2}:${ws.word0Of[w] + 1}';
-      debugPrint('follow: $kind $at');
-    }
+      if (ws == null || w < 0) return 'follow: $kind';
+      final (su, ay) = MushafRepo.surahAyahOf(ws.ayahOf[w]);
+      return 'follow: $kind $su:$ay:${ws.word0Of[w] + 1}';
+    });
     switch (kind) {
       case 'lost':
         // Said only if nothing's found for a moment: a long pause is not lost.
@@ -261,6 +302,48 @@ class FollowSession {
     final i = w.indexOf(g, word0);
     word.value = i - 1;
     e.setPosition(i);
+  }
+
+  /// The pages in view, best first, as word ranges ([viewOf] makes them):
+  /// a phrase that comes in several places is taken on the page in view,
+  /// then the next, then the one before, before anywhere else.
+  void setView(List<(int, int)> ranges) {
+    _view = ranges;
+    _engine?.setView(ranges);
+  }
+
+  List<(int, int)> _view = const [];
+
+  /// The words of [script]'s tokens [first]..[end) (end exclusive), as a
+  /// range of [words]; null if none are words.
+  (int, int)? wordsOfTokens(String script, int first, int end) {
+    final w = words;
+    if (w == null) return null;
+    int? a, b;
+    for (var t = first; t < end; t++) {
+      final (g, i) = MushafRepo.tokenAt(script, t);
+      if (i < 0) continue;
+      final x = w.indexOf(g, i);
+      a ??= x;
+      b = x;
+    }
+    return a == null ? null : (a, b!);
+  }
+
+  /// [script]'s pages [first]..[last] in view: those, then the next page,
+  /// then the one before.
+  List<(int, int)> viewOf(String script, int first, int last) {
+    final pages = MushafRepo.pageCountSync(script);
+    (int, int)? of(int p) {
+      if (p < 1 || p > pages) return null;
+      final (a, b) = MushafRepo.pageTokens(script, p);
+      return wordsOfTokens(script, a, b);
+    }
+    (int, int)? span(int p, int q) {
+      final x = of(p), y = of(q);
+      return x == null || y == null ? x ?? y : (x.$1, y.$2);
+    }
+    return [?span(first, last), ?of(last + 1), ?of(first - 1)];
   }
 
   /// The mic off for a while (the model stays ready).
@@ -301,11 +384,13 @@ class FollowSession {
     _levelSub = null;
     level.value = 0;
     micProblem.value = null;
+    _watchLifecycle(false);
     final e = _engine;
     _engine = null;
     status.value = to;
     word.value = -1;
     heard.value = null;
+    _view = const [];
     await e?.dispose();
   }
 }
@@ -330,14 +415,6 @@ class SherpaFollowEngine implements FollowEngine {
   /// The loudest sample since the level was last said, and when that was.
   double _peak = 0;
   final _levelClock = Stopwatch()..start();
-
-  /// Desktop, for checking the whole of it: a recording (16 kHz mono
-  /// 16-bit PCM, or a WAV) heard in place of the microphone, in real time.
-  static String? get feedFile {
-    if (kIsWeb || !(Platform.isLinux || Platform.isWindows || Platform.isMacOS)) return null;
-    final f = Platform.environment['RASIKH_FOLLOW_PCM'];
-    return f == null || f.isEmpty ? null : f;
-  }
 
   SherpaFollowEngine._(this._isolate, this._to, this._port, this._portSub);
 
@@ -404,7 +481,7 @@ class SherpaFollowEngine implements FollowEngine {
     setPosition(fromWord);
     if (_mic != null) return true;
     final Stream<Uint8List> stream;
-    if (feedFile case final f?) {
+    if (FollowDebug.feedFile case final f?) {
       stream = _fileStream(f);
     } else {
       if (!await _recorder.hasPermission()) return false;
@@ -472,8 +549,9 @@ class SherpaFollowEngine implements FollowEngine {
   /// A new file for what's heard: `<app support>/follow/recordings/<time>.pcm`.
   Future<void> _openKeep() async {
     try {
-      final dir = Directory('${(await getApplicationSupportDirectory()).path}/follow/recordings');
+      final dir = await FollowRecordings.dir();
       await dir.create(recursive: true);
+      await FollowRecordings.prune();
       final stamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
       _keep = File('${dir.path}/$stamp.pcm').openWrite();
     } catch (e) {
@@ -483,6 +561,11 @@ class SherpaFollowEngine implements FollowEngine {
 
   @override
   void setPosition(int word) => _to.send(FollowSetPosition(word));
+
+  @override
+  void setView(List<(int, int)> ranges) => _to.send(FollowSetView(Int32List.fromList([
+        for (final (a, b) in ranges) ...[a, b],
+      ])));
 
   @override
   Future<void> stop() async {
@@ -509,5 +592,63 @@ class SherpaFollowEngine implements FollowEngine {
     await _events.close();
     await _heard.close();
     await _levels.close();
+  }
+}
+
+class _FollowLifecycle with WidgetsBindingObserver {
+  final FollowSession session;
+  _FollowLifecycle(this.session);
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) => session._onLifecycle(state);
+}
+
+/// What "Keep recordings for tuning" has saved: raw 16 kHz audio, about
+/// 115 MB an hour — kept to [cap], the oldest going first, and deleted at a
+/// tap.
+abstract final class FollowRecordings {
+  static const cap = 500 * 1024 * 1024;
+
+  /// Tests: the folder, in place of the app's.
+  @visibleForTesting
+  static String? debugDir;
+
+  static Future<Directory> dir() async => Directory(
+      debugDir ?? '${(await getApplicationSupportDirectory()).path}/follow/recordings');
+
+  static Future<List<File>> _files() async {
+    final d = await dir();
+    if (!d.existsSync()) return const [];
+    return [for (final f in d.listSync()) if (f is File && f.path.endsWith('.pcm')) f]
+      ..sort((a, b) => a.path.compareTo(b.path)); // named by time: oldest first
+  }
+
+  /// How much is kept, in bytes.
+  static Future<int> size() async {
+    var n = 0;
+    for (final f in await _files()) {
+      n += f.lengthSync();
+    }
+    return n;
+  }
+
+  /// The oldest removed until what's kept is under [cap].
+  static Future<void> prune() async {
+    final files = await _files();
+    var n = 0;
+    for (final f in files) {
+      n += f.lengthSync();
+    }
+    for (final f in files) {
+      if (n <= cap) break;
+      n -= f.lengthSync();
+      f.deleteSync();
+    }
+  }
+
+  static Future<void> deleteAll() async {
+    for (final f in await _files()) {
+      f.deleteSync();
+    }
   }
 }

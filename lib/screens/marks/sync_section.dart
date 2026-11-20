@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/l10n.dart';
 import '../../core/marks/marks_model.dart';
 import '../../core/marks/marks_store.dart';
+import '../../core/profiles.dart';
 import '../../core/settings.dart';
 import '../../core/sync/pocketbase_backend.dart';
 import '../../core/sync/sync_backend.dart';
@@ -89,12 +91,13 @@ class SyncSection extends StatelessWidget {
           children: [
             if (book != null && !book.synced && book.myRole == BookRole.owner)
               QRow(
-                title: context.l10n.mkShareBook,
-                subtitle: context.l10n.mkShareBookSub,
+                title: context.l10n.mkShareStudent,
+                subtitle: context.l10n.mkShareStudentSub,
                 leading: Icon(AppIcons.cloud, color: p.ink3),
                 control: QOutlineButton(
-                  context.l10n.mkSyncThisBook,
-                  onTap: () => _guard(context, () => sync.enableSync(book.id)),
+                  context.l10n.mkShareBtn,
+                  key: const ValueKey('share-student'),
+                  onTap: () => _shareWithStudent(context, sync, book.id),
                 ),
               ),
             if (book != null &&
@@ -162,6 +165,39 @@ class SyncSection extends StatelessWidget {
                 .format(context)),
       };
 
+  /// In one go: what they may do, the book synced, and their code.
+  Future<void> _shareWithStudent(
+      BuildContext context, SyncEngine sync, String bookId) async {
+    final l = context.l10n;
+    final role = await showDialog<BookRole>(
+      context: context,
+      builder: (d) => SimpleDialog(
+        title: Text(l.mkShareStudent),
+        children: [
+          for (final (r, title, sub) in [
+            (BookRole.checker, l.mkRoleChecker, l.mkRoleCheckerSub),
+            (BookRole.listener, l.mkRoleListener, l.mkRoleListenerSub),
+          ])
+            SimpleDialogOption(
+              key: ValueKey('share-${r.name}'),
+              onPressed: () => Navigator.pop(d, r),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, style: uiStyle(d, size: 15, weight: FontWeight.w600)),
+                Text(sub, style: uiStyle(d, size: 13, color: pal(d).ink3)),
+              ]),
+            ),
+        ],
+      ),
+    );
+    if (role == null || !context.mounted) return;
+    var ok = false;
+    await _guard(context, () async {
+      await sync.enableSync(bookId);
+      ok = sync.store.book(bookId)?.synced ?? false;
+    });
+    if (ok && context.mounted) await _invite(context, sync, bookId, role);
+  }
+
   Future<void> _invite(BuildContext context, SyncEngine sync, String bookId,
       BookRole role) async {
     try {
@@ -188,6 +224,10 @@ class SyncSection extends StatelessWidget {
                   showQToast(context, context.l10n.mkCopied);
                 },
                 child: Text(MaterialLocalizations.of(d).copyButtonLabel)),
+            TextButton(
+                onPressed: () => SharePlus.instance.share(ShareParams(
+                    text: d.l10n.mkInviteShareText(code))),
+                child: Text(d.l10n.mkShareBtn)),
             TextButton(
                 onPressed: () => Navigator.pop(d),
                 child: Text(MaterialLocalizations.of(d).okButtonLabel)),
@@ -297,7 +337,9 @@ class _AccountFormState extends State<_AccountForm> {
     try {
       if (server != s.syncServer) {
         s.update(() => s.syncServer = server);
-        await sync.replaceBackend(await PocketBaseSyncBackend.create(server));
+        await sync.replaceBackend(await PocketBaseSyncBackend.create(server,
+            authKey: ProfileScope.maybeOf(context)?.syncAuthKey ??
+                PocketBaseSyncBackend.authKeyFor('')));
       }
       if (_signUp) {
         await sync.signUp(user, _pass.text,

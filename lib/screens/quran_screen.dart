@@ -1522,7 +1522,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
       _readerMemorize();
     } else if (hit(KeyAction.recitation)) {
       setState(() => _playerOpen = !_playerOpen);
-    } else if (hit(KeyAction.follow)) {
+    } else if (kFollowSupported && hit(KeyAction.follow)) {
       _readerFollow();
     } else if (hit(KeyAction.history)) {
       openSection(context, AppSection.hifz, fromLeft: _dockLeftOn);
@@ -1664,6 +1664,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen>
         selected: _playerOpen,
         onTap: (_) => setState(() => _playerOpen = !_playerOpen),
       ),
+      if (kFollowSupported)
       DockItem(
         icon: AppIcons.mic,
         tooltip: l.followTitle,

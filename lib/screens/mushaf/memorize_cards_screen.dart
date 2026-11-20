@@ -23,7 +23,7 @@ import '../../ui/mark_style.dart';
 import '../follow/follow_ui.dart';
 import '../marks/marking.dart';
 import '../marks/marking_bar.dart' show kMarkPens;
-import '../marks/word_marks_sheet.dart';
+import '../marks/word_sheet.dart';
 import '../marks/word_menu.dart';
 import '../mushaf_screen.dart';
 import 'memorize_bar.dart';
@@ -83,6 +83,16 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
     _marking.addListener(_changed);
     FollowSession.instance.word.addListener(_heard);
     FollowSession.instance.status.addListener(_followStatus);
+    // Revealing what's recited, carried over from the page: ours now.
+    final fs = FollowSession.instance;
+    if (fs.active && identical(fs.owner, #memorize)) {
+      fs.owner = this;
+      _listening = true;
+      _endSeen = _c.revealedEnd;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _setView();
+      });
+    }
     _load();
   }
 
@@ -99,8 +109,32 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
 
   void _changed() {
     if (!mounted) return;
+    // Revealed or hidden by hand while revealing what's recited: they'll
+    // recite on from the first hidden word.
+    if (_listening && !_revealing && _c.revealedEnd != _endSeen &&
+        identical(FollowSession.instance.owner, this)) {
+      final (g, w) = MushafRepo.tokenAt(_script, _c.nextHiddenWord);
+      FollowSession.instance.setPosition(g, w < 0 ? 0 : w);
+    }
+    if (_listening && _c.revealedEnd != _endSeen) _setView();
+    _endSeen = _c.revealedEnd;
     setState(() {});
     _followCard();
+  }
+
+  /// Where revealing was, last seen; whether Follow is revealing (not a hand).
+  int _endSeen = -1;
+  bool _revealing = false;
+
+  /// Where a phrase that comes in several places is taken: from the first
+  /// hidden word on, then what's shown just before it, then anywhere.
+  void _setView() {
+    final fs = FollowSession.instance;
+    if (!fs.active || !identical(fs.owner, this)) return;
+    final t = _c.nextHiddenWord;
+    final ahead = fs.wordsOfTokens(_script, t, t + 120);
+    final before = fs.wordsOfTokens(_script, t - 60 < 0 ? 0 : t - 60, t);
+    fs.setView([?ahead, ?before]);
   }
 
   // ── the scrolling view ──
@@ -294,8 +328,10 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
     ReciteBack.instance.stop();
     final (g, w) = MushafRepo.tokenAt(_script, _c.nextHiddenWord);
     setState(() => _listening = true);
+    _endSeen = _c.revealedEnd;
     final ok = await startFollow(context, this, g, w < 0 ? 0 : w);
     if (mounted && !ok) setState(() => _listening = false);
+    if (ok) _setView();
   }
 
   /// A word heard: shown, with what's before it — but not a jump far on
@@ -305,13 +341,20 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
     final place = FollowSession.instance.place;
     if (place == null) return;
     final t = MushafRepo.tokenOf(_script, place.$1, place.$2);
-    if (t < _c.revealedEnd) return;
-    if (t > _c.revealedEnd + 30) {
+    // Far on (a look-alike misheard), or far back: it's told where they
+    // are instead.
+    if (t > _c.revealedEnd + 30 || t < _c.revealedEnd - 60) {
       final (g, w) = MushafRepo.tokenAt(_script, _c.nextHiddenWord);
       FollowSession.instance.setPosition(g, w < 0 ? 0 : w);
       return;
     }
-    _c.revealThrough(t);
+    if (t < _c.revealedEnd) return;
+    _revealing = true;
+    try {
+      _c.revealThrough(t);
+    } finally {
+      _revealing = false;
+    }
   }
 
   void _followStatus() {
@@ -383,31 +426,24 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
     }
   }
 
-  /// Holding a revealed word opens its sheet (mark a stumble right there).
+  /// Holding a revealed word opens its sheet (mark a stumble right there):
+  /// the same sheet as everywhere, its arrows stopping at hidden words.
   void _hold(MushafWord wd) {
     if (!_shows(wd)) {
       if (_tapReveals) _step();
       return;
     }
-    if (MarksScope.maybeOf(context) == null) return;
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheet) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: .6,
-        maxChildSize: .94,
-        builder: (_, scroll) => ListView(
-          controller: scroll,
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
-          children: [
-            WordMarksPanel(ref: WordRef.fromGlobal(wd.ayah, wd.wordIdx)),
-          ],
-        ),
-      ),
+    showWordSheet(
+      context,
+      script: _script,
+      word: wd,
+      surahName: (n) => _tnames[n] ?? '',
+      onPlayWord: _playWord,
+      onRecite: (w) => _tapVerseAudio(w.ayah),
+      canShow: _shows,
     );
   }
+
 
   Future<void> _play({bool withBefore = false}) async {
     if (ReciteBack.instance.playing.value) {
@@ -428,6 +464,10 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
   }
 
   void _toMushaf() {
+    // Revealing what's recited goes on on the page.
+    if (_listening && identical(FollowSession.instance.owner, this)) {
+      FollowSession.instance.owner = #memorize;
+    }
     if (widget.fromMushaf) {
       Navigator.of(context).pop();
       return;
@@ -717,7 +757,7 @@ class _MemorizeCardsScreenState extends State<MemorizeCardsScreen> {
                           onPlayPage: () => _play(withBefore: true),
                           onPlayClips: (clips) => ReciteBack.instance
                               .play(clips, rate: SettingsScope.of(context).playbackSpeed),
-                          onListen: _listen,
+                          onListen: kFollowSupported ? _listen : null,
                           listening: _listening,
                           listenStatus: FollowStrip(
                               ink: paper.ink,

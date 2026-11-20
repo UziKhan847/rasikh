@@ -2,7 +2,8 @@
     <!-- ── Permissions ──────────────────────────────────────────────
          INTERNET             — word-by-word & recitation audio streaming,
                                 audio downloads, Qur'an word-timing lookups,
-                                and — only once the user signs in to an
+                                the listening model's one-time download, and
+                                — only once the user signs in to an
                                 optional marks account — syncing Hifz mark
                                 books with the self-hosted marks server.
                                 All typefaces are bundled assets; no font
@@ -16,10 +17,10 @@
                                 after a reboot. POST_NOTIFICATIONS comes
                                 from the notifications plugin and is only
                                 asked for when the reminder is switched on.
-         RECORD_AUDIO         — the Reader's fluency practice: a cold read
-                                is recorded, to play back and count its
-                                stalls and madd errors. Asked for only when
-                                a recording starts; kept on the device.
+         RECORD_AUDIO         — Follow my recitation: listens as you
+                                recite, on the device, to keep your place.
+                                Asked for when it's first turned on; nothing
+                                is sent anywhere.
          No storage permissions are needed: downloads are written to the
          app's own documents directory (scoped storage), and no external
          media, camera, or location access is used.                 -->

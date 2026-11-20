@@ -13,7 +13,9 @@ extension _FollowChrome on _MushafPageScreenState {
   (int, int)? get _followPlace => _following ? _fs.place : null;
 
   /// The tool, on or off: on starts from the first word in view.
+  /// Memorizing, it's revealing what's recited (the memorize bar's own).
   Future<void> _hifzFollow() async {
+    if (_memorizing) return _memoListen();
     if (_following) {
       _hifzSetTool(_HifzTool.none);
       if (identical(_fs.owner, this)) await _fs.stop();
@@ -25,6 +27,34 @@ extension _FollowChrome on _MushafPageScreenState {
     final ok = await startFollow(context, this, g, w);
     if (!mounted) return;
     if (!ok && _following) _update(() => _hifzTool = _HifzTool.none);
+    if (ok) _followSetView();
+  }
+
+  /// Where a phrase that comes in several places is taken: on the page (or
+  /// spread) in view first, then the next, then the one before — and,
+  /// memorizing, from the first hidden word on before what's shown.
+  void _followSetView() {
+    if (!mounted || !_fs.active || !identical(_fs.owner, this)) return;
+    final m = _memo;
+    final int first, last;
+    if (_memoFollow && m != null) {
+      first = last = MushafRepo.pageOfToken(_script, m.nextHiddenWord);
+    } else {
+      final s = SettingsScope.of(context);
+      final page = _pendingPage ?? _page;
+      final spread = (_desktop && _view(s) == 'spread') || _phoneSpread;
+      first = spread ? _spreadStart(page) : page;
+      last = spread ? first + 1 : page;
+    }
+    var view = _fs.viewOf(_script, first, last);
+    if (_memoFollow && m != null && view.isNotEmpty) {
+      final (a, b) = view.first;
+      final next = _fs.wordsOfTokens(_script, m.nextHiddenWord, m.nextHiddenWord + 1);
+      if (next != null && next.$1 > a && next.$1 <= b) {
+        view = [(next.$1, b), (a, next.$1 - 1), ...view.skip(1)];
+      }
+    }
+    _fs.setView(view);
   }
 
   /// The first word of the page (or spread) in view.
@@ -88,6 +118,7 @@ extension _FollowChrome on _MushafPageScreenState {
 
   /// A page settled: one they turned to themselves is where they'll go on.
   void _followSettled(int page) {
+    if (_following || _memoFollow) _followSetView();
     if (!_following || !_fs.active) return;
     final s = SettingsScope.of(context);
     final spread = (_desktop && _view(s) == 'spread') || _phoneSpread;

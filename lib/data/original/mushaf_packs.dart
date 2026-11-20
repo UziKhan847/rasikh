@@ -66,15 +66,41 @@ class MushafPacks {
   /// Bumped when a folder is chosen or forgotten: what's open is read again.
   static final changes = ValueNotifier<int>(0);
 
-  static String? dirOf(String script) => debugDir ?? dirs[script];
+  /// Where downloaded packs are unpacked (`<app support>/packs`; set at
+  /// startup by PackInstall).
+  static String? downloadRoot;
+
+  /// [script]'s folder: one chosen (desktop), else the one downloaded.
+  static String? dirOf(String script) {
+    final chosen = debugDir ?? dirs[script];
+    if (chosen != null) return chosen;
+    final r = downloadRoot;
+    if (r == null) return null;
+    final d = '$r${Platform.pathSeparator}$script';
+    return File('$d${Platform.pathSeparator}pages.json').existsSync() ? d : null;
+  }
+
+  /// Whether [script]'s folder is the one the app downloaded (not chosen).
+  static bool isDownloaded(String script) =>
+      debugDir == null && dirs[script] == null && dirOf(script) != null;
 
   /// [script]'s pack, if its folder is there and holds one.
   static MushafPack? of(String script) {
     final d = dirOf(script);
     if (d == null) return null;
+    // Checked once (about eight file checks and a read): again only after a
+    // folder is chosen or forgotten ([changes]), or one fails to open
+    // ([forgetChecks]).
+    final key = (d, script, changes.value);
+    if (_checked.containsKey(key)) return _checked[key];
     final (pack, _) = check(d, script);
-    return pack;
+    return _checked[key] = pack;
   }
+
+  static final Map<(String, String, int), MushafPack?> _checked = {};
+
+  /// Look again: a folder that was there may have gone (or come back).
+  static void forgetChecks() => _checked.clear();
 
   static bool available(String script) => !scripts.contains(script) || of(script) != null;
 

@@ -107,4 +107,16 @@ void main() {
     expect(isolateArabic('كله عربي'), 'كله عربي', reason: 'all Arabic: as it is');
     expect(isolateArabic('all English'), 'all English');
   });
+
+  test('a comment of both languages reads the app language\'s way', () {
+    const ltr = TextDirection.ltr, rtl = TextDirection.rtl;
+    // "ب is 2 counts" in English: from the left, ب first.
+    expect(directionOf('ب is 2 counts', ui: ltr), ltr);
+    expect(directionOf('ب is 2 counts', ui: rtl), rtl);
+    expect(directionOf('mistake on ب', ui: rtl), rtl);
+    // One language only: its own way, whatever the app's.
+    expect(directionOf('كله عربي 2', ui: ltr), rtl);
+    expect(directionOf('all English', ui: rtl), ltr);
+    expect(directionOf('12 34', ui: rtl), isNull);
+  });
 }

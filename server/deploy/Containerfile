@@ -1,0 +1,32 @@
+# The marks/sync server (PocketBase) as a container, for a host where nginx
+# in podman already holds ports 80 and 443 (see docs/rasikh-server-guide.txt).
+#
+#   podman build -t rasikh-sync -f server/deploy/Containerfile server
+#
+# The schema (pb_migrations), rules and routes (pb_hooks) and the public
+# page (pb_public) are baked in; the data (pb_data) is a volume.
+FROM docker.io/library/alpine:3.20
+
+ARG PB_VERSION=0.40.5
+RUN apk add --no-cache ca-certificates unzip wget \
+ && wget -q "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip" -O /tmp/pb.zip \
+ && unzip -q /tmp/pb.zip pocketbase -d /pb \
+ && rm /tmp/pb.zip \
+ && apk del unzip wget \
+ && adduser -D -H -u 10001 pb \
+ && mkdir -p /pb/pb_data \
+ && chown pb:pb /pb/pb_data
+
+COPY pb_migrations /pb/pb_migrations
+COPY pb_hooks /pb/pb_hooks
+COPY pb_public /pb/pb_public
+
+USER pb
+WORKDIR /pb
+EXPOSE 8090
+ENV GOMEMLIMIT=400MiB
+# Inside the container network only; nginx is the way in from outside.
+CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8090", \
+     "--dir=/pb/pb_data", "--migrationsDir=/pb/pb_migrations", \
+     "--hooksDir=/pb/pb_hooks", "--publicDir=/pb/pb_public", \
+     "--encryptionEnv=PB_ENCRYPTION_KEY"]

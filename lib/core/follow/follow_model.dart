@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:isolate';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import '../display_rotation.dart' show deviceRamMb;
+import '../verified_download.dart';
+export '../verified_download.dart' show DownloadBadFile, DownloadCancelled;
 
 /// High: quran-asr-small (33M parameters); Low: quran-asr-tiny (16M), for
 /// older phones — faster and cooler, but it loses its place more often.
@@ -140,57 +140,21 @@ abstract final class FollowModel {
     final all = filesOf(t);
     final total = all.fold<int>(0, (n, f) => n + f.bytes);
     var before = 0;
-    var cancelled = false;
-    cancel?.then((_) => cancelled = true);
     for (final f in all) {
-      final out = File('${dir.path}/${f.name}');
-      if (out.existsSync() && out.lengthSync() == f.bytes) {
-        before += f.bytes;
-        onProgress?.call(before, total);
-        continue;
-      }
-      final part = File('${out.path}.part');
-      var have = part.existsSync() ? part.lengthSync() : 0;
-      if (have > f.bytes) {
-        part.deleteSync();
-        have = 0;
-      }
-      if (have < f.bytes) {
-        final c = client();
-        try {
-          final req = http.Request('GET', Uri.parse(f.url));
-          if (have > 0) req.headers['Range'] = 'bytes=$have-';
-          final res = await c.send(req);
-          if (res.statusCode == 200) {
-            have = 0; // the whole file, from the start
-          } else if (res.statusCode != 206) {
-            throw HttpException('HTTP ${res.statusCode}', uri: Uri.parse(f.url));
-          }
-          final sink = part.openWrite(mode: have > 0 ? FileMode.append : FileMode.write);
-          try {
-            await for (final chunk in res.stream) {
-              if (cancelled) throw const FollowCancelled();
-              sink.add(chunk);
-              have += chunk.length;
-              onProgress?.call(before + have, total);
-            }
-          } finally {
-            await sink.close();
-          }
-        } finally {
-          c.close();
-        }
-      }
-      final path = part.path;
-      final sha = await Isolate.run(() async => (await sha256.bind(File(path).openRead()).first).toString());
-      if (sha != f.sha256) {
-        part.deleteSync();
-        throw FollowBadFile(f.name);
-      }
-      part.renameSync(out.path);
+      await downloadVerified(
+        Uri.parse(f.url),
+        File('${dir.path}/${f.name}'),
+        bytes: f.bytes,
+        sha256: f.sha256,
+        client: client,
+        cancel: cancel,
+        allowHttp: true, // (tests' fake addresses; the real ones are https)
+        onProgress: (done) => onProgress?.call(before + done, total),
+      );
       before += f.bytes;
     }
   }
+
 
   /// Removes [t]'s downloaded files.
   static Future<void> remove(FollowTier t) async {
@@ -200,14 +164,7 @@ abstract final class FollowModel {
 }
 
 /// A download was stopped.
-class FollowCancelled implements Exception {
-  const FollowCancelled();
-}
+typedef FollowCancelled = DownloadCancelled;
 
 /// A downloaded file wasn't what it should be (and was thrown away).
-class FollowBadFile implements Exception {
-  final String name;
-  const FollowBadFile(this.name);
-  @override
-  String toString() => '$name: checksum mismatch';
-}
+typedef FollowBadFile = DownloadBadFile;

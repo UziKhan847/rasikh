@@ -175,6 +175,61 @@ void main() {
     final again = MatrixUtils.transformPoint(t.value, under);
     expect((again - at).distance, lessThan(1e-6));
   });
+
+  testWidgets('zoomed: the wheel\'s button comments, only with Ctrl does it move the page',
+      (tester) async {
+    tester.view.physicalSize = const Size(1000, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    var ctrl = false;
+    final held = MushafZoom.zoomHeld;
+    MushafZoom.zoomHeld = () => ctrl;
+    addTearDown(() => MushafZoom.zoomHeld = held);
+    final t = TransformationController(Matrix4.identity()
+      ..translateByDouble(-500, -400, 0, 1)
+      ..scaleByDouble(2, 2, 1, 1));
+    // What a word does with the press (the comment): sees it whatever wins.
+    var presses = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: MushafZoom(
+        active: true,
+        onActive: (_) {},
+        controller: t,
+        child: Listener(
+          onPointerDown: (e) {
+            if (e.buttons == kMiddleMouseButton) presses++;
+          },
+          child: const ColoredBox(color: Colors.white, child: SizedBox.expand()),
+        ),
+      ),
+    ));
+    Offset where() => Offset(t.value.getTranslation().x, t.value.getTranslation().y);
+    final start = where();
+    Future<void> drag(int buttons) async {
+      final g = await tester.startGesture(const Offset(500, 400),
+          kind: PointerDeviceKind.mouse, buttons: buttons);
+      for (var i = 0; i < 10; i++) {
+        await g.moveBy(const Offset(12, 9));
+        await tester.pump();
+      }
+      await g.up();
+      await tester.pump();
+    }
+
+    await drag(kMiddleMouseButton);
+    expect(presses, 1, reason: 'the comment, once');
+    expect(where(), start, reason: 'the page stays put under the comment');
+
+    ctrl = true;
+    await drag(kMiddleMouseButton);
+    expect(where().dx, greaterThan(start.dx), reason: 'Ctrl and the wheel\'s button: across');
+    expect(where().dy, greaterThan(start.dy), reason: 'and up and down');
+    ctrl = false;
+
+    final before = where();
+    await drag(kPrimaryButton);
+    expect(where(), isNot(before), reason: 'a plain drag still moves the zoomed page');
+  });
 }
 
 Future<void> settle(WidgetTester tester) async {

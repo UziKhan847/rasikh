@@ -147,15 +147,14 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('on a phone: no folder to choose, the prompt is left', (tester) async {
+  testWidgets('on a phone: no folder to choose and no download yet, so the chip is '
+      'greyed out (no prompt with nothing to press)', (tester) async {
     final picked = <String>[];
     await picker(tester, picked);
     await tester.tap(find.text('Old Madani'));
     await tester.pumpAndSettle();
-    expect(find.text("Old Madani isn't on this device"), findsOneWidget);
-    expect(find.byKey(const ValueKey('pack-folder')), findsNothing);
-    await tester.tapAt(const Offset(10, 10));
-    await tester.pumpAndSettle();
+    expect(find.text("Old Madani isn't on this device"), findsNothing);
+    expect(find.byKey(const ValueKey('edition-soon-$kOldMadani')), findsOneWidget);
     expect(picked, isEmpty);
   });
 

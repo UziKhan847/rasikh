@@ -9,6 +9,7 @@ import 'package:flutter/services.dart'
 
 import 'core/audio.dart';
 import 'core/desktop_window.dart';
+import 'core/packs/pack_install.dart';
 import 'core/fluency/fluency_store.dart';
 import 'core/jank_watch.dart';
 import 'core/l10n.dart';
@@ -16,7 +17,6 @@ import 'core/marks/marks_store.dart';
 import 'core/perf_log.dart';
 import 'core/profiles.dart';
 import 'core/sync/pocketbase_backend.dart';
-import 'core/sync/sync_backend.dart';
 import 'core/sync/sync_engine.dart';
 import 'core/settings.dart';
 import 'core/theme.dart';
@@ -28,6 +28,8 @@ import 'screens/shell/app_shell.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DesktopWindow.start();
+  // Where downloaded muṣḥaf packs live (a quick lookup, before the first page).
+  await PackInstall.init();
   final settings = AppSettings();
   final progress = ProgressStore();
   final profiles = ProfileStore();
@@ -45,9 +47,8 @@ Future<void> main() async {
   // already signed in to a marks server.
   final sync = SyncEngine(
       store: marks,
-      backend: settings.syncServer.isEmpty
-          ? const NoServerBackend()
-          : await PocketBaseSyncBackend.create(settings.syncServer));
+      // The active profile's account.
+      backend: await syncBackendFor(settings.syncServer, authKey: profiles.syncAuthKey));
   unawaited(marks.load().then((_) => sync.start()));
   WidgetsBinding.instance.addPostFrameCallback((_) {
     _warmUpFonts();

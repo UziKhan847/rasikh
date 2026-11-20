@@ -9,7 +9,8 @@ import 'wire.dart';
 
 /// The self-hosted PocketBase server (schema: server/pb_migrations, rules and
 /// routes: server/pb_hooks). Talks only to [baseUrl]; the session token is
-/// kept in SharedPreferences so the user stays signed in.
+/// kept in SharedPreferences so the user stays signed in — each profile its
+/// own ([authKeyFor]), so each has its own account.
 class PocketBaseSyncBackend implements SyncBackend {
   PocketBaseSyncBackend._(this.baseUrl, this._pb);
 
@@ -18,12 +19,17 @@ class PocketBaseSyncBackend implements SyncBackend {
 
   static const _authKey = 'noor.pb_auth';
 
-  static Future<PocketBaseSyncBackend> create(String baseUrl) async {
+  /// Where a profile's session is kept, by its key suffix (the first
+  /// profile's: '', where the device's sign-in always was).
+  static String authKeyFor(String profileSuffix) => '$_authKey$profileSuffix';
+
+  static Future<PocketBaseSyncBackend> create(String baseUrl,
+      {String authKey = _authKey}) async {
     final prefs = await SharedPreferences.getInstance();
     final store = AsyncAuthStore(
-      save: (data) => prefs.setString(_authKey, data),
-      initial: prefs.getString(_authKey),
-      clear: () => prefs.remove(_authKey),
+      save: (data) => prefs.setString(authKey, data),
+      initial: prefs.getString(authKey),
+      clear: () => prefs.remove(authKey),
     );
     return PocketBaseSyncBackend._(
         baseUrl, PocketBase(baseUrl, authStore: store));
@@ -306,3 +312,10 @@ class PocketBaseSyncBackend implements SyncBackend {
     return ctl.stream;
   }
 }
+
+/// The backend for [server] (none: no server), signed in as the profile
+/// whose session is kept under [authKey].
+Future<SyncBackend> syncBackendFor(String server, {required String authKey}) async =>
+    server.isEmpty
+        ? const NoServerBackend()
+        : await PocketBaseSyncBackend.create(server, authKey: authKey);

@@ -138,6 +138,60 @@ void main() {
     expect(refs[a.heard], startsWith('36:'));
   });
 
+  // Page 11 (2:70–76) begins "قالوا ادع لنا ربك يبين لنا", and page 10
+  // has it twice (2:68, 2:69): on page 11 it's 2:70, not one of those.
+  final page11 = (firstOf['2:70']!, firstOf['2:77']! - 1);
+  final page12 = (firstOf['2:77']!, firstOf['2:84']! - 1);
+  final page10 = (firstOf['2:62']!, firstOf['2:70']! - 1);
+
+  test('lost for a moment at the top of a page: the phrase found on the page, '
+      'not the same words a page back', () {
+    final a = FollowAligner(bare, surahOf)
+      ..setPosition(firstOf['2:70']!)
+      ..setView([page11, page12, page10]);
+    // A hesitant start: nothing that matches.
+    for (var i = 0; i < 8; i++) {
+      a.update(['طلب', 'دن', 'الطلب']);
+    }
+    final events = [for (final h in heard(firstOf['2:70']!, 8)) ...a.update(h)];
+    expect(events, isNotEmpty);
+    expect(refs[a.heard], startsWith('2:70:'));
+    for (final e in events) {
+      final w = switch (e) { FollowProgress(:final word) || FollowJump(:final word) => word, _ => -1 };
+      if (w >= 0) expect(refs[w], startsWith('2:70:'), reason: 'never back to 2:68 or 2:69');
+    }
+  });
+
+  test('lost, with no page known: on from where they were, not back', () {
+    final a = FollowAligner(bare, surahOf)..setPosition(firstOf['2:70']!);
+    for (var i = 0; i < 8; i++) {
+      a.update(['طلب', 'دن', 'الطلب']);
+    }
+    for (final h in heard(firstOf['2:70']!, 8)) {
+      a.update(h);
+    }
+    expect(refs[a.heard], startsWith('2:70:'));
+  });
+
+  test('no idea where they are: of the same words all over, the page in view\'s', () {
+    final a = FollowAligner(bare, surahOf)
+      ..clearPosition()
+      ..setView([page11, page12, page10]);
+    for (final h in heard(firstOf['2:70']!, 10, garble: 0)) {
+      a.update(h);
+    }
+    expect(refs[a.heard], startsWith('2:70:'));
+    // The page in view the one before: there (2:68 or 2:69, which begin
+    // alike, on it), not 2:70.
+    final b = FollowAligner(bare, surahOf)
+      ..clearPosition()
+      ..setView([page10, page11]);
+    for (final h in heard(firstOf['2:69']!, 10, garble: 0)) {
+      b.update(h);
+    }
+    expect(b.heard, inInclusiveRange(page10.$1, page10.$2));
+  });
+
   test('a transcript is aligned in well under a millisecond', () {
     final a = FollowAligner(bare, surahOf);
     final from = firstOf['3:1']!;

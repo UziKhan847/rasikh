@@ -54,6 +54,10 @@ class FakeEngine implements FollowEngine {
   @override
   void setPosition(int word) => positions.add(word);
 
+  final views = <List<(int, int)>>[];
+  @override
+  void setView(List<(int, int)> ranges) => views.add(ranges);
+
   @override
   Future<void> stop() async => listening = false;
 
@@ -408,6 +412,53 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('memo-listen')).first);
       await settle(tester);
       expect(fs.active, isFalse);
+      await close(tester);
+    });
+
+    testWidgets('memorizing, the Follow key reveals what\'s recited (memorizing goes '
+        'on); revealing by hand moves where it listens from; the page in view '
+        'is told first', (tester) async {
+      await home(tester, warned: true);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyN); // memorize
+      await settle(tester);
+      final m = tester.state<State<MushafPageScreen>>(find.byType(MushafPageScreen));
+      int revealed() => (m as dynamic).debugMemoEnd as int;
+      final t0 = revealed();
+      expect(t0, greaterThanOrEqualTo(0));
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV); // Follow
+      await settle(tester);
+      final fs = FollowSession.instance;
+      expect(fs.status.value, FollowStatus.listening);
+      expect(revealed(), t0, reason: 'still memorizing, nothing shown yet');
+      // The page being memorized first, the reveal point on.
+      final words = fs.words!;
+      expect(engine.views, isNotEmpty);
+      final (g0, w0) = MushafRepo.tokenAt('uthmani', t0);
+      expect(engine.views.last.first.$1, words.indexOf(g0, w0 < 0 ? 0 : w0));
+      // A word heard: shown.
+      engine.events_.add(('progress', engine.positions.first + 1));
+      await settle(tester);
+      expect(revealed(), greaterThan(t0));
+      // A verse revealed by hand: they'll recite on from after it.
+      final n = engine.positions.length;
+      final before = revealed();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space); // the rest of the āyah
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await settle(tester);
+      expect(revealed(), greaterThan(before));
+      expect(engine.positions.length, greaterThan(n), reason: 're-placed after a reveal by hand');
+      var next = revealed();
+      while (MushafRepo.tokenAt('uthmani', next).$2 < 0) {
+        next++;
+      }
+      final (g, w) = MushafRepo.tokenAt('uthmani', next);
+      expect(engine.positions.last, words.indexOf(g, w));
+      // V again: off, still memorizing.
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+      await settle(tester);
+      expect(fs.active, isFalse);
+      expect(revealed(), greaterThan(t0));
       await close(tester);
     });
 

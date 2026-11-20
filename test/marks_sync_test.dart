@@ -1,4 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rasikh/core/l10n.dart';
+import 'package:rasikh/screens/marks/sync_section.dart';
 import 'package:rasikh/core/marks/marks_model.dart';
 import 'package:rasikh/core/marks/marks_persistence.dart';
 import 'package:rasikh/core/marks/marks_store.dart';
@@ -240,5 +243,37 @@ void main() {
     expect(() => listener.engine.signIn('zayd', 'wrong'),
         throwsA(isA<SyncException>()
             .having((e) => e.error, 'error', SyncError.invalid)));
+  });
+
+  testWidgets('"Share with a student": what they may do, then the book is '
+      'synced and their code shown', (tester) async {
+    await reciter.engine.signUp('ustadh', 'pw-ustadh-1');
+    final book = reciter.store.createBook('Ahmad').id;
+    await tester.pumpWidget(MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      locale: const Locale('en'),
+      home: Scaffold(
+        body: MarksScope(
+          store: reciter.store,
+          child: SyncScope(
+              engine: reciter.engine,
+              child: const SingleChildScrollView(child: SyncSection())),
+        ),
+      ),
+    ));
+    await tester.tap(find.byKey(const ValueKey('share-student')));
+    await tester.pumpAndSettle();
+    expect(find.text('To read'), findsOneWidget);
+    expect(find.text('To read and mark'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('share-checker')));
+    await tester.pumpAndSettle();
+    expect(reciter.store.book(book)!.synced, isTrue);
+    expect(find.text('Share code'), findsOneWidget);
+    expect(server.invites.values.single['role'], 'checker');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await reciter.engine.pause();
+    await reciter.store.flush();
   });
 }

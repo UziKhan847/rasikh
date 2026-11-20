@@ -27,8 +27,12 @@ class WordMarksPanel extends StatelessWidget {
   /// muṣḥaf's link mode): called with a new one, and by "Link another".
   /// Null: no linking here.
   final ValueChanged<Mark>? onLink;
+
+  /// Where a mark can be stretched over more words, a tap at a time (the
+  /// muṣḥaf): "Extend to…" on its tile.
+  final ValueChanged<Mark>? onExtend;
   const WordMarksPanel(
-      {super.key, required this.ref, this.sessionId, this.onLink});
+      {super.key, required this.ref, this.sessionId, this.onLink, this.onExtend});
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +86,8 @@ class WordMarksPanel extends StatelessWidget {
                 store: store,
                 mp: mp,
                 sessionId: sessionId,
-                onLink: _link(context)),
+                onLink: _link(context),
+                onExtend: onExtend),
         if (canMark) ...[
           const SizedBox(height: 6),
           Text(context.l10n.mkAddMark,
@@ -141,7 +146,10 @@ class _MarkTile extends StatelessWidget {
       required this.store,
       required this.mp,
       required this.sessionId,
-      this.onLink});
+      this.onLink,
+      this.onExtend});
+
+  final ValueChanged<Mark>? onExtend;
 
   @override
   Widget build(BuildContext context) {
@@ -217,6 +225,18 @@ class _MarkTile extends StatelessWidget {
             ].join(' · '),
             style: uiStyle(context, size: 12, color: p.ink3),
           ),
+          // One mark over several words: from where to where.
+          if (mark.isSpan)
+            Text(
+              key: const ValueKey('mark-span'),
+              [
+                '${mark.ref.surah}:${mark.ref.ayah}:${mark.ref.word} → '
+                    '${mark.to!.surah}:${mark.to!.ayah}:${mark.to!.word}',
+                if (mark.spanWords(MarksStore.ayahWords)?.length case final n?)
+                  context.l10n.mkSpanWords(n),
+              ].join(' · '),
+              style: uiStyle(context, size: 12, color: p.ink3),
+            ),
           if (mark.type == MarkType.mutashabih) ...[
             const SizedBox(height: 6),
             MutashabihLinks(mark: mark, store: store, canEdit: canEdit),
@@ -249,6 +269,9 @@ class _MarkTile extends StatelessWidget {
                   'fix', color: fix == null ? mp.fixed : null),
             if (canEdit && mark.type == MarkType.mutashabih && onLink != null)
               _act(context, AppIcons.add, context.l10n.mtLinkAnother, 'link'),
+            // Over more words (a touch screen's Shift and drag).
+            if (canEdit && onExtend != null && !mark.ref.isWholeAyah && !mark.type.isBreath)
+              _act(context, Icons.swap_horiz, context.l10n.mkExtend, 'extend'),
             if (canEdit)
               _act(
                   context,
@@ -288,6 +311,8 @@ class _MarkTile extends StatelessWidget {
       store.setFixed(mark, store.fixOf(mark) == null, sessionId: sessionId);
     } else if (v == 'link') {
       onLink?.call(mark);
+    } else if (v == 'extend') {
+      onExtend?.call(mark);
     } else if (v == 'comment') {
       final technique = mark.type == MarkType.mutashabih;
       final t = await askText(context,

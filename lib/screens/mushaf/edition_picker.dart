@@ -3,10 +3,13 @@ import 'package:qiraah_ui/responsive.dart' show isDesktopPlatform;
 
 import '../../core/l10n.dart';
 import '../../core/mushaf_edition.dart';
+import '../../core/packs/pack_catalog.dart';
+import '../../core/packs/pack_install.dart';
 import '../../core/settings.dart';
 import '../../core/theme.dart';
 import '../../data/mushaf.dart' show kOldMadani;
 import '../../data/original/mushaf_packs.dart';
+import '../../data/original/original_atlas.dart' show OriginalAtlas;
 import '../../ui/app_icons.dart';
 import '../../ui/tool_popover.dart';
 import 'pack_sheet.dart';
@@ -29,8 +32,9 @@ class MushafEditionPicker extends StatelessWidget {
   void _options(BuildContext anchor, String script) {
     final s = SettingsScope.of(anchor);
     final circle = script == kOldMadani;
-    final hasDir = isDesktopPlatform() && MushafPacks.dirOf(script) != null;
-    if (!circle && !hasDir) return;
+    final downloaded = MushafPacks.isDownloaded(script);
+    final hasDir = isDesktopPlatform() && MushafPacks.dirOf(script) != null && !downloaded;
+    if (!circle && !hasDir && !downloaded) return;
     showToolPopover<void>(anchor, anchor: anchor, side: AxisDirection.up, builder: (pop) {
       final l = pop.l10n;
       Widget row(String id, String label) => ListTile(
@@ -49,6 +53,22 @@ class MushafEditionPicker extends StatelessWidget {
         if (circle) ...[
           row('modern', l.edCircleModern),
           row('classic', l.edCircleClassic),
+        ],
+        // Downloaded: removed (the space back).
+        if (downloaded) ...[
+          if (circle) const Divider(height: 8),
+          ListTile(
+            key: const ValueKey('pack-remove'),
+            dense: true,
+            leading: const Icon(Icons.delete_outline, size: 20),
+            title: Text(l.packRemove),
+            onTap: () async {
+              Navigator.pop(pop);
+              await PackInstall.remove(script);
+              OriginalAtlas.reset();
+              if (value == script) onChanged('uthmani');
+            },
+          ),
         ],
         // Where its files are: another folder, or none.
         if (hasDir) ...[
@@ -95,12 +115,30 @@ class MushafEditionPicker extends StatelessWidget {
             Wrap(spacing: 8, runSpacing: 8, children: [
               for (final e in editions)
                 Builder(builder: (chip) {
+                  // A print whose files aren't here, where there's no way yet
+                  // to get them (a phone: no folder, no download yet): greyed
+                  // out and saying so, not a prompt with nothing to press.
+                  final unreachable = MushafPacks.scripts.contains(e.script) &&
+                      !isDesktopPlatform() &&
+                      !PackCatalog.configured &&
+                      e.script != value &&
+                      !MushafPacks.available(e.script!);
                   final option = ChoiceChip(
                     label: Text(e.name(l)),
                     selected: e.script == value,
                     showCheckmark: false,
-                    onSelected: mushafEditionOn(e) ? (_) => _pick(chip, e.script!) : null,
+                    onSelected: mushafEditionOn(e) && !unreachable
+                        ? (_) => _pick(chip, e.script!)
+                        : null,
                   );
+                  if (unreachable) {
+                    return Tooltip(
+                      key: ValueKey('edition-soon-${e.script}'),
+                      message: l.packSoon,
+                      triggerMode: TooltipTriggerMode.tap,
+                      child: option,
+                    );
+                  }
                   if (!MushafPacks.scripts.contains(e.script)) return option;
                   // A print, held: its options.
                   return GestureDetector(

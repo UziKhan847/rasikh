@@ -26,10 +26,17 @@ bool _isLetter(int c) =>
 class QuickInsertBar extends StatelessWidget {
   /// The word, as printed ('': a whole āyah, or no word: no first row).
   final String word;
+
+  /// The face [word] is drawn in: the muṣḥaf's (its text is that font's).
+  final String wordFont;
   final MarkType? markType;
   final ValueChanged<String> onInsert;
   const QuickInsertBar(
-      {super.key, required this.word, required this.markType, required this.onInsert});
+      {super.key,
+      required this.word,
+      this.wordFont = 'DigitalKhattV2',
+      required this.markType,
+      required this.onInsert});
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +60,7 @@ class QuickInsertBar extends StatelessWidget {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         if (word.isNotEmpty)
           _Row(children: [
-            _Chip(word, arabic: true, strong: true, onTap: () => onInsert(word)),
+            _Chip(word, arabic: true, font: wordFont, strong: true, onTap: () => onInsert(word)),
             for (final c in letters) _Chip(c, arabic: true, onTap: () => onInsert(c)),
           ]),
         _Row(children: [
@@ -89,8 +96,12 @@ class _Row extends StatelessWidget {
 class _Chip extends StatelessWidget {
   final String text;
   final bool arabic, strong;
+
+  /// An Arabic chip's face (the letters: UthmanicHafs).
+  final String? font;
   final VoidCallback onTap;
-  const _Chip(this.text, {this.arabic = false, this.strong = false, required this.onTap});
+  const _Chip(this.text,
+      {this.arabic = false, this.font, this.strong = false, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +120,10 @@ class _Chip extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: arabic ? 10 : 9, vertical: arabic ? 2 : 6),
             child: Text(text,
                 textDirection: arabic ? TextDirection.rtl : null,
-                style: arabic
+                style: arabic && font != null
+                    // The DigitalKhatt faces sit higher and need more room.
+                    ? TextStyle(fontFamily: font, fontSize: 17, color: p.ink, height: 1.55)
+                    : arabic
                     ? TextStyle(fontFamily: 'UthmanicHafs', fontSize: 19, color: p.ink, height: 1.3)
                     : uiStyle(context, size: 12.5, weight: FontWeight.w600, color: p.ink2)),
           ),

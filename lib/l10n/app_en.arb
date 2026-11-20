@@ -316,22 +316,8 @@
   "obPromise": "Read, memorise and review the Qurʼān, a page a day.",
   "obHowRead": "How would you like to read?",
   "obHowReadSub": "Pick a script and a reciter. You can change both later in Settings.",
-  "theQuran": "The Qurʼān",
-  "searchSurahHint": "Search sūrahs — a number or a name",
-  "surahsTab": "Sūrahs",
   "bookmarksTab": "Bookmarks",
-  "noSurahMatches": "No sūrah matches “{q}”",
-  "@noSurahMatches": {
-    "placeholders": {
-      "q": {
-        "type": "String"
-      }
-    }
-  },
-  "noSurahMatchesHint": "Try a number like 36, or a name like Yāsīn.",
-  "clearSearch": "Clear search",
   "noBookmarks": "No bookmarks yet",
-  "openAlFatihah": "Open Al-Fātiḥah",
   "lastRead": "Last read",
   "open": "Open",
   "bookmark": "Bookmark",
@@ -389,9 +375,6 @@
   "hzPagesTwo": "Two pages",
   "hzPagesOne": "One page",
   "hzPagesWide": "Full width",
-  "ppExport": "Export pages",
-  "ppTitle": "Muṣḥaf pages as PDF",
-  "ppWhich": "Which pages",
   "ppPages": "Pages",
   "ppFrom": "From page",
   "ppTo": "To page",
@@ -464,28 +447,16 @@
   "mkDoubtHint": "Didn't notice — had to be told",
   "mkNoteHint": "A comment without a mistake",
   "mkMarkRecitation": "Mark recitation",
-  "mkListenAndMark": "Listen & mark",
   "mkMarkBook": "Mark book",
-  "mkReciter": "Reciter",
-  "mkNewBook": "New mark book",
-  "mkBookNameHint": "Reciter's name",
   "mkListener": "Listener",
-  "mkListenerHint": "Who is listening (optional)",
-  "mkKind": "Kind",
   "mkKindNone": "—",
   "mkKindSabaq": "Sabaq",
   "mkKindSabqi": "Sabqi",
   "mkKindManzil": "Manzil",
   "mkKindOther": "Other",
-  "mkStart": "Start",
-  "mkResume": "Resume",
   "mkUndo": "Undo",
   "mkEnd": "End",
-  "mkSessionSummary": "Session summary",
-  "mkSessionNoteHint": "Note for this session (optional)",
   "mkSave": "Save",
-  "mkNoMarksThisSession": "No marks this session — well done.",
-  "mkMarkingHint": "Pick a pen, then tap words. Tap again to remove.",
   "mkMarksOnWord": "Marks on this word",
   "mkNoMarksOnWord": "No marks on this word yet.",
   "mkAddMark": "Add a mark",
@@ -501,17 +472,7 @@
   "mkShowMarks": "Show marks",
   "mkShowFixed": "Show fixed marks",
   "mkShowFixedSub": "Mistakes that have since been fixed, in green",
-  "mkHifz": "Hifz",
-  "mkHifzTitle": "Hifz & listening",
-  "mkStartListening": "Start listening",
-  "mkStartListeningSub": "Open the muṣḥaf and mark as you listen",
-  "mkRecentSessions": "Recent sessions",
-  "mkNoSessions": "No sessions yet. Start listening to mark a recitation.",
   "mkStatistics": "Statistics",
-  "mkManageBooks": "Mark books",
-  "mkRename": "Rename",
-  "mkDeleteBookQ": "Delete this mark book and all its marks?",
-  "mkActive": "Active",
   "mkYourName": "Your name",
   "mkYourNameSub": "Shown on marks you make",
   "mkTotal": "Total",
@@ -534,17 +495,6 @@
   "mkSortCount": "Most",
   "mkSortOrder": "In order",
   "mkTapPageHint": "Tap a page to open it",
-  "mkSessionLine": "{date} · {count} marks",
-  "@mkSessionLine": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      },
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "mkMarkedBy": "{name} · {date}",
   "@mkMarkedBy": {
     "placeholders": {
@@ -601,13 +551,10 @@
   "mkOffline": "Offline — changes will sync later",
   "mkSyncError": "Couldn't sync",
   "mkNotSynced": "Not synced yet",
-  "mkShareBook": "Share this book",
-  "mkShareBookSub": "Sync it so listeners and checkers can see and mark it.",
-  "mkSyncThisBook": "Sync this book",
   "mkInviteListener": "Invite a listener",
   "mkInviteChecker": "Invite a checker",
   "mkInviteCode": "Share code",
-  "mkInviteCodeSub": "Valid for 7 days. They enter it under Hifz → Join a book.",
+  "mkInviteCodeSub": "Valid for 7 days. They enter it under History → Account & sync → Join a book.",
   "mkJoinBook": "Join a book",
   "mkJoinCodeHint": "Share code",
   "mkMembers": "Members",
@@ -747,7 +694,6 @@
   "rvPrev": "Previous",
   "rvNext": "Next",
   "rvRepeatHint": "Repeat the word (hold for the verse)",
-  "rvOpenMushaf": "Open in muṣḥaf",
   "rvDoneTitle": "Review done",
   "rvDoneSummary": "{seen} reviewed · {fixed} fixed · {left} still open",
   "rvAgain": "Review again",
@@ -907,7 +853,7 @@
   "mzStartCardsSub": "Large writing, one āyah at a time — no page to keep to",
   "mzShowAyah": "Show the āyah",
   "mzHideAyah": "Hide the āyah",
-  "mzPlayCards": "Hear what's showing (hold: with the āyah before)",
+  "mzPlayCards": "Hear the āyah as far as it shows (hold: choose the āyah)",
   "mzAsCards": "Verse cards",
   "mzAsPage": "Muṣḥaf page",
   "mzBigger": "Larger text",
@@ -1094,8 +1040,6 @@
   "hzEraser": "Eraser",
   "hzView": "View",
   "hzAudioHint": "Tap a word to hear it, a ۝ for its āyah",
-  "hzCommentHint": "Tap a word for its comments",
-  "hzEraserHint": "Tap a word to wipe its marks · hold the eraser for the page",
   "hzErasePage": "Clear page",
   "hzErasePageQ": "Erase every mark and comment on this page?",
   "hzNothingToErase": "Nothing marked here",
@@ -1180,283 +1124,27 @@
   "flSlowSub": "A word you don't read at once: it goes into your warm-up",
   "flPair": "Pair",
   "flChunk": "Chunk",
-  "flHintSlow": "Tap the words you don't read at once",
-  "flHintPair": "Tap a word to pair it with the next one, to practise the join",
-  "flHintChunk": "Tap a word to split off its prefix and suffix",
   "flPairWithNext": "Pair with the next word",
   "flSplit": "Prefix and suffix",
   "flSplitSub": "See the word you know inside the longer one",
-  "flPrefix": "Prefix",
-  "flSuffix": "Suffix",
   "flRemove": "Remove",
   "flJoinWasl": "Hamzat al-waṣl",
   "flJoinIdgham": "Idghām",
   "flJoinIqlab": "Iqlāb",
   "flJoinIkhfa": "Ikhfāʾ",
   "flJoinPlain": "Join",
-  "flDeckEmpty": "Nothing to practise here yet. In the Reader, turn on fluency marks and tap the words that slow you down.",
-  "flDeckDone": "Done for now",
-  "flDeckTally": "{instant} instant · {slow} slow · {wrong} wrong",
-  "@flDeckTally": {
-    "placeholders": {
-      "instant": {
-        "type": "int"
-      },
-      "slow": {
-        "type": "int"
-      },
-      "wrong": {
-        "type": "int"
-      }
-    }
-  },
-  "flDeckAt": "{n} of {total}",
-  "@flDeckAt": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "flShowWhole": "Show the whole word",
-  "flReadAloud": "Read it aloud, then say how it went",
-  "flHearHint": "Hear it if you like, then on to the next",
   "flInstant": "Instant",
   "flSlowRead": "Slow",
   "flWrong": "Wrong",
-  "flHear": "Hear it",
-  "flNext": "Next",
-  "flHome": "Fluency practice",
-  "flHomeSub": "Read words at a glance: warm-up, pairs, passages, cold reads",
-  "flWarmup": "Warm-up",
-  "flWarmupSub": "{n} words to read at once",
-  "@flWarmupSub": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "flYourMarks": "Your marks",
-  "flDue": "{n} to practise",
-  "@flDue": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "flPairs": "Pairs",
-  "flChunks": "Prefixes and suffixes",
-  "flWordLists": "Common words",
-  "flTier1": "Particles and anchors",
-  "flTier2": "Common nouns and verbs",
-  "flTier3": "Divine names and phrases",
-  "flTierProgress": "{instant} of {total} read at once",
-  "@flTierProgress": {
-    "placeholders": {
-      "instant": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "psTitle": "Passage practice",
-  "psWords": "Words alone",
-  "psPairs": "Pairs",
-  "psHalves": "Half-verses",
-  "psVerses": "Whole verses",
-  "psRepeated": "Read it three times",
-  "psSupports": "Supports",
-  "psReadHint": "Read it aloud. A silent pause to look ahead is fine; a stretched vowel isn't.",
-  "psListenHint": "Now hear it read, then on",
-  "psPreviewHint": "Read it silently, word by word, with your eyes",
-  "psAloud": "Now aloud",
-  "psStart": "Start reading {n}",
-  "@psStart": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "psStop": "Done · {secs} s",
-  "@psStop": {
-    "placeholders": {
-      "secs": {
-        "type": "String"
-      }
-    }
-  },
-  "psModeling": "Hear it read",
-  "psModelingSub": "Before reading it (the first weeks), after a first try, or not at all",
-  "psListenFirst": "First",
-  "psListenAfter": "After",
-  "psListenNone": "Never",
-  "psEyesAhead": "Eyes ahead",
-  "psEyesAheadSub": "Each word is covered once you pass it, so your eyes are already on the next",
-  "psPreview": "Silent preview",
-  "psPreviewSub": "Before a verse aloud, read it with your eyes, word by word",
-  "psPractise": "Practise",
-  "psPractisePassage": "Practise a passage",
-  "psPractisePassageSub": "Words, pairs, half-verses, whole verses, then three timed readings",
-  "mdTitle": "Madd counts",
-  "mdSub": "Say the count, then read it",
-  "mdSay": "How many counts? Say it, then read the word",
-  "mdShow": "Show the count",
-  "mdCounts": "{n} counts",
-  "@mdCounts": {
-    "placeholders": {
-      "n": {
-        "type": "String"
-      }
-    }
-  },
-  "mdNatural": "Natural madd",
-  "mdConnected": "Madd muttaṣil (in the word)",
-  "mdSeparate": "Madd munfaṣil (across words)",
-  "mdNecessary": "Madd lāzim",
-  "flPassages": "Passages and timing",
-  "crTitle": "Cold read",
-  "crSub": "One minute on a passage you've never heard, recorded",
-  "crNone": "No unseen passage left for this phase. Mark fewer as known, or move on in the plan.",
-  "crIntro": "A minute's reading of a passage you haven't heard or memorised. Read it aloud at your own pace; nothing is corrected while you read. Afterwards you'll mark where you reached.",
-  "crWords": "{n} words",
-  "crAnother": "Another passage",
-  "crKnown": "I know this one by heart",
-  "crRecord": "Record it",
-  "crRecordSub": "To play back afterwards and count your stalls and madd errors",
-  "crStart": "Start the minute",
-  "crNoCorrection": "Keep going: nothing is corrected now. Pause silently rather than stretch a vowel.",
-  "crTapLast": "Tap the last word you read",
-  "crTapMisread": "Now tap any word you misread (tap again to undo)",
-  "crCorrectN": "{n} words correct",
-  "crCheckRecorded": "Play your recording. Each time you hear a stretched vowel used as a filler, add a stall; each time a madd is too long or too short, add a madd error.",
-  "crCheckSelf": "No recording this time: count your stalls and madd errors as best you remember.",
-  "crPlayBack": "Play the recording",
-  "crStalls": "Stalls (stretched vowels)",
-  "crMadd": "Madd errors",
-  "crPerception": "Timing perception",
-  "crPerceptionSub": "Out of 10, every three weeks (if checked with a teacher)",
-  "crNotes": "Notes",
-  "crPerMinute": "{n} words a minute",
-  "crSinceStart": "You started at {n} a minute",
-  "tkTitle": "Tracker",
-  "tkSub": "Your cold reads, week by week",
-  "tkEmpty": "No cold reads yet. The first one is your baseline.",
-  "tkWpm": "Words correct a minute",
-  "tkPlayFirst": "Play the first",
-  "tkPlayLatest": "Play the latest",
-  "tkWeek": "Week",
-  "tkPassage": "Passage",
-  "tkWords": "Words / min",
-  "tkStalls": "Stalls / min",
-  "tkMadd": "Madd / min",
-  "tkPerception": "Perception",
-  "tkBaseline": "Baseline",
-  "plToday": "Today's session",
-  "plBlockWarmup": "Word warm-up",
-  "plBlockChunks": "Chunks and pairs",
-  "plBlockBuildup": "Verse build-up",
-  "plBlockTiming": "Timing: madd counts",
-  "plBlockCold": "Cold read",
-  "plBlockWrapup": "Wrap-up: the tracker",
-  "plMeasure": "Measure",
-  "plSupports": "Supports, and when they fade",
-  "plTitle": "The 12-week plan",
-  "plIntro": "Twelve weeks towards reading words at a glance. It starts with a baseline: a one-minute cold read of a passage you haven't heard, so later gains are plain to see.",
-  "plStart": "Start with the baseline",
-  "plFoundation": "Foundation",
-  "plFoundationFocus": "The commonest words read at once. Name the stalling habit and practise silent pauses instead.",
-  "plBuilding": "Building",
-  "plBuildingFocus": "Common nouns and verbs, prefixes and suffixes, pairs across joins, and hearing the madd counts.",
-  "plTransfer": "Transfer",
-  "plTransferFocus": "Divine names and phrases. Read first, then hear it, then read again; check yourself on your recordings.",
-  "plIndependence": "Independence",
-  "plIndependenceFocus": "No modeling before the first read. Mark your own madd errors from your recordings.",
-  "plCheckTier1": "90% of the commonest words read at once",
-  "plCheckStalls": "Stalls a minute halved since the baseline",
-  "plCheckTier2": "80% of the common nouns and verbs read at once",
-  "plCheckPerception": "Timing perception 8 out of 10",
-  "plCheckCold": "Cold read up 25% on the baseline",
-  "plCheckThree": "Three cold reads in a row above that",
-  "plWeek": "Week {n} · {phase}",
-  "plMoveOn": "Move on when",
-  "plRefer": "Progress has been slow for a while. If you haven't had an eye test recently, it's worth one; if reading is hard in your own language too, an assessment there can find the right tools.",
-  "plRestart": "Start over",
-  "plHome": "At home, 10–15 minutes a day: flash this week's words, read today's passage once more, and listen once to the next passage while following the text with a finger.",
-  "plNow": "Use it now",
-  "plFadeTajwid": "Weeks 10–12: alternate sessions with plain text",
-  "plSpacing": "Extra word and line spacing",
-  "plFadeSpacing": "Weeks 7–9: step down to normal spacing",
-  "plWindow": "Reading window (one line)",
-  "plFadeWindow": "Only for new passages, then drop it",
-  "plFadeModel": "Now: hear it after your first try",
-  "plFadeModelNone": "Now: read without hearing it first",
-  "@crWords": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "@crCorrectN": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "@crPerMinute": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "@crSinceStart": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "@plWeek": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      },
-      "phase": {
-        "type": "String"
-      }
-    }
-  },
-  "vrTitle": "Verse by verse",
-  "vrSub": "An āyah at a time: mark the words that slow you down, hear and rate them",
-  "vrFromHere": "Review verse by verse from here",
-  "vrMarkedAyahs": "Āyāt you've marked",
-  "vrMarkedAyahsSub": "{n} āyāt with fluency marks",
-  "@vrMarkedAyahsSub": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "vrHearAyah": "Hear the āyah (Ḥuṣarī)",
-  "vrMarked": "Marked in this āyah",
-  "vrNone": "Nothing marked here yet. Tap a word above to mark it.",
-  "vrRetired": "read at once",
-  "vrPrev": "Previous āyah",
-  "vrNext": "Next āyah",
   "mkMe": "Me",
   "sessionSaved": "Saved to History · {when}",
-  "@sessionSaved": {"placeholders": {"when": {"type": "String"}}},
+  "@sessionSaved": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
   "rvNothing": "Nothing to review yet: mark some words first.",
   "hsTitle": "History",
   "hsSessions": "Sessions",
@@ -1464,20 +1152,30 @@
   "hsMarking": "Marking",
   "hsReview": "Review",
   "hsMarksN": "{n} {n, plural, =1{mark} other{marks}}",
-  "@hsMarksN": {"placeholders": {"n": {"type": "int"}}},
+  "@hsMarksN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "hsFixedN": "{n} fixed",
-  "@hsFixedN": {"placeholders": {"n": {"type": "int"}}},
+  "@hsFixedN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "hsNote": "Note",
   "hsDelete": "Delete",
   "tcMore": "More",
   "tcMark": "Mark",
-  "tcPractice": "Practice",
   "tcExport": "Export",
   "mkRecitationMarks": "Recitation marks",
   "mkRecitationSub": "Mistake, tajwīd, hesitation, doubt",
   "tcHint": "Tap a circle to start; hold it for options",
   "rvChoose": "Choose what to review…",
-  "rvFluency": "Fluency marks, verse by verse",
   "exReport": "Report",
   "exPages": "Pages",
   "exBoth": "Both",
@@ -1507,10 +1205,6 @@
   "hzAlignCenter": "Centre",
   "hzAlignRight": "Right",
   "hzMonochrome": "Monochrome",
-  "kaFluencyHear": "Hear it",
-  "kaFluencyNext": "On",
-  "kaFluencyOnward": "Onward",
-  "kaFluencyBack": "Back",
   "kaClickHere": "Click here with the new button, holding any keys you want with it.",
   "kaScrollHere": "Hold a key and scroll here.",
   "kaPlainClick": "A plain left click is the word's own. Hold a key with it, or use another button.",
@@ -1586,7 +1280,6 @@
   "gdPages": "One page or two side by side, when the screen is wide.",
   "gdPagesHold": "how a single page fits",
   "gdZoom": "Pinch to zoom the page; the ✕ at the top ends it.",
-  "gdPractice": "Fluency exercises.",
   "gdExport": "Your marks as a report, the pages, or images, to print or share.",
   "gdHistory": "Your sessions and progress.",
   "gdProfile": "Separate marks and progress for each person.",
@@ -1597,12 +1290,33 @@
   "gdEraserHold": "clear the whole page",
   "gdBreath": "Where a student stops for breath and starts again: tap a word for each, in turn.",
   "gdUndo": "Take back the last mark.",
-  "@gdHold": {"placeholders": {"what": {"type": "String"}}},
-  "@kaClash": {"placeholders": {"key": {"type": "String"}, "other": {"type": "String"}}},
+  "@gdHold": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "@kaClash": {
+    "placeholders": {
+      "key": {
+        "type": "String"
+      },
+      "other": {
+        "type": "String"
+      }
+    }
+  },
   "exSaveAs": "Save As…",
   "exOpen": "Open",
   "exMakingImages": "Making images: {count}",
-  "@exMakingImages": {"placeholders": {"count": {"type": "int"}}},
+  "@exMakingImages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "mkBreath": "Breath",
   "mkBreathStop": "Stop here",
   "mkBreathStart": "Restart here",
@@ -1647,12 +1361,24 @@
   "idxPagesGrid": "Grid",
   "idxPagesList": "List, with marks",
   "packTitle": "{name} isn't on this device",
-  "@packTitle": {"placeholders": {"name": {"type": "String"}}},
+  "@packTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "packBody": "Its page images are a separate download, so the app stays small.",
   "packHigh": "High quality",
   "packLow": "Low (smaller)",
   "packMb": "{mb} MB",
-  "@packMb": {"placeholders": {"mb": {"type": "int"}}},
+  "@packMb": {
+    "placeholders": {
+      "mb": {
+        "type": "int"
+      }
+    }
+  },
   "packRecommended": "Recommended",
   "packSoon": "Download coming soon",
   "packChooseFolder": "Choose folder…",
@@ -1663,12 +1389,26 @@
   "packBadData": "That folder has no pages.json and signs.json.",
   "packBadTier": "That folder has no high/ or low/ folder of pages.",
   "packGone": "{name}'s files weren't found",
-  "@packGone": {"placeholders": {"name": {"type": "String"}}},
+  "@packGone": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "packChoose": "Choose…",
   "packBadEdition": "That folder holds {other}, not {name}.",
-  "@packBadEdition": {"placeholders": {"other": {"type": "String"}, "name": {"type": "String"}}},
+  "@packBadEdition": {
+    "placeholders": {
+      "other": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "followTitle": "Follow my recitation",
-  "followWarnTitle": "Before you start",
   "followWarnBody": "Follow my recitation listens as you recite and keeps your place: it highlights the word you're on, turns the page, and finds you if you start somewhere else.\n\nIt does not detect mistakes, nor tajwīd. For that, recite to a teacher.",
   "followWarnOk": "I understand",
   "followCaption": "Doesn't detect mistakes or tajwīd",
@@ -1676,7 +1416,13 @@
   "followModelBody": "It listens on this device, offline: nothing you recite leaves it. The model is downloaded once.",
   "followDownload": "Download",
   "followDownloading": "Downloading… {percent}%",
-  "@followDownloading": {"placeholders": {"percent": {"type": "int"}}},
+  "@followDownloading": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
   "followBadFile": "The download was damaged and has been removed. Try again.",
   "followNetError": "The download failed. Check the connection and try again.",
   "followNotModel": "That folder doesn't hold the listening model (model.int8.onnx, tokens.txt and silero_vad.onnx).",
@@ -1687,7 +1433,13 @@
   "followMicDenied": "Rāsikh can't use the microphone. Allow it in the system's settings.",
   "followFailed": "Following couldn't start.",
   "followFound": "Found you at {ref}",
-  "@followFound": {"placeholders": {"ref": {"type": "String"}}},
+  "@followFound": {
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      }
+    }
+  },
   "followShowHeard": "Show what's heard",
   "followModel": "Listening model",
   "followRemove": "Remove the downloaded model",
@@ -1707,7 +1459,43 @@
   "followKeep": "Keep recordings for tuning",
   "followKeepSub": "What you recite while following is saved on this device only, to tune following to your voice.",
   "mzPlayUpTo": "up to word {n}",
-  "@mzPlayUpTo": {"placeholders": {"n": {"type": "int"}}},
+  "@mzPlayUpTo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "mzPlayAllShown": "Everything showing here",
-  "mzListen": "Reveal as I recite"
+  "mzListen": "Reveal as I recite",
+  "followDeleteRecordings": "Delete recordings",
+  "mkSpanWords": "{n} words",
+  "@mkSpanWords": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "mkExtend": "Extend to…",
+  "mkExtendHint": "Tap the last word of this mark",
+  "packNoSpace": "Not enough space on this device to unpack it.",
+  "packRemove": "Remove download",
+  "ppLines": "Mark with lines",
+  "ppLinesSub": "A faint line from each marked word to its note",
+  "mkShareStudent": "Share with a student",
+  "mkShareStudentSub": "They see these marks on their own phone, signed in to their own account.",
+  "mkShareBtn": "Share",
+  "mkRoleChecker": "To read",
+  "mkRoleCheckerSub": "They see the marks and can comment on them.",
+  "mkRoleListener": "To read and mark",
+  "mkRoleListenerSub": "They can also add marks and mark them fixed.",
+  "mkInviteShareText": "Join my book in Rāsikh: History → Account & sync → Join a book, code {code}",
+  "@mkInviteShareText": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  }
 }

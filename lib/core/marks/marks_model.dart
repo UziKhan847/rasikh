@@ -260,11 +260,11 @@ class Mark extends SyncRecord {
   @override
   final String bookId;
   final String? sessionId;
-  final WordRef ref;
+  WordRef ref;
 
   /// Its last word, when it covers several (from [ref] on, in reading
   /// order, across āyāt if need be): one mark over them all.
-  final WordRef? to;
+  WordRef? to;
   MarkType type;
   String comment;
   final String authorId;
